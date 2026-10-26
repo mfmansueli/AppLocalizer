@@ -155,6 +155,7 @@ struct ResultsReportView: View {
         if model.isRestoreQueued(result.id) {
             Pill(text: String(localized: "Queued"), systemImage: "checkmark", style: .accent)
                 .help(String(localized: "The old price waits in Review & Push."))
+                .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("pricing.results.restored.\(result.id)")
         } else if model.canRestore(result) {
             Button {

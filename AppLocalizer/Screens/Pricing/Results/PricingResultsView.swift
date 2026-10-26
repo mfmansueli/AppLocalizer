@@ -11,7 +11,9 @@ struct PricingResultsView: View {
     let viewModel: PricingViewModel
 
     var body: some View {
-        Group {
+        // A stack rather than a Group, so the tab's identifier stays on the
+        // tab instead of replacing each state's own.
+        VStack(spacing: 0) {
             if let model = viewModel.results {
                 content(model)
             } else {

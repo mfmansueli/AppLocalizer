@@ -80,6 +80,7 @@ struct OfferDetailView: View {
             .padding(.horizontal, Spacing.medium)
             .monospacedDigit()
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("pricing.offers.table")
     }
 
