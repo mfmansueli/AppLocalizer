@@ -47,6 +47,9 @@ struct PendingChange: Identifiable, Hashable, Codable, Sendable {
     var remoteConflict: RemoteConflict?
     /// Set when the person and an assistant both edited this field.
     var alternative: ChangeAlternative?
+    /// A switch the review row shows under the change, e.g. "Publish to the
+    /// App Store"; nil for most changes.
+    var option: ChangeOption?
     var createdAt: Date
 
     init(
@@ -103,9 +106,16 @@ struct PendingChange: Identifiable, Hashable, Codable, Sendable {
         return nil
     }
 
+    /// What a push sends, in order: the change's own requests, then its
+    /// option's while the option is on.
+    var pushRequests: [PushRequest] {
+        guard let option, option.isEffective else { return requests }
+        return requests + option.requests
+    }
+
     /// Requests a push sends for it, counting the conflict check's `GET`.
     var estimatedRequestCount: Int {
-        requests.count + (conflictCheck == nil ? 0 : 1)
+        pushRequests.count + (conflictCheck == nil ? 0 : 1)
     }
 
     /// The change that puts the old value back, or nil when it can't be

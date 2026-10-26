@@ -167,6 +167,18 @@ final class ChangeQueue {
         }
     }
 
+    // MARK: - Options
+
+    /// Flips a change's option (e.g. "Publish to the App Store") in review.
+    /// An option that can't be turned on stays off.
+    func setOption(id: PendingChange.ID, isOn: Bool) {
+        update(id) { change in
+            guard var option = change.option, option.isEnabled || !isOn else { return }
+            option.isOn = isOn
+            change.option = option
+        }
+    }
+
     private func update(_ id: PendingChange.ID, _ body: (inout PendingChange) -> Void) {
         guard let index = changes.firstIndex(where: { $0.id == id }) else { return }
         body(&changes[index])

@@ -1,0 +1,165 @@
+//
+//  AppInformationViewModel.swift
+//  AppLocalizer
+//
+
+import Foundation
+import Observation
+
+/// The App Information section's state: App Store Connect's values for the
+/// app and the chosen version, with every pending change laid on top, and
+/// the edits that queue new ones.
+///
+/// The `ChangeQueue` is where edits live. Every edit builds the field's
+/// `PendingChange` (`AppInformationChangeBuilder`) and upserts it, or
+/// discards it when the value is back at App Store Connect's. The pages
+/// read their values through the builder from the content plus the queue,
+/// so discarding a change in Review & Push reverts the page, and queued
+/// values survive navigation and relaunch. Each page's edits are in
+/// `AppInformationViewModel+<Page>.swift`.
+@MainActor
+@Observable
+final class AppInformationViewModel {
+    let app: StoreApp
+    let services: any AppInformationServices
+    let queue: ChangeQueue
+    private let summaries: AppSummaryStore?
+    private let push: PushController?
+
+    // MARK: - Loaded state
+
+    private(set) var content: AppInformationContent?
+    private(set) var isLoading = false
+    private(set) var errorMessage: String?
+    private(set) var accessibility: LoadState<AccessibilityContent> = .idle
+    /// The status, Apple's code and the request of a failed accessibility
+    /// load.
+    private(set) var accessibilityErrorLine: String?
+    /// What's kept on this Mac: the override's reason, export answers,
+    /// assistants' evidence.
+    var notes: AppInformationNotes {
+        didSet { services.notes.setNotes(notes, for: app.id) }
+    }
+
+    // MARK: - Navigation
+
+    var page: AppInformationPage = .general
+    /// The accessibility editor sheet, while it's open.
+    var editor: AccessibilityEditorDraft?
+    /// The editor's line after Copy from iPhone.
+    var editorMessage: String?
+    /// Said after an action, e.g. "Saved. It’s waiting in Review & Push…".
+    var toast: String?
+    /// The question whose evidence popover is open.
+    var evidenceQuestion: AgeRatingQuestion?
+    var showsExportEvidence = false
+    var isPasswordVisible = false
+
+    private var selectedVersionID: String?
+
+    init(
+        app: StoreApp,
+        services: any AppInformationServices,
+        queue: ChangeQueue,
+        summaries: AppSummaryStore? = nil,
+        push: PushController? = nil
+    ) {
+        self.app = app
+        self.services = services
+        self.queue = queue
+        self.summaries = summaries
+        self.push = push
+        notes = services.notes.notes(for: app.id)
+    }
+
+    // MARK: - Loading
+
+    /// Loads the pages, then the accessibility declarations.
+    func load() async {
+        await loadContent()
+        await loadAccessibility()
+    }
+
+    /// Fetches General, Age Rating, App Review and Export Compliance for the
+    /// chosen version. A failure keeps what was shown and says why.
+    func loadContent() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let previous = content
+            content = try await services.content(for: app, versionID: selectedVersionID)
+            errorMessage = nil
+            refreshSummaryIfNeeded(after: previous)
+        } catch {
+            errorMessage = AppInformationErrorReporter.report(error, to: push)
+        }
+    }
+
+    /// Fetches the accessibility declarations; Try Again calls it too.
+    func loadAccessibility() async {
+        if accessibility.value == nil { accessibility = .loading }
+        do {
+            accessibility = try await .loaded(services.accessibility(for: app))
+            accessibilityErrorLine = nil
+        } catch {
+            accessibility = .failed(String(localized: "Couldn’t load accessibility declarations."))
+            accessibilityErrorLine = AppInformationErrorReporter.requestLine(for: error, request: "/v1/apps/\(app.id)/accessibilityDeclarations")
+        }
+    }
+
+    /// Picks another version in the version menu.
+    func selectVersion(_ id: StorePageVersion.ID) async {
+        guard id != content?.version?.id else { return }
+        selectedVersionID = id
+        await loadContent()
+    }
+
+    var isLoaded: Bool { content != nil }
+
+    // MARK: - Queue
+
+    /// The builder for this app and the shown version. Accessibility only
+    /// needs the app, so it works before the rest has loaded.
+    var builder: AppInformationChangeBuilder {
+        AppInformationChangeBuilder(
+            appID: app.id,
+            ids: content?.ids ?? AppInformationResourceIDs(appID: app.id, appInfoID: ""),
+            versionString: content?.version?.versionString
+        )
+    }
+
+    /// This app's queued App Information changes.
+    var changes: [PendingChange] {
+        queue.changes(for: app.id, section: .appInformation)
+    }
+
+    /// Queues `change`, or discards the change at `id` when there's
+    /// nothing to push any more. Your edit on the page replaces an
+    /// assistant's proposal for the same field, and keeps a publish switch
+    /// you already flipped in review.
+    func apply(_ change: PendingChange?, id: String) {
+        guard var change else {
+            queue.discard(id: id)
+            return
+        }
+        if let old = queue.change(id: change.id) {
+            change.createdAt = old.createdAt
+            if change.newValue == old.newValue { change.remoteConflict = old.remoteConflict }
+            if let wasOn = old.option?.isOn, change.option?.isEnabled == true { change.option?.isOn = wasOn }
+            guard change != old else { return }
+            if old.source.isAssistant, !change.source.isAssistant { queue.discard(id: old.id) }
+        }
+        queue.upsert(change)
+    }
+
+    /// Tells the overview and sidebar when a reload brought a different
+    /// rating or App Review state than they show.
+    private func refreshSummaryIfNeeded(after previous: AppInformationContent?) {
+        guard let previous, let content, let summaries else { return }
+        let changed = previous.ageRating.currentRating != content.ageRating.currentRating
+            || previous.review.isComplete != content.review.isComplete
+        guard changed else { return }
+        summaries.invalidate(app.id)
+        Task { [app] in await summaries.load(app) }
+    }
+}

@@ -6,7 +6,9 @@
 import SwiftUI
 
 /// One change in a running push: queued ○, sending (spinner), done ✓, or
-/// failed with Apple's code and detail underneath.
+/// failed with Apple's code and detail underneath. A change with an option
+/// says its step on the right instead of its value: Queued → Sending… →
+/// Publishing… → Published, or Saved as a draft.
 struct PushProgressRow: View {
     let item: PushItem
 
@@ -26,7 +28,7 @@ struct PushProgressRow: View {
                 }
             }
             Spacer(minLength: Spacing.small)
-            Text(item.change.newValue)
+            Text(trailingText)
                 .foregroundStyle(Palette.label2)
                 .monospacedDigit()
                 .lineLimit(1)
@@ -35,7 +37,7 @@ struct PushProgressRow: View {
         .padding(.horizontal, Spacing.xLarge)
         .padding(.vertical, Spacing.xSmall + 1)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("\(item.change.title) · \(item.change.group), \(statusText), \(item.change.newValue)"))
+        .accessibilityLabel(Text("\(item.change.title) · \(item.change.group), \(statusText), \(trailingText)"))
         .accessibilityIdentifier("push.row.\(item.id)")
     }
 
@@ -60,6 +62,17 @@ struct PushProgressRow: View {
         case .notSent:
             Image(systemName: "minus.circle")
                 .foregroundStyle(Palette.label3)
+        }
+    }
+
+    /// The new value, or the option's step for a change that has one.
+    private var trailingText: String {
+        guard let option = item.change.option else { return item.change.newValue }
+        switch item.status {
+        case .queued: return String(localized: "Queued")
+        case .sending: return item.isSendingOption ? option.progressTitle : String(localized: "Sending…")
+        case .done: return option.finishedTitle
+        case .failed, .conflict, .notSent: return item.change.newValue
         }
     }
 

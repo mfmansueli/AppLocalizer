@@ -9,8 +9,9 @@ import Synchronization
 
 /// Simulates App Store Connect for DEBUG scenes: every request takes
 /// `delay`, requests whose path or body contains a `failures` key are
-/// refused with that error, `remoteValues` answer conflict checks, and the
-/// hourly quota counts up from `usedThisHour`.
+/// refused with that error, `remoteValues` answer conflict checks, a `POST`
+/// answers with a made-up ID for the resource it "created", and the hourly
+/// quota counts up from `usedThisHour`.
 final class DebugPushTransport: PushTransport {
     private let delay: Duration
     private let failures: [String: AppStoreConnectError]
@@ -36,7 +37,8 @@ final class DebugPushTransport: PushTransport {
         if let failure = failures.first(where: { request.path.contains($0.key) || body.contains($0.key) }) {
             throw failure.value
         }
-        return AppStoreConnectResponse(data: Data("{}".utf8), rateLimit: rateLimit)
+        let created = #"{"data":{"type":"debug","id":"debug-\#(UUID().uuidString)"}}"#
+        return AppStoreConnectResponse(data: Data((request.method == .post ? created : "{}").utf8), rateLimit: rateLimit)
     }
 
     /// Answers with `{"value": …}`; conflict checks in DEBUG data read

@@ -130,6 +130,23 @@ final class ReviewPushViewModel {
     var selectedPushableChanges: [PendingChange] { pushableChanges.filter { selection.contains($0.id) } }
     var estimate: PushEstimate { PushEstimate(changes: selection.isEmpty ? pushableChanges : selectedPushableChanges) }
 
+    /// What the footer says about options that are on, e.g. "2 declarations
+    /// publish immediately when pushed": one line per kind of option, for
+    /// the changes a push would send.
+    var optionFootnotes: [String] {
+        let changes = selection.isEmpty ? pushableChanges : selectedPushableChanges
+        var counts: [(footnote: ChangeOptionFootnote, count: Int)] = []
+        for change in changes {
+            guard let option = change.option, option.isEffective, let footnote = option.footnote else { continue }
+            if let index = counts.firstIndex(where: { $0.footnote == footnote }) {
+                counts[index].count += 1
+            } else {
+                counts.append((footnote, 1))
+            }
+        }
+        return counts.map { $0.footnote.text(count: $0.count) }
+    }
+
     // MARK: - Selection
 
     func isSelected(_ id: PendingChange.ID) -> Bool { selection.contains(id) }
@@ -163,6 +180,11 @@ final class ReviewPushViewModel {
 
     func resolveAlternative(_ id: PendingChange.ID, keepAlternative: Bool) {
         queue.resolveAlternative(id: id, keepAlternative: keepAlternative)
+    }
+
+    /// Flips a change's option, e.g. "Publish to the App Store".
+    func setOption(_ id: PendingChange.ID, isOn: Bool) {
+        queue.setOption(id: id, isOn: isOn)
     }
 
     /// What a push of `changes` should confirm first, if anything: a large
