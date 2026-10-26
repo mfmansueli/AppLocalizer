@@ -15,6 +15,8 @@ struct StoreApp: Identifiable, Hashable, Sendable {
     var sku: String?
     /// The locale the store listing falls back to, e.g. `en-US`.
     var primaryLocale: String?
+    /// nil draws a letter tile.
+    var icon: AppIcon?
 }
 
 extension StoreApp {

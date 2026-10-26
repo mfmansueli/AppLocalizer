@@ -8,6 +8,10 @@ import SwiftUI
 @main
 struct AppLocalizerApp: App {
     @State private var session = AppSession(store: Self.credentialsStore)
+    @State private var changes = ChangeQueue(persistence: Self.changePersistence)
+    @State private var history = PushHistory(fileURL: Self.historyURL)
+    @State private var pricingModes = PricingModeStore(defaults: Self.defaults)
+    @State private var preferences = AppPreferences(defaults: Self.defaults ?? .standard)
 
     var body: some Scene {
         // One window: every app is a sidebar row, so a second window would
@@ -15,13 +19,22 @@ struct AppLocalizerApp: App {
         Window("AppLocalizer", id: "main") {
             RootView()
                 .environment(session)
-                .frame(minWidth: 860, minHeight: 560)
+                .environment(changes)
+                .environment(history)
+                .environment(pricingModes)
+                .environment(preferences)
+                .frame(minWidth: Metrics.minimumWindowWidth, minHeight: Metrics.minimumWindowHeight)
         }
         .defaultSize(width: 1200, height: 780)
+        .commands {
+            WorkspaceCommands()
+        }
 
         Settings {
             SettingsView()
                 .environment(session)
+                .environment(pricingModes)
+                .environment(preferences)
         }
     }
 
@@ -32,5 +45,27 @@ struct AppLocalizerApp: App {
         if DebugScene.requestedID != nil { return DebugCredentialsStore() }
         #endif
         return KeychainCredentialsStore()
+    }
+
+    /// DEBUG scenes keep pending changes, history and preferences in memory
+    /// too, so they never touch the real ones.
+    private static var isDebugScene: Bool {
+        #if DEBUG
+        DebugScene.requestedID != nil
+        #else
+        false
+        #endif
+    }
+
+    private static var changePersistence: (any ChangeQueuePersistence)? {
+        isDebugScene ? nil : FileChangeQueuePersistence()
+    }
+
+    private static var historyURL: URL? {
+        isDebugScene ? nil : PushHistory.defaultFileURL
+    }
+
+    private static var defaults: UserDefaults? {
+        isDebugScene ? nil : .standard
     }
 }

@@ -17,6 +17,20 @@ final class AppSession {
     /// shows it so the person knows why they're asked again.
     private(set) var loadErrorMessage: String?
 
+    /// The connected key as the account switcher shows it.
+    var account: TeamAccount? {
+        credentials.map {
+            TeamAccount(
+                id: $0.keyID,
+                name: $0.teamName ?? String(localized: "App Store Connect team"),
+                role: String(localized: "Team key")
+            )
+        }
+    }
+
+    /// Every saved key. One for now; the switcher lists them all.
+    var accounts: [TeamAccount] { account.map { [$0] } ?? [] }
+
     private let store: any CredentialsStore
 
     init(store: any CredentialsStore) {

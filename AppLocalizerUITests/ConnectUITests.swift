@@ -27,7 +27,7 @@ final class ConnectUITests: XCTestCase {
         XCTAssertTrue(connect.waitForExistence(timeout: 10))
         XCTAssertFalse(connect.isEnabled)
 
-        type("69a6de7f-1a2b-47e3-e053-5b8c7c11a4d1", into: "connect.issuerIDField")
+        type("69a6de7f-3c2e-47e3-e053-5b8c7c11a4d1", into: "connect.issuerIDField")
         type("ABCDE12345", into: "connect.keyIDField")
         // Still no private key.
         XCTAssertFalse(connect.isEnabled)
@@ -43,15 +43,15 @@ final class ConnectUITests: XCTestCase {
     func testImportedKeyFillsTheKeyIDAndConnects() {
         launch(scene: "connect-key")
         XCTAssertTrue(element("connect.importedKeyName").waitForExistence(timeout: 10))
-        XCTAssertEqual(app.textFields["connect.keyIDField"].value as? String, "ABCDE12345")
+        XCTAssertEqual(app.textFields["connect.keyIDField"].value as? String, "2X9R4HXF34")
 
-        type("69a6de7f-1a2b-47e3-e053-5b8c7c11a4d1", into: "connect.issuerIDField")
+        type("69a6de7f-3c2e-47e3-e053-5b8c7c11a4d1", into: "connect.issuerIDField")
         let connect = app.buttons["connect.connectButton"]
         XCTAssertTrue(connect.isEnabled)
         connect.click()
 
         // The debug services accept the key and the app library opens.
-        XCTAssertTrue(element("sidebar.app.6443000001").waitForExistence(timeout: 10))
+        XCTAssertTrue(element("sidebar.app.6450000001").waitForExistence(timeout: 10))
     }
 
     func testRemovingTheKeyBringsBackTheDropZone() {

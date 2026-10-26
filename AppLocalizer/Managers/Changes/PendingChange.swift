@@ -1,0 +1,77 @@
+//
+//  PendingChange.swift
+//  AppLocalizer
+//
+
+import Foundation
+
+/// One edit waiting in Review & Push. Every change goes through review,
+/// whether the person made it, a suggestion filled it, machine translation
+/// produced it or an assistant proposed it.
+struct PendingChange: Identifiable, Hashable, Codable, Sendable {
+    /// Stable per target, so editing the same thing twice replaces the change
+    /// instead of adding another, e.g. `price.<subscriptionID>.<territoryID>`
+    /// or `listing.<versionID>.<locale>.<field>`.
+    var id: String
+    var appID: StoreApp.ID
+    var section: AppWorkspaceSection
+    /// The heading this change is grouped under in the review sheet, e.g.
+    /// "Subscription Pricing · Lumen Plus Annual" or "Store Page · Version 1.4".
+    var group: String
+    /// A line shown under the group heading, e.g. the price schedule:
+    /// "Prices change as soon as Apple processes them · existing subscribers
+    /// keep their price".
+    var groupNote: String?
+    /// The territory or locale and field, e.g. "Brazil" or "German · Subtitle".
+    var title: String
+    /// ISO 3166 alpha-2 code of the flag shown before the title.
+    var flagRegion: String?
+    var oldValue: String
+    var newValue: String
+    /// Signed whole percent, for price changes (a delta pill).
+    var deltaPercent: Int?
+    var source: ChangeSource
+    /// Why it can't be pushed (over the limit, invalid URL, unresolved
+    /// conflict). Blocked changes stay pending and are skipped by a push.
+    var blockedReason: String?
+    /// The App Store Connect writes that apply it, in order.
+    var requests: [PushRequest]
+    var conflictCheck: ConflictCheck?
+    var createdAt: Date
+
+    init(
+        id: String,
+        appID: StoreApp.ID,
+        section: AppWorkspaceSection,
+        group: String,
+        groupNote: String? = nil,
+        title: String,
+        flagRegion: String? = nil,
+        oldValue: String,
+        newValue: String,
+        deltaPercent: Int? = nil,
+        source: ChangeSource = .you,
+        blockedReason: String? = nil,
+        requests: [PushRequest],
+        conflictCheck: ConflictCheck? = nil,
+        createdAt: Date = .now
+    ) {
+        self.id = id
+        self.appID = appID
+        self.section = section
+        self.group = group
+        self.groupNote = groupNote
+        self.title = title
+        self.flagRegion = flagRegion
+        self.oldValue = oldValue
+        self.newValue = newValue
+        self.deltaPercent = deltaPercent
+        self.source = source
+        self.blockedReason = blockedReason
+        self.requests = requests
+        self.conflictCheck = conflictCheck
+        self.createdAt = createdAt
+    }
+
+    var isBlocked: Bool { blockedReason != nil }
+}

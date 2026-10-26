@@ -26,7 +26,7 @@ struct RootView: View {
     @ViewBuilder
     private var content: some View {
         if let credentials = session.credentials {
-            MainView(credentials: credentials)
+            MainView(credentials: credentials, accounts: session.accounts)
                 // A different key is a different account: start over.
                 .id(credentials)
         } else {
