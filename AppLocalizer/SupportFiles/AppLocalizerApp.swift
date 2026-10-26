@@ -7,12 +7,13 @@ import SwiftUI
 
 @main
 struct AppLocalizerApp: App {
-    @State private var session = AppSession(store: Self.credentialsStore)
+    @State private var session = AppSession(store: Self.credentialsStore, defaults: Self.defaults)
     @State private var changes: ChangeQueue
     @State private var history: PushHistory
     @State private var push: PushController
     @State private var pricingModes = PricingModeStore(defaults: Self.defaults)
-    @State private var preferences = AppPreferences(defaults: Self.defaults ?? .standard)
+    @State private var preferences = AppPreferences(defaults: Self.defaults)
+    @State private var translation = TranslationPreferences(defaults: Self.defaults, secrets: Self.secretStore)
 
     init() {
         let changes = ChangeQueue(persistence: Self.changePersistence)
@@ -33,28 +34,55 @@ struct AppLocalizerApp: App {
                 .environment(push)
                 .environment(pricingModes)
                 .environment(preferences)
+                .environment(translation)
+                .environment(\.keyChecker, Self.keyChecker)
                 .frame(minWidth: Metrics.minimumWindowWidth, minHeight: Metrics.minimumWindowHeight)
         }
         .defaultSize(width: 1200, height: 780)
         .commands {
             WorkspaceCommands()
+            AccountCommands(session: session)
         }
 
         Settings {
-            SettingsView()
+            SettingsView(selection: Self.initialSettingsTab)
                 .environment(session)
                 .environment(pricingModes)
                 .environment(preferences)
+                .environment(translation)
+                .environment(\.keyChecker, Self.keyChecker)
         }
     }
 
-    /// DEBUG scenes (and so UI tests) keep the key in memory, so they never
-    /// read or overwrite the real one in the Keychain.
+    /// DEBUG scenes (and so UI tests) keep keys and secrets in memory, so
+    /// they never read or overwrite the real ones in the Keychain.
     private static var credentialsStore: any CredentialsStore {
         #if DEBUG
-        if DebugScene.requestedID != nil { return DebugCredentialsStore() }
+        if let id = DebugScene.requestedID { return SettingsDebugScenes.credentialsStore(for: id) }
         #endif
         return KeychainCredentialsStore()
+    }
+
+    private static var secretStore: any SecretStore {
+        #if DEBUG
+        if let id = DebugScene.requestedID { return SettingsDebugScenes.secretStore(for: id) }
+        #endif
+        return KeychainSecretStore()
+    }
+
+    /// DEBUG scenes check keys with canned answers, never with Apple.
+    private static var keyChecker: any KeyChecker {
+        #if DEBUG
+        if let id = DebugScene.requestedID { return ConnectDebugScenes.keyChecker(for: id) }
+        #endif
+        return LiveKeyChecker()
+    }
+
+    private static var initialSettingsTab: SettingsTab {
+        #if DEBUG
+        if let tab = DebugScene.requestedID.flatMap(SettingsDebugScenes.tab(for:)) { return tab }
+        #endif
+        return .account
     }
 
     /// DEBUG scenes keep pending changes, history and preferences in memory

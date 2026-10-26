@@ -50,4 +50,14 @@ struct AppSummaryStoreTests {
         #expect(store.pricing[lumen.id]?.value == .empty)
         #expect(pricing.fetches == 2)
     }
+
+    @Test func appIsSettledOnceEverySummaryLoadedOrFailed() async {
+        let store = makeStore()
+        #expect(!store.isSettled(lumen.id))
+        pricing.error = AppStoreConnectError.rateLimited
+        await store.load(lumen)
+        #expect(store.isSettled(lumen.id))
+        store.invalidate(lumen.id)
+        #expect(!store.isSettled(lumen.id))
+    }
 }

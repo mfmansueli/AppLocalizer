@@ -6,42 +6,56 @@
 import Foundation
 import Observation
 
-/// The connect form: Issuer ID, Key ID and the `.p8` key. Fields are checked
-/// locally as they're typed (`CredentialsValidator`), then "Connect" makes
-/// one signed request to Apple (`ConnectServices.verify`) and only a key that
-/// works is handed to `onConnect`, which saves it.
+/// The connect form: Issuer ID, Key ID and the `.p8` key. Each field is
+/// checked locally once the person leaves it (`CredentialsValidator`), then
+/// "Connect" checks the key with App Store Connect (`KeyChecker`) and only a
+/// key that works is handed to `onConnect`, which saves it.
 @MainActor
 @Observable
 final class ConnectViewModel {
     var issuerID = ""
+    /// Uppercased as it's typed (`uppercaseKeyID()`).
     var keyID = ""
+
     private(set) var privateKey: ImportedPrivateKey?
-    /// Why the last picked/dropped file was rejected.
+    /// The name of a picked or dropped file that isn't a `.p8` key.
+    private(set) var rejectedFileName: String?
+    /// Why the last picked or dropped file couldn't even be read.
     private(set) var importErrorMessage: String?
     /// Why the last "Connect" failed (Apple's answer, network, Keychain).
-    private(set) var errorMessage: String?
+    private(set) var failure: KeyCheckFailure?
     private(set) var isVerifying = false
+    /// Fields the person has left at least once; only those show hints.
+    private(set) var leftFields: Set<Field> = []
 
-    private let services: any ConnectServices
-    private let onConnect: (AppStoreConnectCredentials) throws -> Void
+    private let checker: any KeyChecker
+    private let onConnect: (AppStoreConnectCredentials, KeyAccessCheck) throws -> Void
 
     init(
-        services: any ConnectServices,
+        checker: any KeyChecker,
         privateKey: ImportedPrivateKey? = nil,
-        onConnect: @escaping (AppStoreConnectCredentials) throws -> Void
+        onConnect: @escaping (AppStoreConnectCredentials, KeyAccessCheck) throws -> Void
     ) {
-        self.services = services
+        self.checker = checker
         self.onConnect = onConnect
         if let privateKey { importKey(privateKey) }
     }
 
-    // Hints only show once something was typed: an empty form isn't wrong yet.
+    /// A text field of the form, for "validate when it loses focus".
+    enum Field: Hashable, Sendable {
+        case issuerID
+        case keyID
+    }
+
+    // An empty field isn't wrong yet, and neither is one still being typed.
     var issuerIDIssue: CredentialsIssue? {
-        issuerID.isEmpty ? nil : CredentialsValidator.issuerIDIssue(issuerID)
+        guard leftFields.contains(.issuerID), !issuerID.isEmpty else { return nil }
+        return CredentialsValidator.issuerIDIssue(issuerID)
     }
 
     var keyIDIssue: CredentialsIssue? {
-        keyID.isEmpty ? nil : CredentialsValidator.keyIDIssue(keyID)
+        guard leftFields.contains(.keyID), !keyID.isEmpty else { return nil }
+        return CredentialsValidator.keyIDIssue(keyID)
     }
 
     var credentials: AppStoreConnectCredentials? {
@@ -50,15 +64,28 @@ final class ConnectViewModel {
 
     var canConnect: Bool { credentials != nil && !isVerifying }
 
+    func leave(_ field: Field) {
+        leftFields.insert(field)
+    }
+
+    /// Key IDs are capital letters and digits; the view calls this after
+    /// each edit, so the field shows the uppercased text while typing.
+    func uppercaseKeyID() {
+        let uppercased = keyID.uppercased()
+        if uppercased != keyID { keyID = uppercased }
+    }
+
     /// A picked or dropped file. Fills in an empty Key ID from the
     /// `AuthKey_<KEYID>.p8` name.
     func importKey(_ key: ImportedPrivateKey) {
-        if let issue = CredentialsValidator.privateKeyIssue(key.pem) {
-            importErrorMessage = issue.message
+        importErrorMessage = nil
+        guard CredentialsValidator.privateKeyIssue(key.pem) == nil else {
+            privateKey = nil
+            rejectedFileName = key.fileName
             return
         }
         privateKey = key
-        importErrorMessage = nil
+        rejectedFileName = nil
         if keyID.trimmingCharacters(in: .whitespaces).isEmpty, let fromName = KeyFileName.keyID(from: key.fileName) {
             keyID = fromName
         }
@@ -71,19 +98,20 @@ final class ConnectViewModel {
 
     func removeKey() {
         privateKey = nil
+        rejectedFileName = nil
         importErrorMessage = nil
     }
 
     func connect() async {
         guard let credentials, !isVerifying else { return }
         isVerifying = true
-        errorMessage = nil
+        failure = nil
         defer { isVerifying = false }
         do {
-            try await services.verify(credentials)
-            try onConnect(credentials)
+            let check = try await checker.check(credentials)
+            try onConnect(credentials, check)
         } catch {
-            errorMessage = error.localizedDescription
+            failure = KeyCheckFailure(error)
         }
     }
 }

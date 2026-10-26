@@ -6,7 +6,7 @@
 import Foundation
 
 /// Why the connect form can't be submitted yet, with the hint shown under
-/// the field.
+/// the field once the person leaves it.
 enum CredentialsIssue: Equatable, Sendable {
     case invalidIssuerID
     case invalidKeyID
@@ -15,11 +15,11 @@ enum CredentialsIssue: Equatable, Sendable {
     var message: String {
         switch self {
         case .invalidIssuerID:
-            String(localized: "The Issuer ID is a UUID, like 57246542-96fe-1a63-e053-0824d011072a.")
+            String(localized: "An Issuer ID is a UUID: 8-4-4-4-12 hexadecimal characters. It’s shown above the keys table.")
         case .invalidKeyID:
-            String(localized: "The Key ID is made of letters and digits, like 2X9R4HXF34.")
+            String(localized: "A Key ID is 10 capital letters and digits, like 2X9R4HXF34.")
         case .unreadablePrivateKey:
-            String(localized: "That file isn't an App Store Connect private key. Choose the AuthKey_….p8 file.")
+            String(localized: "Choose the AuthKey_….p8 file you downloaded from App Store Connect. Apple lets you download it only once.")
         }
     }
 }

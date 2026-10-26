@@ -14,13 +14,15 @@ enum CredentialsValidator {
         UUID(uuidString: issuerID.trimmed) == nil ? .invalidIssuerID : nil
     }
 
-    // Apple's key IDs are 10 uppercase letters and digits today; only the
-    // character set is enforced so a longer ID wouldn't lock anyone out.
+    /// Apple's key IDs are 10 letters and digits; lowercase is accepted
+    /// because the form uppercases it anyway.
     static func keyIDIssue(_ keyID: String) -> CredentialsIssue? {
         let keyID = keyID.trimmed
         let isAlphanumeric = keyID.unicodeScalars.allSatisfy { $0.isASCII && CharacterSet.alphanumerics.contains($0) }
-        return keyID.isEmpty || !isAlphanumeric ? .invalidKeyID : nil
+        return keyID.count != keyIDLength || !isAlphanumeric ? .invalidKeyID : nil
     }
+
+    static let keyIDLength = 10
 
     static func privateKeyIssue(_ pem: String) -> CredentialsIssue? {
         (try? P256.Signing.PrivateKey(pemRepresentation: pem.trimmed)) == nil ? .unreadablePrivateKey : nil

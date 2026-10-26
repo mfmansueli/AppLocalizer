@@ -12,6 +12,6 @@ struct KeychainError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         let reason = SecCopyErrorMessageString(status, nil) as String? ?? "OSStatus \(status)"
-        return String(localized: "The Keychain couldn't store the API key: \(reason)")
+        return String(localized: "The Keychain couldn't store the key: \(reason)")
     }
 }

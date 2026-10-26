@@ -20,6 +20,8 @@ struct DebugMainScene: View {
     private let autoPush: Bool
     private let presentedSheet: WorkspaceSheet?
     private let notice: PushNotice?
+    private let isFirstSync: Bool
+    @Environment(AppSession.self) private var session
 
     init(
         services: WorkspaceServices = .debug,
@@ -30,7 +32,8 @@ struct DebugMainScene: View {
         pricingModes: [StoreApp.ID: PricingMode] = DebugWorkspace.pricingModes,
         presentedSheet: WorkspaceSheet? = nil,
         autoPush: Bool = false,
-        notice: PushNotice? = nil
+        notice: PushNotice? = nil,
+        isFirstSync: Bool = false
     ) {
         self.services = services
         self.selectedAppID = selectedAppID
@@ -38,6 +41,7 @@ struct DebugMainScene: View {
         self.autoPush = autoPush
         self.presentedSheet = presentedSheet
         self.notice = notice
+        self.isFirstSync = isFirstSync
         let changes = ChangeQueue(changes: pendingChanges)
         let history = PushHistory(records: pushRecords)
         _changes = State(initialValue: changes)
@@ -53,7 +57,9 @@ struct DebugMainScene: View {
             currentAccountID: DebugFixtures.northpier.id,
             selectedAppID: selectedAppID,
             section: section,
-            presentedSheet: presentedSheet
+            presentedSheet: presentedSheet,
+            isFirstSync: isFirstSync,
+            onAddKey: { session.isAddingKey = true }
         )
         .environment(changes)
         .environment(history)

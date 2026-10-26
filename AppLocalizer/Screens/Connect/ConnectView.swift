@@ -4,49 +4,78 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// First launch (and after removing the key): asks for the team API key —
-/// Issuer ID, Key ID and the `.p8` private key — checks it with one request
-/// to App Store Connect and hands it to `AppSession`, which saves it in the
-/// Keychain.
+/// First launch (and after the last key is removed): asks for a team API
+/// key (Issuer ID, Key ID and the `.p8` private key), checks it with App
+/// Store Connect and hands it to `AppSession`, which saves it in the
+/// Keychain. "Add Another Key…" shows the same form in a sheet, with Cancel.
 struct ConnectView: View {
     @State private var viewModel: ConnectViewModel
     @State private var isImportingKey = false
-    @State private var isShowingHelp = false
-    /// Shown above the form, e.g. why the saved key couldn't be loaded.
+    @State private var isShowingHelp: Bool
+    @FocusState private var focusedField: ConnectViewModel.Field?
+    /// Shown above the form, e.g. why the saved keys couldn't be loaded.
     private let notice: String?
+    /// Set in the "Add Another Key…" sheet.
+    private let onCancel: (() -> Void)?
+    private let startsWithDropHover: Bool
 
-    init(notice: String? = nil, onConnect: @escaping (AppStoreConnectCredentials) throws -> Void) {
-        self.init(viewModel: ConnectViewModel(services: LiveConnectServices(), onConnect: onConnect), notice: notice)
+    init(
+        checker: any KeyChecker,
+        notice: String? = nil,
+        onCancel: (() -> Void)? = nil,
+        onConnect: @escaping (AppStoreConnectCredentials, KeyAccessCheck) throws -> Void
+    ) {
+        self.init(viewModel: ConnectViewModel(checker: checker, onConnect: onConnect), notice: notice, onCancel: onCancel)
     }
 
-    /// With an existing model — DEBUG scenes and previews.
-    init(viewModel: ConnectViewModel, notice: String? = nil) {
+    /// With an existing model, for DEBUG scenes and previews, optionally
+    /// with help open or a file hovering over the drop zone.
+    init(
+        viewModel: ConnectViewModel,
+        notice: String? = nil,
+        onCancel: (() -> Void)? = nil,
+        showsHelp: Bool = false,
+        showsDropHover: Bool = false
+    ) {
         _viewModel = State(initialValue: viewModel)
+        _isShowingHelp = State(initialValue: showsHelp)
         self.notice = notice
+        self.onCancel = onCancel
+        startsWithDropHover = showsDropHover
     }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                header
+            VStack(spacing: Spacing.medium) {
+                ConnectHeader(title: isSheet ? "Add Another Key" : "Connect to App Store Connect")
+                    .padding(.bottom, Spacing.tiny)
                 if let notice {
                     InlineMessage.warning(notice)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 form
-                connectBar
-                Text("Your private key never leaves this Mac. It's kept in the login Keychain, and requests to Apple are signed with it locally.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                help
+                if let failure = viewModel.failure {
+                    ConnectFailureBanner(failure: failure) { Task { await viewModel.connect() } }
+                }
+                footer
             }
-            .frame(maxWidth: 560)
-            .padding(.horizontal, 32)
-            .padding(.vertical, 48)
+            .frame(maxWidth: 500)
+            .padding(.horizontal, Spacing.xxxLarge)
+            .padding(.vertical, isSheet ? Spacing.xxLarge : Spacing.xxxLarge)
             .frame(maxWidth: .infinity)
         }
-        .fileImporter(isPresented: $isImportingKey, allowedContentTypes: [.appStoreConnectPrivateKey]) { result in
+        .defaultScrollAnchor(.center, for: .alignment)
+        .scrollBounceBehavior(.basedOnSize)
+        .onChange(of: focusedField) { oldValue, _ in
+            if let oldValue { viewModel.leave(oldValue) }
+        }
+        // After the edit, not inside it: the field only picks up a change
+        // made in a later update.
+        .onChange(of: viewModel.keyID) { viewModel.uppercaseKeyID() }
+        .fileImporter(isPresented: $isImportingKey, allowedContentTypes: [.appStoreConnectPrivateKey, .data]) { result in
             switch result {
             case let .success(url): importKey(at: url)
             case let .failure(error): viewModel.importFailed(error)
@@ -54,70 +83,98 @@ struct ConnectView: View {
         }
     }
 
-    private var header: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "globe.badge.chevron.backward")
-                .font(.system(size: 44, weight: .regular))
-                .foregroundStyle(Palette.accent)
-                .accessibilityHidden(true)
-            Text("Connect to App Store Connect")
-                .font(.largeTitle.bold())
-            Text("AppLocalizer uses a team API key to read and update your subscription prices and App Store listings.")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-    }
+    private var isSheet: Bool { onCancel != nil }
 
     private var form: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            field("Issuer ID", issue: viewModel.issuerIDIssue, issueIdentifier: "connect.issuerIDIssue") {
-                TextField("Issuer ID", text: $viewModel.issuerID, prompt: Text("57246542-96fe-1a63-e053-0824d011072a"))
-                    .accessibilityIdentifier("connect.issuerIDField")
-            }
-            field("Key ID", issue: viewModel.keyIDIssue, issueIdentifier: "connect.keyIDIssue") {
-                TextField("Key ID", text: $viewModel.keyID, prompt: Text("2X9R4HXF34"))
-                    .accessibilityIdentifier("connect.keyIDField")
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Private key")
-                    .font(.headline)
-                PrivateKeyDropZone(
-                    key: viewModel.privateKey,
-                    onChoose: { isImportingKey = true },
-                    onRemove: { viewModel.removeKey() },
-                    onDrop: importKey(at:)
+        Card {
+            VStack(alignment: .leading, spacing: Spacing.medium) {
+                ConnectFormField(
+                    title: "Issuer ID",
+                    text: $viewModel.issuerID,
+                    prompt: "69a6de70-0000-0000-0000-000000000000",
+                    issue: viewModel.issuerIDIssue,
+                    identifier: "connect.issuerIDField"
                 )
-                if let message = viewModel.importErrorMessage {
-                    InlineMessage.error(message)
-                        .accessibilityIdentifier("connect.importError")
+                .focused($focusedField, equals: .issuerID)
+                ConnectFormField(
+                    title: "Key ID",
+                    text: $viewModel.keyID,
+                    prompt: "2X9R4HXF34",
+                    width: 160,
+                    issue: viewModel.keyIDIssue,
+                    identifier: "connect.keyIDField"
+                )
+                .focused($focusedField, equals: .keyID)
+                VStack(alignment: .leading, spacing: Spacing.xSmall) {
+                    Text("Private key")
+                        .font(.subheadline.weight(.semibold))
+                    PrivateKeyDropZone(
+                        key: viewModel.privateKey,
+                        rejectedFileName: viewModel.rejectedFileName,
+                        isTargeted: startsWithDropHover,
+                        onChoose: { isImportingKey = true },
+                        onRemove: { viewModel.removeKey() },
+                        onDrop: importKey(at:)
+                    )
+                    if let message = viewModel.importErrorMessage {
+                        InlineMessage.error(message)
+                            .accessibilityIdentifier("connect.importError")
+                    }
                 }
             }
-            DisclosureGroup("Where do I find these?", isExpanded: $isShowingHelp) {
-                ConnectHelpSteps()
-            }
-            .accessibilityIdentifier("connect.helpDisclosure")
         }
     }
 
-    private var connectBar: some View {
-        VStack(spacing: 12) {
-            if let message = viewModel.errorMessage {
-                InlineMessage.error(message)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityIdentifier("connect.error")
+    /// "Where do I find these?": the whole row toggles the steps, not only
+    /// the chevron.
+    private var help: some View {
+        Card(padding: Spacing.medium) {
+            Button {
+                withAnimation(.snappy(duration: 0.2)) { isShowingHelp.toggle() }
+            } label: {
+                HStack(spacing: Spacing.small) {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.label2)
+                        .rotationEffect(.degrees(isShowingHelp ? 90 : 0))
+                        .accessibilityHidden(true)
+                    Text("Where do I find these?")
+                        .font(.callout.weight(.semibold))
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(Text(isShowingHelp ? "Expanded" : "Collapsed"))
+            .accessibilityIdentifier("connect.helpDisclosure")
+            if isShowingHelp {
+                ConnectHelpSteps()
+                    .padding(.leading, Spacing.xLarge)
+            }
+        }
+    }
+
+    private var footer: some View {
+        HStack(spacing: Spacing.large) {
+            ConnectTrustNote()
+            Spacer(minLength: Spacing.small)
+            if let onCancel {
+                Button("Cancel", action: onCancel)
+                    .controlSize(.large)
+                    .keyboardShortcut(.cancelAction)
+                    .accessibilityIdentifier("connect.cancelButton")
             }
             Button {
                 Task { await viewModel.connect() }
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.xSmall) {
                     if viewModel.isVerifying {
                         ProgressView()
                             .controlSize(.small)
                     }
-                    Text(viewModel.isVerifying ? "Checking key…" : "Connect")
+                    Text(viewModel.isVerifying ? "Checking…" : "Connect")
                 }
-                .frame(minWidth: 160)
+                .frame(minWidth: 84)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
@@ -125,31 +182,15 @@ struct ConnectView: View {
             .disabled(!viewModel.canConnect)
             .accessibilityIdentifier("connect.connectButton")
         }
-    }
-
-    private func field(
-        _ title: LocalizedStringKey,
-        issue: CredentialsIssue?,
-        issueIdentifier: String,
-        @ViewBuilder input: () -> some View
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.headline)
-            input()
-                .textFieldStyle(.roundedBorder)
-                .font(.body.monospaced())
-                .autocorrectionDisabled()
-            if let issue {
-                InlineMessage.warning(issue.message)
-                    .accessibilityIdentifier(issueIdentifier)
-            }
-        }
+        .padding(.horizontal, Spacing.xSmall)
     }
 
     private func importKey(at url: URL) {
         do {
             try viewModel.importKey(PrivateKeyFileReader.read(url))
+        } catch CocoaError.fileReadInapplicableStringEncoding {
+            // Not text at all, so certainly not a PEM key.
+            viewModel.importKey(ImportedPrivateKey(fileName: url.lastPathComponent, pem: ""))
         } catch {
             viewModel.importFailed(error)
         }
@@ -157,6 +198,6 @@ struct ConnectView: View {
 }
 
 #Preview {
-    ConnectView { _ in }
+    ConnectView(checker: LiveKeyChecker()) { _, _ in }
         .frame(width: 900, height: 760)
 }

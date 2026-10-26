@@ -13,8 +13,12 @@ enum TestKeys {
     static let issuerID = "57246542-96fe-1a63-e053-0824d011072a"
     static let keyID = "2X9R4HXF34"
 
-    static func credentials(with key: P256.Signing.PrivateKey = P256.Signing.PrivateKey()) -> AppStoreConnectCredentials {
-        AppStoreConnectCredentials(issuerID: issuerID, keyID: keyID, privateKeyPEM: key.pemRepresentation)
+    static func credentials(
+        with key: P256.Signing.PrivateKey = P256.Signing.PrivateKey(),
+        keyID: String = keyID,
+        teamName: String? = nil
+    ) -> AppStoreConnectCredentials {
+        AppStoreConnectCredentials(issuerID: issuerID, keyID: keyID, privateKeyPEM: key.pemRepresentation, teamName: teamName)
     }
 
     /// Decodes one Base64URL JWT segment (no padding).

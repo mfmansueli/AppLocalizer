@@ -41,6 +41,12 @@ final class AppSummaryStore {
         }
     }
 
+    /// True once all three summaries of an app have loaded or failed, for
+    /// the first sync's progress.
+    func isSettled(_ appID: StoreApp.ID) -> Bool {
+        [pricing[appID]?.isSettled, storePage[appID]?.isSettled, appInformation[appID]?.isSettled].allSatisfy { $0 == true }
+    }
+
     /// Forgets an app's numbers, e.g. after a push changed them.
     func invalidate(_ appID: StoreApp.ID) {
         pricing[appID] = nil

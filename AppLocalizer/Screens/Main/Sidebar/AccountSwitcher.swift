@@ -40,11 +40,7 @@ struct AccountSwitcher: View {
 
     private var label: some View {
         HStack(spacing: Spacing.small) {
-            Text(current?.initials ?? "?")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Color(nsColor: .windowBackgroundColor))
-                .frame(width: 28, height: 28)
-                .background(Palette.label, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            InitialsTile(initials: current?.initials ?? "?")
             VStack(alignment: .leading, spacing: 1) {
                 Text(current?.name ?? String(localized: "No key"))
                     .font(.headline)

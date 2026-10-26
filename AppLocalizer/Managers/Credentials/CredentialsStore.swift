@@ -5,13 +5,15 @@
 
 import Foundation
 
-/// Where the API key is kept between launches. `KeychainCredentialsStore` is
-/// the real one; DEBUG scenes and tests use in-memory stores, so they never
-/// read or overwrite the key in the login Keychain.
+/// Where saved API keys are kept between launches, one per key ID.
+/// `KeychainCredentialsStore` is the real one; DEBUG scenes and tests use
+/// in-memory stores, so they never read or overwrite keys in the login
+/// Keychain.
 protocol CredentialsStore {
-    /// nil when no key has been saved yet.
-    func load() throws -> AppStoreConnectCredentials?
+    /// Every saved key, oldest first; empty before the first one is saved.
+    func loadAll() throws -> [AppStoreConnectCredentials]
+    /// Adds a key, or replaces the saved key with the same key ID.
     func save(_ credentials: AppStoreConnectCredentials) throws
     /// Removing a key that isn't there succeeds.
-    func delete() throws
+    func delete(keyID: String) throws
 }

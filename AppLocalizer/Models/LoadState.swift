@@ -23,6 +23,14 @@ enum LoadState<Value: Sendable>: Sendable {
         return false
     }
 
+    /// Loaded or failed: nothing more is coming.
+    var isSettled: Bool {
+        switch self {
+        case .loaded, .failed: true
+        case .idle, .loading: false
+        }
+    }
+
     var errorMessage: String? {
         if case let .failed(message) = self { return message }
         return nil
