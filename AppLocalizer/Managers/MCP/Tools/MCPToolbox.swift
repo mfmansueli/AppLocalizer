@@ -17,6 +17,10 @@ struct MCPToolbox {
             GetListingTool(),
             ListMissingTranslationsTool(),
             ProposeListingTextTool(),
+            GetPrivacyQuestionnaireTool(),
+            ProposePrivacyAnswersTool(),
+            GetAgeRatingTool(),
+            ProposeAgeRatingTool(),
         ])
     }
 
