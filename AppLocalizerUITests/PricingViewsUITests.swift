@@ -106,8 +106,7 @@ final class PricingViewsUITests: XCTestCase {
     // MARK: - Helpers
 
     private func launch(scene: String) {
-        app.launchArguments = ["-AppLocalizerDebugScene", scene, "-ApplePersistenceIgnoreState", "YES"]
-        app.launch()
+        app.launch(debugScene: scene)
     }
 
     private func element(_ identifier: String) -> XCUIElement {
