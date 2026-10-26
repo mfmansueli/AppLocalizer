@@ -21,6 +21,7 @@ struct PrivacyCollectsRow: View {
             YesNoPicker(title: String(localized: "Collects data"), value: collects?.value) { value in
                 viewModel.setCollects(value)
             }
+            .controlSize(.small)
             .accessibilityIdentifier("appInformation.appPrivacy.collects")
             if let collects {
                 if let client = collects.client, collects.status.isAssistants {

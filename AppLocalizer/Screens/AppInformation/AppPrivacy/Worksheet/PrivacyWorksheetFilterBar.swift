@@ -20,6 +20,7 @@ struct PrivacyWorksheetFilterBar: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            .controlSize(.small)
             .fixedSize()
             .accessibilityIdentifier("appInformation.appPrivacy.filter")
             HStack(spacing: Spacing.small) {

@@ -26,6 +26,7 @@ struct PrivacyOpenQuestionRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             YesNoPicker(title: question.question, value: question.answer, onSet: onAnswer)
+                .controlSize(.small)
                 .accessibilityIdentifier("appInformation.appPrivacy.question.\(question.id)")
         }
         .padding(Spacing.medium)
