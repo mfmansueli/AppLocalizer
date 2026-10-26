@@ -36,6 +36,13 @@ struct WorkspaceCommands: Commands {
             Group {
                 Button("Review Suggestions") { navigator?.open(.subscriptionPricing, intent: .reviewSuggestions) }
                 Button("Apply Recommended Prices…") { navigator?.open(.subscriptionPricing, intent: .applyRecommendedPrices) }
+                Button("Schedule Pending Prices…") { navigator?.open(.subscriptionPricing, intent: .editPriceSchedule(productID: nil)) }
+                Divider()
+                Menu("Show Prices As") {
+                    ForEach(PricingDisplay.allCases, id: \.self) { display in
+                        Button(display.title) { navigator?.open(.subscriptionPricing, intent: .showPrices(display)) }
+                    }
+                }
                 Button("Results") { navigator?.open(.subscriptionPricing, intent: .showResults) }
             }
             .disabled(navigator == nil)

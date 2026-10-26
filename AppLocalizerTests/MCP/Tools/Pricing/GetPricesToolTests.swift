@@ -55,6 +55,16 @@ struct GetPricesToolTests {
         #expect(usa["reason"] == nil)
     }
 
+    @Test func proceedsFollowTheCommissionSetting() async throws {
+        let arguments: [String: JSONValue] = ["appId": .string(Fixtures.lumen), "productId": .string(Fixtures.annual)]
+        let small = try await territory("USA", in: Fixtures.call(GetPricesTool(), arguments))
+        let standard = try await territory("USA", in: Fixtures.call(GetPricesTool(), arguments, commission: .standard))
+        let smallProceeds = try #require(small["proceeds"]?.doubleValue)
+        let standardProceeds = try #require(standard["proceeds"]?.doubleValue)
+        #expect(standardProceeds < smallProceeds)
+        #expect(standard["price"] == small["price"])
+    }
+
     @Test func keepMyPricesShowsNoSuggestions() async throws {
         let arguments: [String: JSONValue] = ["appId": .string(Fixtures.lumen), "productId": .string(Fixtures.annual)]
         let outcome = try await Fixtures.call(GetPricesTool(), arguments, modes: [Fixtures.lumen: .keepPrices])

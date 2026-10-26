@@ -52,7 +52,8 @@ enum MCPTestFixtures {
         changes: ChangeQueue = ChangeQueue(),
         pricingModes: PricingModeStore? = nil,
         storePage: (any StorePageServices)? = nil,
-        glossary: TranslationGlossary = TranslationGlossary()
+        glossary: TranslationGlossary = TranslationGlossary(),
+        commission: Commission = .smallBusiness
     ) -> MCPWorkspace {
         var services = WorkspaceServices.debug
         if let storePage { services.storePage = storePage }
@@ -62,7 +63,8 @@ enum MCPTestFixtures {
             changes: changes,
             pricingModes: pricingModes ?? PricingModeStore(defaults: nil),
             apps: { apps },
-            glossary: { glossary }
+            glossary: { glossary },
+            commission: { commission }
         )
     }
 

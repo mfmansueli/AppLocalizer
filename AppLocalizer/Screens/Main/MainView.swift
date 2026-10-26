@@ -190,7 +190,8 @@ struct MainView: View {
                 if let message = viewModel.errorMessage, viewModel.apps.isEmpty { throw MCPToolError.unavailable(message) }
                 return viewModel.apps
             },
-            glossary: { [translation] in translation.glossary }
+            glossary: { [translation] in translation.glossary },
+            commission: { [preferences] in Commission(preferenceRate: preferences.commissionRate) }
         )
     }
 

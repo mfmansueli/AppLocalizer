@@ -224,7 +224,7 @@ final class StorePageViewModel {
     static func handles(_ intent: WorkspaceIntent) -> Bool {
         switch intent {
         case .translateMissing, .findAndReplace, .importTranslations, .search: true
-        case .reviewSuggestions, .applyRecommendedPrices, .showResults, .editPriceSchedule: false
+        case .reviewSuggestions, .applyRecommendedPrices, .showResults, .editPriceSchedule, .showPrices: false
         }
     }
 
@@ -241,7 +241,7 @@ final class StorePageViewModel {
         case .translateMissing: presentTranslate()
         case .findAndReplace, .search: presentFindReplace()
         case .importTranslations: isImporterPresented = true
-        case .reviewSuggestions, .applyRecommendedPrices, .showResults, .editPriceSchedule: break
+        case .reviewSuggestions, .applyRecommendedPrices, .showResults, .editPriceSchedule, .showPrices: break
         }
     }
 

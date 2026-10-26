@@ -17,6 +17,8 @@ enum WorkspaceIntent: Hashable, Sendable {
     case showResults
     /// Pricing: the schedule sheet for one subscription's pending prices.
     case editPriceSchedule(productID: String?)
+    /// Pricing: the Prices tab as a table, tile map or histogram.
+    case showPrices(PricingDisplay)
     /// Store Page: the "Translate Missing…" sheet.
     case translateMissing
     /// Store Page: Find and Replace Across Locales.

@@ -26,6 +26,10 @@ extension PricingViewModel {
         case .showResults:
             tab = .results
             return true
+        case let .showPrices(shown):
+            tab = .prices
+            display = shown
+            return true
         case let .editPriceSchedule(productID):
             // Review passes the price group's ID, which is the subscription's.
             if let productID, catalog?.product(id: productID) != nil { await select(productID: productID) }

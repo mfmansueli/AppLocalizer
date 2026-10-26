@@ -20,6 +20,8 @@ struct MCPWorkspace {
     var apps: @MainActor () async throws -> [StoreApp]
     /// Settings → Translation's glossary and tone, read when a tool runs.
     var glossary: @MainActor () -> TranslationGlossary = { TranslationGlossary() }
+    /// Settings → General's commission, for proceeds and price points.
+    var commission: @MainActor () -> Commission = { .smallBusiness }
 
     /// The app an assistant means: its Apple ID, bundle ID, SKU or name (case
     /// and accents ignored). A name may also be the start of one, when only

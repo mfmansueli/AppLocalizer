@@ -9,10 +9,6 @@ import Foundation
 /// the price tools read them, and each product's prices on demand.
 @MainActor
 struct MCPPriceCatalog {
-    /// Proceeds and price points use the Small Business Program rate: the
-    /// tools don't read the person's commission setting.
-    static let commission = Commission.smallBusiness
-
     let app: StoreApp
     let catalog: PricingCatalog
     let mode: PricingMode
@@ -56,9 +52,11 @@ struct MCPPriceCatalog {
     /// The product's prices in every territory, with the queue's proposals.
     func sheet(for product: PricingProduct) async throws -> MCPPriceSheet {
         let services = workspace.services.pricing
+        // Proceeds use the commission set in Settings → General.
+        let commission = workspace.commission()
         do {
-            let sheet = try await services.priceSheet(for: product, commission: Self.commission)
-            let calculator = PriceCalculator(catalog: .standard, snapshot: services.indexSnapshot(), commission: Self.commission)
+            let sheet = try await services.priceSheet(for: product, commission: commission)
+            let calculator = PriceCalculator(catalog: .standard, snapshot: services.indexSnapshot(), commission: commission)
             return MCPPriceSheet(app: app, product: product, mode: mode, sheet: sheet, calculator: calculator, workspace: workspace)
         } catch {
             throw MCPToolError.unavailable(String(localized: "Couldn’t read the prices of \(product.name): \(error.localizedDescription)"))

@@ -104,6 +104,16 @@ struct PricingViewModelViewsTests {
         #expect(model.display == .table)
     }
 
+    @Test func thePricingMenuShowsTheMapOrTheHistogram() async {
+        let model = await PricingModelFixtures.viewModel()
+        model.tab = .results
+        #expect(await model.handle(.showPrices(.map)))
+        #expect(model.tab == .prices)
+        #expect(model.display == .map)
+        #expect(await model.handle(.showPrices(.histogram)))
+        #expect(model.display == .histogram)
+    }
+
     @Test func editingTheScheduleFromReviewOpensTheSheet() async {
         let model = await PricingModelFixtures.viewModel()
         model.tab = .results
