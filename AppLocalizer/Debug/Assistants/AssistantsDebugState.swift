@@ -7,11 +7,13 @@
 import Foundation
 
 /// Puts the MCP server into one of the design's states for DEBUG scenes:
-/// off, pairing, paired assistants (one connected, one idle), one
-/// disconnected, or a log with refused calls. Nothing listens on a port.
+/// off, pairing (before and after the command is copied), paired
+/// assistants (one connected, one idle), one disconnected, or a log with
+/// refused calls. Nothing listens on a port.
 enum AssistantsDebugState {
     case off
     case pairing
+    case pairingCopied
     case paired
     case disconnected
     case log
@@ -24,6 +26,8 @@ enum AssistantsDebugState {
         case .off:
             break
         case .pairing:
+            server.beginPairing(kind: .claudeCode)
+        case .pairingCopied:
             server.beginPairing(kind: .claudeCode)
             server.markPairingCopied()
         case .paired:

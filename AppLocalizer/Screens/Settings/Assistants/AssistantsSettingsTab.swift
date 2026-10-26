@@ -162,7 +162,6 @@ struct AssistantsSettingsTab: View {
             }
         }
         .id(Self.logID)
-        .accessibilityIdentifier(Self.logID)
     }
 
     private func pair() {

@@ -48,18 +48,31 @@ final class AssistantsUITests: XCTestCase {
         XCTAssertTrue(text(of: snippet).hasPrefix("claude mcp add --transport http applocalizer"))
         XCTAssertTrue(text(of: snippet).contains("al_pair_"))
         XCTAssertTrue(element("settings.ai.pairCode").exists)
-        XCTAssertTrue(element("settings.ai.pairWaiting").exists)
+        // Nothing copied yet, so nothing to wait for.
+        XCTAssertFalse(element("settings.ai.pairWaiting").exists)
 
         app.radioButtons["Cursor"].firstMatch.click()
-        XCTAssertTrue(text(of: snippet).contains("\"url\": \"http://127.0.0.1:47321/mcp\""))
+        XCTAssertTrue(waitForText(of: snippet) { $0.contains("\"url\": \"http://127.0.0.1:47321/mcp\"") })
         XCTAssertFalse(element("settings.ai.pairWaiting").exists)
 
         app.radioButtons["Codex"].firstMatch.click()
-        XCTAssertTrue(text(of: snippet).hasPrefix("[mcp_servers.applocalizer]"))
+        XCTAssertTrue(waitForText(of: snippet) { $0.hasPrefix("[mcp_servers.applocalizer]") })
 
         app.buttons["settings.ai.pairCancel"].click()
         XCTAssertTrue(snippet.waitForNonExistence(timeout: 5))
         XCTAssertTrue(element("settings.ai.noClients").exists)
+    }
+
+    func testACopiedCommandWaitsForTheAssistant() {
+        launch(scene: "set-ai-waiting")
+        XCTAssertTrue(element("settings.ai.pairWaiting").waitForExistence(timeout: 10))
+        // Never clicked: it would write to the clipboard.
+        XCTAssertEqual(app.buttons["settings.ai.pairCopy"].label, "Copied")
+
+        // Another client needs another command, so the wait starts over.
+        app.radioButtons["Cursor"].firstMatch.click()
+        XCTAssertTrue(element("settings.ai.pairWaiting").waitForNonExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["settings.ai.pairCopy"].label, "Copy")
     }
 
     func testRevokingAnAssistantAsksFirst() {
@@ -89,9 +102,10 @@ final class AssistantsUITests: XCTestCase {
 
     func testTheLogSaysWhyCallsWereRefused() {
         launch(scene: "set-ai-log")
-        // Each log line reads as one element.
+        // Each log line reads as one element, its text as the value.
+        let refusal = "so price proposals are off for this app"
         let reason = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label CONTAINS %@", "so price proposals are off for this app"))
+            .matching(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", refusal, refusal))
             .firstMatch
         XCTAssertTrue(reason.waitForExistence(timeout: 10))
         let clear = app.buttons["Clear"]
@@ -102,9 +116,15 @@ final class AssistantsUITests: XCTestCase {
 
     // MARK: - Helpers
 
+    /// Waits for the element's text to pass `check`, e.g. after another
+    /// client is picked.
+    private func waitForText(of element: XCUIElement, _ check: @escaping (String) -> Bool) -> Bool {
+        let predicate = NSPredicate { _, _ in check(self.text(of: element)) }
+        return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: nil)], timeout: 5) == .completed
+    }
+
     private func launch(scene: String) {
-        app.launchArguments = ["-AppLocalizerDebugScene", scene]
-        app.launch()
+        app.launch(debugScene: scene)
     }
 
     private func element(_ identifier: String) -> XCUIElement {

@@ -25,6 +25,7 @@ struct PairAssistantSheet: View {
             }
         }
         .frame(width: 600)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings.ai.pairSheet")
     }
 
@@ -57,9 +58,13 @@ struct PairAssistantSheet: View {
 
     private func snippet(_ pairing: MCPPendingPairing) -> some View {
         HStack(alignment: .top, spacing: Spacing.small) {
+            // Selectable text keeps its first string (on screen and to
+            // VoiceOver) when only the string changes: a new client gets a
+            // new view.
             Text(server.pairingSnippet ?? "")
                 .font(.callout.monospaced())
                 .textSelection(.enabled)
+                .id(pairing.kind)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(Spacing.medium)

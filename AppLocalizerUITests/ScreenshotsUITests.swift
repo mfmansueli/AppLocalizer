@@ -26,7 +26,9 @@ final class ScreenshotsUITests: XCTestCase {
         launch(scene: "sets")
         XCTAssertTrue(element("screenshots.sets").waitForExistence(timeout: 15))
         XCTAssertTrue(element("screenshots.banner.failedChecks").exists)
-        XCTAssertTrue(app.staticTexts["2 renders fail their checks."].exists)
+        // The title and the message read as one paragraph.
+        let summary = NSPredicate(format: "value BEGINSWITH %@ OR label BEGINSWITH %@", "2 renders fail their checks.", "2 renders fail their checks.")
+        XCTAssertTrue(app.staticTexts.matching(summary).firstMatch.exists)
         XCTAssertTrue(element("screenshots.row.en-US").exists)
         XCTAssertTrue(element("screenshots.row.ar-SA").exists)
         XCTAssertTrue(app.buttons["screenshots.scopeButton"].exists)
@@ -35,11 +37,15 @@ final class ScreenshotsUITests: XCTestCase {
 
     func testTheFallbackLocalesExpandAndCollapse() {
         launch(scene: "sets")
-        let toggle = app.buttons["screenshots.sets.toggleFallback"]
-        XCTAssertTrue(toggle.waitForExistence(timeout: 15))
+        // The fallback group is last, and the matrix only builds the rows
+        // it shows: scroll to the end first.
+        let sets = element("screenshots.sets")
+        XCTAssertTrue(sets.waitForExistence(timeout: 15))
+        let toggle = element("screenshots.sets.toggleFallback")
+        XCTAssertTrue(scrollToEnd(sets, until: toggle))
         XCTAssertFalse(element("screenshots.row.da").exists)
         toggle.click()
-        XCTAssertTrue(element("screenshots.row.da").waitForExistence(timeout: 5))
+        XCTAssertTrue(scrollDown(sets, until: element("screenshots.row.da")))
     }
 
     func testTheBannerOpensTheFirstFailureInTheViewer() {
@@ -81,10 +87,10 @@ final class ScreenshotsUITests: XCTestCase {
         scope.click()
         XCTAssertTrue(element("screenshots.scope").waitForExistence(timeout: 5))
         let estimate = element("screenshots.scope.estimate")
-        XCTAssertTrue(estimate.label.hasPrefix("12 locales × 5 slots × 2 display types"), estimate.label)
+        XCTAssertTrue(text(of: estimate).hasPrefix("12 locales × 5 slots × 2 display types"), text(of: estimate))
 
         app.checkBoxes["screenshots.scope.toggle.da"].click()
-        XCTAssertTrue(element("screenshots.scope.estimate").label.hasPrefix("13 locales"))
+        XCTAssertTrue(text(of: estimate).hasPrefix("13 locales"), text(of: estimate))
         app.buttons["screenshots.scope.save"].click()
         XCTAssertTrue(element("screenshots.scope").waitForNonExistence(timeout: 5))
         XCTAssertTrue(waitForLabel(app.buttons["screenshots.scopeButton"], "13 of 39 locales localized"))
@@ -94,7 +100,8 @@ final class ScreenshotsUITests: XCTestCase {
         launch(scene: "scope")
         XCTAssertTrue(element("screenshots.scope").waitForExistence(timeout: 15))
         app.buttons["screenshots.scope.all"].click()
-        XCTAssertTrue(element("screenshots.scope.estimate").label.hasPrefix("39 locales"))
+        let estimate = element("screenshots.scope.estimate")
+        XCTAssertTrue(text(of: estimate).hasPrefix("39 locales"), text(of: estimate))
         app.buttons["screenshots.scope.cancel"].click()
         XCTAssertTrue(element("screenshots.scope").waitForNonExistence(timeout: 5))
         XCTAssertEqual(app.buttons["screenshots.scopeButton"].label, "12 of 39 locales localized")
@@ -121,14 +128,38 @@ final class ScreenshotsUITests: XCTestCase {
         XCTAssertTrue(element("screenshots.sets").exists)
     }
 
+    /// Scrolls to the end of `scrollView` until `target` exists; rows can
+    /// still be growing while the renders come in, so it tries a few times.
+    private func scrollToEnd(_ scrollView: XCUIElement, until target: XCUIElement) -> Bool {
+        for _ in 0..<4 {
+            scrollView.scroll(byDeltaX: 0, deltaY: -10000)
+            if target.waitForExistence(timeout: 2) { return true }
+        }
+        return false
+    }
+
+    /// Scrolls `scrollView` down a little at a time until `target` exists:
+    /// the rows just shown are below the ones on screen.
+    private func scrollDown(_ scrollView: XCUIElement, until target: XCUIElement) -> Bool {
+        for _ in 0..<20 {
+            if target.waitForExistence(timeout: 1) { return true }
+            scrollView.scroll(byDeltaX: 0, deltaY: -300)
+        }
+        return target.exists
+    }
+
     private func waitForLabel(_ element: XCUIElement, _ label: String) -> Bool {
         let predicate = NSPredicate(format: "label == %@", label)
         return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: 10) == .completed
     }
 
+    /// A static text's string is its value on macOS; a button's is its label.
+    private func text(of element: XCUIElement) -> String {
+        (element.value as? String).flatMap { $0.isEmpty ? nil : $0 } ?? element.label
+    }
+
     private func launch(scene: String) {
-        app.launchArguments = ["-AppLocalizerDebugScene", scene]
-        app.launch()
+        app.launch(debugScene: scene)
     }
 
     private func element(_ identifier: String) -> XCUIElement {

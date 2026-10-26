@@ -25,8 +25,8 @@ struct Banner<Actions: View>: View {
             if isInline, let message {
                 Text("\(Text(title).fontWeight(.semibold)) \(Text(message).foregroundStyle(Palette.label2))")
                     .font(.callout)
-                    .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
+                    .layoutPriority(1)
             } else {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
@@ -35,10 +35,10 @@ struct Banner<Actions: View>: View {
                         Text(message)
                             .font(.callout)
                             .foregroundStyle(Palette.label2)
-                            .fixedSize(horizontal: false, vertical: true)
                             .textSelection(.enabled)
                     }
                 }
+                .layoutPriority(1)
             }
             Spacer(minLength: Spacing.medium)
             HStack(spacing: Spacing.small) {

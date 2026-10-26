@@ -31,19 +31,20 @@ final class AssistantWorkspaceUITests: XCTestCase {
         indicator.click()
         let popover = element("workspace.assistantPopover")
         XCTAssertTrue(popover.waitForExistence(timeout: 5))
-        XCTAssertTrue(popover.staticTexts["Waiting for you"].exists)
+        // The group header is drawn in capitals.
+        XCTAssertTrue(popover.staticTexts.matching(NSPredicate(format: "value ==[c] %@", "Waiting for you")).firstMatch.exists)
 
         popover.buttons["workspace.reviewProposals"].click()
         XCTAssertTrue(element("review.sheet").waitForExistence(timeout: 5))
         XCTAssertTrue(claudeCodeFilter.waitForExistence(timeout: 5))
-        XCTAssertTrue(claudeCodeFilter.isSelected)
+        XCTAssertTrue(isChosen(claudeCodeFilter))
     }
 
     func testReviewProposalsIsFilteredToTheAssistant() {
         launch(scene: "ai-review")
         XCTAssertTrue(element("review.sheet").waitForExistence(timeout: 10))
         XCTAssertTrue(claudeCodeFilter.waitForExistence(timeout: 5))
-        XCTAssertTrue(claudeCodeFilter.isSelected)
+        XCTAssertTrue(isChosen(claudeCodeFilter))
         XCTAssertTrue(app.buttons["Reject All from Claude Code"].exists)
     }
 
@@ -72,9 +73,14 @@ final class AssistantWorkspaceUITests: XCTestCase {
             .firstMatch
     }
 
+    /// A segmented picker's segment reads as a radio button whose value is
+    /// 1 when it's the chosen one.
+    private func isChosen(_ segment: XCUIElement) -> Bool {
+        (segment.value as? NSNumber)?.intValue == 1
+    }
+
     private func launch(scene: String) {
-        app.launchArguments = ["-AppLocalizerDebugScene", scene]
-        app.launch()
+        app.launch(debugScene: scene)
     }
 
     private func element(_ identifier: String) -> XCUIElement {
