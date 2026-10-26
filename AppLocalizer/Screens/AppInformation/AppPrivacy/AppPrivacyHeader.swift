@@ -53,7 +53,7 @@ struct AppPrivacyHeader: View {
             """)
             .font(.callout)
             .foregroundStyle(Palette.label2)
-            .fixedSize(horizontal: false, vertical: true)
+            .layoutPriority(1)
         }
         .padding(.horizontal, Spacing.medium)
         .padding(.vertical, Spacing.small)

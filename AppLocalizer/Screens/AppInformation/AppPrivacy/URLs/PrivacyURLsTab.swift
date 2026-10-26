@@ -44,7 +44,7 @@ struct PrivacyURLsTab: View {
                 Text(String(localized: "\(viewModel.urlsCoverageText ?? "") · app-level fields, sent through Review & Push"))
                     .font(.caption)
                     .foregroundStyle(Palette.label2)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier("appInformation.appPrivacy.urls.coverage")
                 Button(String(localized: "Fill Missing from \(table.content.primaryLocale.name)"), action: viewModel.fillMissingPolicyURLs)
