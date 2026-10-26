@@ -104,7 +104,8 @@ The project is kept warning-free.
 - The App Sandbox is on, with three exceptions:
   - outgoing connections (`ENABLE_OUTGOING_NETWORK_CONNECTIONS`), for the API;
   - incoming connections (`ENABLE_INCOMING_NETWORK_CONNECTIONS`), for the local MCP server;
-  - user-selected files, read-only (`ENABLE_USER_SELECTED_FILES`), to import the `.p8`.
+  - user-selected files, read and write (`ENABLE_USER_SELECTED_FILES`), to import the `.p8` and listings, and to
+    export listings.
 - The `applocalizer-mcp` target is sandboxed on its own, with outgoing connections only, because assistants launch it
   without the app.
   - `CREATE_INFOPLIST_SECTION_IN_BINARY` embeds the Info.plist that a sandboxed tool needs.
