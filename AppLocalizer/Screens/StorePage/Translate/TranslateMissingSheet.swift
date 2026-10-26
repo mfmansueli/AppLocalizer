@@ -3,14 +3,17 @@
 //  AppLocalizer
 //
 
+import AppKit
 import SwiftUI
 
 /// "Translate missing fields": the provider, tone, terms not to translate,
 /// which fields, and the locales with how many fields each. Translate
-/// closes the sheet and runs the batch in the progress banner.
+/// closes the sheet and runs the batch in the progress banner. With the
+/// assistant as provider, it hands over a prompt and waits instead.
 struct TranslateMissingSheet: View {
     let viewModel: StorePageViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(MCPServerController.self) private var assistants
     @State private var newTerm = ""
 
     private var translation: TranslateMissingViewModel { viewModel.translation }
@@ -31,7 +34,13 @@ struct TranslateMissingSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.medium) {
                     providers
-                    if let message = translation.provider.setupMessage {
+                    if translation.provider == .assistant, assistants.isRunning {
+                        AssistantTranslatePanel(
+                            prompt: assistantPrompt,
+                            clientName: assistantName,
+                            isCopied: translation.isAssistantPromptCopied
+                        )
+                    } else if let message = translation.provider.setupMessage {
                         Banner(kind: .rateLimited, title: message) {
                             SettingsLink {
                                 Text("Open Settings…")
@@ -41,12 +50,14 @@ struct TranslateMissingSheet: View {
                         .padding(.vertical, -Spacing.small)
                         .accessibilityIdentifier("storePage.translate.setup")
                     }
-                    toneAndGlossary
-                    availabilityMessages
-                    locales
-                    Text("You accept or reject each suggestion. Accepted text stays tagged “machine-translated” until someone reviews it.")
-                        .font(.caption2)
-                        .foregroundStyle(Palette.label2)
+                    if translation.provider != .assistant {
+                        toneAndGlossary
+                        availabilityMessages
+                        locales
+                        Text("You accept or reject each suggestion. Accepted text stays tagged “machine-translated” until someone reviews it.")
+                            .font(.caption2)
+                            .foregroundStyle(Palette.label2)
+                    }
                 }
                 .padding(.horizontal, Spacing.xLarge)
                 .padding(.bottom, Spacing.medium)
@@ -56,17 +67,25 @@ struct TranslateMissingSheet: View {
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button(translation.startTitle) {
-                    viewModel.startTranslation()
+                if translation.provider == .assistant {
+                    Button(translation.isAssistantPromptCopied ? "Waiting for \(assistantName)…" : "Copy Prompt", action: copyAssistantPrompt)
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(translation.isAssistantPromptCopied || !assistants.isRunning)
+                        .accessibilityIdentifier("storePage.translate.copyPrompt")
+                } else {
+                    Button(translation.startTitle) {
+                        viewModel.startTranslation()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!translation.canStart)
+                    .accessibilityIdentifier("storePage.translate.start")
                 }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!translation.canStart)
-                .accessibilityIdentifier("storePage.translate.start")
             }
             .padding(Spacing.large)
         }
-        .frame(width: 640, height: 680)
+        .frame(width: 640, height: translation.provider == .assistant ? 560 : 680)
         .task { await translation.checkAvailability() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("storePage.translateSheet")
@@ -205,6 +224,35 @@ struct TranslateMissingSheet: View {
             .background(Palette.raised, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.banner, style: .continuous).strokeBorder(Palette.separator, lineWidth: 1))
         }
+    }
+
+    // MARK: - Assistant
+
+    private var assistantPrompt: AssistantTranslatePrompt {
+        AssistantTranslatePrompt(
+            appName: viewModel.app.name,
+            versionString: viewModel.content?.version.versionString ?? "",
+            glossary: translation.glossary
+        )
+    }
+
+    /// The assistant that's connected, else the first paired one.
+    private var assistantClient: MCPPairedClient? {
+        assistants.connectedClients.first ?? assistants.pairedClients.first
+    }
+
+    private var assistantName: String {
+        assistantClient?.name ?? String(localized: "your assistant")
+    }
+
+    /// Claude Code takes the slash command; other clients the request in
+    /// words.
+    private func copyAssistantPrompt() {
+        let prompt = assistantPrompt
+        let text = assistantClient?.kind == .claudeCode ? prompt.slashCommand : prompt.text
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        translation.isAssistantPromptCopied = true
     }
 
     private func fieldCount(_ count: Int) -> String {

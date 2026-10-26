@@ -12,7 +12,12 @@ struct MCPToolbox {
     let tools: [any MCPTool]
 
     static var standard: MCPToolbox {
-        MCPToolbox(tools: [ListAppsTool()])
+        MCPToolbox(tools: [
+            ListAppsTool(),
+            GetListingTool(),
+            ListMissingTranslationsTool(),
+            ProposeListingTextTool(),
+        ])
     }
 
     func tool(named name: String) -> (any MCPTool)? {

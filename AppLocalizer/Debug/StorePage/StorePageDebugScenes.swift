@@ -77,7 +77,7 @@ enum StorePageDebugScenes {
     // MARK: - Scenes
 
     @MainActor
-    private static func scene(
+    static func scene(
         _ storePage: DebugStorePageServices = DebugStorePageServices(),
         pending: [PendingChange] = [],
         opening: (@MainActor (StorePageViewModel) async -> Void)? = nil

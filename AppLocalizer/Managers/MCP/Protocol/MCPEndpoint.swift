@@ -10,11 +10,20 @@ enum MCPEndpoint {
     static let host = "127.0.0.1"
     static let defaultPort: UInt16 = 47321
     static let path = "/mcp"
+    /// Where a client trades a pairing code for its token.
+    static let pairingPath = "/mcp/pair"
+    /// The stdio bridge's name, in the app bundle's `Contents/MacOS`.
+    static let bridgeName = "applocalizer-mcp"
     /// The name assistants show for the server, as in `mcp__applocalizer__…`.
     static let serverName = "applocalizer"
 
     static func url(port: UInt16) -> String {
         "http://\(host):\(port)\(path)"
+    }
+
+    /// The stdio bridge Claude Desktop and Codex launch, inside this app.
+    static var bridgePath: String {
+        Bundle.main.bundleURL.appending(path: "Contents/MacOS/\(bridgeName)").path(percentEncoded: false)
     }
 
     /// "127.0.0.1:47321", as Settings shows it.

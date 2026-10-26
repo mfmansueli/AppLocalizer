@@ -6,7 +6,8 @@
 import SwiftUI
 
 /// The detail column for the selected app: the toolbar (title, section
-/// picker, Refresh, Activity and Review & Push) over the current section.
+/// picker, the assistant indicator while assistants matter, Refresh,
+/// Activity and Review & Push) over the current section.
 struct AppWorkspaceView: View {
     let app: StoreApp
     let services: WorkspaceServices
@@ -14,6 +15,7 @@ struct AppWorkspaceView: View {
     @Environment(WorkspaceNavigator.self) private var navigator
     @Environment(ChangeQueue.self) private var changes
     @Environment(PushController.self) private var push
+    @Environment(MCPServerController.self) private var assistants
 
     var body: some View {
         @Bindable var navigator = navigator
@@ -38,6 +40,14 @@ struct AppWorkspaceView: View {
                     .fixedSize()
                     .accessibilityIdentifier("workspace.sectionPicker")
                 }
+                if assistantActivity.isVisible {
+                    ToolbarItem(placement: .primaryAction) {
+                        AssistantToolbarIndicator(activity: assistantActivity, appName: push.appName) { client in
+                            navigator.reviewProposals(from: client)
+                        }
+                    }
+                    ToolbarSpacer(.fixed, placement: .primaryAction)
+                }
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button {
                         navigator.refresh()
@@ -61,6 +71,10 @@ struct AppWorkspaceView: View {
                     }
                 }
             }
+    }
+
+    private var assistantActivity: AssistantActivity {
+        AssistantActivity(workingClient: assistants.isWorking ? assistants.workingClient : nil, changes: changes.changes)
     }
 
     @ViewBuilder

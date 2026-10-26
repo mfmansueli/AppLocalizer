@@ -7,29 +7,46 @@ import Foundation
 
 /// The Streamable HTTP endpoint: `POST /mcp` carries JSON-RPC messages,
 /// `GET /mcp` opens a session's event stream and `DELETE /mcp` ends it.
-/// Every request needs the bearer token and a local origin.
+/// Every request needs a local origin and a paired client's bearer token;
+/// `POST /mcp/pair` trades a pairing code for that token.
 extension MCPServerController {
     func handle(_ request: HTTPRequest) async -> HTTPReply {
-        guard request.path == MCPEndpoint.path else { return .response(.text(404)) }
+        guard request.path == MCPEndpoint.path || request.path == MCPEndpoint.pairingPath else { return .response(.text(404)) }
         guard Self.isLocal(origin: request.header("origin")), Self.isLocal(host: request.header("host")) else {
             return .response(.text(403, "Only clients on this Mac may connect."))
         }
-        guard let token, MCPAccessToken.authorizes(request.header("authorization"), token: token) else {
+        if request.path == MCPEndpoint.pairingPath { return .response(redeem(request)) }
+        guard let clientID = authorizedClientID(for: request.header("authorization")) else {
             recordUnauthorized()
             return .response(.text(401, "Wrong or missing access token.", headers: ["WWW-Authenticate": "Bearer"]))
         }
         pruneIdleSessions()
         switch request.method {
-        case "POST": return await .response(post(request))
-        case "GET": return openStream(request)
-        case "DELETE": return .response(delete(request))
+        case "POST": return await .response(post(request, from: clientID))
+        case "GET": return openStream(request, from: clientID)
+        case "DELETE": return .response(delete(request, from: clientID))
         default: return .response(.text(405, headers: ["Allow": "GET, POST, DELETE"]))
         }
     }
 
+    // MARK: - Pairing code
+
+    private func redeem(_ request: HTTPRequest) -> HTTPResponse {
+        guard request.method == "POST" else { return .text(405, headers: ["Allow": "POST"]) }
+        let body = try? JSONDecoder().decode(JSONValue.self, from: request.body)
+        guard let code = body?["code"]?.stringValue, let token = redeemPairingCode(code) else {
+            let reason = String(localized: "Wrong or expired pairing code. Open Settings → AI Assistants → Pair Assistant… for a new one.")
+            record(client: String(localized: "Unknown client"), tool: "pair", target: "", outcome: .refused, reason: reason)
+            let refusal: JSONValue = ["error": .string(reason)]
+            return .json(refusal, status: 403)
+        }
+        let pairing: JSONValue = ["token": .string(token), "url": .string(url)]
+        return .json(pairing)
+    }
+
     // MARK: - POST
 
-    private func post(_ request: HTTPRequest) async -> HTTPResponse {
+    private func post(_ request: HTTPRequest, from clientID: MCPPairedClient.ID) async -> HTTPResponse {
         guard let message = try? JSONDecoder().decode(JSONRPCMessage.self, from: request.body) else {
             let isBatch = (try? JSONDecoder().decode([JSONValue].self, from: request.body)) != nil
             let error = isBatch ? JSONRPCError.invalidRequest("Batched messages aren’t supported; send one message per request.") : .parseError
@@ -38,14 +55,15 @@ extension MCPServerController {
         guard let kind = message.kind else {
             return .json(JSONRPCResponse.error(.invalidRequest("Not a JSON-RPC 2.0 message."), id: message.id ?? .null), status: 400)
         }
-        if kind == .request, message.method == "initialize" { return initialize(message) }
+        if kind == .request, message.method == "initialize" { return initialize(message, from: clientID) }
         if let version = request.header("mcp-protocol-version"), !MCPProtocolVersion.supported.contains(version) {
             return .text(400, "Unsupported MCP-Protocol-Version \(version).")
         }
         guard let sessionID = request.header("mcp-session-id") else {
             return .text(400, "Missing Mcp-Session-Id header; send initialize first.")
         }
-        guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else {
+        // A token can only use its own client's sessions.
+        guard let index = sessions.firstIndex(where: { $0.id == sessionID && $0.pairedClientID == clientID }) else {
             return .text(404, "Unknown session; initialize again.")
         }
         sessions[index].lastActivity = now()
@@ -62,13 +80,14 @@ extension MCPServerController {
         }
     }
 
-    private func initialize(_ message: JSONRPCMessage) -> HTTPResponse {
+    private func initialize(_ message: JSONRPCMessage, from clientID: MCPPairedClient.ID) -> HTTPResponse {
         let params = message.params
         let version = MCPProtocolVersion.negotiated(requested: params?["protocolVersion"]?.stringValue)
         let info = params?["clientInfo"]
         let clientName = info?["name"]?.stringValue ?? "client"
         let session = MCPClientSession(
             id: UUID().uuidString,
+            pairedClientID: clientID,
             clientName: clientName,
             clientVersion: info?["version"]?.stringValue,
             displayName: MCPClientSession.displayName(clientName: clientName, title: info?["title"]?.stringValue),
@@ -78,6 +97,8 @@ extension MCPServerController {
             lastActivity: now()
         )
         sessions.append(session)
+        nameClient(clientID, from: session)
+        noteSeen(clientID, at: session.connectedAt)
         record(client: session.displayName, tool: "initialize", target: "AppLocalizer MCP · protocol \(version)", outcome: .read)
         let result: JSONValue = [
             "protocolVersion": .string(version),
@@ -118,6 +139,7 @@ extension MCPServerController {
             return .error(.invalidParams("tools/call arguments must be an object."), id: id)
         }
         let arguments = MCPToolArguments(rawArguments.objectValue ?? [:])
+        noteWorking(client: session.displayName)
         let outcome = await outcome(of: tool, arguments: arguments, from: session)
         for line in outcome.logLines {
             record(client: session.displayName, tool: name, target: line.target, outcome: line.outcome, reason: line.reason)
@@ -152,15 +174,20 @@ extension MCPServerController {
         guard let requestID = message.id?.stringValue, pendingRootRequests.removeValue(forKey: requestID) == session.id else { return }
         let uri = message.result?["roots"]?.arrayValue?.first?["uri"]?.stringValue
         guard let index = sessions.firstIndex(where: { $0.id == session.id }), let uri else { return }
-        sessions[index].workingDirectory = MCPClientSession.displayPath(forRootURI: uri, homeDirectory: homeDirectory)
+        let directory = MCPClientSession.displayPath(forRootURI: uri, homeDirectory: homeDirectory)
+        sessions[index].workingDirectory = directory
+        noteSeen(session.pairedClientID, at: now(), workingDirectory: directory)
+        if pendingPairing?.connectedClient?.id == session.pairedClientID {
+            pendingPairing?.connectedClient?.workingDirectory = directory
+        }
     }
 
     // MARK: - GET and DELETE
 
-    private func openStream(_ request: HTTPRequest) -> HTTPReply {
+    private func openStream(_ request: HTTPRequest, from clientID: MCPPairedClient.ID) -> HTTPReply {
         guard request.header("accept")?.contains("text/event-stream") == true else { return .response(.text(406)) }
         guard let sessionID = request.header("mcp-session-id") else { return .response(.text(400, "Missing Mcp-Session-Id header.")) }
-        guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else { return .response(.text(404)) }
+        guard let index = sessions.firstIndex(where: { $0.id == sessionID && $0.pairedClientID == clientID }) else { return .response(.text(404)) }
         // One stream per session: a new one replaces the old.
         streams.removeValue(forKey: sessionID)?.continuation.finish()
         let (events, continuation) = AsyncStream<String>.makeStream()
@@ -174,8 +201,9 @@ extension MCPServerController {
         })
     }
 
-    private func delete(_ request: HTTPRequest) -> HTTPResponse {
-        guard let sessionID = request.header("mcp-session-id"), sessions.contains(where: { $0.id == sessionID }) else { return .text(404) }
+    private func delete(_ request: HTTPRequest, from clientID: MCPPairedClient.ID) -> HTTPResponse {
+        guard let sessionID = request.header("mcp-session-id"),
+              sessions.contains(where: { $0.id == sessionID && $0.pairedClientID == clientID }) else { return .text(404) }
         disconnect(sessionID)
         return HTTPResponse(status: 200)
     }
@@ -186,6 +214,7 @@ extension MCPServerController {
         if let index = sessions.firstIndex(where: { $0.id == sessionID }) {
             sessions[index].hasOpenStream = false
             sessions[index].lastActivity = now()
+            noteSeen(sessions[index].pairedClientID, at: now())
         }
     }
 
@@ -200,7 +229,7 @@ extension MCPServerController {
 
     /// One line per burst of rejected requests, not one per retry.
     private func recordUnauthorized() {
-        let reason = String(localized: "Wrong or missing access token. Copy the command again from Settings → AI Assistants.")
+        let reason = String(localized: "Wrong or missing access token. Pair the assistant again in Settings → AI Assistants.")
         if let last = log.first, last.reason == reason, now().timeIntervalSince(last.date) < 60 { return }
         record(client: String(localized: "Unknown client"), tool: "—", target: "", outcome: .refused, reason: reason)
     }

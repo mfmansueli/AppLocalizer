@@ -14,8 +14,14 @@ struct SettingsView: View {
     @Environment(AppSession.self) private var session
     @Environment(\.keyChecker) private var keyChecker
 
-    init(selection: SettingsTab = .account) {
+    /// DEBUG scenes open AI Assistants on the pairing sheet or the log.
+    private let opensPairing: Bool
+    private let scrollsToLog: Bool
+
+    init(selection: SettingsTab = .account, opensPairing: Bool = false, scrollsToLog: Bool = false) {
         _selection = State(initialValue: selection)
+        self.opensPairing = opensPairing
+        self.scrollsToLog = scrollsToLog
     }
 
     var body: some View {
@@ -28,6 +34,9 @@ struct SettingsView: View {
             }
             Tab("Translation", systemImage: "globe", value: .translation) {
                 TranslationSettingsTab()
+            }
+            Tab("AI Assistants", systemImage: "apple.terminal", value: .assistants) {
+                AssistantsSettingsTab(opensPairing: opensPairing, scrollsToLog: scrollsToLog)
             }
             Tab("General", systemImage: "gearshape", value: .general) {
                 GeneralSettingsTab()

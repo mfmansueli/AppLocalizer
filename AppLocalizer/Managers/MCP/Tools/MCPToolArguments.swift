@@ -45,6 +45,13 @@ struct MCPToolArguments: Hashable, Sendable {
         return array
     }
 
+    /// nil when absent or null.
+    func optionalArray(_ name: String) throws -> [JSONValue]? {
+        guard let value = values[name], !value.isNull else { return nil }
+        guard let array = value.arrayValue else { throw MCPToolError.invalidArgument(name: name, expected: String(localized: "a list")) }
+        return array
+    }
+
     func optionalObject(_ name: String) throws -> [String: JSONValue]? {
         guard let value = values[name], !value.isNull else { return nil }
         guard let object = value.objectValue else { throw MCPToolError.invalidArgument(name: name, expected: String(localized: "an object")) }

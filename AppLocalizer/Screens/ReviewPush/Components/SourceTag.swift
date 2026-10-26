@@ -14,11 +14,7 @@ struct SourceTag: View {
     var body: some View {
         if let monogram = source.monogram {
             HStack(spacing: Spacing.xxSmall) {
-                Text(monogram)
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(Color(nsColor: .windowBackgroundColor))
-                    .frame(width: 14, height: 14)
-                    .background(Palette.label, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+                AssistantMonogram(letters: monogram)
                 Text(source.title)
                     .font(.caption)
                     .lineLimit(1)

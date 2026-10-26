@@ -24,7 +24,7 @@ struct ChangeSourceTests {
 
     @Test func assistantsGetAMonogram() {
         #expect(ChangeSource.assistant(client: "Claude Code").monogram == "CC")
-        #expect(ChangeSource.assistant(client: "cursor").monogram == "C")
+        #expect(ChangeSource.assistant(client: "cursor").monogram == "CU")
         #expect(ChangeSource.you.monogram == nil)
     }
 

@@ -45,11 +45,13 @@ struct StorePageVersionTests {
         #expect(StorePageVersion.preferred(in: []) == nil)
     }
 
+    @MainActor
     @Test(arguments: [("1.3", "1.4"), ("2.0.9", "2.0.10"), ("7", "8"), ("1.0b", "1.0b")])
     func theNextVersionBumpsTheLastNumber(current: String, next: String) {
         #expect(NoVersionView.nextVersion(after: current) == next)
     }
 
+    @MainActor
     @Test func appStoreConnectOpensOnTheAppsDistributionPage() {
         #expect(NoVersionView.appStoreConnectURL(appID: "6450000001").absoluteString == "https://appstoreconnect.apple.com/apps/6450000001/distribution")
     }

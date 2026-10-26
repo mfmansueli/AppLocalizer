@@ -33,6 +33,22 @@ struct WorkspaceNavigatorTests {
         #expect(navigator.refreshCount == 2)
     }
 
+    @Test func reviewingProposalsFiltersToTheAssistantUntilClosed() {
+        let navigator = WorkspaceNavigator()
+        navigator.reviewProposals(from: "Claude Code")
+        #expect(navigator.isReviewPresented)
+        #expect(navigator.reviewSourceFilter == .assistant("Claude Code"))
+        navigator.reviewDidClose()
+        #expect(navigator.reviewSourceFilter == nil)
+    }
+
+    @Test func reviewingWithoutAnAssistantShowsEveryChange() {
+        let navigator = WorkspaceNavigator()
+        navigator.reviewProposals(from: nil)
+        #expect(navigator.isReviewPresented)
+        #expect(navigator.reviewSourceFilter == nil)
+    }
+
     @Test func sectionsMapToCommandDigits() {
         #expect(AppWorkspaceSection.allCases.map(\.shortcutDigit) == ["1", "2", "3", "4"])
     }

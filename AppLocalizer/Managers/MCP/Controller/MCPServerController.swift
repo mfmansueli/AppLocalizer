@@ -7,22 +7,30 @@ import Foundation
 import Observation
 
 /// The local MCP server behind Settings → AI Assistants: whether it runs,
-/// the access token, the connected assistants, what they may propose, and
-/// the activity log. It's off until the person turns it on, listens only on
+/// the paired assistants and their sessions, what they may propose, and the
+/// activity log. It's off until the person turns it on, listens only on
 /// 127.0.0.1, and answers requests (`handle(_:)`, in
 /// `MCPServerController+HTTP`) with the tools of `toolbox` acting on
-/// `workspace`.
+/// `workspace`. Every assistant is paired with its own token
+/// (`MCPServerController+Pairing`), so each can be revoked alone.
 @MainActor
 @Observable
 final class MCPServerController {
     private(set) var isEnabled: Bool
     private(set) var status: MCPServerStatus = .off
-    /// Connected assistants, oldest first.
+    /// Open sessions, oldest first.
     var sessions: [MCPClientSession] = []
     /// Newest first, at most `logLimit` lines.
     private(set) var log: [MCPLogEntry] = []
-    /// The bearer token; created the first time the server is turned on.
-    private(set) var token: String?
+    /// Paired assistants, in the order they were paired.
+    var pairedClients: [MCPPairedClient] = []
+    /// The pairing the "Pair an assistant" sheet shows, if it's open.
+    var pendingPairing: MCPPendingPairing?
+    /// Whether an assistant made a call in the last few seconds; the
+    /// toolbar indicator spins while it does.
+    private(set) var isWorking = false
+    /// The assistant that made the latest call, e.g. "Claude Code".
+    private(set) var workingClient: String?
 
     /// What assistants may propose; reading is always allowed.
     var allowedProposals: Set<MCPProposalKind> {
@@ -39,21 +47,31 @@ final class MCPServerController {
     /// An assistant without an open stream counts as gone after this long
     /// without a request.
     static let idleTimeout: TimeInterval = 30 * 60
+    /// How long after its last call an assistant still counts as working.
+    static let workingInterval: Duration = .seconds(6)
 
     private let server: any LocalHTTPServing
-    private let secrets: any SecretStore
-    private let defaults: UserDefaults?
+    let secrets: any SecretStore
+    let defaults: UserDefaults?
     let now: () -> Date
     let homeDirectory: String
+    /// Where the stdio bridge for Claude Desktop and Codex lives.
+    let bridgePath: String
+    /// Each paired client's token, read from the Keychain once.
+    var tokens: [MCPPairedClient.ID: String] = [:]
+    /// Clients that connected since AppLocalizer opened, so a quiet one reads
+    /// "Disconnected" rather than "not connected since".
+    var seenThisLaunch: Set<MCPPairedClient.ID> = []
     /// Each session's open event stream, with a token telling a replaced
     /// stream's late close apart from the current one's.
     var streams: [String: (token: UUID, continuation: AsyncStream<String>.Continuation)] = [:]
     /// `roots/list` requests sent to clients, by request ID → session ID.
     var pendingRootRequests: [String: String] = [:]
     private var keepAliveTask: Task<Void, Never>?
+    private var workingTask: Task<Void, Never>?
 
-    /// `defaults` nil keeps the switch and permissions in memory (DEBUG
-    /// scenes, tests).
+    /// `defaults` nil keeps the switch, pairings and permissions in memory
+    /// (DEBUG scenes, tests).
     init(
         server: any LocalHTTPServing,
         secrets: any SecretStore,
@@ -61,6 +79,7 @@ final class MCPServerController {
         port: UInt16 = MCPEndpoint.defaultPort,
         toolbox: MCPToolbox = .standard,
         homeDirectory: String = MCPServerController.userHomeDirectory,
+        bridgePath: String = MCPEndpoint.bridgePath,
         now: @escaping () -> Date = Date.init
     ) {
         self.server = server
@@ -69,11 +88,12 @@ final class MCPServerController {
         self.port = port
         self.toolbox = toolbox
         self.homeDirectory = homeDirectory
+        self.bridgePath = bridgePath
         self.now = now
         isEnabled = defaults?.bool(forKey: Key.isEnabled) ?? false
         allowedProposals = defaults?.stringArray(forKey: Key.allowedProposals)
             .map { Set($0.compactMap(MCPProposalKind.init(rawValue:))) } ?? Set(MCPProposalKind.allCases)
-        token = try? secrets.secret(named: MCPAccessToken.secretName)
+        loadPairedClients()
     }
 
     // MARK: - Reading
@@ -86,15 +106,20 @@ final class MCPServerController {
     var address: String { MCPEndpoint.address(port: port) }
     var url: String { MCPEndpoint.url(port: port) }
 
-    /// "Off", "Waiting for a client · 127.0.0.1:47321" or "Running · 1 client
-    /// connected · 127.0.0.1:47321".
+    /// Paired assistants with a session open.
+    var connectedClients: [MCPPairedClient] {
+        pairedClients.filter { client in sessions.contains { $0.pairedClientID == client.id } }
+    }
+
+    /// "Off", "Running · no assistant connected · 127.0.0.1:47321" or
+    /// "Running · 1 assistant connected · 127.0.0.1:47321".
     var statusText: String {
         switch status {
         case .off: String(localized: "Off")
         case .starting: String(localized: "Starting…")
         case let .failed(message): String(localized: "Couldn’t start: \(message)")
-        case .listening where sessions.isEmpty: String(localized: "Waiting for a client · \(address)")
-        case .listening: String(localized: "Running · \(sessions.count) client connected · \(address)")
+        case .listening where connectedClients.isEmpty: String(localized: "Running · no assistant connected · \(address)")
+        case .listening: String(localized: "Running · \(connectedClients.count) assistant connected · \(address)")
         }
     }
 
@@ -125,21 +150,12 @@ final class MCPServerController {
         if allowed { allowedProposals.insert(kind) } else { allowedProposals.remove(kind) }
     }
 
-    /// A new token; every client is disconnected and needs the new command.
-    func regenerateToken() {
-        let newToken = MCPAccessToken.generate()
-        do {
-            try secrets.setSecret(newToken, named: MCPAccessToken.secretName)
-            token = newToken
-            disconnectAll()
-        } catch {
-            status = .failed(message: error.localizedDescription)
-        }
-    }
-
-    /// Ends a client's session; its next request must start a new one.
+    /// Ends a session; the client's next request must start a new one.
     func disconnect(_ sessionID: MCPClientSession.ID) {
         streams.removeValue(forKey: sessionID)?.continuation.finish()
+        if let session = sessions.first(where: { $0.id == sessionID }) {
+            noteSeen(session.pairedClientID, at: session.lastActivity)
+        }
         sessions.removeAll { $0.id == sessionID }
         pendingRootRequests = pendingRootRequests.filter { $0.value != sessionID }
     }
@@ -154,7 +170,7 @@ final class MCPServerController {
         if log.count > Self.logLimit { log.removeLast(log.count - Self.logLimit) }
     }
 
-    /// Forgets clients that went quiet without an open stream.
+    /// Forgets sessions that went quiet without an open stream.
     func pruneIdleSessions() {
         let cutoff = now().addingTimeInterval(-Self.idleTimeout)
         for session in sessions where !session.hasOpenStream && session.lastActivity < cutoff {
@@ -162,10 +178,22 @@ final class MCPServerController {
         }
     }
 
+    /// A tool call from `client` just arrived: the toolbar shows it working
+    /// for a few seconds (`interval`; DEBUG scenes keep it longer).
+    func noteWorking(client: String, for interval: Duration = workingInterval) {
+        workingClient = client
+        isWorking = true
+        workingTask?.cancel()
+        workingTask = Task { [weak self] in
+            try? await Task.sleep(for: interval)
+            guard !Task.isCancelled else { return }
+            self?.isWorking = false
+        }
+    }
+
     // MARK: - Server
 
     private func start() {
-        guard ensureToken() else { return }
         status = .starting
         server.start(
             port: port,
@@ -182,6 +210,7 @@ final class MCPServerController {
     private func stop() {
         server.stop()
         disconnectAll()
+        cancelPairing()
         keepAliveTask?.cancel()
         keepAliveTask = nil
         status = .off
@@ -199,20 +228,7 @@ final class MCPServerController {
         }
     }
 
-    private func ensureToken() -> Bool {
-        if token != nil { return true }
-        let newToken = MCPAccessToken.generate()
-        do {
-            try secrets.setSecret(newToken, named: MCPAccessToken.secretName)
-            token = newToken
-            return true
-        } catch {
-            status = .failed(message: error.localizedDescription)
-            return false
-        }
-    }
-
-    private func disconnectAll() {
+    func disconnectAll() {
         for session in sessions {
             disconnect(session.id)
         }
@@ -241,8 +257,9 @@ final class MCPServerController {
         return String(cString: directory)
     }
 
-    private enum Key {
+    enum Key {
         static let isEnabled = "mcp.isEnabled"
         static let allowedProposals = "mcp.allowedProposals"
+        static let pairedClients = "mcp.pairedClients"
     }
 }

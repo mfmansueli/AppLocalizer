@@ -11,5 +11,6 @@ enum SettingsTab: String, CaseIterable, Hashable, Sendable {
     case account
     case pricing
     case translation
+    case assistants
     case general
 }

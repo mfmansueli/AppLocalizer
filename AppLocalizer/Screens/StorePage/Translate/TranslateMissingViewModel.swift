@@ -31,6 +31,8 @@ final class TranslateMissingViewModel {
 
     /// Locales unchecked in the sheet.
     var excludedLocales: Set<StoreLocale> = []
+    /// The person copied the prompt for their assistant: the sheet waits.
+    var isAssistantPromptCopied = false
     private(set) var phase: Phase = .idle
     private(set) var job: TranslationJob?
     private(set) var review: TranslationReview?
@@ -62,6 +64,7 @@ final class TranslateMissingViewModel {
         self.scope.fields = scope.fields
         excludedLocales = []
         provider = .appleTranslation
+        isAssistantPromptCopied = false
         if let listing = currentListing(), glossary.terms.isEmpty {
             glossary.add(listing.appName.split(separator: ":").first.map(String.init) ?? listing.appName)
         }

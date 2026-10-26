@@ -26,6 +26,7 @@ struct MainView: View {
     @Environment(AppPreferences.self) private var preferences
     @Environment(PricingModeStore.self) private var pricingModes
     @Environment(MCPServerController.self) private var assistants
+    @Environment(TranslationPreferences.self) private var translation
 
     init(
         credentials: AppStoreConnectCredentials,
@@ -69,22 +70,19 @@ struct MainView: View {
         _viewModel = State(initialValue: AppListViewModel(services: services.appList, selectedAppID: selectedAppID))
         _summaries = State(initialValue: AppSummaryStore(services: services))
         let navigator = WorkspaceNavigator(section: section)
-        navigator.isReviewPresented = presentedSheet == .review
-        navigator.isActivityPresented = presentedSheet == .activity
+        switch presentedSheet {
+        case .review: navigator.isReviewPresented = true
+        case let .proposals(client): navigator.reviewProposals(from: client)
+        case .activity: navigator.isActivityPresented = true
+        case nil: break
+        }
         _navigator = State(initialValue: navigator)
     }
 
     var body: some View {
         content
-            .sheet(isPresented: $navigator.isReviewPresented) {
-                ReviewPushSheet(viewModel: ReviewPushViewModel(
-                    queue: changes,
-                    push: push,
-                    selectedAppID: viewModel.selectedAppID,
-                    appName: appName,
-                    pushConfirmation: preferences.pushConfirmation,
-                    confirmsPriceIncreases: preferences.confirmsPriceIncreases
-                ))
+            .sheet(isPresented: $navigator.isReviewPresented, onDismiss: navigator.reviewDidClose) {
+                ReviewPushSheet(viewModel: reviewViewModel())
             }
             .sheet(isPresented: $navigator.isActivityPresented, onDismiss: navigator.activityDidClose) {
                 ActivitySheet()
@@ -145,6 +143,24 @@ struct MainView: View {
         }
     }
 
+    /// Review & Push for the selected app, or for every app's proposals
+    /// from one assistant when the toolbar indicator opened it.
+    private func reviewViewModel() -> ReviewPushViewModel {
+        let review = ReviewPushViewModel(
+            queue: changes,
+            push: push,
+            selectedAppID: viewModel.selectedAppID,
+            appName: appName,
+            pushConfirmation: preferences.pushConfirmation,
+            confirmsPriceIncreases: preferences.confirmsPriceIncreases
+        )
+        if let filter = navigator.reviewSourceFilter {
+            review.scope = .allApps
+            review.sourceFilter = filter
+        }
+        return review
+    }
+
     private func appName(_ id: StoreApp.ID) -> String {
         viewModel.apps.first { $0.id == id }?.name ?? id
     }
@@ -173,7 +189,8 @@ struct MainView: View {
                 if !viewModel.hasLoaded { await viewModel.load() }
                 if let message = viewModel.errorMessage, viewModel.apps.isEmpty { throw MCPToolError.unavailable(message) }
                 return viewModel.apps
-            }
+            },
+            glossary: { [translation] in translation.glossary }
         )
     }
 

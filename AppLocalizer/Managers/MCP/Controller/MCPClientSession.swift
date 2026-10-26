@@ -6,11 +6,12 @@
 import Foundation
 
 /// An assistant connected to the server: one MCP session, from its
-/// `initialize` until it goes away, the person disconnects it or the token
-/// changes.
+/// `initialize` until it goes away or the person revokes its pairing.
 struct MCPClientSession: Identifiable, Hashable, Sendable {
     /// The `Mcp-Session-Id` the server gave it.
     var id: String
+    /// The pairing whose token opened it.
+    var pairedClientID: UUID
     /// `clientInfo.name` as sent, e.g. "claude-code".
     var clientName: String
     var clientVersion: String?
@@ -33,12 +34,7 @@ struct MCPClientSession: Identifiable, Hashable, Sendable {
 
     /// The name people know a client by, from what it sends in `clientInfo`.
     static func displayName(clientName: String, title: String?) -> String {
-        let name = clientName.lowercased()
-        if name == "claude-code" { return "Claude Code" }
-        if name == "claude-ai" || name == "claude desktop" { return "Claude Desktop" }
-        if name.hasPrefix("cursor") { return "Cursor" }
-        if name.hasPrefix("codex") { return "Codex" }
-        return title ?? clientName
+        MCPClientKind.matching(clientName: clientName)?.title ?? title ?? clientName
     }
 
     /// A root's `file://` URI as a path with the home folder shortened to

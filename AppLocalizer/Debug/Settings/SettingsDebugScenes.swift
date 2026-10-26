@@ -11,9 +11,15 @@ import SwiftUI
 /// `set-pricing`, `set-translation` and `set-general` open the real Settings
 /// window on that tab, with the design's two saved keys (Northpier Studio
 /// in use, Brightline Apps without Sales and Trends) and its glossary. The
+/// `set-ai-*` scenes open AI Assistants with the server off, pairing,
+/// paired (`set-ai-on`, also `set-ai-connected`), a client disconnected, or
+/// the activity log; `set-ai-waiting` is the pairing sheet waiting. The
 /// main window closes, so the Settings window is the only one.
 enum SettingsDebugScenes {
-    static let ids = ["set-account", "set-pricing", "set-translation", "set-general"]
+    static let ids = [
+        "set-account", "set-pricing", "set-translation", "set-general",
+        "set-ai-off", "set-ai-pair", "set-ai-waiting", "set-ai-on", "set-ai-connected", "set-ai-disc", "set-ai-log",
+    ]
 
     static let brightlineIssuerID = "5e1f0a42-8d7b-4c19-9f6e-27b3d0c8e915"
 
@@ -23,6 +29,19 @@ enum SettingsDebugScenes {
         case "set-pricing": .pricing
         case "set-translation": .translation
         case "set-general": .general
+        case _ where assistantsState(for: id) != nil: .assistants
+        default: nil
+        }
+    }
+
+    /// The MCP server's state for an AI Assistants scene.
+    static func assistantsState(for id: String) -> AssistantsDebugState? {
+        switch id {
+        case "set-ai-off": .off
+        case "set-ai-pair", "set-ai-waiting": .pairing
+        case "set-ai-on", "set-ai-connected": .paired
+        case "set-ai-disc": .disconnected
+        case "set-ai-log": .log
         default: nil
         }
     }
@@ -54,13 +73,15 @@ enum SettingsDebugScenes {
 
     @MainActor
     static func view(for id: String) -> AnyView? {
-        ids.contains(id) ? AnyView(Opener()) : nil
+        ids.contains(id) ? AnyView(Opener(assistants: assistantsState(for: id))) : nil
     }
 
     /// Fills in what the design shows, opens Settings and closes the main
     /// window.
     private struct Opener: View {
+        let assistants: AssistantsDebugState?
         @Environment(AppSession.self) private var session
+        @Environment(MCPServerController.self) private var server
         @Environment(TranslationPreferences.self) private var translation
         @Environment(\.openSettings) private var openSettings
         @Environment(\.dismissWindow) private var dismissWindow
@@ -78,6 +99,7 @@ enum SettingsDebugScenes {
                     )
                     translation.glossary = TranslationGlossary(terms: ["Lumen", "Lumen Plus", "Face ID", "iCloud", "Weekly Reflections"])
                     translation.sourceLocaleCode = "en-US"
+                    assistants?.apply(to: server)
                     openSettings()
                     dismissWindow(id: "main")
                 }

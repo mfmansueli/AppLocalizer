@@ -16,6 +16,9 @@ final class WorkspaceNavigator {
     var section: AppWorkspaceSection
     /// Review & Push (⇧⌘P).
     var isReviewPresented = false
+    /// The source Review & Push opens filtered to, e.g. one assistant's
+    /// proposals; cleared when it closes.
+    var reviewSourceFilter: ChangeSourceFilter?
     /// Activity history (the toolbar clock).
     var isActivityPresented = false
     /// Set by Activity's "Restore Previous Values": Review & Push opens once
@@ -40,6 +43,18 @@ final class WorkspaceNavigator {
     /// Asks the current section to do something without switching.
     func send(_ intent: WorkspaceIntent) {
         self.intent = intent
+    }
+
+    /// Opens Review & Push on every app's proposals from `client`, or every
+    /// change when it's nil.
+    func reviewProposals(from client: String?) {
+        reviewSourceFilter = client.map(ChangeSourceFilter.assistant)
+        isReviewPresented = true
+    }
+
+    /// Called when Review & Push closed.
+    func reviewDidClose() {
+        reviewSourceFilter = nil
     }
 
     /// Closes Activity and opens Review & Push after it.

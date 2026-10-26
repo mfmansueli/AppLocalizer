@@ -50,13 +50,17 @@ struct AppLocalizerApp: App {
         }
 
         Settings {
-            SettingsView(selection: Self.initialSettingsTab)
-                .environment(session)
-                .environment(pricingModes)
-                .environment(preferences)
-                .environment(translation)
-                .environment(assistants)
-                .environment(\.keyChecker, Self.keyChecker)
+            SettingsView(
+                selection: Self.initialSettingsTab,
+                opensPairing: Self.debugOpensPairing,
+                scrollsToLog: Self.debugScrollsToLog
+            )
+            .environment(session)
+            .environment(pricingModes)
+            .environment(preferences)
+            .environment(translation)
+            .environment(assistants)
+            .environment(\.keyChecker, Self.keyChecker)
         }
     }
 
@@ -97,6 +101,23 @@ struct AppLocalizerApp: App {
         if let tab = DebugScene.requestedID.flatMap(SettingsDebugScenes.tab(for:)) { return tab }
         #endif
         return .account
+    }
+
+    /// DEBUG scenes that open AI Assistants on the pairing sheet or the log.
+    private static var debugOpensPairing: Bool {
+        #if DEBUG
+        DebugScene.requestedID.flatMap(SettingsDebugScenes.assistantsState(for:)) == .pairing
+        #else
+        false
+        #endif
+    }
+
+    private static var debugScrollsToLog: Bool {
+        #if DEBUG
+        DebugScene.requestedID.flatMap(SettingsDebugScenes.assistantsState(for:)) == .log
+        #else
+        false
+        #endif
     }
 
     /// DEBUG scenes keep pending changes, history and preferences in memory

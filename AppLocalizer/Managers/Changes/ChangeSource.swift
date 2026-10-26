@@ -47,10 +47,13 @@ enum ChangeSource: Hashable, Codable, Sendable {
         return false
     }
 
-    /// Two-letter monogram for assistant tags ("Claude Code" → "CC").
+    /// Two-letter monogram for assistant tags: the initials of a name with
+    /// several words ("Claude Code" → "CC"), else its first two letters
+    /// ("Cursor" → "CU").
     var monogram: String? {
         guard case let .assistant(client) = self else { return nil }
-        let letters = client.split(separator: " ").compactMap(\.first).prefix(2)
-        return String(letters).uppercased()
+        let words = client.split(separator: " ")
+        let letters = words.count > 1 ? String(words.compactMap(\.first).prefix(2)) : String(client.prefix(2))
+        return letters.uppercased()
     }
 }
