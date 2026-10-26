@@ -46,7 +46,9 @@ struct DebugMainScene: View {
         let history = PushHistory(records: pushRecords)
         _changes = State(initialValue: changes)
         _history = State(initialValue: history)
-        _push = State(initialValue: PushController(queue: changes, history: history, transport: services.push))
+        // The scene's in-memory secrets, e.g. App Review's demo password, so
+        // pushing in a scene never reads the Keychain.
+        _push = State(initialValue: PushController(queue: changes, history: history, transport: services.push, secrets: services.appInformation.secrets))
         _pricingModes = State(initialValue: PricingModeStore(defaults: nil, modes: pricingModes))
     }
 
