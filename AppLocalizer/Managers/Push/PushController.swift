@@ -13,6 +13,11 @@ import Observation
 /// Each change is checked first when it has a `ConflictCheck`; a value that
 /// changed in App Store Connect isn't overwritten but goes back to review.
 /// Pushed changes leave the queue and are recorded in `PushHistory`.
+///
+/// A change sends its `pushRequests` (its own, then its option's when that's
+/// on). Placeholders are filled in just before each request goes: a
+/// `{createdID}` with the ID an earlier `POST` of the same change returned,
+/// a `{secret:…}` from `secrets`.
 @MainActor
 @Observable
 final class PushController {
@@ -35,16 +40,25 @@ final class PushController {
 
     private let queue: ChangeQueue
     private let history: PushHistory
+    /// Where `{secret:…}` placeholders are read from (the Keychain).
+    private let secrets: any SecretStore
     private let now: () -> Date
     private var task: Task<Void, Never>?
     private var isCancelling = false
     private var reportedRateLimit: AppStoreConnectRateLimit?
     private var sentDates: [Date] = []
 
-    init(queue: ChangeQueue, history: PushHistory, transport: (any PushTransport)? = nil, now: @escaping () -> Date = { .now }) {
+    init(
+        queue: ChangeQueue,
+        history: PushHistory,
+        transport: (any PushTransport)? = nil,
+        secrets: any SecretStore = KeychainSecretStore(),
+        now: @escaping () -> Date = { .now }
+    ) {
         self.queue = queue
         self.history = history
         self.transport = transport
+        self.secrets = secrets
         self.now = now
     }
 
@@ -233,10 +247,14 @@ final class PushController {
                 throw ConflictFound(conflict: RemoteConflict(remoteRawValue: actual, remoteDisplayValue: check.format.display(actual)))
             }
         }
-        for request in change.requests.dropFirst(items[index].sentRequestCount) {
-            let response = try await transport.send(request)
+        for request in change.pushRequests.dropFirst(items[index].sentRequestCount) {
+            let resolved = try request.resolved(createdID: items[index].createdID) { try secrets.secret(named: $0) }
+            let response = try await transport.send(resolved)
             noteRequest(response.rateLimit)
             items[index].sentRequestCount += 1
+            if request.method == .post, let id = Self.createdID(in: response.data) {
+                items[index].createdID = id
+            }
         }
     }
 
@@ -300,6 +318,12 @@ final class PushController {
     /// Thrown by `send` when the conflict check found a different value.
     private struct ConflictFound: Error {
         var conflict: RemoteConflict
+    }
+
+    /// The `data.id` of a `POST`'s response: the resource it created.
+    private static func createdID(in data: Data) -> String? {
+        let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        return (object?["data"] as? [String: Any])?["id"] as? String
     }
 
     /// What happened to one item, for the loop that sends them.

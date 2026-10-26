@@ -5,8 +5,9 @@
 
 import SwiftUI
 
-/// Discard All on the left; the request estimate, Cancel, Push Selected and
-/// Push n Changes on the right.
+/// Discard All on the left; what options will do ("2 declarations publish
+/// immediately when pushed"), the request estimate, Cancel, Push Selected
+/// and Push n Changes on the right.
 struct ReviewFooter: View {
     let viewModel: ReviewPushViewModel
     let onDiscardAll: () -> Void
@@ -21,6 +22,13 @@ struct ReviewFooter: View {
                 .disabled(viewModel.visibleChanges.isEmpty)
                 .accessibilityIdentifier("review.discardAll")
             Spacer()
+            ForEach(viewModel.optionFootnotes, id: \.self) { footnote in
+                Text(footnote)
+                    .font(.caption)
+                    .foregroundStyle(Palette.label2)
+                    .monospacedDigit()
+                    .accessibilityIdentifier("review.optionFootnote")
+            }
             if !viewModel.pushableChanges.isEmpty {
                 Text(viewModel.estimate.text)
                     .font(.caption)

@@ -54,7 +54,8 @@ struct ReviewChangeGroupView: View {
                     onDiscard: { viewModel.discard(change.id) },
                     onKeepMine: { viewModel.keepMine(change.id) },
                     onUseRemote: { viewModel.useRemote(change.id) },
-                    onPickAlternative: { viewModel.resolveAlternative(change.id, keepAlternative: $0) }
+                    onPickAlternative: { viewModel.resolveAlternative(change.id, keepAlternative: $0) },
+                    onSetOption: { viewModel.setOption(change.id, isOn: $0) }
                 )
             }
         }
