@@ -14,6 +14,7 @@ struct AppLocalizerApp: App {
     @State private var pricingModes = PricingModeStore(defaults: Self.defaults)
     @State private var preferences = AppPreferences(defaults: Self.defaults)
     @State private var translation = TranslationPreferences(defaults: Self.defaults, secrets: Self.secretStore)
+    @State private var assistants = MCPServerController(server: Self.httpServer, secrets: Self.secretStore, defaults: Self.defaults)
 
     init() {
         let changes = ChangeQueue(persistence: Self.changePersistence)
@@ -35,8 +36,12 @@ struct AppLocalizerApp: App {
                 .environment(pricingModes)
                 .environment(preferences)
                 .environment(translation)
+                .environment(assistants)
                 .environment(\.keyChecker, Self.keyChecker)
                 .frame(minWidth: Metrics.minimumWindowWidth, minHeight: Metrics.minimumWindowHeight)
+                // The local MCP server runs while AppLocalizer is open, if
+                // the person turned it on.
+                .task { assistants.startIfEnabled() }
         }
         .defaultSize(width: 1200, height: 780)
         .commands {
@@ -50,6 +55,7 @@ struct AppLocalizerApp: App {
                 .environment(pricingModes)
                 .environment(preferences)
                 .environment(translation)
+                .environment(assistants)
                 .environment(\.keyChecker, Self.keyChecker)
         }
     }
@@ -68,6 +74,14 @@ struct AppLocalizerApp: App {
         if let id = DebugScene.requestedID { return SettingsDebugScenes.secretStore(for: id) }
         #endif
         return KeychainSecretStore()
+    }
+
+    /// DEBUG scenes never open a port for the MCP server.
+    private static var httpServer: any LocalHTTPServing {
+        #if DEBUG
+        if DebugScene.requestedID != nil { return DebugHTTPServer() }
+        #endif
+        return LocalHTTPServer()
     }
 
     /// DEBUG scenes check keys with canned answers, never with Apple.

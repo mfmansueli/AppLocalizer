@@ -12,4 +12,11 @@ extension StoreLocale {
     func isSameLanguage(as other: StoreLocale) -> Bool {
         language.languageCode == other.language.languageCode && language.script == other.language.script
     }
+
+    /// The language alone, in the app's own language: "English" for
+    /// en-US and en-GB alike ("Copy URLs from English").
+    var languageName: String {
+        let appLocale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")
+        return appLocale.localizedString(forLanguageCode: languageCode) ?? name
+    }
 }

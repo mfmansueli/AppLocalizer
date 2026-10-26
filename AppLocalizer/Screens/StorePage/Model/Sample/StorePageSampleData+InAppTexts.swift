@@ -36,7 +36,8 @@ extension StorePageSampleData {
         .arabic: [.iPhone: 4, .iPad: 0, .mac: 0],
     ])
 
-    private static let inAppRemoteTexts: [StoreLocale: [String: String]] = [
+    /// App Store Connect's in-app texts: locale → column ID → text.
+    static let inAppRemoteTexts: [StoreLocale: [String: String]] = [
         .englishUS: [
             "group.name": "Lumen Plus",
             "lumen.plus.monthly.name": "Lumen Plus Monthly",

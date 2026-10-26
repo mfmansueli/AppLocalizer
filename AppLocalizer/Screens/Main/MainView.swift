@@ -24,6 +24,8 @@ struct MainView: View {
     @Environment(ChangeQueue.self) private var changes
     @Environment(PushController.self) private var push
     @Environment(AppPreferences.self) private var preferences
+    @Environment(PricingModeStore.self) private var pricingModes
+    @Environment(MCPServerController.self) private var assistants
 
     init(
         credentials: AppStoreConnectCredentials,
@@ -88,6 +90,8 @@ struct MainView: View {
                 ActivitySheet()
             }
             .task { configurePush() }
+            .task { attachAssistants() }
+            .onDisappear { assistants.workspace = nil }
             .task { await loadLibrary() }
             .onChange(of: navigator.refreshCount) {
                 summaries.invalidateAll()
@@ -155,6 +159,22 @@ struct MainView: View {
             }
             navigator.refresh()
         }
+    }
+
+    /// Lets connected assistants read and propose for this account.
+    private func attachAssistants() {
+        let teamName = accounts.first { $0.id == currentAccountID }?.name ?? String(localized: "This account")
+        assistants.workspace = MCPWorkspace(
+            teamName: teamName,
+            services: services,
+            changes: changes,
+            pricingModes: pricingModes,
+            apps: { [viewModel] in
+                if !viewModel.hasLoaded { await viewModel.load() }
+                if let message = viewModel.errorMessage, viewModel.apps.isEmpty { throw MCPToolError.unavailable(message) }
+                return viewModel.apps
+            }
+        )
     }
 
     private func loadLibrary() async {
