@@ -43,9 +43,34 @@ struct DebugPricingServices: PricingServices {
         return ladders.filter { territoryIDs.contains($0.key) }
     }
 
+    /// Lumen Plus Annual's offers; other products have none.
+    func offers(for product: PricingProduct) async throws -> [SubscriptionOffer] {
+        if let error { throw error }
+        return isLumenAnnual(product) ? PricingSampleData.offers : []
+    }
+
+    /// Lumen Plus Annual's existing subscribers; other products have none.
+    func subscribers(for product: PricingProduct) async throws -> [String: Int]? {
+        if let error { throw error }
+        return isLumenAnnual(product) ? DebugPricingResults.subscribers() : [:]
+    }
+
+    /// Lumen Plus Annual's sales around the sample push; nil for a key that
+    /// can't read sales.
+    func salesComparison(for product: PricingProduct, territoryIDs: [String], changedOn _: Date) async throws -> [String: SalesComparison]? {
+        if let error { throw error }
+        guard canReadSales else { return nil }
+        guard isLumenAnnual(product) else { return [:] }
+        return DebugPricingResults.salesComparison().filter { territoryIDs.contains($0.key) }
+    }
+
     /// The sample snapshot, which already holds the imported custom index.
     func indexSnapshot() -> PriceIndexSnapshot {
         PricingSampleData.shared.snapshot
+    }
+
+    private func isLumenAnnual(_ product: PricingProduct) -> Bool {
+        product.id == DebugPricingCatalog.lumenAnnualID
     }
 }
 #endif

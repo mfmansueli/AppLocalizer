@@ -31,6 +31,6 @@ struct ResultsSummary: Hashable, Sendable {
 
     /// "6 better · 3 worse · 150 too few sales to tell".
     var breakdownText: String {
-        "\(betterCount) better · \(worseCount) worse · \(tooLittleDataCount) too few sales to tell"
+        String(localized: "\(betterCount) better · \(worseCount) worse · \(tooLittleDataCount) too few sales to tell")
     }
 }

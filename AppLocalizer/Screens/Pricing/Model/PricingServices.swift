@@ -25,4 +25,16 @@ protocol PricingServices {
     /// The price indices strategies draw on: the bundled snapshot, plus any
     /// custom index the scene starts with.
     func indexSnapshot() -> PriceIndexSnapshot
+
+    /// A subscription's offers: introductory, promotional, win-back and
+    /// offer codes.
+    func offers(for product: PricingProduct) async throws -> [SubscriptionOffer]
+
+    /// Existing subscribers per territory, for the schedule's consent
+    /// warnings; nil when AppLocalizer can't read them.
+    func subscribers(for product: PricingProduct) async throws -> [String: Int]?
+
+    /// Each territory's sales in the 28 days either side of a price change
+    /// on `date`, for Results; nil when AppLocalizer can't read sales.
+    func salesComparison(for product: PricingProduct, territoryIDs: [String], changedOn date: Date) async throws -> [String: SalesComparison]?
 }

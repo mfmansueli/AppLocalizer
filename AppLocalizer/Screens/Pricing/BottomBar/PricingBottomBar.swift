@@ -82,11 +82,12 @@ struct PricingBottomBar: View {
             .accessibilityIdentifier("pricing.more")
         }
         if matrix.pendingCount > 0 {
-            Button {} label: {
-                Label("Starts now", systemImage: "calendar")
+            Button {
+                viewModel.openSchedule()
+            } label: {
+                Label(matrix.schedule.buttonTitle, systemImage: "calendar")
             }
-            .disabled(true)
-            .help("Scheduling a later start date isn’t available yet. Prices change as soon as Apple processes them.")
+            .help("When these price changes start, and whether existing subscribers keep their price")
             .accessibilityIdentifier("pricing.schedule")
         }
         if viewModel.mode != .applyRecommended {

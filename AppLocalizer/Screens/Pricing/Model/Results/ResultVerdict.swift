@@ -19,10 +19,10 @@ enum ResultVerdict: String, CaseIterable, Hashable, Sendable {
 
     var title: String {
         switch self {
-        case .better: "Better"
-        case .moreStartsLessProceeds: "More starts, less proceeds"
-        case .worse: "Worse"
-        case .tooLittleData: "Too little data"
+        case .better: String(localized: "Better")
+        case .moreStartsLessProceeds: String(localized: "More starts, less proceeds")
+        case .worse: String(localized: "Worse")
+        case .tooLittleData: String(localized: "Too little data")
         }
     }
 

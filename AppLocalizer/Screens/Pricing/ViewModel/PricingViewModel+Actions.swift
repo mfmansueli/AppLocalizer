@@ -14,20 +14,35 @@ extension PricingViewModel {
         switch intent {
         case .reviewSuggestions:
             if mode == .keepPrices { apply(mode: .showSuggestions) }
+            showMatrix()
             matrix?.filter = PriceMatrixFilter()
             columnPreset = .automatic
             return true
         case .applyRecommendedPrices:
             if mode == .keepPrices { apply(mode: .showSuggestions) }
+            showMatrix()
             await applyRecommendedPrices()
+            return true
+        case .showResults:
+            tab = .results
             return true
         case let .editPriceSchedule(productID):
             // Review passes the price group's ID, which is the subscription's.
             if let productID, catalog?.product(id: productID) != nil { await select(productID: productID) }
+            tab = .prices
+            // Review & Push's sheet is still closing; macOS shows one sheet at a time.
+            try? await Task.sleep(for: .milliseconds(400))
+            if (matrix?.pendingCount ?? 0) > 0 { openSchedule() }
             return true
         default:
             return false
         }
+    }
+
+    /// The Prices tab with the matrix, where suggestions are applied.
+    private func showMatrix() {
+        tab = .prices
+        display = .table
     }
 
     /// The More menu's “Copy from Monthly × 8.0”: the sibling's shown

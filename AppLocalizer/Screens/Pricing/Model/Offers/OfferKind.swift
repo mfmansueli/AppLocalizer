@@ -15,20 +15,20 @@ enum OfferKind: String, CaseIterable, Hashable, Sendable {
     /// The offer list's group: "Introductory offers".
     var groupTitle: String {
         switch self {
-        case .introductory: "Introductory offers"
-        case .promotional: "Promotional offers"
-        case .winBack: "Win-back offers"
-        case .offerCode: "Offer codes"
+        case .introductory: String(localized: "Introductory offers")
+        case .promotional: String(localized: "Promotional offers")
+        case .winBack: String(localized: "Win-back offers")
+        case .offerCode: String(localized: "Offer codes")
         }
     }
 
     /// The editor's badge: "Introductory offer".
     var title: String {
         switch self {
-        case .introductory: "Introductory offer"
-        case .promotional: "Promotional offer"
-        case .winBack: "Win-back offer"
-        case .offerCode: "Offer code"
+        case .introductory: String(localized: "Introductory offer")
+        case .promotional: String(localized: "Promotional offer")
+        case .winBack: String(localized: "Win-back offer")
+        case .offerCode: String(localized: "Offer code")
         }
     }
 }

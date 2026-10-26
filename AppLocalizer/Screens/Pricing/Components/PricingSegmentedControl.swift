@@ -8,8 +8,8 @@ import SwiftUI
 
 /// A native segmented control whose segments can be disabled one by one
 /// and show a symbol instead of a title, which a SwiftUI segmented `Picker`
-/// can't do on macOS. Used for Prices | Offers | Results and Table | Map |
-/// Histogram, where some views arrive in a later update.
+/// can't do on macOS. Used for Prices | Offers | Results (in-app purchases
+/// have no offers) and Table | Map | Histogram.
 struct PricingSegmentedControl<Value: Hashable>: NSViewRepresentable {
     struct Segment {
         var value: Value

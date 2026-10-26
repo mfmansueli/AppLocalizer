@@ -15,6 +15,8 @@ struct PricingRowBuilder {
     let sheet: ProductPriceSheet
     let strategy: PricingStrategy
     let showsSuggestions: Bool
+    /// The push has a start date (`PriceSchedule`).
+    var isScheduled = false
 
     func rows(queued: [String: QueuedPrice] = [:]) -> [PricingRow] {
         rows(recommendations: recommendations(), queued: queued)
@@ -48,7 +50,8 @@ struct PricingRowBuilder {
                 calculation: calculator.calculate(input, strategy: effective),
                 usesCustomStrategy: strategy.isCustom,
                 pageViews: sheet.sales.pageViews(in: territory.id),
-                queued: queued[territory.id]
+                queued: queued[territory.id],
+                isScheduled: isScheduled
             )
         }
     }

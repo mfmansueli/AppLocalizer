@@ -7,8 +7,9 @@ import Foundation
 import Observation
 
 /// The Subscription Pricing section of one app: the catalog and selected
-/// product, the pricing mode, the strategy inspector, and the matrix of the
-/// selected product.
+/// product, the pricing mode, the strategy inspector, the matrix of the
+/// selected product and its other views (map, histogram, schedule, offers
+/// and results).
 @MainActor
 @Observable
 final class PricingViewModel {
@@ -28,6 +29,25 @@ final class PricingViewModel {
     /// Asks before Keep my prices drops the queued price changes.
     var isKeepConfirmationPresented = false
     var isGroupConfirmationPresented = false
+
+    var tab = PricingTab.prices
+    var display = PricingDisplay.table
+    var mapMetric = TileMapMetric.percentVsBase
+    /// The tile whose details the map shows.
+    var hoveredTerritoryID: PricingRow.ID?
+    var isScheduleSheetPresented = false
+    /// Existing subscribers per territory for the schedule's warning; nil
+    /// until loaded, or when AppLocalizer can't read them.
+    private(set) var subscribers: [String: Int]?
+    @ObservationIgnored private var subscribersProductID: String?
+    private(set) var offers: LoadState<[SubscriptionOffer]> = .idle
+    var selectedOfferID: SubscriptionOffer.ID?
+    private(set) var results: PriceResultsModel?
+
+    /// Today, for Results' 28 days; DEBUG scenes pin it.
+    var today: () -> Date = { .now }
+    /// The app's finished pushes (`PushHistory`), for Results.
+    var pushRecords: () -> [PushRecord] = { [] }
 
     /// Shows a workspace banner (offline, rate limited, API error).
     var onNotice: (PushNotice) -> Void = { _ in }
@@ -99,6 +119,7 @@ final class PricingViewModel {
         guard force || productID != selectedProductID, let product = catalog?.product(id: productID) else { return }
         selectedProductID = productID
         isBrowserPresented = false
+        resetProductViews(for: product)
         isLoadingSheet = true
         sheetError = nil
         if matrix?.product.id != productID { matrix = nil }
@@ -129,6 +150,18 @@ final class PricingViewModel {
             sheetError = error.localizedDescription
             onNotice(PricingLoadNotice.notice(for: error))
         }
+    }
+
+    /// Offers, results and subscribers belong to one product; a product
+    /// without offers can't stay on that tab.
+    private func resetProductViews(for product: PricingProduct) {
+        offers = .idle
+        selectedOfferID = nil
+        results = nil
+        subscribers = nil
+        subscribersProductID = nil
+        hoveredTerritoryID = nil
+        if product.isInAppPurchase, tab == .offers { tab = .prices }
     }
 
     func setCommission(_ commission: Commission) async {
@@ -217,5 +250,63 @@ final class PricingViewModel {
 
     func strategyDidChange() {
         matrix?.update(strategy: strategy.strategy, calculator: strategy.calculator)
+    }
+
+    // MARK: - Schedule
+
+    /// The bottom bar's “Starts now”, or Review & Push's “Edit…”.
+    func openSchedule() {
+        isScheduleSheetPresented = true
+        Task { await loadSubscribers() }
+    }
+
+    func loadSubscribers() async {
+        guard let product = selectedProduct, subscribersProductID != product.id else { return }
+        subscribersProductID = product.id
+        let counts = try? await services.subscribers(for: product)
+        guard selectedProductID == product.id else { return }
+        subscribers = counts
+    }
+
+    /// The schedule sheet's Save.
+    func saveSchedule(_ schedule: PriceSchedule) {
+        matrix?.setSchedule(schedule)
+        isScheduleSheetPresented = false
+    }
+
+    // MARK: - Offers and Results
+
+    /// Reads the selected subscription's offers once, selecting the first
+    /// promotional offer (else the first).
+    func loadOffers() async {
+        guard let product = selectedProduct, !product.isInAppPurchase, !offers.isLoading, offers.value == nil else { return }
+        offers = .loading
+        do {
+            let list = try await services.offers(for: product)
+            guard selectedProductID == product.id else { return }
+            offers = .loaded(list)
+            if selectedOfferID == nil { selectedOfferID = (list.first { $0.kind == .promotional } ?? list.first)?.id }
+        } catch {
+            guard selectedProductID == product.id else { return }
+            offers = .failed(error.localizedDescription)
+        }
+    }
+
+    var selectedOffer: SubscriptionOffer? {
+        offers.value?.first { $0.id == selectedOfferID }
+    }
+
+    /// Compares the selected product's last price push, once per product
+    /// (and again after `resultsDidChange()`).
+    func loadResults() async {
+        guard let product = selectedProduct, results?.product.id != product.id else { return }
+        let model = PriceResultsModel(appID: app.id, product: product, services: services, queue: queue)
+        results = model
+        await model.load(records: pushRecords(), today: today())
+    }
+
+    /// A push finished: Results compare again when shown.
+    func resultsDidChange() {
+        results = nil
     }
 }
