@@ -7,8 +7,8 @@ import Foundation
 import Testing
 @testable import AppLocalizer
 
-/// The live services' summary, in-app texts and screenshots against canned
-/// App Store Connect JSON.
+/// The live services' summary and in-app texts against canned App Store
+/// Connect JSON.
 @MainActor
 @Suite("LiveStorePageServices")
 struct LiveStorePageServicesTests {
@@ -40,39 +40,6 @@ struct LiveStorePageServicesTests {
         store.setTags(["en-US.keywords": "diary,mood"], appID: app.id, scope: MachineTranslationScope.version("v14"))
         let summary = try await services(FakeHTTPTransport(Canned.lumen), store: store).summary(for: app)
         #expect(summary.machineTranslatedCount == 1)
-    }
-
-    @Test func screenshotsAreCountedPerDeviceFromEachLocalesSets() async throws {
-        let transport = FakeHTTPTransport([
-            Canned.page([
-                Canned.screenshotSet("s1", displayType: "APP_IPHONE_67", screenshots: 6),
-                Canned.screenshotSet("s2", displayType: "APP_IPHONE_61", screenshots: 3),
-                Canned.screenshotSet("s3", displayType: "APP_DESKTOP", screenshots: 4),
-                Canned.screenshotSet("s4", displayType: "APP_WATCH_ULTRA", screenshots: 2),
-            ]),
-            Canned.page([Canned.screenshotSet("s5", displayType: "APP_IPAD_PRO_3GEN_129", screenshots: 5)]),
-        ])
-        let content = StorePageContent(
-            appName: "Lumen Journal",
-            primaryLocale: .englishUS,
-            versions: [],
-            version: StorePageContentFixtures.editableVersion,
-            locales: [.englishUS, .german],
-            texts: [:],
-            ids: ListingResourceIDs(versionID: "v14", appInfoID: "info", versionLocalizations: [.englishUS: "vl-en", .german: "vl-de"])
-        )
-        let coverage = try await services(transport).screenshots(for: app, content: content)
-
-        #expect(transport.requests.map { $0.url?.path() } == [
-            "/v1/appStoreVersionLocalizations/vl-en/appScreenshotSets",
-            "/v1/appStoreVersionLocalizations/vl-de/appScreenshotSets",
-        ])
-        let query = transport.requests.first?.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems } ?? []
-        #expect(query.contains(URLQueryItem(name: "include", value: "appScreenshots")))
-        #expect(coverage.count(for: .englishUS, on: .iPhone) == 6)
-        #expect(coverage.count(for: .englishUS, on: .mac) == 4)
-        #expect(coverage.status(for: .german, on: .iPhone) == .usesPrimary(.englishUS))
-        #expect(coverage.status(for: .german, on: .iPad) == .present(count: 5))
     }
 
     @Test func inAppTextsReadTheGroupSubscriptionsAndPurchases() async throws {

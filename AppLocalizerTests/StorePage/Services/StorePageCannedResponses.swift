@@ -32,11 +32,6 @@ enum StorePageCannedResponses {
         #"{"type":"appStoreVersionLocalizations","id":"\#(id)","attributes":{"locale":"\#(locale)","description":"\#(description)","keywords":"\#(keywords)","whatsNew":null}}"#
     }
 
-    static func screenshotSet(_ id: String, displayType: String, screenshots: Int) -> String {
-        let data = (0..<screenshots).map { #"{"type":"appScreenshots","id":"\#(id)-\#($0)"}"# }.joined(separator: ",")
-        return #"{"type":"appScreenshotSets","id":"\#(id)","attributes":{"screenshotDisplayType":"\#(displayType)"},"relationships":{"appScreenshots":{"data":[\#(data)]}}}"#
-    }
-
     static func named(_ type: String, _ id: String, _ attributes: String) -> String {
         #"{"type":"\#(type)","id":"\#(id)","attributes":{\#(attributes)}}"#
     }

@@ -37,7 +37,8 @@ final class StorePageViewModel {
     private(set) var errorMessage: String?
     /// Locales added with "Add Locale" that have nothing queued yet.
     private(set) var addedLocales: [StoreLocale] = []
-    private(set) var screenshots: LoadState<ScreenshotCoverage> = .idle
+    /// Store Page → Screenshots, made once the store page has loaded.
+    private(set) var screenshots: ScreenshotsViewModel?
 
     // MARK: - Navigation
 
@@ -102,10 +103,9 @@ final class StorePageViewModel {
             let versionChanged = content?.version.id != loaded.version.id
             content = loaded
             errorMessage = nil
-            if versionChanged { screenshots = .idle }
             rebuild()
             refreshSummaryIfNeeded()
-            if mode == .screenshots { await loadScreenshots(force: true) }
+            await updateScreenshots(content: loaded, reload: versionChanged || mode == .screenshots)
             if mode == .inAppTexts { await inAppTexts.load(listing: listing, force: true) }
             performPendingIntent()
         } catch {
@@ -123,14 +123,18 @@ final class StorePageViewModel {
 
     var isLoaded: Bool { content != nil }
 
-    /// Loads the screenshots the first time the view opens.
-    func loadScreenshots(force: Bool = false) async {
-        guard let content, force || screenshots.value == nil, !screenshots.isLoading else { return }
-        screenshots = .loading
-        do {
-            screenshots = try await .loaded(services.screenshots(for: app, content: content))
-        } catch {
-            screenshots = .failed(StorePageErrorReporter.report(error, to: push))
+    /// Makes the Screenshots view's model the first time, and keeps it on
+    /// the shown version; it loads when the view first opens.
+    private func updateScreenshots(content: StorePageContent, reload: Bool) async {
+        guard let screenshots else {
+            screenshots = ScreenshotsViewModel(app: app, services: services.screenshots, context: ScreenshotsContext(content: content))
+            return
+        }
+        let context = ScreenshotsContext(content: content)
+        if context != screenshots.context {
+            await screenshots.update(context: context)
+        } else if reload, screenshots.isLoaded {
+            await screenshots.load()
         }
     }
 

@@ -19,8 +19,9 @@ protocol StorePageServices {
     /// Subscription and in-app purchase names and descriptions.
     func inAppTexts(for app: StoreApp) async throws -> InAppTextsContent
 
-    /// How many screenshots each locale of the shown version has per size.
-    func screenshots(for app: StoreApp, content: StorePageContent) async throws -> ScreenshotCoverage
+    /// Store Page → Screenshots: templates, captions, captures and the
+    /// live screenshot sets.
+    var screenshots: any ScreenshotsServices { get }
 
     /// Apple Translation, or a stand-in.
     var translator: any ListingTranslator { get }

@@ -16,7 +16,7 @@ final class FakeStorePageServices: StorePageServices {
     var defaultVersionID: String
     var error: (any Error)?
     var inAppTextsContent = InAppTextsContent.empty
-    var screenshotCoverage = ScreenshotCoverage(primaryLocale: .englishUS, counts: [:])
+    var screenshots: any ScreenshotsServices = FakeScreenshotsServices()
     let translator: any ListingTranslator
     let machineTranslations: any MachineTranslationStore
 
@@ -50,10 +50,5 @@ final class FakeStorePageServices: StorePageServices {
     func inAppTexts(for _: StoreApp) async throws -> InAppTextsContent {
         if let error { throw error }
         return inAppTextsContent
-    }
-
-    func screenshots(for _: StoreApp, content _: StorePageContent) async throws -> ScreenshotCoverage {
-        if let error { throw error }
-        return screenshotCoverage
     }
 }

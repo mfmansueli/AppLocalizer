@@ -22,20 +22,6 @@ extension StorePageSampleData {
         remote: inAppRemoteTexts
     )
 
-    /// Screenshots per locale and size. Spanish (Mexico) has none, so its iPhone column uses English (U.S.).
-    static let screenshots = ScreenshotCoverage(primaryLocale: .englishUS, counts: [
-        .englishUS: [.iPhone: 6, .iPad: 5, .mac: 4],
-        .englishUK: [.iPhone: 6, .iPad: 5, .mac: 4],
-        .german: [.iPhone: 6, .iPad: 5, .mac: 0],
-        .french: [.iPhone: 6, .iPad: 5, .mac: 4],
-        .spanishSpain: [.iPhone: 6, .iPad: 0, .mac: 0],
-        .spanishMexico: [.iPhone: 0, .iPad: 0, .mac: 0],
-        .portugueseBrazil: [.iPhone: 6, .iPad: 5, .mac: 0],
-        .italian: [.iPhone: 5, .iPad: 0, .mac: 0],
-        .japanese: [.iPhone: 6, .iPad: 5, .mac: 4],
-        .arabic: [.iPhone: 4, .iPad: 0, .mac: 0],
-    ])
-
     /// App Store Connect's in-app texts: locale → column ID → text.
     static let inAppRemoteTexts: [StoreLocale: [String: String]] = [
         .englishUS: [

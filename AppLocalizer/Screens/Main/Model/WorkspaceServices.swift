@@ -17,6 +17,9 @@ struct WorkspaceServices {
     /// Where Review & Push sends writes.
     var push: any PushTransport
 
+    /// Store Page → Screenshots; they come with the store page's services.
+    var screenshots: any ScreenshotsServices { storePage.screenshots }
+
     static func live(client: AppStoreConnectClient) -> WorkspaceServices {
         WorkspaceServices(
             appList: LiveAppListServices(client: client),

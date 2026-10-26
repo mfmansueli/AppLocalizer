@@ -83,6 +83,9 @@ enum Palette {
     static let tile = fill2
     /// Dashed outline of drop zones.
     static let dropOutline = separator2
+    /// The neutral stage screenshot renders sit on (viewer, template
+    /// canvas), so their own colors read true.
+    static let stage = dynamic(light: 0xE7E7EC, dark: 0x0E0E10, lightHC: 0xDADAE0, darkHC: 0x000000)
 
     // MARK: - Building
 

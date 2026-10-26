@@ -51,6 +51,8 @@ struct StorePageContentView: View {
             } else {
                 StorePageSkeleton(showsContextBar: false)
             }
+        } else if viewModel.mode == .screenshots, let screenshots = viewModel.screenshots {
+            ScreenshotsView(viewModel: screenshots)
         } else if viewModel.showsNoVersionPage {
             NoVersionView(viewModel: viewModel)
         } else {
@@ -102,7 +104,7 @@ struct StorePageContentView: View {
             case .coverage: CoverageGridView(viewModel: viewModel)
             case .editor: LocaleEditorView(viewModel: viewModel)
             case .inAppTexts: InAppTextsView(viewModel: viewModel)
-            case .screenshots: ScreenshotsView(viewModel: viewModel)
+            case .screenshots: viewModel.screenshots.map { ScreenshotsView(viewModel: $0) }
             }
         }
     }

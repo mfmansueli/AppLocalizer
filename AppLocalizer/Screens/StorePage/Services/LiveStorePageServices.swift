@@ -28,13 +28,7 @@ struct LiveStorePageServices: StorePageServices {
         try await InAppTextsLoader(client: client).content(for: app)
     }
 
-    func screenshots(for _: StoreApp, content: StorePageContent) async throws -> ScreenshotCoverage {
-        var counts: [StoreLocale: [ScreenshotDevice: Int]] = [:]
-        for locale in content.locales {
-            guard let localizationID = content.ids.versionLocalizations[locale] else { continue }
-            let sets = try await client.appScreenshotSets(localizationID: localizationID)
-            counts[locale] = ScreenshotDevice.counts(in: sets.map { ($0.attributes.screenshotDisplayType, $0.screenshotCount) })
-        }
-        return ScreenshotCoverage(primaryLocale: content.primaryLocale, counts: counts)
+    var screenshots: any ScreenshotsServices {
+        LiveScreenshotsServices(client: client)
     }
 }
