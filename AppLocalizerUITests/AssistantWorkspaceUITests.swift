@@ -55,9 +55,10 @@ final class AssistantWorkspaceUITests: XCTestCase {
         XCTAssertTrue(text(of: element("storePage.translate.prompt")).contains("“Face ID”"))
         XCTAssertTrue(element("storePage.translate.waiting").exists)
 
+        // Never clicked: it would write to the clipboard.
         let copy = app.buttons["storePage.translate.copyPrompt"]
         XCTAssertTrue(copy.exists)
-        XCTAssertFalse(copy.isEnabled)
+        XCTAssertEqual(copy.label, "Waiting for Claude Code…")
         XCTAssertFalse(app.buttons["storePage.translate.start"].exists)
         XCTAssertFalse(element("storePage.translate.locale.ko").exists)
     }

@@ -20,12 +20,19 @@ struct AssistantActivity: Hashable {
     var workingClient: String?
     /// Apps with waiting proposals, most first.
     var apps: [AppProposals]
+    /// What the popover lists: `apps`, then other apps in the library with
+    /// none, up to `rowLimit` rows in all.
+    var rows: [AppProposals]
     /// The assistant with the most waiting proposals.
     var leadingClient: String?
 
+    /// Apps with nothing waiting fill the popover up to this many rows.
+    static let rowLimit = 3
+
     /// `changes` is the whole review queue; a change counts when an
     /// assistant proposed it, or proposed an alternative to the person's.
-    init(workingClient: String?, changes: [PendingChange]) {
+    /// `library` is every app in the library, in its order.
+    init(workingClient: String?, changes: [PendingChange], library: [StoreApp.ID] = []) {
         self.workingClient = workingClient
         var perApp: [StoreApp.ID: Int] = [:]
         var perClient: [String: Int] = [:]
@@ -37,6 +44,8 @@ struct AssistantActivity: Hashable {
         }
         apps = perApp.map { AppProposals(appID: $0.key, count: $0.value) }
             .sorted { ($0.count, $1.appID) > ($1.count, $0.appID) }
+        let quiet = library.filter { perApp[$0] == nil }.prefix(max(0, Self.rowLimit - apps.count))
+        rows = apps + quiet.map { AppProposals(appID: $0, count: 0) }
         leadingClient = perClient.max { ($0.value, $1.key) < ($1.value, $0.key) }?.key
     }
 

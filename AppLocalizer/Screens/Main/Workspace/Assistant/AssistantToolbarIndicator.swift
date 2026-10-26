@@ -47,13 +47,13 @@ struct AssistantToolbarIndicator: View {
                 .textCase(.uppercase)
                 .foregroundStyle(Palette.label2)
                 .padding(.bottom, Spacing.xxSmall)
-            if activity.apps.isEmpty {
+            if activity.rows.isEmpty {
                 Text("Nothing yet. Proposals show here as \(activity.client ?? String(localized: "the assistant")) sends them.")
                     .font(.callout)
                     .foregroundStyle(Palette.label2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            ForEach(activity.apps) { entry in
+            ForEach(activity.rows) { entry in
                 HStack {
                     Text(appName(entry.appID))
                         .lineLimit(1)
@@ -61,7 +61,7 @@ struct AssistantToolbarIndicator: View {
                     Text(AssistantActivity.proposalsText(entry.count))
                         .font(.caption)
                         .monospacedDigit()
-                        .foregroundStyle(Palette.label2)
+                        .foregroundStyle(entry.count == 0 ? Palette.label3 : Palette.label2)
                 }
                 .accessibilityElement(children: .combine)
             }

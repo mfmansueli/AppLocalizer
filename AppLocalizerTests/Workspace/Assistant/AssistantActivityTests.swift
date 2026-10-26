@@ -57,6 +57,19 @@ struct AssistantActivityTests {
         #expect(AssistantActivity.proposalsText(0) == "None")
     }
 
+    @Test func quietAppsFillThePopoverUpToTheLimit() {
+        let changes = [change("a", app: "2", source: .assistant(client: "Claude Code"))]
+        let activity = AssistantActivity(workingClient: nil, changes: changes, library: ["1", "2", "3", "4"])
+        #expect(activity.rows == [.init(appID: "2", count: 1), .init(appID: "1", count: 0), .init(appID: "3", count: 0)])
+        #expect(activity.apps == [.init(appID: "2", count: 1)])
+    }
+
+    @Test func appsWithProposalsAreNeverCutByTheLimit() {
+        let changes = ["1", "2", "3", "4"].map { change($0, app: $0, source: .assistant(client: "Cursor")) }
+        let activity = AssistantActivity(workingClient: nil, changes: changes, library: ["1", "2", "3", "4", "5"])
+        #expect(activity.rows.map(\.appID) == ["1", "2", "3", "4"])
+    }
+
     @Test func tiesAreBrokenByAppAndClientName() {
         let activity = AssistantActivity(workingClient: nil, changes: [
             change("a", app: "2", source: .assistant(client: "Cursor")),

@@ -10,6 +10,8 @@ import SwiftUI
 /// Activity and Review & Push) over the current section.
 struct AppWorkspaceView: View {
     let app: StoreApp
+    /// Every app in the library.
+    let library: [StoreApp.ID]
     let services: WorkspaceServices
 
     @Environment(WorkspaceNavigator.self) private var navigator
@@ -74,7 +76,7 @@ struct AppWorkspaceView: View {
     }
 
     private var assistantActivity: AssistantActivity {
-        AssistantActivity(workingClient: assistants.isWorking ? assistants.workingClient : nil, changes: changes.changes)
+        AssistantActivity(workingClient: assistants.isWorking ? assistants.workingClient : nil, changes: changes.changes, library: library)
     }
 
     @ViewBuilder

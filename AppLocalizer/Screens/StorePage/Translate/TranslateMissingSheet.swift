@@ -71,7 +71,9 @@ struct TranslateMissingSheet: View {
                     Button(translation.isAssistantPromptCopied ? "Waiting for \(assistantName)…" : "Copy Prompt", action: copyAssistantPrompt)
                         .buttonStyle(.borderedProminent)
                         .keyboardShortcut(.defaultAction)
-                        .disabled(translation.isAssistantPromptCopied || !assistants.isRunning)
+                        // Stays prominent while waiting, as the design draws it;
+                        // clicking again copies the prompt again.
+                        .disabled(!assistants.isRunning)
                         .accessibilityIdentifier("storePage.translate.copyPrompt")
                 } else {
                     Button(translation.startTitle) {

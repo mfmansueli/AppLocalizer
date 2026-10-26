@@ -9,8 +9,8 @@ import SwiftUI
 /// The `ai-*` DEBUG scenes: Lumen with Claude Code paired and connected.
 /// - `ai-translate`: Translate Missing with "Your AI assistant" chosen, the
 ///   prompt copied and the sheet waiting.
-/// - `ai-streaming`: the coverage grid while proposals stream in, and the
-///   toolbar indicator spinning.
+/// - `ai-streaming`: the coverage grid while proposals stream in (Chinese
+///   and Dutch just added, still empty), and the toolbar indicator spinning.
 /// - `ai-review`: Review & Push filtered to Claude Code's proposals.
 /// - `ai-conflict`: Review & Push with German What's New changed by both
 ///   the person and Claude Code.
@@ -35,7 +35,11 @@ enum AssistantDebugScenes {
                 model.translation.isAssistantPromptCopied = true
             })
         case "ai-streaming":
-            connected(StorePageDebugScenes.scene(pending: streamedProposals) { $0.mode = .coverage }, working: true)
+            connected(StorePageDebugScenes.scene(pending: streamedProposals) { model in
+                model.addLocale(.chineseSimplified)
+                model.addLocale(.dutch)
+                model.mode = .coverage
+            }, working: true)
         case "ai-review":
             connected(DebugMainScene(section: .storePage, pendingChanges: DebugReviewData.assistantChanges, presentedSheet: .proposals(client: client)))
         case "ai-conflict":

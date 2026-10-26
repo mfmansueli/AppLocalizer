@@ -132,7 +132,7 @@ struct MainView: View {
     @ViewBuilder
     private var detail: some View {
         if let app = viewModel.selectedApp {
-            AppWorkspaceView(app: app, services: services)
+            AppWorkspaceView(app: app, library: viewModel.apps.map(\.id), services: services)
                 .id(app.id)
         } else if viewModel.isLoading, viewModel.apps.isEmpty {
             OverviewSkeleton()
