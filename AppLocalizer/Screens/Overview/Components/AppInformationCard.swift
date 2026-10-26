@@ -5,7 +5,9 @@
 
 import SwiftUI
 
-/// Age rating, App Privacy status and whether App Review details are complete.
+/// App Information on the overview: age rating and App Review, then App
+/// Privacy and the privacy URLs in cards of their own. The overview's grid
+/// places each card in its own cell.
 struct AppInformationCard: View {
     let summary: AppInformationSummary
     let onOpen: () -> Void
@@ -21,19 +23,6 @@ struct AppInformationCard: View {
                         .fontWeight(.semibold)
                 }
                 OverviewRow {
-                    Text("App Privacy")
-                } value: {
-                    HStack(spacing: 4) {
-                        if summary.privacyStatus.needsAttention {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(Palette.warningMark)
-                                .imageScale(.small)
-                                .accessibilityHidden(true)
-                        }
-                        Text(summary.privacyStatus.title)
-                    }
-                }
-                OverviewRow {
                     Text("App Review")
                 } value: {
                     Text(summary.isAppReviewComplete ? "App Review details complete" : "Details missing")
@@ -45,5 +34,15 @@ struct AppInformationCard: View {
                 .buttonBorderShape(.capsule)
         }
         .accessibilityIdentifier("overview.appInformationCard")
+        AppPrivacyOverviewCard(privacy: summary.privacy) { open(.worksheet) }
+        if let urls = summary.privacyURLs {
+            PrivacyURLsOverviewCard(urls: urls) { open(.urls) }
+        }
+    }
+
+    /// Opens App Information on App Privacy's `tab`.
+    private func open(_ tab: AppPrivacyTab) {
+        AppInformationPageRequest.shared.request(.appPrivacy, tab: tab)
+        onOpen()
     }
 }

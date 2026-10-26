@@ -49,7 +49,7 @@ enum DebugSummaries {
     }
 
     static func appInformation(for _: StoreApp.ID) -> AppInformationSummary {
-        AppInformationSummary(ageRating: "4+", privacyStatus: .notStarted, isAppReviewComplete: true)
+        AppInformationSummary(ageRating: "4+", isAppReviewComplete: true)
     }
 
     private static func released(locales: Int, completeness: Double, missing: Int) -> StorePageSummary {

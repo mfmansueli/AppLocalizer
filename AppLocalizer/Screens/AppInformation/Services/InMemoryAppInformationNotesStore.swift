@@ -4,9 +4,11 @@
 //
 
 import Foundation
+import Observation
 
 /// `AppInformationNotes` kept in memory, for tests and DEBUG scenes.
 @MainActor
+@Observable
 final class InMemoryAppInformationNotesStore: AppInformationNotesStore {
     private var storage: [StoreApp.ID: AppInformationNotes]
 

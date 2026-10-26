@@ -31,7 +31,7 @@ final class AppInformationUITests: XCTestCase {
         column.staticTexts["Export Compliance"].click()
         XCTAssertTrue(element("appInformation.exportCompliance").waitForExistence(timeout: 5))
         column.staticTexts["App Privacy"].click()
-        XCTAssertTrue(element("appInformation.appPrivacy.coming").waitForExistence(timeout: 5))
+        XCTAssertTrue(element("appInformation.appPrivacy.notASync").waitForExistence(timeout: 5))
     }
 
     func testEditingCopyrightQueuesAChange() {
@@ -98,8 +98,10 @@ final class AppInformationUITests: XCTestCase {
         XCTAssertTrue(app.buttons["appInformation.evidence.reject"].exists)
     }
 
+    /// Ignores saved window state, which can leave the app without a
+    /// window under XCUITest.
     private func launch(scene: String) {
-        app.launchArguments = ["-AppLocalizerDebugScene", scene]
+        app.launchArguments = ["-AppLocalizerDebugScene", scene, "-ApplePersistenceIgnoreState", "YES"]
         app.launch()
     }
 

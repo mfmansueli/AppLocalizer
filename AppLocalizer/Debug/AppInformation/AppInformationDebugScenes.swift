@@ -27,12 +27,14 @@ import SwiftUI
 ///   disabled for Apple Vision Pro; three devices.
 /// - `a11y-url`: the accessibility URL without https://.
 /// - `a11y-pushing`: iPhone published, iPad held at "Publishing…".
+/// - `priv-*` and `info-privacy-draft`: App Privacy, in
+///   `AppInformationDebugScenes+Privacy.swift`.
 enum AppInformationDebugScenes {
     static let ids = [
         "info-general", "info-age", "info-age-override", "info-review", "info-export",
         "a11y-empty", "a11y-loading", "a11y-error", "a11y-editor", "a11y-editor-watch", "a11y-draft", "a11y-published",
         "a11y-pending", "a11y-nolive", "a11y-url", "a11y-review", "a11y-pushing",
-    ]
+    ] + privacyIDs
 
     @MainActor
     static func view(for id: String) -> AnyView? {
@@ -81,7 +83,7 @@ enum AppInformationDebugScenes {
                 model.showsExportEvidence = true
             }
         default:
-            return nil
+            return privacyScene(id)
         }
     }
 
@@ -132,7 +134,7 @@ enum AppInformationDebugScenes {
             services.push = DebugHoldingPushTransport(holding: DebugAppInformationContent.iPadDraftID)
             return AnyView(DebugMainScene(services: services, section: .appInformation, pendingChanges: pending, autoPush: true))
         default:
-            return nil
+            return privacyScene(id)
         }
     }
 
