@@ -1,0 +1,18 @@
+# SwiftFormat config: https://github.com/nicklockwood/SwiftFormat
+# Run `swiftformat .` from the repo root to format; the AppLocalizer
+# target's "Lint" build phase runs `swiftformat --lint` on every local build.
+
+--swiftversion 6.0
+--exclude .claude,AppLocalizer.xcodeproj,build,DerivedData
+
+# Same style as Bruma: no indentation inside #if (Xcode's default),
+# `0..<n` without spaces, and one-line bodies like `if x { return }` or
+# `var id: String { rawValue }` stay on one line.
+--ifdef no-indent
+--ranges no-space
+# Tests keep `@testable import AppLocalizer` after the system imports.
+--import-grouping testable-last
+--disable wrapIfStatementBodies,wrapIfExpressionBodies,wrapPropertyBodies,wrapFunctionBodies,wrapLoopBodies
+
+# Plain `//` comments above declarations are intentional notes, not API docs.
+--disable docComments

@@ -1,0 +1,14 @@
+# Xcode
+xcuserdata/
+DerivedData/
+build/
+*.xcresult
+
+# macOS
+.DS_Store
+
+# App Store Connect API keys never belong in the repo
+*.p8
+
+# Claude Code
+.claude/

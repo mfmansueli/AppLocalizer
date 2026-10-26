@@ -1,0 +1,56 @@
+# SwiftLint config: https://realm.github.io/SwiftLint/rule-directory.html
+# Formatting is SwiftFormat's job (.swiftformat); rules that would fight it
+# are disabled here. The AppLocalizer target's "Lint" build phase runs both
+# tools on every local build. Goal: zero warnings.
+
+included:
+  - AppLocalizer
+  - AppLocalizerTests
+  - AppLocalizerUITests
+
+excluded:
+  - .claude
+  - build
+  - DerivedData
+
+disabled_rules:
+  - trailing_comma   # SwiftFormat's trailingCommas rule owns this
+  - opening_brace    # conflicts with SwiftFormat's wrapMultilineStatementBraces
+  - todo             # TODOs are tracked notes, not defects
+
+# SwiftUI-friendly thresholds; anything past them gets split up.
+line_length:
+  warning: 160
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+  ignores_interpolated_strings: true
+
+file_length:
+  warning: 500
+  error: 1000
+  ignore_comment_only_lines: true
+
+type_body_length:
+  warning: 350
+  error: 500
+
+function_body_length:
+  warning: 80
+  error: 120
+
+function_parameter_count:
+  warning: 6
+  error: 8
+
+large_tuple:
+  warning: 3
+  error: 4
+
+identifier_name:
+  excluded:
+    - id
+    - vm   # view model
+    - x
+    - y
+    - i
