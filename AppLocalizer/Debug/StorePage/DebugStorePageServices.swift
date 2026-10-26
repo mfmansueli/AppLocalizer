@@ -25,6 +25,8 @@ struct DebugStorePageServices: StorePageServices {
         storage: DebugStorePageContent.machineTranslationTags
     )
     var opening: Opening?
+    /// Lumen's sample screenshots (`ScreenshotsSampleData`).
+    var screenshots: any ScreenshotsServices = DebugScreenshotsServices()
 
     func summary(for app: StoreApp) async throws -> StorePageSummary {
         if let error { throw error }
@@ -43,13 +45,6 @@ struct DebugStorePageServices: StorePageServices {
     func inAppTexts(for app: StoreApp) async throws -> InAppTextsContent {
         if let error { throw error }
         return app.id == DebugFixtures.AppID.lumen ? DebugStorePageContent.inAppTexts : .empty
-    }
-
-    func screenshots(for app: StoreApp, content _: StorePageContent) async throws -> ScreenshotCoverage {
-        if let error { throw error }
-        return app.id == DebugFixtures.AppID.lumen
-            ? StorePageSampleData.screenshots
-            : ScreenshotCoverage(primaryLocale: .englishUS, counts: [:])
     }
 
     /// Runs a scene's setup once, on the first view model that loads.

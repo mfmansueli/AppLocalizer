@@ -1,0 +1,73 @@
+//
+//  ScreenshotsViewModel+Viewer.swift
+//  AppLocalizer
+//
+
+import Foundation
+
+extension ScreenshotsViewModel {
+    /// Opens the full-size viewer on a cell, switching to its display type.
+    func openViewer(_ key: ScreenshotCellKey) {
+        if displayType != key.displayType { displayType = key.displayType }
+        viewer = ScreenshotViewerTarget(locale: key.locale, slot: key.slot)
+    }
+
+    /// The locales the viewer steps through: the localized sets.
+    var viewerLocales: [String] { matrix.localizedLocales }
+
+    func viewerCell(_ target: ScreenshotViewerTarget) -> ScreenshotCell? {
+        matrix.cell(locale: target.locale, displayType: displayType, slot: target.slot)
+    }
+
+    /// ◀ ▶: the previous or next localized locale, wrapping around.
+    func stepViewer(by offset: Int) {
+        guard let viewer, !viewerLocales.isEmpty else { return }
+        let index = viewerLocales.firstIndex(of: viewer.locale) ?? 0
+        let next = (index + offset + viewerLocales.count) % viewerLocales.count
+        self.viewer = ScreenshotViewerTarget(locale: viewerLocales[next], slot: viewer.slot)
+    }
+
+    func showInViewer(locale: String) {
+        guard let viewer else { return }
+        self.viewer = ScreenshotViewerTarget(locale: locale, slot: viewer.slot)
+    }
+
+    /// "2 of 12".
+    func viewerPosition(_ target: ScreenshotViewerTarget) -> String {
+        let index = (viewerLocales.firstIndex(of: target.locale) ?? 0) + 1
+        return String(localized: "\(index) of \(viewerLocales.count)")
+    }
+
+    /// "Slot 1 · Today".
+    func viewerTitle(_ target: ScreenshotViewerTarget) -> String {
+        let name = document?.slotName(target.slot) ?? ""
+        return String(localized: "Slot \(target.slot + 1) · \(name)")
+    }
+
+    /// "iPhone 6.9″ · 1320 × 2868 px · steps through the 12 localized sets".
+    var viewerSubtitle: String {
+        let size = pixelSize(for: displayType)
+        return String(localized: "\(displayType.title) · \(size.title) px · steps through the \(viewerLocales.count) localized sets")
+    }
+
+    /// The viewer's render width in points: 262 for iPhone, 600 for iPad
+    /// landscape.
+    var viewerImageWidth: CGFloat {
+        displayType.isTablet ? 600 : 262
+    }
+
+    /// Rendered at twice the viewer's width.
+    var viewerPixelWidth: Int { Int(viewerImageWidth * 2) }
+
+    /// Open in Template Editor: the Template view, on this slot.
+    func openTemplateEditor() {
+        viewer = nil
+        tab = .template
+    }
+
+    /// Edit Caption: the Captions view.
+    func editCaption() {
+        viewer = nil
+        tab = .captions
+    }
+}
