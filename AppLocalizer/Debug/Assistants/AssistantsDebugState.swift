@@ -7,13 +7,12 @@
 import Foundation
 
 /// Puts the MCP server into one of the design's states for DEBUG scenes:
-/// off, pairing (before and after the command is copied), paired
+/// off, pairing (the command copied, waiting for the client), paired
 /// assistants (one connected, one idle), one disconnected, or a log with
 /// refused calls. Nothing listens on a port.
 enum AssistantsDebugState {
     case off
     case pairing
-    case pairingCopied
     case paired
     case disconnected
     case log
@@ -26,8 +25,6 @@ enum AssistantsDebugState {
         case .off:
             break
         case .pairing:
-            server.beginPairing(kind: .claudeCode)
-        case .pairingCopied:
             server.beginPairing(kind: .claudeCode)
             server.markPairingCopied()
         case .paired:
@@ -42,7 +39,7 @@ enum AssistantsDebugState {
             server.restorePairings([Self.claudeCode], tokens: [:])
             server.sessions = [Self.session(lastActivity: Self.today(11, 42))]
             for line in Self.logLines.reversed() {
-                server.record(client: line.client, tool: line.tool, target: line.target, outcome: line.outcome, reason: line.reason)
+                server.record(client: line.client, tool: line.tool, target: line.target, outcome: line.outcome, reason: line.reason, at: line.date)
             }
         }
     }
@@ -92,17 +89,20 @@ enum AssistantsDebugState {
         Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: .now) ?? .now
     }
 
-    private static let logLines = [
-        line("propose_listing_text", "Lumen Journal · ko · Description", .proposed),
-        line("propose_listing_text", "Lumen Journal · de-DE · Subtitle", .refused, "34 characters; the limit is 30. Shorten it and propose again."),
-        line("propose_prices", "Tempo Metronome · Annual", .refused, "Tempo is set to Keep my prices, so price proposals are off for this app."),
-        line("propose_prices", "Lumen Journal · Annual · BR", .refused, "R$ 112,00 isn’t a price point. Nearest: R$ 109,90 or R$ 114,90."),
-        line("list_missing_translations", "Lumen Journal · version 1.4", .read),
-        line("list_apps", "Northpier Studio · 6 apps", .read),
-    ]
+    /// Newest first, a few minutes apart.
+    private static var logLines: [MCPLogEntry] {
+        [
+            line(42, "propose_listing_text", "Lumen Journal · ko · Description", .proposed),
+            line(41, "propose_listing_text", "Lumen Journal · de-DE · Subtitle", .refused, "34 characters; the limit is 30. Shorten it and propose again."),
+            line(39, "propose_prices", "Tempo Metronome · Annual", .refused, "Tempo is set to Keep my prices, so price proposals are off for this app."),
+            line(36, "propose_prices", "Lumen Journal · Annual · BR", .refused, "R$ 112,00 isn’t a price point. Nearest: R$ 110,00 or R$ 114,90."),
+            line(31, "list_missing_translations", "Lumen Journal · version 1.4", .read),
+            line(30, "list_apps", "Northpier Studio · 6 apps", .read),
+        ]
+    }
 
-    private static func line(_ tool: String, _ target: String, _ outcome: MCPCallOutcome, _ reason: String? = nil) -> MCPLogEntry {
-        MCPLogEntry(date: .now, client: "Claude Code", tool: tool, target: target, outcome: outcome, reason: reason)
+    private static func line(_ minute: Int, _ tool: String, _ target: String, _ outcome: MCPCallOutcome, _ reason: String? = nil) -> MCPLogEntry {
+        MCPLogEntry(date: today(11, minute), client: "Claude Code", tool: tool, target: target, outcome: outcome, reason: reason)
     }
 }
 #endif

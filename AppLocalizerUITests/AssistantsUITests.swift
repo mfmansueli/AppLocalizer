@@ -48,12 +48,16 @@ final class AssistantsUITests: XCTestCase {
         XCTAssertTrue(text(of: snippet).hasPrefix("claude mcp add --transport http applocalizer"))
         XCTAssertTrue(text(of: snippet).contains("al_pair_"))
         XCTAssertTrue(element("settings.ai.pairCode").exists)
-        // Nothing copied yet, so nothing to wait for.
-        XCTAssertFalse(element("settings.ai.pairWaiting").exists)
+        // The scene starts after Copy (never clicked here: it would write to
+        // the clipboard), waiting for the client.
+        XCTAssertTrue(element("settings.ai.pairWaiting").exists)
+        XCTAssertEqual(app.buttons["settings.ai.pairCopy"].label, "Copied")
 
         app.radioButtons["Cursor"].firstMatch.click()
         XCTAssertTrue(waitForText(of: snippet) { $0.contains("\"url\": \"http://127.0.0.1:47321/mcp\"") })
+        // Another client needs another command, so the wait starts over.
         XCTAssertFalse(element("settings.ai.pairWaiting").exists)
+        XCTAssertEqual(app.buttons["settings.ai.pairCopy"].label, "Copy")
 
         app.radioButtons["Codex"].firstMatch.click()
         XCTAssertTrue(waitForText(of: snippet) { $0.hasPrefix("[mcp_servers.applocalizer]") })
@@ -61,18 +65,6 @@ final class AssistantsUITests: XCTestCase {
         app.buttons["settings.ai.pairCancel"].click()
         XCTAssertTrue(snippet.waitForNonExistence(timeout: 5))
         XCTAssertTrue(element("settings.ai.noClients").exists)
-    }
-
-    func testACopiedCommandWaitsForTheAssistant() {
-        launch(scene: "set-ai-waiting")
-        XCTAssertTrue(element("settings.ai.pairWaiting").waitForExistence(timeout: 10))
-        // Never clicked: it would write to the clipboard.
-        XCTAssertEqual(app.buttons["settings.ai.pairCopy"].label, "Copied")
-
-        // Another client needs another command, so the wait starts over.
-        app.radioButtons["Cursor"].firstMatch.click()
-        XCTAssertTrue(element("settings.ai.pairWaiting").waitForNonExistence(timeout: 5))
-        XCTAssertEqual(app.buttons["settings.ai.pairCopy"].label, "Copy")
     }
 
     func testRevokingAnAssistantAsksFirst() {

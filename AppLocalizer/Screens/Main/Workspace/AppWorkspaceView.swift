@@ -32,7 +32,12 @@ struct AppWorkspaceView: View {
             }
             .navigationTitle(app.name)
             .navigationSubtitle(app.bundleID)
+            .toolbar(removing: .title)
             .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    WorkspaceToolbarTitle(name: app.name, bundleID: app.bundleID)
+                }
+                .sharedBackgroundVisibility(.hidden)
                 ToolbarItem(placement: .principal) {
                     FittingSegmentedPicker(
                         label: String(localized: "Section"),
@@ -42,15 +47,15 @@ struct AppWorkspaceView: View {
                     .fixedSize()
                     .accessibilityIdentifier("workspace.sectionPicker")
                 }
-                if assistantActivity.isVisible {
-                    ToolbarItem(placement: .primaryAction) {
+                // The assistant shares Refresh and Activity's group: on its
+                // own it pushed Review & Push into the overflow menu at the
+                // default window width.
+                ToolbarItemGroup(placement: .primaryAction) {
+                    if assistantActivity.isVisible {
                         AssistantToolbarIndicator(activity: assistantActivity, appName: push.appName) { client in
                             navigator.reviewProposals(from: client)
                         }
                     }
-                    ToolbarSpacer(.fixed, placement: .primaryAction)
-                }
-                ToolbarItemGroup(placement: .primaryAction) {
                     Button {
                         navigator.refresh()
                     } label: {

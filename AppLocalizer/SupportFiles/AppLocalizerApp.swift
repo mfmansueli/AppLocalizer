@@ -106,8 +106,7 @@ struct AppLocalizerApp: App {
     /// DEBUG scenes that open AI Assistants on the pairing sheet or the log.
     private static var debugOpensPairing: Bool {
         #if DEBUG
-        let state = DebugScene.requestedID.flatMap(SettingsDebugScenes.assistantsState(for:))
-        return state == .pairing || state == .pairingCopied
+        DebugScene.requestedID.flatMap(SettingsDebugScenes.assistantsState(for:)) == .pairing
         #else
         false
         #endif

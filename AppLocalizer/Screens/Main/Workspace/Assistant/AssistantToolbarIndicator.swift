@@ -25,10 +25,11 @@ struct AssistantToolbarIndicator: View {
                     AssistantMonogram(letters: ChangeSource.assistant(client: client).monogram ?? "AI")
                 }
                 Text(activity.title)
+                    .font(.caption)
                     .lineLimit(1)
                 if activity.isWorking {
                     ProgressView()
-                        .controlSize(.small)
+                        .controlSize(.mini)
                 }
             }
         }

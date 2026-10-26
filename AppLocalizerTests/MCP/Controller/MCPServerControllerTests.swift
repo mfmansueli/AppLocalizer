@@ -102,6 +102,14 @@ struct MCPServerControllerTests {
         #expect(controller.log.isEmpty)
     }
 
+    @Test func aLogLineCanCarryItsOwnTime() {
+        let clock = TestClock()
+        let controller = MCPTestFixtures.controller(clock: clock)
+        let earlier = clock.now.addingTimeInterval(-600)
+        controller.record(client: "Claude Code", tool: "list_apps", target: "Northpier Studio", outcome: .read, at: earlier)
+        #expect(controller.log.first?.date == earlier)
+    }
+
     @Test func promptsAreOfferedOnlyWithTheirTools() {
         #expect(MCPTestFixtures.controller(toolbox: MCPToolbox(tools: [FakeMCPTool(name: "list_apps")])).availablePrompts.isEmpty)
         #expect(MCPTestFixtures.controller().availablePrompts == [.translateMissing, .whatsNewFromGit])

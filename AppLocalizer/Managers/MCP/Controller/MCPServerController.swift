@@ -164,8 +164,8 @@ final class MCPServerController {
         log = []
     }
 
-    func record(client: String, tool: String, target: String, outcome: MCPCallOutcome, reason: String? = nil) {
-        let entry = MCPLogEntry(date: now(), client: client, tool: tool, target: target, outcome: outcome, reason: reason)
+    func record(client: String, tool: String, target: String, outcome: MCPCallOutcome, reason: String? = nil, at date: Date? = nil) {
+        let entry = MCPLogEntry(date: date ?? now(), client: client, tool: tool, target: target, outcome: outcome, reason: reason)
         log.insert(entry, at: 0)
         if log.count > Self.logLimit { log.removeLast(log.count - Self.logLimit) }
     }

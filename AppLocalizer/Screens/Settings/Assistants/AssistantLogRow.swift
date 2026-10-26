@@ -16,10 +16,11 @@ struct AssistantLogRow: View {
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(Palette.label2)
                 .frame(width: 64, alignment: .leading)
-            Text(entry.tool)
-                .font(.caption.monospaced())
-                .frame(width: 150, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
+                // Above what it was about: tool names run long
+                // ("propose_accessibility_declaration").
+                Text(entry.tool)
+                    .font(.caption.monospaced())
                 if !entry.target.isEmpty {
                     Text(entry.target)
                         .font(.caption)

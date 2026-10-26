@@ -38,8 +38,8 @@ enum SettingsDebugScenes {
     static func assistantsState(for id: String) -> AssistantsDebugState? {
         switch id {
         case "set-ai-off": .off
-        case "set-ai-pair": .pairing
-        case "set-ai-waiting": .pairingCopied
+        // Both designs draw the sheet after Copy, waiting for the client.
+        case "set-ai-pair", "set-ai-waiting": .pairing
         case "set-ai-on", "set-ai-connected": .paired
         case "set-ai-disc": .disconnected
         case "set-ai-log": .log

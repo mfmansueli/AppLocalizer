@@ -25,20 +25,22 @@ struct AssistantsSettingsTab: View {
         ScrollViewReader { proxy in
             Form {
                 serverSection
-                Section("What a paired assistant can do") {
+                Section {
                     AssistantCapabilitiesRow()
+                } header: {
+                    Text("What a paired assistant can do")
+                } footer: {
+                    if !server.isEnabled {
+                        Text("Turn the server on to pair Claude Code, Claude Desktop, Cursor, Codex or any other MCP client.")
+                            .font(.callout)
+                            .foregroundStyle(Palette.label2)
+                    }
                 }
                 if server.isEnabled {
                     pairedSection
                     permissionsSection
                     promptsSection
                     logSection
-                } else {
-                    Section {
-                        Text("Turn the server on to pair Claude Code, Claude Desktop, Cursor, Codex or any other MCP client.")
-                            .font(.callout)
-                            .foregroundStyle(Palette.label2)
-                    }
                 }
             }
             .formStyle(.grouped)
