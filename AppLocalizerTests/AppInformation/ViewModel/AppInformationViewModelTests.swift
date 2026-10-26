@@ -3,6 +3,7 @@
 //  AppLocalizerTests
 //
 
+#if DEBUG
 import Foundation
 import Testing
 @testable import AppLocalizer
@@ -123,3 +124,4 @@ struct AppInformationViewModelTests {
         #expect(queue.changes.isEmpty)
     }
 }
+#endif

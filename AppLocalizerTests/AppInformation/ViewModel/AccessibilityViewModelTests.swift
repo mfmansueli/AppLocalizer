@@ -3,6 +3,7 @@
 //  AppLocalizerTests
 //
 
+#if DEBUG
 import Foundation
 import Testing
 @testable import AppLocalizer
@@ -120,3 +121,4 @@ struct AccessibilityViewModelTests {
         #expect(vm.editor?.family == .appleWatch)
     }
 }
+#endif
