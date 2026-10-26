@@ -20,6 +20,8 @@ struct PricingRow: Identifiable, Hashable, Sendable {
     var usesCustomStrategy: Bool
     var pageViews: Int?
     var queued: QueuedPrice?
+    /// The subscription's push has a start date, so changes read Scheduled.
+    var isScheduled = false
 
     var id: String { territory.id }
 
@@ -56,7 +58,7 @@ struct PricingRow: Identifiable, Hashable, Sendable {
     }
 
     var status: PriceChangeStatus {
-        PriceChangeStatus.resolve(change: change, origin: origin, isExcluded: calculation.isExcluded)
+        PriceChangeStatus.resolve(change: change, origin: origin, isExcluded: calculation.isExcluded, isScheduled: isScheduled)
     }
 
     // MARK: - Facts

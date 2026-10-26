@@ -16,9 +16,9 @@ enum OfferPaymentMode: String, CaseIterable, Hashable, Sendable {
 
     var title: String {
         switch self {
-        case .freeTrial: "Free trial"
-        case .payAsYouGo: "Pay as you go"
-        case .payUpFront: "Pay up front"
+        case .freeTrial: String(localized: "Free trial")
+        case .payAsYouGo: String(localized: "Pay as you go")
+        case .payUpFront: String(localized: "Pay up front")
         }
     }
 }

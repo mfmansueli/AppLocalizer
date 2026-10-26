@@ -6,8 +6,9 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Subscription Pricing laid out: section bar, filters, the matrix and the
-/// bottom bar, with the strategy inspector, the mode sheet and the custom
+/// Subscription Pricing laid out: section bar, then Prices (filters, the
+/// matrix, map or histogram, and the bottom bar), Offers or Results, with
+/// the strategy inspector, the mode and schedule sheets and the custom
 /// index import around them.
 struct PricingScreen: View {
     @Bindable var viewModel: PricingViewModel
@@ -40,6 +41,18 @@ struct PricingScreen: View {
                 onContinue: { mode in Task { await viewModel.choose(mode) } },
                 onNotNow: viewModel.notNow
             )
+        }
+        .sheet(isPresented: $viewModel.isScheduleSheetPresented) {
+            if let matrix = viewModel.matrix {
+                PriceScheduleSheet(
+                    productName: matrix.product.name,
+                    schedule: matrix.schedule,
+                    consent: matrix.increaseConsent(subscribers: viewModel.subscribers),
+                    today: viewModel.today(),
+                    onCancel: { viewModel.isScheduleSheetPresented = false },
+                    onSave: viewModel.saveSchedule
+                )
+            }
         }
         .sheet(item: $strategy.importPreview) { preview in
             CustomIndexImportSheet(
@@ -80,20 +93,43 @@ struct PricingScreen: View {
     @ViewBuilder
     private var content: some View {
         if let matrix = viewModel.matrix {
-            PricingFilterBar(viewModel: viewModel, matrix: matrix)
-            if viewModel.isLoadingSheet {
+            switch viewModel.tab {
+            case .prices:
+                prices(matrix)
+            case .offers:
                 Divider()
-                PricingTableSkeleton(columns: viewModel.resolvedPreset.columns)
-            } else {
-                salesBanner(matrix)
-                PriceMatrixTable(viewModel: viewModel, matrix: matrix)
+                PricingOffersView(viewModel: viewModel, matrix: matrix)
+            case .results:
+                Divider()
+                PricingResultsView(viewModel: viewModel)
             }
-            PricingBottomBar(viewModel: viewModel, matrix: matrix)
         } else if let message = viewModel.sheetError {
             failure(message)
         } else {
             PricingTableSkeleton(columns: viewModel.resolvedPreset.columns)
         }
+    }
+
+    @ViewBuilder
+    private func prices(_ matrix: PriceMatrixModel) -> some View {
+        PricingFilterBar(viewModel: viewModel, matrix: matrix)
+        if viewModel.isLoadingSheet {
+            Divider()
+            PricingTableSkeleton(columns: viewModel.resolvedPreset.columns)
+        } else {
+            salesBanner(matrix)
+            switch viewModel.display {
+            case .table:
+                PriceMatrixTable(viewModel: viewModel, matrix: matrix)
+            case .map:
+                Divider()
+                PriceTileMapView(viewModel: viewModel, matrix: matrix)
+            case .histogram:
+                Divider()
+                PriceHistogramView(histogram: matrix.histogram)
+            }
+        }
+        PricingBottomBar(viewModel: viewModel, matrix: matrix)
     }
 
     @ViewBuilder

@@ -26,6 +26,9 @@ final class PriceMatrixModel {
     var popover: PricingPopover?
     /// Whether every territory follows the strategy, as after Apply Recommended Prices….
     private(set) var isFollowing: Bool
+    /// When the queued changes take effect; read from the queue, so it
+    /// survives navigating away.
+    private(set) var schedule: PriceSchedule
     /// True while Apple's price points load for an edit.
     private(set) var isLoadingLadders = false
     var onError: (any Error) -> Void = { _ in }
@@ -58,6 +61,7 @@ final class PriceMatrixModel {
         self.mode = mode
         self.isFollowing = isFollowing
         self.territories = territories
+        schedule = PriceSchedule.current(in: queue, appID: appID, productID: product.id)
         rebuild(recommendations: true)
     }
 
@@ -137,12 +141,24 @@ final class PriceMatrixModel {
         refollowTask?.cancel()
     }
 
+    /// The schedule sheet's Save: every queued change of this product (and
+    /// every later one) takes effect on the new schedule.
+    func setSchedule(_ schedule: PriceSchedule) {
+        self.schedule = schedule
+        let prefix = PriceChangeFactory.changeID(productID: product.id, territoryID: "")
+        let rewritten = queue.changes(for: appID, section: .subscriptionPricing)
+            .filter { $0.id.hasPrefix(prefix) }
+            .map(schedule.applied(to:))
+        queue.upsert(contentsOf: rewritten)
+        rebuild(recommendations: false)
+    }
+
     // MARK: - Writing
 
     /// Writes new prices to the queue in one save; a price equal to today's
     /// drops the territory's pending change instead.
     func write(_ points: [String: PricePoint], source: ChangeSource) {
-        let factory = PriceChangeFactory(appID: appID, product: product)
+        let factory = PriceChangeFactory(appID: appID, product: product, schedule: schedule)
         var upserts: [PendingChange] = []
         var discards: [PendingChange.ID] = []
         for (territoryID, point) in points {
@@ -187,7 +203,14 @@ final class PriceMatrixModel {
     // MARK: - Private
 
     private var builder: PricingRowBuilder {
-        PricingRowBuilder(catalog: territories, calculator: calculator, sheet: sheet, strategy: strategy, showsSuggestions: showsSuggestions)
+        PricingRowBuilder(
+            catalog: territories,
+            calculator: calculator,
+            sheet: sheet,
+            strategy: strategy,
+            showsSuggestions: showsSuggestions,
+            isScheduled: schedule.isScheduled
+        )
     }
 
     private func rebuild(recommendations recompute: Bool) {

@@ -6,15 +6,15 @@
 import Foundation
 
 /// Builds the pending change for one territory's new price: the review
-/// row's text, the `POST /v1/subscriptionPrices` that sets it, the request
-/// that puts the old price back, and the check that today's price hasn't
-/// changed in App Store Connect since it was read.
+/// row's text, the `POST /v1/subscriptionPrices` that sets it (on the
+/// subscription's schedule), the request that puts the old price back, and
+/// the check that today's price hasn't changed in App Store Connect since
+/// it was read.
 struct PriceChangeFactory {
-    static let scheduleNote = String(localized: "Prices change as soon as Apple processes them · existing subscribers keep their price")
-
     let appID: StoreApp.ID
     let product: PricingProduct
-    var scheduleNote = Self.scheduleNote
+    /// When the change takes effect; restores always apply at once.
+    var schedule = PriceSchedule.immediate
 
     /// One pending change per subscription and territory, so a new price replaces the queued one.
     static func changeID(productID: String, territoryID: String) -> PendingChange.ID {
@@ -25,15 +25,15 @@ struct PriceChangeFactory {
 
     func change(for territory: Territory, from old: PricePoint, to new: PricePoint, source: ChangeSource, at date: Date = .now) -> PendingChange {
         let currency = CurrencyFormat.forCurrency(territory.currencyCode)
-        let push = new.appStoreConnectID.flatMap { request(territory: territory, pricePointID: $0) }
-        let restore = old.appStoreConnectID.flatMap { request(territory: territory, pricePointID: $0) }
+        let push = new.appStoreConnectID.flatMap { request(territory: territory, pricePointID: $0, schedule: schedule) }
+        let restore = old.appStoreConnectID.flatMap { request(territory: territory, pricePointID: $0, schedule: .immediate) }
         return PendingChange(
             id: Self.changeID(productID: product.id, territoryID: territory.id),
             appID: appID,
             section: .subscriptionPricing,
             group: group,
             groupID: product.id,
-            groupNote: scheduleNote,
+            groupNote: schedule.note,
             title: territory.name,
             flagRegion: territory.alpha2,
             oldValue: currency.format(old.customerPrice),
@@ -48,8 +48,8 @@ struct PriceChangeFactory {
         )
     }
 
-    private func request(territory: Territory, pricePointID: String) -> PushRequest? {
-        let body = SubscriptionPriceCreateRequest(subscriptionID: product.id, territoryID: territory.id, pricePointID: pricePointID)
+    private func request(territory: Territory, pricePointID: String, schedule: PriceSchedule) -> PushRequest? {
+        let body = schedule.request(subscriptionID: product.id, territoryID: territory.id, pricePointID: pricePointID)
         return try? PushRequest.json(.post, "/v1/subscriptionPrices", body)
     }
 

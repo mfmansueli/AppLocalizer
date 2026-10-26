@@ -7,7 +7,8 @@ import SwiftUI
 
 /// The Subscription Pricing section of an app's workspace (⌘2): builds the
 /// view model from the window's queue, modes and preferences, and connects
-/// it to Refresh, workspace intents and Review & Push.
+/// it to Refresh, workspace intents, Review & Push and the push history
+/// Results read.
 struct PricingSectionView: View {
     let app: StoreApp
     let services: any PricingServices
@@ -18,6 +19,7 @@ struct PricingSectionView: View {
     @Environment(AppPreferences.self) private var preferences
     @Environment(WorkspaceNavigator.self) private var navigator
     @Environment(PushController.self) private var push
+    @Environment(PushHistory.self) private var history
 
     var body: some View {
         Group {
@@ -45,6 +47,9 @@ struct PricingSectionView: View {
         .onChange(of: changes.changes(for: app.id, section: .subscriptionPricing)) {
             viewModel?.matrix?.queueDidChange()
         }
+        .onChange(of: history.records.count) {
+            viewModel?.resultsDidChange()
+        }
     }
 
     private func start() async {
@@ -58,6 +63,7 @@ struct PricingSectionView: View {
         )
         model.onNotice = { [push] notice in push.report(notice) }
         model.onOpenReview = { [navigator] in navigator.isReviewPresented = true }
+        model.pushRecords = { [history, app] in history.records(for: app.id) }
         viewModel = model
         await model.load()
         #if DEBUG

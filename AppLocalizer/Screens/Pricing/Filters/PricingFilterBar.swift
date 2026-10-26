@@ -6,13 +6,11 @@
 import SwiftUI
 
 /// The row above the matrix: region, the three filters, the custom
-/// strategy's chip, search, Table | Map | Histogram and the Columns menu.
-/// It wraps onto more lines as the window narrows.
+/// strategy's chip, search, Table | Map | Histogram and the Columns menu
+/// (for the table only). It wraps onto more lines as the window narrows.
 struct PricingFilterBar: View {
-    let viewModel: PricingViewModel
+    @Bindable var viewModel: PricingViewModel
     @Bindable var matrix: PriceMatrixModel
-
-    @State private var display = Display.table
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -52,12 +50,6 @@ struct PricingFilterBar: View {
         .padding(.horizontal, Spacing.large)
         .padding(.vertical, Spacing.small)
         .accessibilityElement(children: .contain)
-    }
-
-    private enum Display: Hashable {
-        case table
-        case map
-        case histogram
     }
 
     @ViewBuilder
@@ -107,23 +99,26 @@ struct PricingFilterBar: View {
     }
 
     private var displayPicker: some View {
-        let later = String(localized: "Arrives in a later update")
-        return PricingSegmentedControl(
+        PricingSegmentedControl(
             label: String(localized: "Display"),
-            segments: [
-                .init(value: Display.table, systemImage: "tablecells", label: String(localized: "Table")),
-                .init(value: .map, systemImage: "map", label: String(localized: "Tile map"), isEnabled: false, help: later),
-                .init(value: .histogram, systemImage: "chart.bar", label: String(localized: "Histogram"), isEnabled: false, help: later),
-            ],
-            selection: $display,
+            segments: PricingDisplay.allCases.map { display in
+                PricingSegmentedControl<PricingDisplay>.Segment(value: display, systemImage: display.systemImage, label: display.title)
+            },
+            selection: $viewModel.display,
             identifier: "pricing.displayPicker"
         )
         .fixedSize()
     }
 
+    @ViewBuilder
     private var columnsMenu: some View {
-        @Bindable var viewModel = viewModel
-        return Menu {
+        if viewModel.display == .table {
+            columnsPresetMenu
+        }
+    }
+
+    private var columnsPresetMenu: some View {
+        Menu {
             Picker("Columns", selection: $viewModel.columnPreset) {
                 ForEach(PriceColumnPreset.allCases) { preset in
                     Text(preset.title).tag(preset)

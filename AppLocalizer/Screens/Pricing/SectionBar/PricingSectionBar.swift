@@ -11,8 +11,6 @@ import SwiftUI
 struct PricingSectionBar: View {
     @Bindable var viewModel: PricingViewModel
 
-    @State private var view = PricingView.prices
-
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: Spacing.medium) {
@@ -35,12 +33,6 @@ struct PricingSectionBar: View {
         .frame(minHeight: 52)
         .overlay(alignment: .bottom) { Divider() }
         .accessibilityElement(children: .contain)
-    }
-
-    private enum PricingView: Hashable {
-        case prices
-        case offers
-        case results
     }
 
     @ViewBuilder
@@ -68,17 +60,20 @@ struct PricingSectionBar: View {
     }
 
     private var viewPicker: some View {
-        let later = String(localized: "Arrives in a later update")
         let isPurchase = viewModel.selectedProduct?.isInAppPurchase == true
         return PricingSegmentedControl(
             label: String(localized: "View"),
-            segments: [
-                .init(value: PricingView.prices, title: String(localized: "Prices"), label: String(localized: "Prices")),
-                .init(value: .offers, title: String(localized: "Offers"), label: String(localized: "Offers"), isEnabled: false,
-                      help: isPurchase ? String(localized: "In-app purchases have no offers") : later),
-                .init(value: .results, title: String(localized: "Results"), label: String(localized: "Results"), isEnabled: false, help: later),
-            ],
-            selection: $view,
+            segments: PricingTab.allCases.map { tab in
+                let hasNoOffers = tab == .offers && isPurchase
+                return PricingSegmentedControl<PricingTab>.Segment(
+                    value: tab,
+                    title: tab.title,
+                    label: tab.title,
+                    isEnabled: !hasNoOffers,
+                    help: hasNoOffers ? String(localized: "In-app purchases have no offers") : nil
+                )
+            },
+            selection: $viewModel.tab,
             identifier: "pricing.viewPicker"
         )
         .fixedSize()

@@ -72,7 +72,9 @@ struct PriceHistogram: Hashable, Sendable {
     /// "Median −50% vs equalized · 165 below · 10 at equalized · 0 above".
     var summary: String {
         let percent = Int((median * 100 + 0.5).rounded(.down))
-        return "Median " + (median < 0 ? "−" : "+") + "\(abs(percent))% vs equalized · \(belowCount) below · "
-            + "\(atEqualizedCount) at equalized · \(aboveCount) above"
+        let medianText = (median < 0 ? "−" : "+") + "\(abs(percent))%"
+        return String(localized: """
+        Median \(medianText) vs equalized · \(belowCount) below · \(atEqualizedCount) at equalized · \(aboveCount) above
+        """)
     }
 }

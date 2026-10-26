@@ -12,7 +12,15 @@ struct PriceMatrixTable: View {
     let viewModel: PricingViewModel
     @Bindable var matrix: PriceMatrixModel
 
-    @State private var columns = TableColumnCustomization<PricingRow>()
+    @State private var columns: TableColumnCustomization<PricingRow>
+
+    init(viewModel: PricingViewModel, matrix: PriceMatrixModel) {
+        self.viewModel = viewModel
+        self.matrix = matrix
+        // The preset's columns from the first layout: hiding columns after
+        // the table sized all of them leaves the rest too wide.
+        _columns = State(initialValue: Self.customization(for: viewModel.resolvedPreset))
+    }
 
     var body: some View {
         Table(matrix.visibleRows, selection: $matrix.selection, sortOrder: $matrix.sortOrder, columnCustomization: $columns) {
@@ -110,5 +118,14 @@ struct PriceMatrixTable: View {
         for column in PriceColumn.allCases {
             columns[visibility: column.customizationID] = visible.contains(column) ? .visible : .hidden
         }
+    }
+
+    private static func customization(for preset: PriceColumnPreset) -> TableColumnCustomization<PricingRow> {
+        var customization = TableColumnCustomization<PricingRow>()
+        let visible = Set(preset.columns)
+        for column in PriceColumn.allCases {
+            customization[visibility: column.customizationID] = visible.contains(column) ? .visible : .hidden
+        }
+        return customization
     }
 }

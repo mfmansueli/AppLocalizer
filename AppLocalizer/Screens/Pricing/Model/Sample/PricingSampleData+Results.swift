@@ -13,10 +13,19 @@ extension PricingSampleData {
     /// without one. After: starts × the territory's multiplier (or a lift
     /// that grows with the cut), page views +3%.
     func results(subscription: PricingSampleSubscription = .annual) -> [PriceChangeResult] {
+        var prices: [String: Decimal] = [:]
+        for territory in catalog.territories {
+            prices[territory.id] = recommendation(for: territory, subscription: subscription).price.customerPrice
+        }
+        return results(pushing: prices, subscription: subscription)
+    }
+
+    /// The same four weeks after pushing `prices` (by territory ID), e.g.
+    /// what Apply Recommended Prices… queued.
+    func results(pushing prices: [String: Decimal], subscription: PricingSampleSubscription = .annual) -> [PriceChangeResult] {
         catalog.territories.compactMap { territory -> PriceChangeResult? in
             let old = currentPrice(for: territory, subscription: subscription)
-            let new = recommendation(for: territory, subscription: subscription).price.customerPrice
-            guard (new - old).magnitude > Decimal(1) / 1000 else { return nil }
+            guard let new = prices[territory.id], (new - old).magnitude > Decimal(1) / 1000 else { return nil }
             let before = subscription == .annual ? Self.sales[territory.alpha2] ?? Self.quietSignal(territory) : Self.quietSignal(territory)
             let lift = Self.resultMultipliers[territory.alpha2] ?? 1 + 0.6 * max(0, 1 - (new / old).doubleValue)
             let afterStarts = Int((Double(before.starts) * lift + 0.5).rounded(.down))

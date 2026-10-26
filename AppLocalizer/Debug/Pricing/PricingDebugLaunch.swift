@@ -8,7 +8,7 @@ import Foundation
 
 /// The state a Pricing DEBUG scene opens in, reached through the same view
 /// model calls a person's clicks make: filters, selection, applied prices,
-/// the inspector and an open popover or sheet.
+/// the inspector, an open popover or sheet, and the tab and view shown.
 struct PricingDebugLaunch {
     /// Selects this product instead of the default one.
     var productID: String?
@@ -29,5 +29,17 @@ struct PricingDebugLaunch {
     var showsImport = false
     /// Refreshes once loaded, as ⌘R does.
     var refreshes = false
+    var tab: PricingTab?
+    var display: PricingDisplay?
+    /// The tile map's hovered territory (alpha-3).
+    var hoveredTerritory: String?
+    /// The schedule queued changes follow.
+    var schedule: PriceSchedule?
+    /// Opens the schedule sheet.
+    var showsSchedule = false
+    /// Selects this offer on the Offers tab.
+    var offerID: SubscriptionOffer.ID?
+    /// Pins today, for Results' 28 days and the schedule's earliest date.
+    var today: Date?
 }
 #endif
