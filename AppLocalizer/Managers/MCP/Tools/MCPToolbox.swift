@@ -17,6 +17,9 @@ struct MCPToolbox {
             GetListingTool(),
             ListMissingTranslationsTool(),
             ProposeListingTextTool(),
+            GetPricesTool(),
+            GetPricePointsTool(),
+            ProposePricesTool(),
         ])
     }
 
