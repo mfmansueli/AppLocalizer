@@ -8,10 +8,19 @@ import SwiftUI
 @main
 struct AppLocalizerApp: App {
     @State private var session = AppSession(store: Self.credentialsStore)
-    @State private var changes = ChangeQueue(persistence: Self.changePersistence)
-    @State private var history = PushHistory(fileURL: Self.historyURL)
+    @State private var changes: ChangeQueue
+    @State private var history: PushHistory
+    @State private var push: PushController
     @State private var pricingModes = PricingModeStore(defaults: Self.defaults)
     @State private var preferences = AppPreferences(defaults: Self.defaults ?? .standard)
+
+    init() {
+        let changes = ChangeQueue(persistence: Self.changePersistence)
+        let history = PushHistory(fileURL: Self.historyURL)
+        _changes = State(initialValue: changes)
+        _history = State(initialValue: history)
+        _push = State(initialValue: PushController(queue: changes, history: history))
+    }
 
     var body: some Scene {
         // One window: every app is a sidebar row, so a second window would
@@ -21,6 +30,7 @@ struct AppLocalizerApp: App {
                 .environment(session)
                 .environment(changes)
                 .environment(history)
+                .environment(push)
                 .environment(pricingModes)
                 .environment(preferences)
                 .frame(minWidth: Metrics.minimumWindowWidth, minHeight: Metrics.minimumWindowHeight)

@@ -25,6 +25,13 @@ struct AppStoreConnectErrorTests {
         #expect(AppStoreConnectError(statusCode: statusCode, body: body(detail: "Detail")) == expected)
     }
 
+    @Test(arguments: [409, 422])
+    func refusedValuesKeepApplesCode(statusCode: Int) {
+        let error = AppStoreConnectError(statusCode: statusCode, body: body(detail: "Not available."))
+        #expect(error == .rejected(statusCode: statusCode, code: "CODE", detail: "Not available."))
+        #expect(error.pushFailureText == "CODE — Not available.")
+    }
+
     @Test func titleStandsInForAMissingDetail() {
         #expect(AppStoreConnectError(statusCode: 403, body: body(detail: nil, title: "Forbidden")) == .forbidden(detail: "Forbidden"))
     }

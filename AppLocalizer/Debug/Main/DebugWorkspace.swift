@@ -7,7 +7,7 @@
 import Foundation
 
 /// The window-wide state DEBUG scenes start from: Habitat's three pending
-/// store-page edits, Lumen's last push and Tempo set to Keep my prices.
+/// store-page edits, the push history and Tempo set to Keep my prices.
 enum DebugWorkspace {
     typealias AppIDs = DebugFixtures.AppID
 
@@ -25,24 +25,10 @@ enum DebugWorkspace {
         ]
     }
 
+    /// Lumen's store-page push on Oct 12, Habitat's prices with two
+    /// failures and Lumen's earlier price push.
     static var pushRecords: [PushRecord] {
-        var components = DateComponents()
-        components.calendar = Calendar(identifier: .gregorian)
-        components.timeZone = .current
-        components.year = 2026
-        components.month = 10
-        components.day = 12
-        components.hour = 14
-        components.minute = 32
-        return [
-            PushRecord(
-                date: components.date ?? .now,
-                appID: AppIDs.lumen,
-                appName: "Lumen Journal",
-                title: String(localized: "Store Page · 24 texts in 8 locales"),
-                pushed: []
-            ),
-        ]
+        DebugReviewData.activityRecords
     }
 
     private static func listingChange(locale: String, region: String, field: String, old: String, new: String) -> PendingChange {

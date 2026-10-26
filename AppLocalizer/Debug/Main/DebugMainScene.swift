@@ -15,7 +15,11 @@ struct DebugMainScene: View {
     private let section: AppWorkspaceSection
     @State private var changes: ChangeQueue
     @State private var history: PushHistory
+    @State private var push: PushController
     @State private var pricingModes: PricingModeStore
+    private let autoPush: Bool
+    private let presentedSheet: WorkspaceSheet?
+    private let notice: PushNotice?
 
     init(
         services: WorkspaceServices = .debug,
@@ -23,13 +27,22 @@ struct DebugMainScene: View {
         section: AppWorkspaceSection = .overview,
         pendingChanges: [PendingChange] = DebugWorkspace.pendingChanges,
         pushRecords: [PushRecord] = DebugWorkspace.pushRecords,
-        pricingModes: [StoreApp.ID: PricingMode] = DebugWorkspace.pricingModes
+        pricingModes: [StoreApp.ID: PricingMode] = DebugWorkspace.pricingModes,
+        presentedSheet: WorkspaceSheet? = nil,
+        autoPush: Bool = false,
+        notice: PushNotice? = nil
     ) {
         self.services = services
         self.selectedAppID = selectedAppID
         self.section = section
-        _changes = State(initialValue: ChangeQueue(changes: pendingChanges))
-        _history = State(initialValue: PushHistory(records: pushRecords))
+        self.autoPush = autoPush
+        self.presentedSheet = presentedSheet
+        self.notice = notice
+        let changes = ChangeQueue(changes: pendingChanges)
+        let history = PushHistory(records: pushRecords)
+        _changes = State(initialValue: changes)
+        _history = State(initialValue: history)
+        _push = State(initialValue: PushController(queue: changes, history: history, transport: services.push))
         _pricingModes = State(initialValue: PricingModeStore(defaults: nil, modes: pricingModes))
     }
 
@@ -39,11 +52,18 @@ struct DebugMainScene: View {
             accounts: DebugFixtures.accounts,
             currentAccountID: DebugFixtures.northpier.id,
             selectedAppID: selectedAppID,
-            section: section
+            section: section,
+            presentedSheet: presentedSheet
         )
         .environment(changes)
         .environment(history)
+        .environment(push)
         .environment(pricingModes)
+        .task {
+            // Push scenes start with every pending change already sending.
+            if autoPush, push.phase == .idle { push.push(changes.changes) }
+            if let notice { push.report(notice) }
+        }
     }
 }
 #endif

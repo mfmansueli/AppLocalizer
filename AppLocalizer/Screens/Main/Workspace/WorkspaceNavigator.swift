@@ -18,6 +18,9 @@ final class WorkspaceNavigator {
     var isReviewPresented = false
     /// Activity history (the toolbar clock).
     var isActivityPresented = false
+    /// Set by Activity's "Restore Previous Values": Review & Push opens once
+    /// Activity has closed (macOS shows one sheet at a time).
+    var opensReviewAfterActivity = false
     /// What the current section should do next; nil when nothing is pending.
     private(set) var intent: WorkspaceIntent?
     /// Bumped by Refresh (⌘R). The library and every section reload when it
@@ -37,6 +40,19 @@ final class WorkspaceNavigator {
     /// Asks the current section to do something without switching.
     func send(_ intent: WorkspaceIntent) {
         self.intent = intent
+    }
+
+    /// Closes Activity and opens Review & Push after it.
+    func showReviewAfterActivity() {
+        opensReviewAfterActivity = true
+        isActivityPresented = false
+    }
+
+    /// Called when Activity closed.
+    func activityDidClose() {
+        guard opensReviewAfterActivity else { return }
+        opensReviewAfterActivity = false
+        isReviewPresented = true
     }
 
     /// Reloads everything from App Store Connect.

@@ -24,7 +24,7 @@ final class FakeHTTPTransport: HTTPTransport {
         }
         guard let canned, let url = request.url else { throw URLError(.badServerResponse) }
         let response: URLResponse = if canned.isHTTP {
-            HTTPURLResponse(url: url, statusCode: canned.statusCode, httpVersion: nil, headerFields: nil)!
+            HTTPURLResponse(url: url, statusCode: canned.statusCode, httpVersion: nil, headerFields: canned.headers)!
         } else {
             URLResponse(url: url, mimeType: nil, expectedContentLength: 0, textEncodingName: nil)
         }

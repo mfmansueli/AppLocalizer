@@ -29,7 +29,7 @@ struct OverviewHeader: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
             }
-            .frame(minWidth: 220, alignment: .leading)
+            .frame(minWidth: 160, alignment: .leading)
             Spacer(minLength: Spacing.medium)
             HStack(spacing: Spacing.small) {
                 if showsReviewSuggestions {
@@ -49,6 +49,7 @@ struct OverviewHeader: View {
                 .accessibilityIdentifier("overview.reviewAndPush")
             }
             .buttonBorderShape(.capsule)
+            .fixedSize()
         }
     }
 

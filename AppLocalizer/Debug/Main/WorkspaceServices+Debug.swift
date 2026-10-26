@@ -14,7 +14,8 @@ extension WorkspaceServices {
             appList: DebugAppListServices(),
             pricing: DebugPricingServices(),
             storePage: DebugStorePageServices(),
-            appInformation: DebugAppInformationServices()
+            appInformation: DebugAppInformationServices(),
+            push: DebugPushTransport()
         )
     }
 }

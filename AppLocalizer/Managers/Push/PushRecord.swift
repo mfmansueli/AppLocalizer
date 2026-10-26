@@ -19,9 +19,17 @@ struct PushRecord: Identifiable, Hashable, Codable, Sendable {
     var pushed: [PendingChange]
     /// Changes Apple rejected, with its error text, keyed by change id.
     var failures: [PendingChange.ID: String] = [:]
+    /// The rejected changes themselves (they stay in the queue too).
+    var failedChanges: [PendingChange] = []
     /// Whether this push changed prices, so Results applies.
     var changedPrices: Bool { pushed.contains { $0.section == .subscriptionPricing } }
 
     var succeededCount: Int { pushed.count }
     var failedCount: Int { failures.count }
+    var changeCount: Int { succeededCount + failedCount }
+
+    /// The pushed changes that can be put back, as new pending changes.
+    func restoringChanges(at date: Date = .now) -> [PendingChange] {
+        pushed.compactMap { $0.restoring(at: date) }
+    }
 }

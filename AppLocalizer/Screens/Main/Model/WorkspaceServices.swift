@@ -14,13 +14,16 @@ struct WorkspaceServices {
     var pricing: any PricingServices
     var storePage: any StorePageServices
     var appInformation: any AppInformationServices
+    /// Where Review & Push sends writes.
+    var push: any PushTransport
 
     static func live(client: AppStoreConnectClient) -> WorkspaceServices {
         WorkspaceServices(
             appList: LiveAppListServices(client: client),
             pricing: LivePricingServices(client: client),
             storePage: LiveStorePageServices(client: client),
-            appInformation: LiveAppInformationServices(client: client)
+            appInformation: LiveAppInformationServices(client: client),
+            push: client
         )
     }
 }

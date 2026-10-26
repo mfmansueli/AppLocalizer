@@ -42,6 +42,11 @@ enum ChangeSource: Hashable, Codable, Sendable {
         }
     }
 
+    var isAssistant: Bool {
+        if case .assistant = self { return true }
+        return false
+    }
+
     /// Two-letter monogram for assistant tags ("Claude Code" → "CC").
     var monogram: String? {
         guard case let .assistant(client) = self else { return nil }

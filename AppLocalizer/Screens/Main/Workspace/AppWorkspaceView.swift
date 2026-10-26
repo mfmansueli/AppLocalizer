@@ -13,11 +13,19 @@ struct AppWorkspaceView: View {
 
     @Environment(WorkspaceNavigator.self) private var navigator
     @Environment(ChangeQueue.self) private var changes
+    @Environment(PushController.self) private var push
 
     var body: some View {
         @Bindable var navigator = navigator
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if let notice = push.notice {
+                    PushNoticeBanner(notice: notice, push: push) {
+                        navigator.isReviewPresented = true
+                    }
+                }
+            }
             .navigationTitle(app.name)
             .navigationSubtitle(app.bundleID)
             .toolbar {

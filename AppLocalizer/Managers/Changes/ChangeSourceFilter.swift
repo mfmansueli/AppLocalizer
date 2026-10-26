@@ -12,6 +12,11 @@ enum ChangeSourceFilter: Hashable, Sendable {
     case machineTranslation
     case assistant(String)
 
+    var isAssistant: Bool {
+        if case .assistant = self { return true }
+        return false
+    }
+
     var title: String {
         switch self {
         case .you: String(localized: "You")

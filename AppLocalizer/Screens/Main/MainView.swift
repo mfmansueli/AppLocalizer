@@ -18,6 +18,10 @@ struct MainView: View {
     private let onSelectAccount: (TeamAccount) -> Void
     private let onAddKey: () -> Void
 
+    @Environment(ChangeQueue.self) private var changes
+    @Environment(PushController.self) private var push
+    @Environment(AppPreferences.self) private var preferences
+
     init(
         credentials: AppStoreConnectCredentials,
         accounts: [TeamAccount],
@@ -40,6 +44,7 @@ struct MainView: View {
         currentAccountID: TeamAccount.ID? = nil,
         selectedAppID: StoreApp.ID? = nil,
         section: AppWorkspaceSection = .overview,
+        presentedSheet: WorkspaceSheet? = nil,
         onSelectAccount: @escaping (TeamAccount) -> Void = { _ in },
         onAddKey: @escaping () -> Void = {}
     ) {
@@ -50,7 +55,10 @@ struct MainView: View {
         self.onAddKey = onAddKey
         _viewModel = State(initialValue: AppListViewModel(services: services.appList, selectedAppID: selectedAppID))
         _summaries = State(initialValue: AppSummaryStore(services: services))
-        _navigator = State(initialValue: WorkspaceNavigator(section: section))
+        let navigator = WorkspaceNavigator(section: section)
+        navigator.isReviewPresented = presentedSheet == .review
+        navigator.isActivityPresented = presentedSheet == .activity
+        _navigator = State(initialValue: navigator)
     }
 
     var body: some View {
@@ -67,20 +75,29 @@ struct MainView: View {
         } detail: {
             detail
         }
-        .environment(navigator)
-        .environment(summaries)
-        .focusedSceneValue(\.workspaceNavigator, navigator)
         .sheet(isPresented: $navigator.isReviewPresented) {
-            ReviewPushSheet(selectedAppID: viewModel.selectedAppID, apps: viewModel.apps)
+            ReviewPushSheet(viewModel: ReviewPushViewModel(
+                queue: changes,
+                push: push,
+                selectedAppID: viewModel.selectedAppID,
+                appName: appName,
+                pushConfirmation: preferences.pushConfirmation,
+                confirmsPriceIncreases: preferences.confirmsPriceIncreases
+            ))
         }
-        .sheet(isPresented: $navigator.isActivityPresented) {
-            ActivitySheet(apps: viewModel.apps)
+        .sheet(isPresented: $navigator.isActivityPresented, onDismiss: navigator.activityDidClose) {
+            ActivitySheet()
         }
+        .task { configurePush() }
         .task { await loadLibrary() }
         .onChange(of: navigator.refreshCount) {
             summaries.invalidateAll()
             Task { await loadLibrary() }
         }
+        // Outermost, so the sheets see them too.
+        .environment(navigator)
+        .environment(summaries)
+        .focusedSceneValue(\.workspaceNavigator, navigator)
     }
 
     @ViewBuilder
@@ -94,6 +111,22 @@ struct MainView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if !viewModel.apps.isEmpty {
             ContentUnavailableView("Select an app", systemImage: "sidebar.left", description: Text("Pick an app in the sidebar to localize it."))
+        }
+    }
+
+    private func appName(_ id: StoreApp.ID) -> String {
+        viewModel.apps.first { $0.id == id }?.name ?? id
+    }
+
+    /// Points Review & Push at this account and reloads what a push changed.
+    private func configurePush() {
+        push.transport = services.push
+        push.appName = { [viewModel] id in viewModel.apps.first { $0.id == id }?.name ?? id }
+        push.onPushed = { [summaries, navigator] appIDs in
+            for appID in appIDs {
+                summaries.invalidate(appID)
+            }
+            navigator.refresh()
         }
     }
 

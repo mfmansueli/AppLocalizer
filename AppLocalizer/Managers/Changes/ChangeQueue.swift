@@ -57,7 +57,9 @@ final class ChangeQueue {
 
     // MARK: - Changing
 
-    /// Adds a change, or replaces the one with the same id in place.
+    /// Adds a change, or replaces the one with the same id in place. When the
+    /// person and an assistant both edit the same field to different values,
+    /// both versions are kept and the review sheet asks which to push.
     func upsert(_ change: PendingChange) {
         upsert(contentsOf: [change])
     }
@@ -66,12 +68,36 @@ final class ChangeQueue {
         guard !newChanges.isEmpty else { return }
         for change in newChanges {
             if let index = changes.firstIndex(where: { $0.id == change.id }) {
-                changes[index] = change
+                changes[index] = Self.merge(changes[index], with: change)
             } else {
                 changes.append(change)
             }
         }
         save()
+    }
+
+    /// The change to keep when `new` arrives for the same target as
+    /// `existing`: the person's version stays primary and an assistant's
+    /// different version becomes the alternative.
+    private static func merge(_ existing: PendingChange, with new: PendingChange) -> PendingChange {
+        let existingIsAssistant = existing.source.isAssistant
+        let newIsAssistant = new.source.isAssistant
+        guard existingIsAssistant != newIsAssistant, existing.newValue != new.newValue else {
+            var replaced = new
+            if replaced.alternative == nil, let alternative = existing.alternative, alternative.source.isAssistant != newIsAssistant {
+                replaced.alternative = alternative
+            }
+            return replaced
+        }
+        var person = newIsAssistant ? existing : new
+        let assistant = newIsAssistant ? new : existing
+        person.alternative = ChangeAlternative(
+            newValue: assistant.newValue,
+            source: assistant.source,
+            requests: assistant.requests,
+            restoreRequests: assistant.restoreRequests
+        )
+        return person
     }
 
     func discard(id: PendingChange.ID) {
@@ -91,6 +117,60 @@ final class ChangeQueue {
         let before = changes.count
         changes.removeAll(where: predicate)
         if changes.count != before { save() }
+    }
+
+    /// Every proposal from one assistant ("Reject All from Claude Code"):
+    /// its changes go, and its versions of fields the person also edited.
+    func rejectAll(fromAssistant client: String) {
+        let source = ChangeSource.assistant(client: client)
+        changes.removeAll { $0.source == source }
+        for index in changes.indices where changes[index].alternative?.source == source {
+            changes[index].alternative = nil
+        }
+        save()
+    }
+
+    // MARK: - Conflicts
+
+    /// Records that App Store Connect has a different value now; the change
+    /// is skipped until it's resolved.
+    func markRemoteConflict(id: PendingChange.ID, _ conflict: RemoteConflict) {
+        update(id) { $0.remoteConflict = conflict }
+    }
+
+    /// "Keep mine": push this value anyway, over App Store Connect's.
+    func keepMine(id: PendingChange.ID) {
+        update(id) { change in
+            guard let conflict = change.remoteConflict else { return }
+            change.conflictCheck?.expected = conflict.remoteRawValue
+            change.oldValue = conflict.remoteDisplayValue
+            change.remoteConflict = nil
+        }
+    }
+
+    /// "Use App Store Connect's": the change is dropped.
+    func useRemote(id: PendingChange.ID) {
+        discard(id: id)
+    }
+
+    /// Picks the person's version or the assistant's of a field both edited.
+    func resolveAlternative(id: PendingChange.ID, keepAlternative: Bool) {
+        update(id) { change in
+            guard let alternative = change.alternative else { return }
+            if keepAlternative {
+                change.newValue = alternative.newValue
+                change.source = alternative.source
+                change.requests = alternative.requests
+                change.restoreRequests = alternative.restoreRequests
+            }
+            change.alternative = nil
+        }
+    }
+
+    private func update(_ id: PendingChange.ID, _ body: (inout PendingChange) -> Void) {
+        guard let index = changes.firstIndex(where: { $0.id == id }) else { return }
+        body(&changes[index])
+        save()
     }
 
     private func save() {

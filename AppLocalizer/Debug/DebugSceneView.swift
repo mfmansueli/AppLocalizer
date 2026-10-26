@@ -20,7 +20,7 @@ import SwiftUI
 ///   Metronome's with Keep my prices.
 ///
 /// Ids it doesn't know go to each section's own list (`PricingDebugScenes`,
-/// `StorePageDebugScenes`, `AppInformationDebugScenes`).
+/// `StorePageDebugScenes`, `AppInformationDebugScenes`, `ReviewPushDebugScenes`).
 struct DebugSceneView: View {
     let id: String
     @State private var isConnected = false
@@ -49,7 +49,8 @@ struct DebugSceneView: View {
         case "lib-loading":
             DebugMainScene(services: services { $0.appList = DebugAppListServices(delay: .seconds(3600)) })
         default:
-            if let scene = PricingDebugScenes.view(for: id)
+            if let scene = ReviewPushDebugScenes.view(for: id)
+                ?? PricingDebugScenes.view(for: id)
                 ?? StorePageDebugScenes.view(for: id)
                 ?? AppInformationDebugScenes.view(for: id)
             {
