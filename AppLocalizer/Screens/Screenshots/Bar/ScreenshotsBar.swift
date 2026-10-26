@@ -8,7 +8,7 @@ import SwiftUI
 /// The bar under the Store Page's: Sets | Template | Captions | Captures
 /// (with the overflowing captions' count), the display type, the locale
 /// scope, the render status and S / M / L. When it doesn't fit on one line,
-/// S / M / L moves to a second one.
+/// S / M / L moves to a second one, then the status with it.
 struct ScreenshotsBar: View {
     @Bindable var viewModel: ScreenshotsViewModel
 
@@ -28,6 +28,14 @@ struct ScreenshotsBar: View {
                 }
                 sizes
             }
+            VStack(alignment: .leading, spacing: Spacing.small) {
+                controls
+                HStack(spacing: Spacing.small) {
+                    sizes
+                    Spacer(minLength: Spacing.medium)
+                    status
+                }
+            }
         }
         .padding(.horizontal, Spacing.large)
         .padding(.vertical, Spacing.small)
@@ -46,7 +54,7 @@ struct ScreenshotsBar: View {
                 .fixedSize()
                 .accessibilityIdentifier("screenshots.tabs")
                 if viewModel.overflowingCaptions > 0 {
-                    Pill(text: "\(viewModel.overflowingCaptions)", systemImage: "exclamationmark.triangle.fill", style: .danger)
+                    Pill(text: "\(viewModel.overflowingCaptions)", style: .danger)
                         .fixedSize()
                         .help(Text("Captions that don’t fit on \(viewModel.displayType.title)"))
                         .accessibilityLabel(Text("\(viewModel.overflowingCaptions) captions overflow"))
