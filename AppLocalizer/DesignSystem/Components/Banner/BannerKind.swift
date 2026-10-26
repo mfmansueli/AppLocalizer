@@ -17,6 +17,8 @@ enum BannerKind: Sendable {
     case partialFailure
     /// Neutral information, e.g. "no sales data".
     case info
+    /// Warning that blocks part of the work, e.g. "No version to push to."
+    case warning
 
     var systemImage: String {
         switch self {
@@ -25,6 +27,7 @@ enum BannerKind: Sendable {
         case .apiError: "exclamationmark.octagon.fill"
         case .partialFailure: "exclamationmark.triangle.fill"
         case .info: "info.circle"
+        case .warning: "exclamationmark.triangle.fill"
         }
     }
 
@@ -32,6 +35,7 @@ enum BannerKind: Sendable {
         switch self {
         case .offline, .info: Palette.label2
         case .rateLimited: Palette.warning
+        case .warning: Palette.warningMark
         case .apiError, .partialFailure: Palette.danger
         }
     }
@@ -39,7 +43,7 @@ enum BannerKind: Sendable {
     var background: Color {
         switch self {
         case .offline, .info: Palette.fill1
-        case .rateLimited: Palette.warningTint
+        case .rateLimited, .warning: Palette.warningTint
         case .apiError, .partialFailure: Palette.dangerTint
         }
     }

@@ -66,8 +66,14 @@ struct StorePageContextBar: View {
         SectionBarTitle(
             systemImage: "doc",
             title: text,
-            subtitle: String(localized: "Name, Subtitle and Privacy URL are app-level; everything else is per version"),
+            subtitle: subtitle,
             showsChevron: viewModel.content != nil
         )
+    }
+
+    private var subtitle: String {
+        viewModel.mode == .screenshots
+            ? String(localized: "Screenshots belong to a version; they go live with it")
+            : String(localized: "Name, Subtitle and Privacy URL are app-level; everything else is per version")
     }
 }

@@ -81,7 +81,7 @@ struct ScreenshotsView: View {
     private var banners: some View {
         switch viewModel.banner {
         case let .noVersion(title, message):
-            ScreenshotsWarningBanner(title: title, message: message) {
+            Banner(kind: .warning, title: title, message: message, isInline: true) {
                 Link(destination: NoVersionView.appStoreConnectURL(appID: viewModel.app.id)) {
                     Text("Open App Store Connect")
                 }
@@ -89,7 +89,7 @@ struct ScreenshotsView: View {
             }
             .accessibilityIdentifier("screenshots.banner.noVersion")
         case let .failedChecks(title, message, first):
-            Banner(kind: .partialFailure, title: title, message: message) {
+            Banner(kind: .partialFailure, title: title, message: message, isInline: true) {
                 Button("Show") { viewModel.openViewer(first) }
                     .accessibilityIdentifier("screenshots.banner.show")
             }
