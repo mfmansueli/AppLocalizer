@@ -11,4 +11,19 @@ import Foundation
 protocol AppInformationServices {
     /// The numbers the overview cards and the sidebar show for one app.
     func summary(for app: StoreApp) async throws -> AppInformationSummary
+
+    /// General, Age Rating, App Review and Export Compliance for the version
+    /// with `versionID`, or the newest editable one (else the live one).
+    func content(for app: StoreApp, versionID: String?) async throws -> AppInformationContent
+
+    /// The accessibility declarations, the families they're for and the
+    /// accessibility URL.
+    func accessibility(for app: StoreApp) async throws -> AccessibilityContent
+
+    /// What App Information keeps on this Mac (override reason, export
+    /// answers, assistants' evidence).
+    var notes: any AppInformationNotesStore { get }
+
+    /// Where the demo account's password is kept: the Keychain.
+    var secrets: any SecretStore { get }
 }
