@@ -63,7 +63,11 @@ only accepts connections from this Mac, and runs only while the app is open (`Ma
 
 - **Pairing:** each assistant gets its own bearer token from the "Pair an assistant" sheet, stored in the Keychain.
   Revoking it in Settings ends its sessions.
-- **Tools:** `list_apps`, `get_listing`, `list_missing_translations` and `propose_listing_text`.
+- **Tools:**
+  - Store text: `list_apps`, `get_listing`, `list_missing_translations` and `propose_listing_text`.
+  - Prices: `get_prices`, `get_price_points` and `propose_prices`. Proceeds use the commission from Settings →
+    General. Every price proposal is refused for apps set to Keep my prices, and a price that isn't a price point is
+    refused with the two nearest ones.
   - Every proposal is validated like a manual edit (limits, URLs, read-only versions), then queued as a change tagged
     with the assistant's name.
   - When a person already changed the same field, both versions are kept and Review & Push asks which to push.
