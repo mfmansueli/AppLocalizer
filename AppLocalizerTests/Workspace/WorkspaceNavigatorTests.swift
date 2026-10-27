@@ -3,6 +3,7 @@
 //  AppLocalizerTests
 //
 
+import Foundation
 import Testing
 @testable import AppLocalizer
 
@@ -47,6 +48,28 @@ struct WorkspaceNavigatorTests {
         navigator.reviewProposals(from: nil)
         #expect(navigator.isReviewPresented)
         #expect(navigator.reviewSourceFilter == nil)
+    }
+
+    @Test func openingAnotherAppsSectionAsksToSelectIt() {
+        let navigator = WorkspaceNavigator()
+        navigator.open(.storePage, intent: .showScreenshots, appID: "2")
+        #expect(navigator.requestedAppID == "2")
+        #expect(navigator.intent == .showScreenshots)
+        navigator.consumeAppRequest()
+        #expect(navigator.requestedAppID == nil)
+        #expect(navigator.intent == .showScreenshots)
+    }
+
+    @Test func onlyTheViewThatHidTheSidebarShowsItAgain() {
+        let navigator = WorkspaceNavigator()
+        let leaving = UUID()
+        let arriving = UUID()
+        navigator.hideSidebar(true, for: leaving)
+        navigator.hideSidebar(true, for: arriving)
+        navigator.hideSidebar(false, for: leaving)
+        #expect(navigator.hidesSidebar)
+        navigator.hideSidebar(false, for: arriving)
+        #expect(!navigator.hidesSidebar)
     }
 
     @Test func sectionsMapToCommandDigits() {

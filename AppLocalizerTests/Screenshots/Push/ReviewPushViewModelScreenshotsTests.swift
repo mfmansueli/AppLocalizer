@@ -30,6 +30,8 @@ struct ReviewPushViewModelScreenshotsTests {
         #expect(viewModel.thisAppCount == 40)
         #expect(viewModel.allAppsCount == 40)
         #expect(viewModel.showsScreenshots)
+        #expect(!viewModel.showsScopeSwitch)
+        #expect(!viewModel.showsSourceFilter)
     }
 
     @Test func uncheckingSomeImagesMakesThemPushSelected() async throws {

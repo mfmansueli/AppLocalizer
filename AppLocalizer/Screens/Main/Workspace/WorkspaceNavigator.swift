@@ -24,9 +24,10 @@ final class WorkspaceNavigator {
     /// Set by Activity's "Restore Previous Values": Review & Push opens once
     /// Activity has closed (macOS shows one sheet at a time).
     var opensReviewAfterActivity = false
-    /// Screenshots' Template tab is showing: the sidebar hides until it
-    /// isn't.
-    var hidesSidebar = false
+    /// The view that asked to hide the sidebar (Screenshots' Template tab);
+    /// nil shows it. Only that view can bring it back, so one that's
+    /// leaving can't undo another's request.
+    private(set) var sidebarHider: UUID?
     /// What the current section should do next; nil when nothing is pending.
     private(set) var intent: WorkspaceIntent?
     /// The app to select first, e.g. for Show in Captions on another app's
@@ -81,6 +82,18 @@ final class WorkspaceNavigator {
     /// Reloads everything from App Store Connect.
     func refresh() {
         refreshCount += 1
+    }
+
+    var hidesSidebar: Bool { sidebarHider != nil }
+
+    /// Hides the sidebar for `owner`, or shows it again when `owner` asked
+    /// to hide it.
+    func hideSidebar(_ hide: Bool, for owner: UUID) {
+        if hide {
+            sidebarHider = owner
+        } else if sidebarHider == owner {
+            sidebarHider = nil
+        }
     }
 
     /// Called by the main window once it has selected `requestedAppID`.

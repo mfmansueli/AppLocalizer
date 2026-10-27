@@ -56,10 +56,11 @@ final class ReviewPushViewModel {
         selectedAppName != nil && thisAppCount != allAppsCount
     }
 
-    /// The source filter, only when there's more than one source to pick,
-    /// or one is picked.
+    /// The source filter, only when text changes come from more than one
+    /// source, or one is picked. Images alone need none, as the design
+    /// draws them.
     var showsSourceFilter: Bool {
-        sourceOptions.count > 2 || sourceFilter != nil
+        (!scopedChanges.isEmpty && sourceOptions.count > 2) || sourceFilter != nil
     }
 
     /// Changes in the current scope, before the source filter.

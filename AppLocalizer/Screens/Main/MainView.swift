@@ -93,7 +93,7 @@ struct MainView: View {
             .onDisappear { assistants.workspace = nil }
             .task { await loadLibrary() }
             .onChange(of: navigator.hidesSidebar) {
-                withAnimation { columnVisibility = navigator.hidesSidebar ? .detailOnly : .automatic }
+                columnVisibility = navigator.hidesSidebar ? .detailOnly : .automatic
             }
             .onChange(of: navigator.requestedAppID) {
                 guard let appID = navigator.requestedAppID else { return }

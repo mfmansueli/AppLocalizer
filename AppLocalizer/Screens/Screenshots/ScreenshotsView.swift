@@ -13,6 +13,7 @@ struct ScreenshotsView: View {
     @Bindable var viewModel: ScreenshotsViewModel
     /// Nil in previews and scenes without the main window.
     @Environment(WorkspaceNavigator.self) private var navigator: WorkspaceNavigator?
+    @State private var sidebarToken = UUID()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,8 +36,8 @@ struct ScreenshotsView: View {
             #endif
         }
         .modifier(ScreenshotPushHooks(viewModel: viewModel))
-        .onChange(of: viewModel.tab, initial: true) { navigator?.hidesSidebar = viewModel.tab.hidesSidebar }
-        .onDisappear { navigator?.hidesSidebar = false }
+        .onChange(of: viewModel.tab, initial: true) { navigator?.hideSidebar(viewModel.tab.hidesSidebar, for: sidebarToken) }
+        .onDisappear { navigator?.hideSidebar(false, for: sidebarToken) }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("screenshots.root")
     }
