@@ -19,6 +19,7 @@ struct ProposalCardView: View {
             VStack(alignment: .leading, spacing: Spacing.xSmall) {
                 HStack(spacing: Spacing.xSmall) {
                     SourceTag(source: proposal.source)
+                        .fixedSize()
                     Text(proposal.timeText())
                         .font(.caption)
                         .foregroundStyle(Palette.label2)

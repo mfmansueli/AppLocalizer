@@ -90,17 +90,14 @@ final class CapturesViewModel {
         session?.choose(choice, forRow: id)
     }
 
-    /// The rows shown: every row that needs you and the first matched
-    /// ones, in path order, until "+ n more matched files" shows the rest.
+    /// The rows shown, in path order: every row that needs you and a few
+    /// matched ones from across the import, until "+ n more matched files"
+    /// shows the rest.
     var visibleRows: [CaptureMatchRow] {
         guard let session else { return [] }
         guard !showsAllMatched else { return session.rows }
-        var matched = 0
-        return session.rows.filter { row in
-            guard !row.needsYou else { return true }
-            matched += 1
-            return matched <= Self.matchedPreviewCount
-        }
+        let preview = Set(session.matchedPreview(count: Self.matchedPreviewCount, primary: screenshots.context.primaryLocale.code).map(\.id))
+        return session.rows.filter { $0.needsYou || preview.contains($0.id) }
     }
 
     /// "+ 45 more matched files".

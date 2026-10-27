@@ -44,6 +44,16 @@ struct CaptureImportSessionTests {
         #expect(session.rows.first { $0.id == extra.id }?.choice == .addSlot(6))
     }
 
+    @Test func thePreviewSpreadsAcrossLocalesPrimaryFirst() {
+        let preview = session.matchedPreview(count: 7, primary: "en-US")
+        #expect(preview.count == 7)
+        #expect(preview.prefix(2).allSatisfy { $0.placement?.locale == "en-US" })
+        #expect(Set(preview.compactMap { $0.placement?.displayType }) == [.iPhone, .iPad])
+        #expect(Set(preview.compactMap { $0.placement?.locale }) == ["en-US", "ar-SA", "de-DE", "es-ES", "fr-FR", "it"])
+        #expect(preview.allSatisfy { !$0.needsYou })
+        #expect(session.matchedPreview(count: 100, primary: "en-US").count == 52)
+    }
+
     @Test func liveScreenshotsWarnAboutCaptionsTheyMayHave() {
         let session = CaptureImportSession(source: .appStoreConnect, location: "App Store Connect", rows: [])
         #expect(session.warning?.hasPrefix("These are the screenshots live in App Store Connect.") == true)

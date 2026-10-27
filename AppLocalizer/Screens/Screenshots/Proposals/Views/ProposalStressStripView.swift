@@ -13,6 +13,10 @@ struct ProposalStressStripView: View {
     let proposal: ScreenshotProposal
 
     static let previewWidth: CGFloat = 92
+    /// Room for "English (U.S.) · Primary" when the sheet has it; columns
+    /// narrow to the preview's width when it doesn't.
+    static let columnWidth: CGFloat = 132
+    static let labelWidth: CGFloat = 44
 
     var body: some View {
         let columns = viewModel.stressColumns(for: proposal)
@@ -33,15 +37,15 @@ struct ProposalStressStripView: View {
                 .fixedSize()
                 .accessibilityIdentifier("proposals.stressSlot")
             }
-            Grid(alignment: .topLeading, horizontalSpacing: Spacing.large, verticalSpacing: Spacing.small) {
+            Grid(alignment: .topLeading, horizontalSpacing: Spacing.medium, verticalSpacing: Spacing.small) {
                 GridRow {
-                    Color.clear.frame(width: 50, height: 1)
+                    Color.clear.frame(width: Self.labelWidth, height: 1)
                     ForEach(columns) { column in
                         Text(column.title)
                             .font(.caption.weight(.medium))
                             .foregroundStyle(Palette.label2)
                             .lineLimit(1)
-                            .frame(width: Self.previewWidth + 40, alignment: .leading)
+                            .frame(minWidth: Self.previewWidth, maxWidth: Self.columnWidth, alignment: .leading)
                     }
                 }
                 row(title: String(localized: "Before"), previews: columns.map(\.before))
@@ -59,7 +63,7 @@ struct ProposalStressStripView: View {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(Palette.label2)
-                .frame(width: 50, alignment: .leading)
+                .frame(width: Self.labelWidth, alignment: .leading)
                 .gridCellAnchor(.leading)
             ForEach(Array(previews.enumerated()), id: \.offset) { _, preview in
                 if let preview {
@@ -69,8 +73,9 @@ struct ProposalStressStripView: View {
                             .font(.caption)
                             .foregroundStyle(preview.hasCaptionProblem ? Palette.danger : Palette.label2)
                             .lineLimit(1)
-                            .fixedSize()
+                            .minimumScaleFactor(0.85)
                     }
+                    .frame(minWidth: Self.previewWidth, maxWidth: Self.columnWidth, alignment: .leading)
                     .accessibilityElement(children: .combine)
                 } else {
                     Text("Can’t apply")

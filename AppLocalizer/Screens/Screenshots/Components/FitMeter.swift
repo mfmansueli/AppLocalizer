@@ -17,8 +17,9 @@ struct FitMeter: View {
         GeometryReader { proxy in
             let width = proxy.size.width
             ZStack(alignment: .leading) {
-                Capsule().fill(Palette.fill2)
-                Capsule().fill(tint).frame(width: width * CGFloat(value.filled))
+                // The ticks are taller than the bar; the bar keeps its height.
+                Capsule().fill(Palette.fill2).frame(height: height)
+                Capsule().fill(tint).frame(width: width * CGFloat(value.filled), height: height)
                 tick(at: CGFloat(value.fullSizeTick) * width)
                 tick(at: CGFloat(value.smallestSizeTick) * width)
             }

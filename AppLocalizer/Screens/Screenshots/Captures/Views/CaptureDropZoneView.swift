@@ -70,8 +70,14 @@ struct CaptureDropZoneView: View {
                     .controlSize(.regular)
                     .frame(height: 28)
             } else {
-                Image(systemName: "folder.badge.plus")
-                    .font(.system(size: 24, weight: .light))
+                // A folder with an arrow into it, as in the design.
+                Image(systemName: "folder")
+                    .font(.system(size: 26, weight: .light))
+                    .overlay {
+                        Image(systemName: "arrow.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .offset(y: 2)
+                    }
                     .foregroundStyle(Palette.label2)
                     .frame(height: 28)
                     .accessibilityHidden(true)

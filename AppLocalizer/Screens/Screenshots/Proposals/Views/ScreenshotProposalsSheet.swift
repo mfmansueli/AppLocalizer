@@ -24,7 +24,7 @@ struct ScreenshotProposalsSheet: View {
             Divider()
             ProposalsSheetFooter(viewModel: viewModel) { dismiss() }
         }
-        .frame(minWidth: 900, idealWidth: 980, minHeight: 600, idealHeight: 700)
+        .frame(minWidth: 960, idealWidth: 980, minHeight: 640, idealHeight: 700)
         .task { await viewModel.load() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("proposals.sheet")
