@@ -68,6 +68,7 @@ final class ScreenshotPushController {
         if workspace?.teamName != self.workspace?.teamName {
             plans = [:]
             loadErrors = [:]
+            apps = [:]
             contexts = [:]
             liveSets = [:]
             renderQueues = [:]
@@ -179,7 +180,18 @@ final class ScreenshotPushController {
     /// "English (U.S.)": what an app's locales without a set of their own
     /// show.
     func primaryLocaleName(for appID: StoreApp.ID) -> String {
-        contexts[appID]?.primaryLocale.name ?? plans[appID]?.primaryLocaleName ?? String(localized: "the primary locale")
+        contexts[appID]?.primaryLocale.name ?? plans[appID]?.primaryLocaleName
+            ?? apps[appID]?.primaryLocale.flatMap { StoreLocaleCatalog.locale(code: $0)?.name }
+            ?? String(localized: "the primary locale")
+    }
+
+    /// Reads the account's apps once, for what Activity shows before
+    /// Review & Push has opened.
+    func loadAppsIfNeeded() async {
+        guard apps.isEmpty, let workspace, let library = try? await workspace.apps() else { return }
+        for app in library {
+            apps[app.id] = app
+        }
     }
 
     func bumpRevision(for appID: StoreApp.ID) {

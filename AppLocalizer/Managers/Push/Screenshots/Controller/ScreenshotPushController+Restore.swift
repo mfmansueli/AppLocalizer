@@ -20,11 +20,7 @@ extension ScreenshotPushController {
         guard let workspace, let pushing = workspace.pushing else { return false }
         let images = backup.images(locale: locale.code)
         guard !images.isEmpty else { return false }
-        if apps[appID] == nil, let library = try? await workspace.apps() {
-            for app in library {
-                apps[app.id] = app
-            }
-        }
+        await loadAppsIfNeeded()
         guard let app = apps[appID], let primary = contexts[appID]?.primaryLocale ?? StoreLocaleCatalog.locale(code: "en-US") else { return false }
         do {
             var document = try await workspace.screenshots.document(for: app, primaryLocale: primary)

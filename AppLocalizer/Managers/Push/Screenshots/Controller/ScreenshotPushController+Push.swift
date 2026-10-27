@@ -81,7 +81,7 @@ extension ScreenshotPushController {
             history.add(PushRecord(
                 date: now(),
                 appID: appID,
-                appName: appName(appID),
+                appName: run.plans.first { $0.appID == appID }?.appName ?? appName(appID),
                 title: summary(of: items, backupID: run.backupID).title,
                 pushed: [],
                 screenshots: summary(of: items, backupID: run.backupID)

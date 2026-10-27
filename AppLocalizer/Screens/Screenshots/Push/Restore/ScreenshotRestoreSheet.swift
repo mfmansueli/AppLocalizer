@@ -73,6 +73,7 @@ struct ScreenshotRestoreSheet: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("restore.sheet")
         .task {
+            await controller.loadAppsIfNeeded()
             backup = controller.backup(for: record)
             if selected == nil { selected = locale ?? choices.first(where: \.hasImages)?.id ?? choices.first?.id }
             if let backup { controller.loadBackupThumbnails(backup.images, appID: record.appID) }

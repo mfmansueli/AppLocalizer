@@ -51,6 +51,7 @@ enum ScreenshotsPushDebugScenes {
     private static var failingScript: DebugScreenshotUploadScript {
         var script = DebugScreenshotUploadScript()
         script.delay = .milliseconds(10)
+        script.usedThisHour = 380
         script.timeouts = ["zh-Hans_iPhone_1_"]
         script.processingFailures = ["es-MX_iPhone_2_"]
         return script

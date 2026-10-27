@@ -25,11 +25,12 @@ struct ScreenshotThumbnail: View {
                     .scaledToFill()
             } else if let placeholder {
                 Text(placeholder)
-                    .font(.system(size: width < 30 ? 7 : 9))
+                    .font(.system(size: placeholderSize))
                     .foregroundStyle(Palette.label3)
                     .multilineTextAlignment(.center)
+                    .allowsTightening(true)
                     .minimumScaleFactor(0.6)
-                    .padding(2)
+                    .padding(.horizontal, 1)
             } else {
                 Palette.fill2
                 if isLoading {
@@ -47,6 +48,15 @@ struct ScreenshotThumbnail: View {
     }
 
     private var showsPlaceholder: Bool { placeholder != nil && image == nil }
+
+    /// Small enough that "English" fits a 34 pt iPhone thumbnail's width.
+    private var placeholderSize: CGFloat {
+        switch width {
+        case ..<30: 6
+        case ..<50: 8
+        default: 10
+        }
+    }
 
     /// Height ÷ width of what an item shows.
     static func aspect(of item: ScreenshotPlanItem) -> CGFloat {

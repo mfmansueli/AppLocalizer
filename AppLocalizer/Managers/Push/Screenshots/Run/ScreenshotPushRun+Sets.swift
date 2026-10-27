@@ -34,7 +34,7 @@ extension ScreenshotPushRun {
             do {
                 try await createSet(groupID)
             } catch {
-                for index in indices { items[index].status = status(for: error, replaces: items[index].plan.old != nil) }
+                for index in indices { items[index].status = status(for: error, replaces: showsLive(index)) }
                 return
             }
         }

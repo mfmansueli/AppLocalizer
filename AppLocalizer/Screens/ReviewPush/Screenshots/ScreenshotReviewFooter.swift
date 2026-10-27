@@ -39,7 +39,7 @@ struct ScreenshotReviewFooter: View {
             }
             Button("Cancel", action: onCancel)
                 .keyboardShortcut(.cancelAction)
-            Button(String(localized: "Push \(viewModel.selectedPushCount) Selected"), action: onPushSelected)
+            Button(String(localized: "Push \(viewModel.selectedTitleCount) Selected"), action: onPushSelected)
                 .disabled(viewModel.selectedPushCount == 0)
                 .accessibilityIdentifier("review.pushSelected")
             Button(pushAllTitle, action: onPushAll)

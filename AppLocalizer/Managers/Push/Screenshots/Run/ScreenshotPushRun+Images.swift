@@ -11,7 +11,7 @@ extension ScreenshotPushRun {
     /// reservation and leaves the live screenshot alone.
     func sendImage(_ index: Int) async {
         let groupID = items[index].groupID
-        let replaces = items[index].plan.old != nil
+        let replaces = showsLive(index)
         do {
             try await keepCopy(index)
             let data: Data
@@ -42,6 +42,12 @@ extension ScreenshotPushRun {
             await dropReservation(index)
             items[index].status = status(for: error, replaces: replaces)
         }
+    }
+
+    /// Whether something live shows in the image's place while it fails:
+    /// the screenshot it replaces, or for a new set the primary locale's.
+    func showsLive(_ index: Int) -> Bool {
+        items[index].plan.old != nil || sets[items[index].groupID]?.group.liveSet == nil
     }
 
     /// Downloads the live screenshot this image replaces and keeps it in

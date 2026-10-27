@@ -25,7 +25,7 @@ struct DebugScreenshotUploadScript: Sendable {
     /// Apple reports `IMAGE_TOOL_FAILURE`, once.
     var processingFailures: Set<String> = []
     /// Requests already used this hour.
-    var usedThisHour = 372
+    var usedThisHour = 334
 
     static func matching(_ fileName: String, in names: some Sequence<String>) -> String? {
         names.first { fileName.hasPrefix($0) }

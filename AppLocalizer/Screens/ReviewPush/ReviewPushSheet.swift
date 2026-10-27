@@ -33,7 +33,8 @@ struct ReviewPushSheet: View {
                 PushProgressView(push: viewModel.push, onViewResults: viewResults, onDone: finish)
             }
         }
-        .frame(width: 800, height: 660)
+        // Screenshots need the room for old → new side by side.
+        .frame(width: showsImages ? 860 : 800, height: showsImages ? 690 : 660)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("review.sheet")
         .confirmationDialog(
@@ -60,6 +61,10 @@ struct ReviewPushSheet: View {
         } message: {
             Text("They're removed from this Mac. Nothing in App Store Connect changes.")
         }
+    }
+
+    private var showsImages: Bool {
+        viewModel.screenshots.run != nil || viewModel.showsScreenshots
     }
 
     private var review: some View {

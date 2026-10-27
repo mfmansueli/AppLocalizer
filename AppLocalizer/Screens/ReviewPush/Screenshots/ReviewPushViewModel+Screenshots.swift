@@ -131,6 +131,12 @@ extension ReviewPushViewModel {
         selectedPushableChanges.count + (hasPartialImageSelection ? checkedImages.count : 0)
     }
 
+    /// The count Push n Selected shows: what it sends, or while nothing is
+    /// singled out (it's disabled) every checked image.
+    var selectedTitleCount: Int {
+        selectedPushCount > 0 ? selectedPushCount : checkedImages.count
+    }
+
     /// What Push All sends: every pushable change and image.
     var allPushCount: Int { pushableChanges.count + pushableImages.count }
 
