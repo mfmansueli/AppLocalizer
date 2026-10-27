@@ -46,7 +46,10 @@ struct ScreenshotProposalsViewModelTests {
         #expect(cards.map(\.0) == ["Template v3 → v4 · 2 changes", "Template v4 → v5 · 4 changes", "3 captions · German"])
         #expect(cards.map(\.1) == ["Stale", "Waiting", "Waiting"])
         let stale = try #require(model.selected)
-        #expect(model.meta(of: stale) == "From Claude Code at Oct 20 · 6:05 PM · based on template v3")
+        // "Oct 20 · 6:05 PM" in the person's own date format; today's only the time.
+        #expect(stale.timeText(now: model.now()).contains(" · "))
+        #expect(try !#require(model.proposals.last).timeText(now: model.now()).contains(" · "))
+        #expect(model.meta(of: stale) == "From Claude Code at \(stale.timeText(now: model.now())) · based on template v3")
         #expect(model.acceptRefusal(of: stale) == "Rebase it onto v4 first.")
     }
 
@@ -54,7 +57,7 @@ struct ScreenshotProposalsViewModelTests {
         let (model, services) = await sheet(selecting: "p1")
         let proposal = try #require(model.selected)
         #expect(model.acceptRefusal(of: proposal) == nil)
-        #expect(model.meta(of: proposal) == "From Claude Code at 10:42 AM · based on template v4")
+        #expect(model.meta(of: proposal) == "From Claude Code at \(proposal.timeText(now: model.now())) · based on template v4")
         let columns = model.stressColumns(for: proposal)
         #expect(columns.map(\.title) == ["English (U.S.) · Primary", "German · Longest", "Arabic · Right to left", "Japanese · CJK"])
         #expect(columns.allSatisfy { $0.after != nil })

@@ -10,8 +10,11 @@ import Testing
 @MainActor
 @Suite("CapturesViewModel")
 struct CapturesViewModelTests {
-    private func emptyModel() async -> (ScreenshotsViewModel, FakeScreenshotsServices) {
-        await ScreenshotsTestFixtures.viewModel(.empty(primary: "en-US"))
+    /// The design's first import: a five-slot template, no captures yet.
+    private func emptyModel(template: Bool = true) async -> (ScreenshotsViewModel, FakeScreenshotsServices) {
+        var document = ScreenshotsDocument.empty(primary: "en-US")
+        if template { document.history = ScreenshotsSampleData.history }
+        return await ScreenshotsTestFixtures.viewModel(document)
     }
 
     @Test func theMatchingStepShowsTheRowsThatNeedYouAndTheFirstMatched() async {
@@ -25,6 +28,13 @@ struct CapturesViewModelTests {
         model.captures.showsAllMatched = true
         #expect(model.captures.visibleRows.count == 55)
         #expect(model.captures.moreMatchedText == nil)
+    }
+
+    @Test func withoutATemplateAnySlotUpToTenIsFine() async {
+        let (model, _) = await emptyModel(template: false)
+        model.captures.present(ScreenshotsSampleData.fastlaneScan)
+        #expect(model.captures.session?.needsYouCount == 2)
+        #expect(model.captures.session?.rows.contains { $0.path.contains("-06_") && !$0.needsYou } == true)
     }
 
     @Test func theFirstImportSetsTheScopeToTheCapturedLocales() async throws {

@@ -26,17 +26,17 @@ final class ScreenshotsProposalsUITests: XCTestCase {
 
     // MARK: - Captures
 
-    func testImportingAfterSkippingAnAmbiguousFolder() {
+    func testImportingAfterSkippingAnAmbiguousLocale() {
         app.launch(debugScene: "capt-match")
         let importButton = app.buttons["captures.import"]
         XCTAssertTrue(importButton.waitForExistence(timeout: 15))
-        XCTAssertEqual(importButton.label, "Import 57 Captures")
+        XCTAssertEqual(importButton.label, "Import 53 Captures")
 
-        // "pt" could be Portuguese (Brazil) or (Portugal); skip its 5 files.
+        // "pt" could be Portuguese (Brazil) or (Portugal); skip that file.
         let portuguese = app.popUpButtons.matching(NSPredicate(format: "value == %@", "Portuguese (Brazil)")).firstMatch
         XCTAssertTrue(portuguese.waitForExistence(timeout: 5))
         portuguese.click()
-        let skip = app.menuItems["Skip these 5 files"]
+        let skip = app.menuItems["Skip it"]
         XCTAssertTrue(skip.waitForExistence(timeout: 5))
         skip.click()
         XCTAssertTrue(waitForLabel(importButton, "Import 52 Captures"), importButton.label)

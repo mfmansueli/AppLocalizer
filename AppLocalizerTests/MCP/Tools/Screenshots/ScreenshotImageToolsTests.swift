@@ -48,7 +48,7 @@ struct ScreenshotImageToolsTests {
         #expect(outcome.images.first?.data.prefix(4) == Self.pngSignature)
 
         let patched = try await call(RenderPreviewTool(), [
-            "locale": "de-DE", "slot": 3, "displayType": "iphone", "templatePatch": ["fit.hyphenate": true, "caption.headline.min": 60],
+            "locale": "de-DE", "slot": 3, "displayType": "iphone", "templatePatch": ["caption.headline.maxLines": 3],
         ])
         #expect(patched.result["fit"]?["fits"] == true)
     }

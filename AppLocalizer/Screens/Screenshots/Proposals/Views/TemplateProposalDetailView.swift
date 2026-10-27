@@ -34,14 +34,14 @@ struct TemplateProposalDetailView: View {
                         Text(row.change.title)
                             .font(.callout)
                         Spacer(minLength: Spacing.medium)
-                        Text(row.change.oldText)
+                        Text(Self.valueText(row.change.oldText))
                             .font(.callout)
                             .foregroundStyle(Palette.label2)
                         Image(systemName: "arrow.right")
                             .font(.caption)
                             .foregroundStyle(Palette.label3)
                             .accessibilityLabel(Text("to"))
-                        Text(row.change.newText)
+                        Text(Self.valueText(row.change.newText))
                             .font(.callout.weight(.semibold))
                         if row.isConflict, proposal.isWaiting {
                             Pill(text: String(localized: "Conflict"), style: .warning)
@@ -66,5 +66,10 @@ struct TemplateProposalDetailView: View {
             .font(.caption.weight(.semibold))
             .textCase(.uppercase)
             .foregroundStyle(Palette.label2)
+    }
+
+    /// A value as the design's change rows show it: "Off → On".
+    private static func valueText(_ text: String) -> String {
+        text.prefix(1).uppercased() + text.dropFirst()
     }
 }

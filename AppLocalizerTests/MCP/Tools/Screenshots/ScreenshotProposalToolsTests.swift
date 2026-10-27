@@ -81,7 +81,8 @@ struct ScreenshotProposalToolsTests {
         #expect(outcome.result["status"] == "partial")
         let items = try #require(outcome.result["items"]?.arrayValue)
         #expect(items.compactMap { $0["status"]?.stringValue } == ["queued", "refused", "refused", "refused"])
-        #expect(items[1]["reason"]?.stringValue?.hasPrefix("needs 3 lines at") == true)
+        let overflow = items[1]["reason"]?.stringValue ?? ""
+        #expect(overflow.hasPrefix("needs ") && overflow.hasSuffix("; the template allows 2"), "\(overflow)")
         #expect(items[2]["reason"] == "“xx” isn’t an App Store locale.")
         #expect(items[3]["reason"] == "The template has slots 1 to 5.")
         #expect(outcome.logLines.map(\.outcome) == [.proposed, .refused, .refused, .refused])

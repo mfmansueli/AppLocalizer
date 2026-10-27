@@ -38,7 +38,13 @@ enum ScreenshotsProposalsDebugScenes {
                 model.captures.dropHover = CapturesViewModel.DropHover(fileCount: 55)
             }
         case "capt-match":
-            return scene(.noCaptures) { $0.captures.present(ScreenshotsSampleData.fastlaneScan) }
+            // The design's first import: a five-slot template, no captures yet.
+            return scene(.noCaptures) { model in
+                guard var document = model.document else { return }
+                document.history = ScreenshotsSampleData.history
+                await model.commit(document)
+                model.captures.present(ScreenshotsSampleData.fastlaneScan)
+            }
         case "capt":
             return scene { $0.tab = .captures }
         case "prop-list":

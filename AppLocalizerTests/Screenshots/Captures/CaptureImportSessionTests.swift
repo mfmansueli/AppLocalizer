@@ -17,7 +17,7 @@ struct CaptureImportSessionTests {
 
     @Test func summarizesTheMatch() {
         let session = session
-        #expect(session.title == "fastlane snapshot output · 59 files")
+        #expect(session.title == "fastlane snapshot output · 55 files")
         #expect(session.location == "~/Developer/Lumen/fastlane/screenshots")
         #expect(session.matchedText == "52 matched")
         #expect(session.needsYouText == "3 need you")
@@ -27,9 +27,9 @@ struct CaptureImportSessionTests {
 
     @Test func importsTheMatchedFilesAndWhatEachChoiceBringsIn() throws {
         var session = session
-        // The pt folder defaults to Portuguese (Brazil); the others to skip.
-        #expect(session.items.count == 57)
-        #expect(session.importTitle == "Import 57 Captures")
+        // The pt file defaults to Portuguese (Brazil); the others to skip.
+        #expect(session.items.count == 53)
+        #expect(session.importTitle == "Import 53 Captures")
         let portuguese = try #require(session.rows.first { $0.path.hasPrefix("pt/") })
         session.choose(.skip, forRow: portuguese.id)
         #expect(session.importTitle == "Import 52 Captures")

@@ -3,6 +3,7 @@
 //  AppLocalizerTests
 //
 
+import Foundation
 import Testing
 @testable import AppLocalizer
 
@@ -33,7 +34,10 @@ struct CaptureCoverageTests {
     }
 
     @Test func summarizesTheImport() {
-        #expect(coverage(ScreenshotsDebugDocuments.standard).summary == "70 captures · fastlane · imported Oct 26 · 10 locales have their own iPhone interface")
+        // "imported Oct 26" in the person's own date format.
+        let imported = ScreenshotsSampleData.date(month: 10, day: 26).formatted(.dateTime.month(.abbreviated).day())
+        let summary = coverage(ScreenshotsDebugDocuments.standard).summary
+        #expect(summary == "70 captures · fastlane · imported \(imported) · 10 locales have their own iPhone interface")
         #expect(coverage(ScreenshotsDebugDocuments.standard, display: .iPad).summary.hasSuffix("4 locales have their own iPad interface"))
     }
 
