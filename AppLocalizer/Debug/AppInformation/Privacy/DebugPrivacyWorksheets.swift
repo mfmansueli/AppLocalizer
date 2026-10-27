@@ -93,7 +93,8 @@ enum DebugPrivacyWorksheets {
     }
 
     /// Published, then a rescan on Nov 9 found Mixpanel and suggests
-    /// Coarse Location: out of date.
+    /// Coarse Location (asking the three questions again, already
+    /// answered): out of date.
     static var rescan: PrivacyWorksheet {
         var worksheet = published
         let date = DebugPrivacyScan.secondScanDate
@@ -103,6 +104,9 @@ enum DebugPrivacyWorksheets {
         for (type, suggestion) in DebugPrivacySuggestions.first {
             worksheet.propose(suggestion, for: type, at: date)
         }
+        for question in DebugPrivacySuggestions.questions {
+            worksheet.ask(question, at: date)
+        }
         worksheet.finishScan(at: date)
         return worksheet
     }
@@ -111,11 +115,11 @@ enum DebugPrivacyWorksheets {
     /// import scene.
     static var fastlaneFile: Data {
         let answers = PrivacyReviewedAnswers(collects: true, collected: [
-            .email: PrivacyAnswer(collected: true, purposes: [.appFunctionality], linked: true),
+            .crash: PrivacyAnswer(collected: true, purposes: [.appFunctionality]),
+            .interaction: PrivacyAnswer(collected: true, purposes: [.analytics]),
             .userId: PrivacyAnswer(collected: true, purposes: [.appFunctionality], linked: true),
             .purchases: PrivacyAnswer(collected: true, purposes: [.appFunctionality], linked: true),
-            .interaction: PrivacyAnswer(collected: true, purposes: [.analytics]),
-            .crash: PrivacyAnswer(collected: true, purposes: [.appFunctionality]),
+            .deviceId: PrivacyAnswer(collected: true, purposes: [.analytics], linked: true),
         ])
         return (try? PrivacyFastlaneCoder.encode(answers)) ?? Data()
     }

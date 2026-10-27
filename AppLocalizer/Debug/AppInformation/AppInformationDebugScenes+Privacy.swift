@@ -19,8 +19,8 @@ import SwiftUI
 // - `priv-done`, `priv-checklist`, `priv-published`: done; the checklist
 //   with three steps ticked; marked published.
 // - `priv-rescan`: a later scan found Mixpanel; out of date.
-// - `priv-export`, `priv-import`: the export sheet; a fastlane file to
-//   import.
+// - `priv-export`, `priv-import`: the export sheet over the done
+//   worksheet; a fastlane file to import.
 // - `priv-urls`, `priv-review-urls`: French (Canada)'s policy URL edited;
 //   Review & Push with two policy URLs and an accessibility change.
 // - `priv-overview`: the overview's App Privacy and Privacy URLs cards.
@@ -55,7 +55,7 @@ extension AppInformationDebugScenes {
         "priv-checklist": { DebugPrivacyWorksheets.checklist },
         "priv-published": { DebugPrivacyWorksheets.published },
         "priv-rescan": { DebugPrivacyWorksheets.rescan },
-        "priv-export": { DebugPrivacyWorksheets.review },
+        "priv-export": { DebugPrivacyWorksheets.done },
         "priv-import": { PrivacyWorksheet() },
     ]
 
