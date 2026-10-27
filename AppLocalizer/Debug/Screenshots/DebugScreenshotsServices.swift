@@ -16,7 +16,9 @@ import Foundation
 final class DebugScreenshotsServices: ScreenshotsServices {
     let scenario: ScreenshotsDebugScenario
     let renderHoldCount: Int?
-    let fonts = ScreenshotFontCatalog(aliases: ["Northpier Display": "Futura", "Northpier": "Futura"])
+    let fonts = ScreenshotFontCatalog(aliases: ["Northpier Display": "Futura", "Northpier": "Futura"], uploaded: ["Northpier Display"])
+    /// Answers with the sample captions, a little slowly.
+    var translator: any ListingTranslator = DebugCaptionTranslator()
     let renderCacheDirectory: URL? = nil
     var opening: ScreenshotsDebugOpening?
     private let store = InMemoryScreenshotsDocumentStore()
@@ -59,6 +61,12 @@ final class DebugScreenshotsServices: ScreenshotsServices {
         let capture = ScreenshotsSampleData.capture(locale: "en-US", display: source.displayType, slot: source.slot)
         let image = captures.image(for: capture, pixelWidth: pixelWidth)
         return ScreenshotImageRenderer.image(layout: layout, capture: image, pixelWidth: pixelWidth)
+    }
+
+    /// Registers the font in a temporary folder, never in Application
+    /// Support.
+    func uploadFont(from url: URL) async throws -> String {
+        try ScreenshotFontLibrary(directory: URL.temporaryDirectory.appending(path: "AppLocalizer-DebugFonts")).upload(url)
     }
 
     func otherDisplayTypeNotes(for _: StoreApp) -> [ScreenshotDisplayType: String] {

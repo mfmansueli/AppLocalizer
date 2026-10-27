@@ -15,6 +15,8 @@ enum ScreenshotsDebugDocuments {
             return standard
         case .failedChecks:
             return failedChecks
+        case .thaiAndVietnamese:
+            return thaiAndVietnamese
         case .noCaptures:
             return .empty(primary: data.primary)
         case .noTemplate:
@@ -41,13 +43,21 @@ enum ScreenshotsDebugDocuments {
     /// slot 4.
     static var failedChecks: ScreenshotsDocument {
         let data = ScreenshotsSampleData.self
-        var document = standard
+        var document = thaiAndVietnamese
         var template = data.template
         template.fonts.display = "Northpier Display"
         template.caption.headline.font = "Northpier"
         template.fonts.fallback[.thai] = nil
         template.fonts.fallback[.vietnamese] = nil
         document.history?.save(template, date: data.date(month: 10, day: 26), note: "Northpier brand font")
+        return document
+    }
+
+    /// Thai and Vietnamese added with machine-translated captions, and an
+    /// iPad capture in Korean's iPhone slot 4.
+    static var thaiAndVietnamese: ScreenshotsDocument {
+        let data = ScreenshotsSampleData.self
+        var document = standard
         document.scope.setLocalized(data.scope + ["th", "vi"])
         for locale in ["th", "vi"] {
             for slot in data.slotNames.indices {

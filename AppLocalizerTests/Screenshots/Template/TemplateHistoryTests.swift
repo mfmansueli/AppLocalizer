@@ -86,7 +86,8 @@ struct TemplateHistoryTests {
         let history = ScreenshotsSampleData.history
         #expect(history.currentNumber == 4)
         #expect(history.currentTemplate?.contentHash == ScreenshotsSampleData.template.contentHash)
-        #expect(history.current?.assistant == "Claude Code")
+        #expect(history.current?.author == .you)
+        #expect(history.versions.map(\.note).first == "Created from the starter “Caption above device”")
     }
     #endif
 }

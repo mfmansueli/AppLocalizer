@@ -14,6 +14,9 @@ enum ScreenshotsDebugScenario: Sendable {
     /// A brand font without Thai or Vietnamese, both added to the scope,
     /// and an iPad capture in Korean's iPhone slot 4: "23 renders fail".
     case failedChecks
+    /// Thai and Vietnamese in scope with machine-translated captions, and
+    /// template v4 as saved: the brand font is only tried in the editor.
+    case thaiAndVietnamese
     /// Nothing imported yet.
     case noCaptures
     /// Captures from fastlane but no template: the starter picker.

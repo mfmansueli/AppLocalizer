@@ -59,15 +59,31 @@ extension ScreenshotsViewModel {
     /// Rendered at twice the viewer's width.
     var viewerPixelWidth: Int { Int(viewerImageWidth * 2) }
 
-    /// Open in Template Editor: the Template view, on this slot.
+    /// Open in Template Editor: the Template tab, on the viewer's locale
+    /// and slot.
     func openTemplateEditor() {
+        let target = viewer.map { LocaleSlot(locale: $0.locale, slot: $0.slot) }
         viewer = nil
+        openTemplateEditor(at: target)
+    }
+
+    /// The Template tab, on `target` when there is one.
+    func openTemplateEditor(at target: LocaleSlot?) {
+        if let target { templateEditor.focus(on: target) }
         tab = .template
     }
 
-    /// Edit Caption: the Captions view.
+    /// Edit Caption: the Captions tab, with the viewer's caption open in
+    /// the editor.
     func editCaption() {
+        let target = viewer.map { LocaleSlot(locale: $0.locale, slot: $0.slot) }
         viewer = nil
+        editCaption(at: target)
+    }
+
+    /// The Captions tab, with `target`'s caption selected when there is one.
+    func editCaption(at target: LocaleSlot?) {
+        if let target { captions.select(target) }
         tab = .captions
     }
 }

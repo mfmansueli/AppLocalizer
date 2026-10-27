@@ -21,7 +21,7 @@ extension ScreenshotsViewModel {
     func renderStarterPreviews() async {
         guard let document else { return }
         let primary = context.primaryLocale
-        let engine = ScreenshotLayoutEngine(catalog: services.fonts)
+        let engine = ScreenshotLayoutEngine(catalog: fonts)
         let slots = min(3, document.slotCount)
         starterPreviews = TemplateStarter.allCases.map { starter in
             let template = ScreenshotTemplate.starter(starter, id: app.id, title: app.name, slotCount: document.slotCount)
@@ -50,14 +50,17 @@ extension ScreenshotsViewModel {
     }
 
     /// Use This Template: the starter becomes the template's version 1.
+    /// From the Template tab's sheet it's the next version instead, named
+    /// like the template it replaces; captions and captures stay.
     func chooseStarter(_ starter: TemplateStarter) async {
         guard var document else { return }
-        let template = ScreenshotTemplate.starter(starter, id: app.id, title: app.name, slotCount: document.slotCount)
+        let title = document.template.map { $0.name.components(separatedBy: " · ").first ?? $0.name } ?? app.name
+        let template = ScreenshotTemplate.starter(starter, id: document.template?.id ?? app.id, title: title, slotCount: document.slotCount)
         if var history = document.history {
-            history.save(template, date: .now, note: String(localized: "Switched to \(starter.title)"))
+            history.save(template, date: .now, note: String(localized: "Switched to the starter “\(starter.title)”"))
             document.history = history
         } else {
-            document.history = .starting(with: template, date: .now, note: String(localized: "Started from \(starter.title)"))
+            document.history = .starting(with: template, date: .now, note: String(localized: "Created from the starter “\(starter.title)”"))
         }
         starterPreviews = []
         await commit(document)

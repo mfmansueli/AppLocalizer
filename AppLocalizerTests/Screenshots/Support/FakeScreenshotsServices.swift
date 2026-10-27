@@ -17,6 +17,9 @@ final class FakeScreenshotsServices: ScreenshotsServices {
     var error: (any Error)?
     var fonts = ScreenshotFontCatalog(aliases: ["Northpier Display": "Futura", "Northpier": "Futura"])
     var renderCacheDirectory: URL?
+    var translator: any ListingTranslator = FakeListingTranslator()
+    /// Where uploaded fonts go: a temporary folder per fake.
+    var fontLibrary = ScreenshotFontLibrary(directory: URL.temporaryDirectory.appending(path: "AppLocalizerTests-Fonts-\(UUID().uuidString)"))
     var renderHoldCount: Int?
     private(set) var saved: [ScreenshotsDocument] = []
 
@@ -48,6 +51,10 @@ final class FakeScreenshotsServices: ScreenshotsServices {
 
     func liveImage(_: LiveScreenshot, pixelWidth: Int) async -> CGImage? {
         Self.flatImage(width: pixelWidth, height: pixelWidth * 2)
+    }
+
+    func uploadFont(from url: URL) async throws -> String {
+        try fontLibrary.upload(url)
     }
 
     func otherDisplayTypeNotes(for _: StoreApp) -> [ScreenshotDisplayType: String] {

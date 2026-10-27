@@ -11,6 +11,9 @@ struct StarterCard: View {
     let starter: TemplateStarter
     let images: [CGImage?]
     let thumbnailHeight: CGFloat
+    /// "Use This Template" on first run; the Template tab's sheet says
+    /// "Switch to This" or "Start Over from This".
+    var buttonTitle = String(localized: "Use This Template")
     var onUse: () -> Void
 
     var body: some View {
@@ -31,7 +34,7 @@ struct StarterCard: View {
                 .foregroundStyle(Palette.label2)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
-            Button("Use This Template", action: onUse)
+            Button(buttonTitle, action: onUse)
                 .buttonStyle(.borderedProminent)
                 .accessibilityLabel(Text("Use \(starter.title)"))
                 .accessibilityIdentifier("screenshots.starter.\(starter.rawValue)")

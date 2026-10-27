@@ -20,6 +20,9 @@ struct ScreenshotFontCatalog: Hashable, Sendable {
     /// Template names that stand for an installed family, e.g. an uploaded
     /// brand font registered under another name.
     var aliases: [String: String] = [:]
+    /// Families uploaded in the template inspector, registered for this
+    /// process; the font pickers mark them "· uploaded".
+    var uploaded: [String] = []
 
     static let standard = ScreenshotFontCatalog()
 
@@ -78,10 +81,22 @@ struct ScreenshotFontCatalog: Hashable, Sendable {
         return Self.missingCharacters(in: text, font: font)
     }
 
-    /// The known fonts that can draw `script`.
+    /// The known and uploaded fonts that can draw `script`.
     func fonts(drawing script: ScreenshotScript) -> [String] {
-        Self.knownFonts.filter { covers($0, script.sampleText) }
+        (Self.knownFonts + uploaded.filter { !Self.knownFonts.contains($0) }).filter { covers($0, script.sampleText) }
     }
+
+    /// The display fonts the headline picker offers: the system's, then
+    /// uploaded ones.
+    var displayFonts: [String] {
+        Self.displayFamilies + uploaded.filter { !Self.displayFamilies.contains($0) }
+    }
+
+    func isUploaded(_ name: String) -> Bool {
+        uploaded.contains(name)
+    }
+
+    private static let displayFamilies = ["SF Pro Display", "SF Pro Text", "New York"]
 
     /// The characters of `text` `font` has no glyph for, in order, without
     /// repeats. Spaces, joiners, direction marks and variation selectors
