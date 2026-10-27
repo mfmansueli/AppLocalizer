@@ -2,10 +2,15 @@
 
 macOS app (SwiftUI, macOS 27+) for localizing apps faster through the App Store Connect API:
 
-- **Subscription pricing:** per-territory prices for every subscription, from one base price.
-- **Store page:** the App Store listing's text in every locale.
+- **Pricing:** per-territory prices for every subscription and in-app purchase, from one base price. Custom prices,
+  scheduled changes, the map and the histogram, and the results of past changes.
+- **Store page:** the App Store listing's text in every locale, with translation, import, and Find and Replace.
+- **Localized screenshots:** one template, captions per locale, imported captures, and renders checked for fit before
+  they're pushed.
+- **App Information:** general information, the age rating, accessibility declarations and an App Privacy worksheet.
 - **AI assistants (optional):** a local MCP server lets Claude Code, Claude Desktop, Cursor or Codex read the
-  listing and propose text. Proposals wait in Review & Push like any other change; assistants can't push.
+  listing and propose text, prices, privacy answers and screenshots. Proposals wait for review like any other change;
+  assistants can't push.
 
 It works with a team API key. The design brief for the full feature set is in `DESIGN_PROMPT.md`.
 
@@ -53,6 +58,9 @@ App Store Connect or the Keychain, and the MCP server in a scene never opens a p
 - **Review & Push:** `review`, `review-assistant`, `push-progress`, `push-partial`, `push-conflict`, `activity`, the
   `banner-*` scenes, and more (`ReviewPushDebugScenes`).
 - **Pricing** (`PricingDebugScenes`) and **Store Page** (`StorePageDebugScenes`): one scene per design screenshot.
+- **App Information:** `info-*`, `a11y-*` and, for App Privacy, `priv-*` (`AppInformationDebugScenes`).
+- **Screenshots:** `sets*`, `viewer*` and `scope`; the Template editor, `tpl*` and `starter`; Captions, `cap*`
+  (`ScreenshotsDebugScenes`).
 
 The UI tests run through these scenes.
 
@@ -68,11 +76,14 @@ only accepts connections from this Mac, and runs only while the app is open (`Ma
   - Prices: `get_prices`, `get_price_points` and `propose_prices`. Proceeds use the commission from Settings →
     General. Every price proposal is refused for apps set to Keep my prices, and a price that isn't a price point is
     refused with the two nearest ones.
+  - App Information: `get_privacy_questionnaire` and `propose_privacy_answers` fill the App Privacy worksheet as
+    unreviewed suggestions (App Store Connect has no API for App Privacy); `get_age_rating` and `propose_age_rating`
+    queue answers that wait until the person ticks Confirmed.
   - Every proposal is validated like a manual edit (limits, URLs, read-only versions), then queued as a change tagged
     with the assistant's name.
   - When a person already changed the same field, both versions are kept and Review & Push asks which to push.
   - Settings decides what assistants may propose, and the log says why a call was refused.
-- **Prompts:** `translate_missing` and `whats_new_from_git`. A prompt is offered only while its tools are.
+- **Prompts:** `translate_missing`, `whats_new_from_git`, `fill_privacy_from_code` and `fill_age_rating`. A prompt is offered only while its tools are.
 - **Clients:**
   - Claude Code and Cursor connect over HTTP.
   - Claude Desktop and Codex launch servers as processes, so they run the bundled bridge,

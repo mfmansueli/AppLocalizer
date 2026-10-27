@@ -20,7 +20,8 @@ enum AppStoreConnectError: LocalizedError, Equatable {
     /// 409 or 422: Apple refused the value, with its error code, e.g.
     /// `ENTITY_ERROR.RELATIONSHIP.INVALID`.
     case rejected(statusCode: Int, code: String?, detail: String?)
-    case server(statusCode: Int, detail: String?)
+    /// Anything else, e.g. 500 with `UNEXPECTED_ERROR`.
+    case server(statusCode: Int, code: String? = nil, detail: String?)
     /// Not an HTTP response at all.
     case invalidResponse
     /// A 2xx response whose body isn't what the endpoint documents.
@@ -35,7 +36,7 @@ enum AppStoreConnectError: LocalizedError, Equatable {
         case 404: self = .notFound(detail: detail)
         case 409, 422: self = .rejected(statusCode: statusCode, code: response?.errors.first?.code, detail: detail)
         case 429: self = .rateLimited
-        default: self = .server(statusCode: statusCode, detail: detail)
+        default: self = .server(statusCode: statusCode, code: response?.errors.first?.code, detail: detail)
         }
     }
 
@@ -53,7 +54,7 @@ enum AppStoreConnectError: LocalizedError, Equatable {
             String(localized: "App Store Connect's hourly request limit was reached. Try again in a few minutes.")
         case let .rejected(statusCode, code, detail):
             Self.message(String(localized: "App Store Connect refused the change (\(code ?? String(statusCode)))."), detail: detail)
-        case let .server(statusCode, detail):
+        case let .server(statusCode, _, detail):
             Self.message(String(localized: "App Store Connect returned an error (\(statusCode))."), detail: detail)
         case .invalidResponse:
             String(localized: "App Store Connect sent a response that isn't HTTP.")
@@ -68,8 +69,8 @@ enum AppStoreConnectError: LocalizedError, Equatable {
         switch self {
         case let .rejected(statusCode, code, detail):
             [code ?? "HTTP \(statusCode)", detail].compactMap(\.self).joined(separator: " — ")
-        case let .server(statusCode, detail):
-            ["HTTP \(statusCode)", detail].compactMap(\.self).joined(separator: " — ")
+        case let .server(statusCode, code, detail):
+            [code ?? "HTTP \(statusCode)", detail].compactMap(\.self).joined(separator: " — ")
         case let .forbidden(detail):
             ["FORBIDDEN_ERROR", detail].compactMap(\.self).joined(separator: " — ")
         case let .notFound(detail):

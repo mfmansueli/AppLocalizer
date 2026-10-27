@@ -45,7 +45,7 @@ struct LiveKeyChecker: KeyChecker {
         } catch AppStoreConnectError.unauthorized {
             throw AppStoreConnectError.unauthorized
         } catch let error as AppStoreConnectError {
-            if case let .server(statusCode, _) = error, statusCode >= 500 { return .unknown }
+            if case let .server(statusCode, _, _) = error, statusCode >= 500 { return .unknown }
             if case .rateLimited = error { return .unknown }
             return .readable
         } catch {

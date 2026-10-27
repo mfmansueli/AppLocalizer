@@ -102,7 +102,8 @@ struct AccessibilityViewModelTests {
     }
 
     @Test func aFailedLoadShowsAppleCodeAndTheRequest() async {
-        let vm = await loaded(DebugAppInformationServices(accessibilityError: .server(statusCode: 500, detail: "UNEXPECTED_ERROR")))
+        let error = AppStoreConnectError.server(statusCode: 500, code: "UNEXPECTED_ERROR", detail: "An unexpected error occurred.")
+        let vm = await loaded(DebugAppInformationServices(accessibilityError: error))
         #expect(vm.accessibility.errorMessage == "Couldn’t load accessibility declarations.")
         #expect(vm.accessibilityErrorLine == "500 · UNEXPECTED_ERROR · GET /v1/apps/\(app.id)/accessibilityDeclarations")
         #expect(vm.status(for: .accessibility) == "Couldn’t load")

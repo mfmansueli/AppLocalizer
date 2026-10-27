@@ -35,7 +35,7 @@ enum AppInformationErrorReporter {
         if let error = error as? AppStoreConnectError {
             switch error {
             case let .rejected(statusCode, code, detail): parts += [String(statusCode), code ?? detail].compactMap(\.self)
-            case let .server(statusCode, detail): parts += [String(statusCode), detail].compactMap(\.self)
+            case let .server(statusCode, code, detail): parts += [String(statusCode), code ?? detail].compactMap(\.self)
             case let .forbidden(detail): parts += ["403", detail].compactMap(\.self)
             case let .notFound(detail): parts += ["404", detail].compactMap(\.self)
             case .unauthorized: parts.append("401")

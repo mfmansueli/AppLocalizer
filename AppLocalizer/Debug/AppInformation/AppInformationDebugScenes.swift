@@ -43,7 +43,8 @@ enum AppInformationDebugScenes {
         case "a11y-empty": return accessibilityScene(.neverDeclared)
         case "a11y-loading": return accessibilityScene(DebugAppInformationServices(accessibilityDelay: .seconds(24 * 60 * 60)))
         case "a11y-error":
-            return accessibilityScene(DebugAppInformationServices(accessibilityError: .server(statusCode: 500, detail: "UNEXPECTED_ERROR")))
+            let error = AppStoreConnectError.server(statusCode: 500, code: "UNEXPECTED_ERROR", detail: "An unexpected error occurred.")
+            return accessibilityScene(DebugAppInformationServices(accessibilityError: error))
         case "a11y-editor", "a11y-editor-watch": return editorScene(id)
         case "a11y-draft": return accessibilityScene(.iPhoneDraft)
         case "a11y-published": return accessibilityScene(.lumen)
