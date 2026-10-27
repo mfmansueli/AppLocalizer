@@ -21,6 +21,6 @@ extension TranslationProvider {
 
     /// "AI provider · Anthropic"; the other providers keep their title.
     func captionTitle(vendor: AIProviderVendor) -> String {
-        self == .aiProvider ? String(localized: "AI provider · \(vendor.title)") : title
+        title(vendor: vendor)
     }
 }

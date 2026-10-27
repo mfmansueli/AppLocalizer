@@ -9,8 +9,8 @@ import Observation
 /// "Translate Missing…": the sheet's choices, the batch while it runs, and
 /// the suggestions afterwards, accepted or rejected per field.
 ///
-/// Only Apple Translation runs. The AI provider and the assistant are shown
-/// with what they need set up first; nothing is simulated for them.
+/// Apple Translation and the AI provider run here; the assistant gets a
+/// prompt instead, and a provider that isn't set up says what it needs.
 /// Languages Apple Translation hasn't downloaded are listed before
 /// starting; their fields fail with a reason if started anyway.
 @MainActor
@@ -43,6 +43,8 @@ final class TranslateMissingViewModel {
 
     /// The listing to plan against and to compare suggestions with.
     var currentListing: () -> StoreListing? = { nil }
+    /// Settings → Translation's AI provider.
+    var aiProvider = AIProviderSetup.none
 
     private let translator: any ListingTranslator
     private var scope = TranslationScope.everything
@@ -55,6 +57,18 @@ final class TranslateMissingViewModel {
     }
 
     // MARK: - The sheet
+
+    /// Settings → Translation, when the sheet opens: the provider it starts
+    /// on, the glossary's terms and tone, and the AI provider.
+    func applySettings(provider: TranslationProvider, glossary: TranslationGlossary, aiProvider: AIProviderSetup) {
+        self.provider = provider
+        self.aiProvider = aiProvider
+        var merged = glossary
+        for term in self.glossary.terms {
+            merged.add(term)
+        }
+        self.glossary = merged
+    }
 
     /// Resets the sheet for a scope. The glossary starts with the app's name.
     func prepare(scope: TranslationScope, includeFilled: Bool) {
@@ -106,7 +120,12 @@ final class TranslateMissingViewModel {
     }
 
     var canStart: Bool {
-        provider.setupMessage == nil && !selectedPlan.isEmpty && phase != .running
+        setupMessage == nil && !selectedPlan.isEmpty && phase != .running
+    }
+
+    /// What the provider needs before it can translate, or nil.
+    var setupMessage: String? {
+        provider == .aiProvider ? aiProvider.setupMessage : provider.setupMessage
     }
 
     /// Target locales Apple Translation needs to download first.
@@ -157,9 +176,14 @@ final class TranslateMissingViewModel {
 
     private func run() async {
         let protector = glossary.protector
+        let aiTranslator = runProvider == .aiProvider ? aiProvider.makeTranslator(glossary.tone) : nil
         while let item = job?.nextQueued, !Task.isCancelled {
             job?.start(item.id)
             let target = item.key.locale
+            if let aiTranslator {
+                await translate(item, with: aiTranslator, protector: protector)
+                continue
+            }
             if availability[target] == nil { availability[target] = await translator.availability(from: item.sourceLocale, to: target) }
             switch availability[target] {
             case .needsDownload:
@@ -171,16 +195,22 @@ final class TranslateMissingViewModel {
             case .ready, nil:
                 break
             }
-            let protected = protector.protect(item.sourceText)
-            do {
-                let translated = try await translator.translate(protected.text, field: item.key.field, from: item.sourceLocale, to: target)
-                guard !Task.isCancelled else { break }
-                job?.complete(item.id, with: protected.restore(translated))
-            } catch {
-                job?.fail(item.id, message: error.localizedDescription)
-            }
+            await translate(item, with: translator, protector: protector)
         }
         if !Task.isCancelled { finishRunning() }
+    }
+
+    /// One field, glossary terms protected on the way out and back.
+    private func translate(_ item: TranslationItem, with translator: any ListingTranslator, protector: GlossaryProtector) async {
+        let target = item.key.locale
+        let protected = protector.protect(item.sourceText)
+        do {
+            let translated = try await translator.translate(protected.text, field: item.key.field, from: item.sourceLocale, to: target)
+            guard !Task.isCancelled else { return }
+            job?.complete(item.id, with: protected.restore(translated))
+        } catch {
+            job?.fail(item.id, message: error.localizedDescription)
+        }
     }
 
     private func finishRunning() {

@@ -5,10 +5,14 @@
 
 import Foundation
 
-/// The copy "Translate Missing…" shows for each provider. Only Apple
-/// Translation runs here; the other two need setup in Settings first, and
-/// their output is never simulated.
+/// The copy "Translate Missing…" shows for each provider. The AI provider
+/// needs its API key in Settings first, and the assistant a running server.
 extension TranslationProvider {
+    /// "AI provider · Anthropic"; the other providers keep their title.
+    func title(vendor: AIProviderVendor) -> String {
+        self == .aiProvider ? String(localized: "AI provider · \(vendor.title)") : title
+    }
+
     /// The sheet's longer description of what the provider does differently.
     var detail: String {
         switch self {

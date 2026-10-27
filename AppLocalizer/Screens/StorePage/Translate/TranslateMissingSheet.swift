@@ -14,6 +14,7 @@ struct TranslateMissingSheet: View {
     let viewModel: StorePageViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(MCPServerController.self) private var assistants
+    @Environment(TranslationPreferences.self) private var preferences
     @State private var newTerm = ""
 
     private var translation: TranslateMissingViewModel { viewModel.translation }
@@ -40,7 +41,7 @@ struct TranslateMissingSheet: View {
                             clientName: assistantName,
                             isCopied: translation.isAssistantPromptCopied
                         )
-                    } else if let message = translation.provider.setupMessage {
+                    } else if let message = translation.setupMessage {
                         Banner(kind: .rateLimited, title: message) {
                             SettingsLink {
                                 Text("Open Settings…")
@@ -88,6 +89,9 @@ struct TranslateMissingSheet: View {
             .padding(Spacing.large)
         }
         .frame(width: 640, height: translation.provider == .assistant ? 560 : 680)
+        .onAppear {
+            translation.applySettings(provider: preferences.provider, glossary: preferences.glossary, aiProvider: preferences.aiProviderSetup())
+        }
         .task { await translation.checkAvailability() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("storePage.translateSheet")
@@ -98,7 +102,11 @@ struct TranslateMissingSheet: View {
             sectionTitle("Provider")
             VStack(spacing: 0) {
                 ForEach(TranslationProvider.allCases) { provider in
-                    TranslateProviderRow(provider: provider, isSelected: translation.provider == provider) {
+                    TranslateProviderRow(
+                        provider: provider,
+                        isSelected: translation.provider == provider,
+                        title: provider.title(vendor: preferences.vendor)
+                    ) {
                         translation.provider = provider
                     }
                     if provider != TranslationProvider.allCases.last {

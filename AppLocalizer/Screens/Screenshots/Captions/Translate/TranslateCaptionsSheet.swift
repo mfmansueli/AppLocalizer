@@ -101,7 +101,7 @@ struct TranslateCaptionsSheet: View {
                 isCopied: translation.isAssistantPromptCopied,
                 identifierPrefix: "screenshots.captions.translate"
             )
-        } else if let message = translation.provider.setupMessage {
+        } else if let message = translation.setupMessage {
             Banner(kind: .warning, title: message, isInline: true) {
                 SettingsLink {
                     Text("Open Settings…")

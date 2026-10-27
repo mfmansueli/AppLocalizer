@@ -77,7 +77,25 @@ struct CaptionTranslationTests {
         #expect(TranslationProvider.appleTranslation.captionDetail == "Free and private. Translates the caption as written.")
     }
 
+    @Test func theAIProviderStartsOnceItsKeyIsSaved() async {
+        let screen = await makeScreen()
+        let setup = AIProviderSetup(vendor: .openAI, hasKey: true) { _ in CannedCaptionTranslator() }
+        screen.translation.prepare(provider: .aiProvider, glossary: TranslationGlossary(), aiProvider: setup)
+        #expect(screen.translation.setupMessage == nil)
+        #expect(screen.translation.canStart)
+    }
+
     // MARK: - Running
+
+    @Test func theAIProviderSkipsAppleTranslationsDownloads() async {
+        let screen = await makeScreen(CannedCaptionTranslator(availability: ["pl": .needsDownload]))
+        let setup = AIProviderSetup(vendor: .anthropic, hasKey: true) { _ in CannedCaptionTranslator() }
+        screen.translation.prepare(provider: .aiProvider, glossary: TranslationGlossary(), aiProvider: setup)
+        screen.translation.start()
+        await screen.translation.waitUntilFinished()
+        #expect(screen.services.storedDocument?.captions.caption(locale: "pl", slot: 0)?.headline.hasPrefix("[pl] ") == true)
+        #expect(screen.translation.job?.failedCount == 0)
+    }
 
     @Test func eachArrivalIsWrittenTaggedMachineTranslated() async throws {
         let screen = await makeScreen()

@@ -4,7 +4,8 @@ macOS app (SwiftUI, macOS 27+) for localizing apps faster through the App Store 
 
 - **Pricing:** per-territory prices for every subscription and in-app purchase, from one base price. Custom prices,
   scheduled changes, the map and the histogram, and the results of past changes.
-- **Store page:** the App Store listing's text in every locale, with translation, import, and Find and Replace.
+- **Store page:** the App Store listing's text in every locale, with import, Find and Replace, and translation by Apple
+  Translation, an AI provider (Anthropic or OpenAI, with your own API key) or your assistant.
 - **Localized screenshots:** one template, captions per locale, imported captures, and renders checked for fit before
   they're pushed.
 - **App Information:** general information, the age rating, accessibility declarations and an App Privacy worksheet.
@@ -64,6 +65,14 @@ App Store Connect or the Keychain, and the MCP server in a scene never opens a p
 
 The UI tests run through these scenes.
 
+## Translation providers
+
+Settings → Translation picks who translates: Apple Translation on this Mac, an AI provider, or the assistant connected
+over MCP. The AI provider's key is kept in the Keychain and sent only to that provider (`Managers/AIProvider/`).
+Anthropic is called through the Messages API (`claude-opus-5-5`, low effort, with Anthropic's default fallback if a
+request is declined); OpenAI through Chat Completions (`OpenAIChatAPI.model`). Each field is asked for with its purpose
+and limit, the tone, and glossary terms swapped for placeholders, so brand names are never sent for translation.
+
 ## AI assistants (MCP)
 
 Settings → AI Assistants turns on a Streamable HTTP MCP server at `http://127.0.0.1:47321/mcp`. It's off by default,
@@ -117,7 +126,7 @@ The project is kept warning-free.
 
 - `ENABLE_USER_SCRIPT_SANDBOXING = NO` on the `AppLocalizer` target lets the Lint phase read the sources.
 - The App Sandbox is on, with three exceptions:
-  - outgoing connections (`ENABLE_OUTGOING_NETWORK_CONNECTIONS`), for the API;
+  - outgoing connections (`ENABLE_OUTGOING_NETWORK_CONNECTIONS`), for the API and the AI provider;
   - incoming connections (`ENABLE_INCOMING_NETWORK_CONNECTIONS`), for the local MCP server;
   - user-selected files, read and write (`ENABLE_USER_SELECTED_FILES`), to import the `.p8` and listings, and to
     export listings.

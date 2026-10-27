@@ -19,6 +19,8 @@ final class CaptionTranslationViewModel {
     var provider: TranslationProvider = .appleTranslation
     /// Settings → Translation's terms and tone; read-only here.
     private(set) var glossary = TranslationGlossary()
+    /// Settings → Translation's AI provider.
+    private(set) var aiProvider = AIProviderSetup.none
     var excludedLocales: Set<StoreLocale> = []
     /// The prompt was copied for the assistant.
     var isAssistantPromptCopied = false
@@ -37,11 +39,14 @@ final class CaptionTranslationViewModel {
     }
 
     private var translator: any ListingTranslator { screenshots.services.translator }
+    /// The AI provider's translator while its batch runs.
+    @ObservationIgnored private var aiTranslator: (any ListingTranslator)?
 
-    /// Opens the sheet with the settings' provider and glossary.
-    func prepare(provider: TranslationProvider, glossary: TranslationGlossary) {
+    /// Opens the sheet with the settings' provider, glossary and AI provider.
+    func prepare(provider: TranslationProvider, glossary: TranslationGlossary, aiProvider: AIProviderSetup = .none) {
         self.provider = provider
         self.glossary = glossary
+        self.aiProvider = aiProvider
         excludedLocales = []
         isAssistantPromptCopied = false
     }
@@ -77,7 +82,12 @@ final class CaptionTranslationViewModel {
     }
 
     var canStart: Bool {
-        provider.setupMessage == nil && !selectedPlan.isEmpty && !isRunning
+        setupMessage == nil && !selectedPlan.isEmpty && !isRunning
+    }
+
+    /// What the provider needs before it can translate, or nil.
+    var setupMessage: String? {
+        provider == .aiProvider ? aiProvider.setupMessage : provider.setupMessage
     }
 
     /// Target locales Apple Translation needs to download first.
@@ -103,6 +113,7 @@ final class CaptionTranslationViewModel {
         guard canStart else { return }
         job = selectedPlan
         runProvider = provider
+        aiTranslator = provider == .aiProvider ? aiProvider.makeTranslator(glossary.tone) : nil
         flagged = []
         isRunning = true
         task = Task { [weak self] in await self?.run() }
@@ -141,19 +152,22 @@ final class CaptionTranslationViewModel {
             return ScreenshotCaption(headline: item.source.headline, subhead: item.source.subhead, provenance: .machineTranslated)
         }
         let target = item.locale
-        if availability[target] == nil { availability[target] = await translator.availability(from: job?.sourceLocale ?? target, to: target) }
-        switch availability[target] {
-        case .needsDownload: throw CaptionTranslationError.needsDownload(target)
-        case .unsupported: throw CaptionTranslationError.unsupported(target)
-        case .ready, nil: break
+        let active = aiTranslator ?? translator
+        if aiTranslator == nil {
+            if availability[target] == nil { availability[target] = await active.availability(from: job?.sourceLocale ?? target, to: target) }
+            switch availability[target] {
+            case .needsDownload: throw CaptionTranslationError.needsDownload(target)
+            case .unsupported: throw CaptionTranslationError.unsupported(target)
+            case .ready, nil: break
+            }
         }
         let source = job?.sourceLocale ?? screenshots.context.primaryLocale
         let headline = protector.protect(item.source.headline)
-        let translatedHeadline = try await translator.translateCaption(headline.text, from: source, to: target)
+        let translatedHeadline = try await active.translateCaption(headline.text, from: source, to: target)
         var subhead: String?
         if let text = item.source.visibleSubhead {
             let protected = protector.protect(text)
-            subhead = try await protected.restore(translator.translateCaption(protected.text, from: source, to: target))
+            subhead = try await protected.restore(active.translateCaption(protected.text, from: source, to: target))
         }
         return ScreenshotCaption(headline: headline.restore(translatedHeadline), subhead: subhead, provenance: .machineTranslated)
     }
@@ -169,6 +183,7 @@ final class CaptionTranslationViewModel {
     private func finish() {
         guard isRunning else { return }
         isRunning = false
+        aiTranslator = nil
         let done = job?.doneCount ?? 0
         guard done > 0 || (job?.failedCount ?? 0) > 0 else { return }
         screenshots.notice = summary(done: done)

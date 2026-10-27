@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import Synchronization
 import Testing
 @testable import AppLocalizer
 
@@ -66,6 +67,26 @@ struct TranslateMissingViewModelTests {
         #expect(TranslationProvider.assistant.setupMessage != nil)
     }
 
+    @Test func theAIProviderStartsOnceItsKeyIsSaved() async {
+        let model = await makeModel()
+        model.presentTranslate()
+        model.translation.provider = .aiProvider
+        #expect(model.translation.setupMessage == "Add an AI provider and its API key in Settings → Translation first.")
+        model.translation.aiProvider = AIProviderSetup(vendor: .anthropic, hasKey: true) { _ in FakeListingTranslator() }
+        #expect(model.translation.setupMessage == nil)
+        #expect(model.translation.canStart)
+    }
+
+    @Test func settingsChooseTheProviderAndAddTheirTerms() async {
+        let model = await makeModel()
+        model.presentTranslate()
+        let settings = TranslationGlossary(terms: ["Face ID"], tone: .professional)
+        model.translation.applySettings(provider: .assistant, glossary: settings, aiProvider: .none)
+        #expect(model.translation.provider == .assistant)
+        #expect(model.translation.glossary.terms == ["Face ID", "Lumen Journal"])
+        #expect(model.translation.glossary.tone == .professional)
+    }
+
     @Test func theGlossaryStartsWithTheAppsName() async {
         let model = await makeModel()
         model.presentTranslate()
@@ -120,6 +141,26 @@ struct TranslateMissingViewModelTests {
         #expect(model.translation.failureSummary == "1 field couldn’t be translated. German isn’t downloaded for Apple Translation.")
     }
 
+    @Test func theAIProviderTranslatesWithTheSheetsToneAndSkipsAppleTranslation() async throws {
+        let apple = FakeListingTranslator(availability: [.german: .needsDownload])
+        let model = await makeModel(translator: apple)
+        let tones = ToneLog()
+        model.presentTranslate(scope: TranslationScope(fields: [.keywords], locales: [.german]))
+        model.translation.provider = .aiProvider
+        model.translation.glossary.tone = .playful
+        model.translation.aiProvider = AIProviderSetup(vendor: .anthropic, hasKey: true) { tone in
+            tones.append(tone)
+            return FakeListingTranslator()
+        }
+        await runToSuggestions(model)
+
+        #expect(tones.tones == [.playful])
+        #expect(apple.sent.texts.isEmpty)
+        let suggestion = try #require(model.translation.review?.suggestions.first)
+        #expect(suggestion.suggestedText == "[de-DE] diary,mood,gratitude")
+        #expect(model.translation.failureSummary == nil)
+    }
+
     @Test func translatorErrorsAreListed() async {
         let model = await makeModel(translator: FakeListingTranslator(failing: [ListingFieldKey(.german, .keywords)]))
         model.presentTranslate(scope: TranslationScope(fields: [.keywords, .whatsNew], locales: [.german]))
@@ -159,6 +200,17 @@ struct TranslateMissingViewModelTests {
         model.translation.rejectAll()
         model.finishSuggestions()
         #expect(model.queue.changes.isEmpty)
+    }
+
+    /// The tones the AI provider's translator was made with.
+    final class ToneLog: Sendable {
+        private let storage = Mutex<[TranslationTone]>([])
+
+        var tones: [TranslationTone] { storage.withLock { $0 } }
+
+        func append(_ tone: TranslationTone) {
+            storage.withLock { $0.append(tone) }
+        }
     }
 
     @Test func whatsNewGoesToEveryLocaleReplacingWhatsThere() async {

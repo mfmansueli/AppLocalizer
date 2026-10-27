@@ -18,7 +18,7 @@ struct CaptionsView: View {
         @Bindable var model = model
         VStack(spacing: 0) {
             CaptionsToolbar(model: model) {
-                model.translation.prepare(provider: preferences.provider, glossary: preferences.glossary)
+                model.translation.prepare(provider: preferences.provider, glossary: preferences.glossary, aiProvider: preferences.aiProviderSetup())
                 model.isTranslateSheetPresented = true
             }
             if model.translation.isRunning {

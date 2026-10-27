@@ -45,6 +45,22 @@ struct TranslationPreferencesTests {
         #expect(relaunched.sourceLocaleCode == "en-GB")
     }
 
+    @Test func theAIProviderSetupMakesATranslatorOnlyWithAKey() throws {
+        let preferences = TranslationPreferences(defaults: nil, secrets: InMemorySecretStore())
+        #expect(!preferences.aiProviderSetup().hasKey)
+        #expect(preferences.aiProviderSetup().makeTranslator(.neutral) == nil)
+
+        preferences.vendor = .openAI
+        try preferences.saveAPIKey("sk-123")
+        let setup = preferences.aiProviderSetup()
+        #expect(setup.vendor == .openAI)
+        #expect(setup.setupMessage == nil)
+        let translator = try #require(setup.makeTranslator(.playful) as? AIProviderTranslator)
+        #expect(translator.vendor == .openAI)
+        #expect(translator.apiKey == "sk-123")
+        #expect(translator.tone == .playful)
+    }
+
     @Test func apiKeyGoesToTheSecretStorePerVendor() throws {
         let defaults = defaults()
         let secrets = InMemorySecretStore()
