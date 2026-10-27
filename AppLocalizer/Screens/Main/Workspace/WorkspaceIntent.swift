@@ -19,6 +19,9 @@ enum WorkspaceIntent: Hashable, Sendable {
     case editPriceSchedule(productID: String?)
     /// Pricing: the Prices tab as a table, tile map or histogram.
     case showPrices(PricingDisplay)
+    /// App Information: one page, and App Privacy's tab, e.g. the overview's
+    /// "Open Privacy URLs".
+    case openAppInformationPage(AppInformationPage, privacyTab: AppPrivacyTab? = nil)
     /// Store Page: the "Translate Missing…" sheet.
     case translateMissing
     /// Store Page: Find and Replace Across Locales.

@@ -11,6 +11,8 @@ import SwiftUI
 struct AppInformationCard: View {
     let summary: AppInformationSummary
     let onOpen: () -> Void
+    /// Opens App Privacy on a tab: the worksheet, or the privacy URLs.
+    let onOpenPrivacy: (AppPrivacyTab) -> Void
 
     var body: some View {
         Card {
@@ -34,15 +36,9 @@ struct AppInformationCard: View {
                 .buttonBorderShape(.capsule)
         }
         .accessibilityIdentifier("overview.appInformationCard")
-        AppPrivacyOverviewCard(privacy: summary.privacy) { open(.worksheet) }
+        AppPrivacyOverviewCard(privacy: summary.privacy) { onOpenPrivacy(.worksheet) }
         if let urls = summary.privacyURLs {
-            PrivacyURLsOverviewCard(urls: urls) { open(.urls) }
+            PrivacyURLsOverviewCard(urls: urls) { onOpenPrivacy(.urls) }
         }
-    }
-
-    /// Opens App Information on App Privacy's `tab`.
-    private func open(_ tab: AppPrivacyTab) {
-        AppInformationPageRequest.shared.request(.appPrivacy, tab: tab)
-        onOpen()
     }
 }

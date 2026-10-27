@@ -34,15 +34,19 @@ struct AppInformationSectionView: View {
         .onChange(of: navigator.refreshCount) {
             Task { await viewModel?.load() }
         }
+        .onChange(of: navigator.intent) { handleIntent() }
+    }
+
+    /// Opens the page another part of the window asked for.
+    private func handleIntent() {
+        guard let viewModel, let intent = navigator.intent else { return }
+        if viewModel.handle(intent) { navigator.consume(intent) }
     }
 
     private func open() async {
         let model = AppInformationViewModel(app: app, services: services, queue: queue, summaries: summaries, push: push)
-        if let request = AppInformationPageRequest.shared.take() {
-            model.page = request.page
-            if let tab = request.tab { model.privacy.tab = tab }
-        }
         viewModel = model
+        handleIntent()
         await model.load()
         #if DEBUG
         if let opening = (services as? DebugAppInformationServices)?.opening {

@@ -185,12 +185,12 @@ struct AppPrivacyViewModelTests {
         #expect(section.privacy.urlsTable == nil)
     }
 
-    @Test func thePageRequestOpensAPageAndTab() {
-        AppInformationPageRequest.shared.request(.appPrivacy, tab: .urls)
-        let request = AppInformationPageRequest.shared.take()
-        #expect(request?.page == .appPrivacy)
-        #expect(request?.tab == .urls)
-        #expect(AppInformationPageRequest.shared.take() == nil)
+    @Test func anIntentOpensAPageAndTab() {
+        let section = AppInformationViewModel(app: app, services: DebugAppInformationServices(), queue: ChangeQueue())
+        #expect(section.handle(.openAppInformationPage(.appPrivacy, privacyTab: .urls)))
+        #expect(section.page == .appPrivacy)
+        #expect(section.privacy.tab == .urls)
+        #expect(!section.handle(.showResults))
     }
 }
 #endif

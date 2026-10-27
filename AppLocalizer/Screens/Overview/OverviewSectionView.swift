@@ -66,7 +66,11 @@ struct OverviewSectionView: View {
                 StorePageCard(summary: storePage) { navigator.open(.storePage) }
             }
             if let information = summaries.appInformation[app.id]?.value {
-                AppInformationCard(summary: information) { navigator.open(.appInformation) }
+                AppInformationCard(summary: information) {
+                    navigator.open(.appInformation)
+                } onOpenPrivacy: { tab in
+                    navigator.open(.appInformation, intent: .openAppInformationPage(.appPrivacy, privacyTab: tab))
+                }
             }
             PendingChangesCard(count: changes.count(for: app.id)) { navigator.isReviewPresented = true }
             LastPushCard(record: history.lastRecord(for: app.id)) { navigator.isActivityPresented = true }
