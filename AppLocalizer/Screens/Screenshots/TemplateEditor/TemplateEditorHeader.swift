@@ -19,6 +19,9 @@ struct TemplateEditorHeader: View {
                 .truncationMode(.middle)
                 .accessibilityIdentifier("screenshots.template.name")
             Pill(text: model.versionTitle)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(Text("Version \(model.versionTitle)"))
+                .accessibilityValue(Text(model.versionTitle))
                 .accessibilityIdentifier("screenshots.template.version")
             if model.hasUnsavedEdits {
                 unsaved
@@ -56,6 +59,7 @@ struct TemplateEditorHeader: View {
         HStack(spacing: Spacing.xSmall) {
             Pill(text: String(localized: "Unsaved edits"), systemImage: "circle.fill", style: .accent)
                 .help(model.draftSummary ?? "")
+                .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("screenshots.template.unsaved")
             Button {
                 model.undo()
