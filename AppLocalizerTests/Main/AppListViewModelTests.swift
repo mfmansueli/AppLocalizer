@@ -88,4 +88,26 @@ struct AppListViewModelTests {
         #expect(vm.visibleApps == [focus])
         #expect(vm.apps.count == 3)
     }
+
+    @Test func keepsTheRestoredSelection() async {
+        let vm = AppListViewModel(services: FakeAppListServices(apps: [bruma, focus]), selectedAppID: focus.id)
+        await vm.load()
+        #expect(vm.selectedApp == focus)
+    }
+
+    @Test func remembersWhenItLastSynced() async {
+        let vm = AppListViewModel(services: FakeAppListServices(apps: [bruma]))
+        #expect(vm.lastSyncedAt == nil)
+        await vm.load()
+        #expect(vm.lastSyncedAt != nil)
+    }
+
+    @Test func sortsTheVisibleAppsByTheChosenOrder() async {
+        let vm = AppListViewModel(services: FakeAppListServices(apps: [wander, bruma, focus]))
+        await vm.load()
+        #expect(vm.sortedVisibleApps { _ in AppIndicators() } == [bruma, focus, wander])
+        vm.sortOrder = .unpushedChanges
+        let sorted = vm.sortedVisibleApps { AppIndicators(pendingChangeCount: $0 == wander ? 3 : 0) }
+        #expect(sorted == [wander, bruma, focus])
+    }
 }

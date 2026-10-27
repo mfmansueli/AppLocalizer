@@ -5,56 +5,126 @@
 
 import SwiftUI
 
-/// The detail column for the selected app: a section picker in the toolbar
-/// (subscription pricing / store page) and that section's content. Both
-/// sections are placeholders until the design handoff.
+/// The detail column for the selected app: the toolbar (title, section
+/// picker, the assistant indicator while assistants matter, Refresh,
+/// Activity and Review & Push) over the current section.
 struct AppWorkspaceView: View {
     let app: StoreApp
-    @Binding var section: AppWorkspaceSection
+    /// Every app in the library.
+    let library: [StoreApp.ID]
+    let services: WorkspaceServices
+
+    @Environment(WorkspaceNavigator.self) private var navigator
+    @Environment(ChangeQueue.self) private var changes
+    @Environment(PushController.self) private var push
+    @Environment(MCPServerController.self) private var assistants
+    @State private var toolbarLayout = WorkspaceToolbarLayout()
 
     var body: some View {
-        ContentUnavailableView {
-            Label {
-                Text(section.title)
-            } icon: {
-                Image(systemName: section.systemImage)
-            }
-        } description: {
-            Text(section.summary)
-        }
-        .accessibilityIdentifier("workspace.placeholder.\(section.rawValue)")
-        .navigationTitle(app.name)
-        .navigationSubtitle(subtitle)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("Section", selection: $section) {
-                    ForEach(AppWorkspaceSection.allCases) { section in
-                        Label {
-                            Text(section.title)
-                        } icon: {
-                            Image(systemName: section.systemImage)
-                        }
-                        .tag(section)
+        @Bindable var navigator = navigator
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onGeometryChange(for: CGFloat.self, of: \.size.width) { toolbarLayout.detailWidth = $0 }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if let notice = push.notice {
+                    PushNoticeBanner(notice: notice, push: push) {
+                        navigator.isReviewPresented = true
                     }
                 }
-                .pickerStyle(.segmented)
-                .labelStyle(.titleOnly)
-                .accessibilityIdentifier("workspace.sectionPicker")
             }
-        }
+            .navigationTitle(app.name)
+            .navigationSubtitle(app.bundleID)
+            .toolbar(removing: .title)
+            .toolbar {
+                // Two items rather than one that resizes: a toolbar item keeps
+                // the size it first had.
+                if toolbarLayout.isTitleCompact {
+                    ToolbarItem(placement: .navigation) {
+                        WorkspaceToolbarTitle(name: app.name, bundleID: app.bundleID, width: WorkspaceToolbarLayout.compactTitleWidth)
+                    }
+                    .sharedBackgroundVisibility(.hidden)
+                } else {
+                    ToolbarItem(placement: .navigation) {
+                        WorkspaceToolbarTitle(name: app.name, bundleID: app.bundleID)
+                    }
+                    .sharedBackgroundVisibility(.hidden)
+                }
+                // Right after the title, as the design draws it: centered as
+                // `.principal`, it left a gap that pushed Review & Push into
+                // the overflow menu.
+                ToolbarItem(placement: .navigation) {
+                    FittingSegmentedPicker(
+                        label: String(localized: "Section"),
+                        options: AppWorkspaceSection.allCases.map { ($0, $0.title) },
+                        selection: $navigator.section
+                    )
+                    .fixedSize()
+                    .onGeometryChange(for: CGFloat.self, of: \.size.width) { toolbarLayout.pickerWidth = $0 }
+                    .accessibilityIdentifier("workspace.sectionPicker")
+                }
+                // Keeps the actions at the trailing edge.
+                ToolbarSpacer(.flexible)
+                // The assistant shares Refresh and Activity's group: on its
+                // own it pushed Review & Push into the overflow menu at the
+                // default window width.
+                ToolbarItemGroup(placement: .primaryAction) {
+                    if assistantActivity.isVisible {
+                        AssistantToolbarIndicator(activity: assistantActivity, center: screenshotDocuments, appName: push.appName) { client in
+                            navigator.reviewProposals(from: client)
+                        }
+                        .onGeometryChange(for: CGFloat.self, of: \.size.width) { toolbarLayout.indicatorWidth = $0 }
+                        .onDisappear { toolbarLayout.indicatorWidth = 0 }
+                    }
+                    Button {
+                        navigator.refresh()
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .help("Refresh from App Store Connect (⌘R)")
+                    .accessibilityIdentifier("workspace.refreshButton")
+                    Button {
+                        navigator.isActivityPresented = true
+                    } label: {
+                        Label("Activity", systemImage: "clock")
+                    }
+                    .help("Activity")
+                    .accessibilityIdentifier("workspace.activityButton")
+                }
+                ToolbarSpacer(.fixed, placement: .primaryAction)
+                ToolbarItem(placement: .primaryAction) {
+                    ReviewPushToolbarButton(count: changes.totalCount + push.screenshots.imageCount) {
+                        navigator.isReviewPresented = true
+                    }
+                }
+            }
     }
 
-    private var subtitle: String {
-        [app.bundleID, app.primaryLocale].compactMap(\.self).joined(separator: " · ")
-    }
-}
-
-#Preview {
-    NavigationStack {
-        AppWorkspaceView(
-            app: StoreApp(id: "1", name: "Bruma", bundleID: "com.lima.bruma", primaryLocale: "en-US"),
-            section: .constant(.subscriptionPricing)
+    private var assistantActivity: AssistantActivity {
+        AssistantActivity(
+            workingClient: assistants.isWorking ? assistants.workingClient : nil,
+            changes: changes.changes,
+            library: library,
+            screenshotProposals: screenshotDocuments?.waitingClients(in: library) ?? [:],
+            keepsVisible: screenshotDocuments?.presentedProposals != nil
         )
     }
-    .frame(width: 900, height: 600)
+
+    /// Screenshot proposals waiting per app, and their sheet.
+    private var screenshotDocuments: ScreenshotsDocumentCenter? {
+        services.screenshots.documentCenter
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch navigator.section {
+        case .overview:
+            OverviewSectionView(app: app)
+        case .subscriptionPricing:
+            PricingSectionView(app: app, services: services.pricing)
+        case .storePage:
+            StorePageSectionView(app: app, services: services.storePage)
+        case .appInformation:
+            AppInformationSectionView(app: app, services: services.appInformation)
+        }
+    }
 }

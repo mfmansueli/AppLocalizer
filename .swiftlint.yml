@@ -7,6 +7,7 @@ included:
   - AppLocalizer
   - AppLocalizerTests
   - AppLocalizerUITests
+  - MCPBridge
 
 excluded:
   - .claude

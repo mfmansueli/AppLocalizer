@@ -4,51 +4,39 @@
 //
 
 import Foundation
-import Security
 
-/// Keeps the API key (issuer ID, key ID and the `.p8` contents, as JSON) in
-/// one generic-password item of the login Keychain. It's the file-based
-/// keychain, not the data-protection one: that one needs a provisioning
-/// profile with a keychain access group, which a locally signed tool lacks.
+/// Keeps each API key (issuer ID, key ID, the `.p8` contents and the team
+/// name, as JSON) in its own login Keychain item, named by its key ID.
 struct KeychainCredentialsStore: CredentialsStore {
-    var service = "AppLocalizer.AppStoreConnectAPIKey"
-    var account = "default"
+    /// Before several keys could be saved, the one key lived under this
+    /// account name. `loadAll()` moves it to its key ID.
+    static let legacyAccount = "default"
 
-    func load() throws -> AppStoreConnectCredentials? {
-        var query = baseQuery
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
+    private let items: KeychainItems
 
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess, let data = item as? Data else { throw KeychainError(status: status) }
-        return try JSONDecoder().decode(AppStoreConnectCredentials.self, from: data)
+    init(service: String = "AppLocalizer.AppStoreConnectAPIKey") {
+        items = KeychainItems(service: service, label: "AppLocalizer — App Store Connect API key")
+    }
+
+    func loadAll() throws -> [AppStoreConnectCredentials] {
+        try migrateLegacyItem()
+        return try items.accounts().compactMap { account in
+            try items.data(for: account).map { try JSONDecoder().decode(AppStoreConnectCredentials.self, from: $0) }
+        }
     }
 
     func save(_ credentials: AppStoreConnectCredentials) throws {
-        let data = try JSONEncoder().encode(credentials)
-        var status = SecItemUpdate(baseQuery as CFDictionary, [kSecValueData as String: data] as CFDictionary)
-        if status == errSecItemNotFound {
-            var item = baseQuery
-            item[kSecValueData as String] = data
-            item[kSecAttrLabel as String] = "AppLocalizer — App Store Connect API key"
-            item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
-            status = SecItemAdd(item as CFDictionary, nil)
-        }
-        guard status == errSecSuccess else { throw KeychainError(status: status) }
+        try items.set(JSONEncoder().encode(credentials), for: credentials.keyID)
     }
 
-    func delete() throws {
-        let status = SecItemDelete(baseQuery as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else { throw KeychainError(status: status) }
+    func delete(keyID: String) throws {
+        try items.delete(keyID)
     }
 
-    private var baseQuery: [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
+    /// Saves the single-key item under its key ID, then removes it.
+    private func migrateLegacyItem() throws {
+        guard let data = try items.data(for: Self.legacyAccount) else { return }
+        try save(JSONDecoder().decode(AppStoreConnectCredentials.self, from: data))
+        try items.delete(Self.legacyAccount)
     }
 }

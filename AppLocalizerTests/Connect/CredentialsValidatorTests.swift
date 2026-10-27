@@ -31,7 +31,7 @@ struct CredentialsValidatorTests {
         #expect(CredentialsValidator.keyIDIssue(keyID) == nil)
     }
 
-    @Test(arguments: ["", "2X9R-4HXF34", "2X9R 4HXF34", "ÄBCDE12345"])
+    @Test(arguments: ["", "2X9R-4HXF34", "2X9R 4HXF34", "ÄBCDE12345", "2X9R4H", "2X9R4HXF345"])
     func otherKeyIDsAreInvalid(keyID: String) {
         #expect(CredentialsValidator.keyIDIssue(keyID) == .invalidKeyID)
     }
