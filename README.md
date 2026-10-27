@@ -7,7 +7,8 @@ macOS app (SwiftUI, macOS 27+) for localizing apps faster through the App Store 
 - **Store page:** the App Store listing's text in every locale, with import, Find and Replace, and translation by Apple
   Translation, an AI provider (Anthropic or OpenAI, with your own API key) or your assistant.
 - **Localized screenshots:** one template, captions per locale, imported captures, and renders checked for fit before
-  they're pushed.
+  they're pushed. Review & Push uploads them, keeps the screenshots they replace on this Mac, and Activity puts those
+  back.
 - **App Information:** general information, the age rating, accessibility declarations and an App Privacy worksheet.
 - **AI assistants (optional):** a local MCP server lets Claude Code, Claude Desktop, Cursor or Codex read the
   listing and propose text, prices, privacy answers and screenshots. Proposals wait for review like any other change;
@@ -61,7 +62,9 @@ App Store Connect or the Keychain, and the MCP server in a scene never opens a p
 - **Pricing** (`PricingDebugScenes`) and **Store Page** (`StorePageDebugScenes`): one scene per design screenshot.
 - **App Information:** `info-*`, `a11y-*` and, for App Privacy, `priv-*` (`AppInformationDebugScenes`).
 - **Screenshots:** `sets*`, `viewer*` and `scope`; the Template editor, `tpl*` and `starter`; Captions, `cap*`
-  (`ScreenshotsDebugScenes`).
+  (`ScreenshotsDebugScenes`). Captures, `capt*`, and assistants' proposals, `prop-*`
+  (`ScreenshotsProposalsDebugScenes`). Pushing them, `shots-review`, `shots-push`, `shots-push-partial`, and
+  restoring them from Activity, `shots-act` and `shots-act-restore` (`ScreenshotsPushDebugScenes`).
 
 The UI tests run through these scenes.
 
@@ -88,11 +91,18 @@ only accepts connections from this Mac, and runs only while the app is open (`Ma
   - App Information: `get_privacy_questionnaire` and `propose_privacy_answers` fill the App Privacy worksheet as
     unreviewed suggestions (App Store Connect has no API for App Privacy); `get_age_rating` and `propose_age_rating`
     queue answers that wait until the person ticks Confirmed.
+  - Screenshots: `get_screenshot_context`, `list_captures`, `get_capture`, `get_template`, `get_captions`,
+    `measure_caption` (the same fit engine the renders use), `render_preview`, `propose_template`,
+    `propose_captions` and `list_proposals`. `get_capture` and `render_preview` return PNG images. Slots are
+    numbered from 1. Screenshot proposals wait in their own Proposals sheet, opened from the toolbar's assistant
+    indicator, rather than in Review & Push.
   - Every proposal is validated like a manual edit (limits, URLs, read-only versions), then queued as a change tagged
     with the assistant's name.
   - When a person already changed the same field, both versions are kept and Review & Push asks which to push.
   - Settings decides what assistants may propose, and the log says why a call was refused.
-- **Prompts:** `translate_missing`, `whats_new_from_git`, `fill_privacy_from_code` and `fill_age_rating`. A prompt is offered only while its tools are.
+- **Prompts:** `translate_missing`, `whats_new_from_git`, `fill_privacy_from_code`, `fill_age_rating`,
+  `translate_captions`, `shorten_overflowing_captions` and `revise_template`. A prompt is offered only while its
+  tools are.
 - **Clients:**
   - Claude Code and Cursor connect over HTTP.
   - Claude Desktop and Codex launch servers as processes, so they run the bundled bridge,
@@ -107,6 +117,8 @@ only accepts connections from this Mac, and runs only while the app is open (`Ma
   - credentials validation;
   - the Keychain round trip, under a throwaway service name;
   - the session and the view models;
+  - the AI providers' requests and replies;
+  - the screenshot fit engine, renders, the push plan and its uploads, backups and restores;
   - the MCP server (HTTP parsing, JSON-RPC, pairing, sessions, tools and prompts) and the stdio bridge.
 - **UI tests:** `AppLocalizerUITests`, written with XCUITest, run against the DEBUG scenes.
 
