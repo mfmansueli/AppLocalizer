@@ -126,7 +126,7 @@ final class AppPrivacyUITests: XCTestCase {
         importButton.click()
         XCTAssertTrue(element("appInformation.appPrivacy.importSheet").waitForNonExistence(timeout: 5))
         XCTAssertTrue(element("appInformation.appPrivacy.worksheet").waitForExistence(timeout: 5))
-        XCTAssertTrue(status("Yours", in: "email").exists)
+        XCTAssertTrue(status("Yours", in: "deviceId").exists)
     }
 
     /// Ignores saved window state, which can leave the app without a

@@ -87,7 +87,7 @@ struct AppPrivacyViewModelTests {
         privacy.confirmImport()
         #expect(!privacy.isImportSheetPresented)
         #expect(privacy.worksheet.reviewedAnswers.collectedTypes.count == 5)
-        #expect(privacy.worksheet[.email]?.status == .yours)
+        #expect(privacy.worksheet[.deviceId]?.status == .yours)
         #expect(section.toast?.hasPrefix("Imported 5 data types") == true)
     }
 

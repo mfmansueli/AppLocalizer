@@ -26,13 +26,16 @@ struct BackgroundInspectorSection: View {
                 .fixedSize()
                 .accessibilityIdentifier("screenshots.template.backgroundKind")
                 TemplateInspectorRow(label: String(localized: "Colors")) {
-                    HStack(spacing: Spacing.xxSmall) {
+                    // A panorama's five stops take mini wells, and wrap rather
+                    // than widen the inspector if even those don't fit.
+                    FlowLayout(spacing: Spacing.xxSmall) {
                         ForEach(Array(background.stops.enumerated()), id: \.offset) { index, stop in
                             TemplateInspectorColorWell(label: String(localized: "Background color \(index + 1)"), color: stop, showsHex: false) {
                                 model.setBackgroundStop(index, to: $0)
                             }
                         }
                     }
+                    .controlSize(background.stops.count > 2 ? .mini : .small)
                 }
                 if background.kind == .linear {
                     TemplateInspectorSlider(label: String(localized: "Angle"), value: background.angle ?? 168, range: 0...360, unit: "°") {

@@ -6,8 +6,8 @@
 import SwiftUI
 
 /// The filters with their counts, Accept All High-Confidence (which
-/// skips conflicts and types with an open question), and Show All 35 Data
-/// Types.
+/// skips conflicts and types with an open question; hidden when there's
+/// nothing to accept), and Show All 35 Data Types.
 struct PrivacyWorksheetFilterBar: View {
     @Bindable var viewModel: AppPrivacyViewModel
 
@@ -25,13 +25,14 @@ struct PrivacyWorksheetFilterBar: View {
             .accessibilityIdentifier("appInformation.appPrivacy.filter")
             HStack(spacing: Spacing.small) {
                 let count = viewModel.highConfidenceCount
-                Button(String(localized: "Accept All High-Confidence · \(count)")) {
-                    viewModel.acceptAllHighConfidence()
+                if count > 0 {
+                    Button(String(localized: "Accept All High-Confidence · \(count)")) {
+                        viewModel.acceptAllHighConfidence()
+                    }
+                    .accessibilityIdentifier("appInformation.appPrivacy.acceptHighConfidence")
                 }
-                .disabled(count == 0)
-                .accessibilityIdentifier("appInformation.appPrivacy.acceptHighConfidence")
                 Button(viewModel.showsAllTypes
-                    ? String(localized: "Show Answered Types Only")
+                    ? String(localized: "Hide Untouched Types")
                     : String(localized: "Show All \(PrivacyDataType.allCases.count) Data Types"))
                 {
                     viewModel.showsAllTypes.toggle()
