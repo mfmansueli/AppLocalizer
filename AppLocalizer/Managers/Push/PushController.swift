@@ -45,8 +45,10 @@ final class PushController {
     private let now: () -> Date
     private var task: Task<Void, Never>?
     private var isCancelling = false
-    private var reportedRateLimit: AppStoreConnectRateLimit?
-    private var sentDates: [Date] = []
+    /// Requests this hour, shared with screenshot pushes.
+    let rateTracker: RequestRateTracker
+    /// Screenshot pushes: images uploaded set by set beside these changes.
+    let screenshots: ScreenshotPushController
 
     init(
         queue: ChangeQueue,
@@ -60,6 +62,11 @@ final class PushController {
         self.transport = transport
         self.secrets = secrets
         self.now = now
+        let rateTracker = RequestRateTracker(now: now)
+        self.rateTracker = rateTracker
+        screenshots = ScreenshotPushController(history: history, rate: rateTracker, now: now)
+        screenshots.appName = { [weak self] id in self?.appName(id) ?? id }
+        screenshots.onPushed = { [weak self] appIDs in self?.onPushed(appIDs) }
     }
 
     // MARK: - Progress
@@ -77,13 +84,7 @@ final class PushController {
 
     /// Requests used this hour: Apple's own count when a response reported
     /// it, otherwise what this Mac sent in the last hour.
-    var rateLimit: AppStoreConnectRateLimit {
-        if let reportedRateLimit { return reportedRateLimit }
-        let hourAgo = now().addingTimeInterval(-3600)
-        let used = sentDates.count { $0 > hourAgo }
-        let limit = AppStoreConnectRateLimit.defaultHourlyLimit
-        return AppStoreConnectRateLimit(limit: limit, remaining: max(0, limit - used))
-    }
+    var rateLimit: AppStoreConnectRateLimit { rateTracker.rateLimit }
 
     var title: String {
         switch phase {
@@ -259,9 +260,7 @@ final class PushController {
     }
 
     private func noteRequest(_ rateLimit: AppStoreConnectRateLimit?) {
-        sentDates.append(now())
-        sentDates.removeAll { $0 < now().addingTimeInterval(-3600) }
-        if let rateLimit { reportedRateLimit = rateLimit }
+        rateTracker.note(rateLimit)
     }
 
     /// The row status for an error, and why the rest stop, if they do.
@@ -286,9 +285,7 @@ final class PushController {
     }
 
     private func nextHour() -> Date {
-        let calendar = Calendar.current
-        let start = calendar.dateInterval(of: .hour, for: now())?.start ?? now()
-        return start.addingTimeInterval(3600)
+        rateTracker.nextHour()
     }
 
     /// One Activity record per app that had something sent or refused.
