@@ -23,7 +23,7 @@ import SwiftUI
 /// - `tpl`: the template editor on German slot 3, which overflows.
 /// - `tpl-ipad`: iPad 13″ landscape, Japanese slot 1.
 /// - `tpl-glyph`: Thai slot 1 with the uploaded Northpier Display tried as
-///   an unsaved edit; it has no Thai, so Thai falls back.
+///   an unsaved edit, and no Thai fallback: Thai's glyphs are missing.
 /// - `tpl-pano`: switched to the Panorama starter (v5), Arabic slot 2.
 /// - `tpl-history`, `starter`: the History popover and the Starter
 ///   Templates sheet over `tpl`.
@@ -93,6 +93,7 @@ enum ScreenshotsDebugScenes {
             scene(.thaiAndVietnamese) { model in
                 model.openTemplateEditor(at: LocaleSlot(locale: "th", slot: 0))
                 model.templateEditor.setDisplayFont("Northpier Display")
+                model.templateEditor.setFallback(nil, for: .thai)
             }
         case "tpl-pano":
             scene { model in
