@@ -157,9 +157,10 @@ final class CapturesViewModel {
     /// "52 captures imported for 10 locales. The other 29 locales will show
     /// English (U.S.) screenshots unless you add them."
     private func notice(captureCount: Int, localeCount: Int, isFirstImport: Bool, document: ScreenshotsDocument) -> String {
+        let captures = captureCount == 1 ? String(localized: "1 capture") : String(localized: "\(captureCount) captures")
         let imported = localeCount == 1
-            ? String(localized: "\(captureCount) captures imported for 1 locale.")
-            : String(localized: "\(captureCount) captures imported for \(localeCount) locales.")
+            ? String(localized: "\(captures) imported for 1 locale.")
+            : String(localized: "\(captures) imported for \(localeCount) locales.")
         let others = screenshots.locales.count - document.scope.count
         guard isFirstImport, others > 0 else { return imported }
         let primary = screenshots.context.primaryLocale.name
