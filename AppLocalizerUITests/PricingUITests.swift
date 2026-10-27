@@ -88,6 +88,16 @@ final class PricingUITests: XCTestCase {
         XCTAssertTrue(popover.waitForNonExistence(timeout: 5))
     }
 
+    /// ⌘R, and the refresh after a push, show the skeleton under the filter
+    /// bar until the prices are back; that once crashed AppKit's layout.
+    func testRefreshShowsTheSkeletonThenThePrices() {
+        launch(scene: "pricing-refresh")
+        XCTAssertTrue(element("pricing.skeleton").waitForExistence(timeout: 10))
+        XCTAssertTrue(element("pricing.matrix").waitForExistence(timeout: 10))
+        XCTAssertFalse(element("pricing.skeleton").exists)
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
     // MARK: - Helpers
 
     private func launch(scene: String) {

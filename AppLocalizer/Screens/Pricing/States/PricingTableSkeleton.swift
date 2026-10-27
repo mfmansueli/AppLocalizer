@@ -35,8 +35,12 @@ struct PricingTableSkeleton: View {
                 .padding(.horizontal, Spacing.small)
                 .frame(height: Metrics.tableRowHeight)
             }
-            Spacer(minLength: 0)
         }
+        // Rows that don't fit are cut off rather than raising the window's
+        // minimum height: under ⌘R's filter bar, whose wrapping changes its
+        // height, that minimum never settled and AppKit's layout crashed.
+        .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+        .clipped()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: "Loading prices"))
         .accessibilityIdentifier("pricing.skeleton")

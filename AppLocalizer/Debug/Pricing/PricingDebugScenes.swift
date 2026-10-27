@@ -18,6 +18,8 @@ import SwiftUI
 /// - `pricing-bulk`: four Asia Pacific rows selected.
 /// - `pricing-nosales`: a key whose role can't read sales.
 /// - `pricing-skeleton`: the table skeleton during a refresh that never ends.
+/// - `pricing-refresh`: a refresh (as after a push) whose prices arrive after
+///   two seconds of skeleton.
 /// - `pricing-nosubs`: Quiet Timer, which has nothing to price.
 /// - `iap`: Lumen Lifetime, an in-app purchase.
 /// - `custom`, `custom-tune`, `custom-compare`, `custom-csv`: the Customize…
@@ -35,7 +37,7 @@ enum PricingDebugScenes {
 
     static let ids = [
         "mode-sheet", "pricing-keep", "pricing-suggest", "pricing-breakdown", "pricing-applied", "pricing-bulk",
-        "pricing-nosales", "pricing-skeleton", "pricing-nosubs", "iap",
+        "pricing-nosales", "pricing-skeleton", "pricing-refresh", "pricing-nosubs", "iap",
         "custom", "custom-tune", "custom-compare", "custom-csv",
         "pricing-map", "pricing-hist", "schedule", "results", "results-waiting", "offers",
     ]
@@ -72,6 +74,8 @@ enum PricingDebugScenes {
             scene(services: DebugPricingServices(canReadSales: false))
         case "pricing-skeleton":
             scene(services: DebugPricingServices(sheetDelay: .seconds(3600), delaysRefreshOnly: true, launch: PricingDebugLaunch(refreshes: true)))
+        case "pricing-refresh":
+            scene(services: DebugPricingServices(sheetDelay: .seconds(2), delaysRefreshOnly: true, launch: PricingDebugLaunch(refreshes: true)))
         case "pricing-nosubs":
             scene(app: AppIDs.quiet)
         case "iap":
