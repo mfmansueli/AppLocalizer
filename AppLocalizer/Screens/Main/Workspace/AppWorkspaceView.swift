@@ -18,11 +18,13 @@ struct AppWorkspaceView: View {
     @Environment(ChangeQueue.self) private var changes
     @Environment(PushController.self) private var push
     @Environment(MCPServerController.self) private var assistants
+    @State private var toolbarLayout = WorkspaceToolbarLayout()
 
     var body: some View {
         @Bindable var navigator = navigator
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onGeometryChange(for: CGFloat.self, of: \.size.width) { toolbarLayout.detailWidth = $0 }
             .safeAreaInset(edge: .top, spacing: 0) {
                 if let notice = push.notice {
                     PushNoticeBanner(notice: notice, push: push) {
@@ -34,19 +36,34 @@ struct AppWorkspaceView: View {
             .navigationSubtitle(app.bundleID)
             .toolbar(removing: .title)
             .toolbar {
-                ToolbarItem(placement: .navigation) {
-                    WorkspaceToolbarTitle(name: app.name, bundleID: app.bundleID)
+                // Two items rather than one that resizes: a toolbar item keeps
+                // the size it first had.
+                if toolbarLayout.isTitleCompact {
+                    ToolbarItem(placement: .navigation) {
+                        WorkspaceToolbarTitle(name: app.name, bundleID: app.bundleID, width: WorkspaceToolbarLayout.compactTitleWidth)
+                    }
+                    .sharedBackgroundVisibility(.hidden)
+                } else {
+                    ToolbarItem(placement: .navigation) {
+                        WorkspaceToolbarTitle(name: app.name, bundleID: app.bundleID)
+                    }
+                    .sharedBackgroundVisibility(.hidden)
                 }
-                .sharedBackgroundVisibility(.hidden)
-                ToolbarItem(placement: .principal) {
+                // Right after the title, as the design draws it: centered as
+                // `.principal`, it left a gap that pushed Review & Push into
+                // the overflow menu.
+                ToolbarItem(placement: .navigation) {
                     FittingSegmentedPicker(
                         label: String(localized: "Section"),
                         options: AppWorkspaceSection.allCases.map { ($0, $0.title) },
                         selection: $navigator.section
                     )
                     .fixedSize()
+                    .onGeometryChange(for: CGFloat.self, of: \.size.width) { toolbarLayout.pickerWidth = $0 }
                     .accessibilityIdentifier("workspace.sectionPicker")
                 }
+                // Keeps the actions at the trailing edge.
+                ToolbarSpacer(.flexible)
                 // The assistant shares Refresh and Activity's group: on its
                 // own it pushed Review & Push into the overflow menu at the
                 // default window width.
@@ -55,6 +72,8 @@ struct AppWorkspaceView: View {
                         AssistantToolbarIndicator(activity: assistantActivity, appName: push.appName) { client in
                             navigator.reviewProposals(from: client)
                         }
+                        .onGeometryChange(for: CGFloat.self, of: \.size.width) { toolbarLayout.indicatorWidth = $0 }
+                        .onDisappear { toolbarLayout.indicatorWidth = 0 }
                     }
                     Button {
                         navigator.refresh()
