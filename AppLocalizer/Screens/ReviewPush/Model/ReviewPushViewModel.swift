@@ -16,6 +16,9 @@ final class ReviewPushViewModel {
     /// nil shows every source.
     var sourceFilter: ChangeSourceFilter?
     var selection: Set<PendingChange.ID> = []
+    /// Screenshot images left out of Push Selected; every image starts
+    /// checked (`ReviewPushViewModel+Screenshots`).
+    var uncheckedImages: Set<ScreenshotPlanItem.ID> = []
 
     let queue: ChangeQueue
     let push: PushController
@@ -45,8 +48,8 @@ final class ReviewPushViewModel {
     // MARK: - What shows
 
     var selectedAppName: String? { selectedAppID.map(appName) }
-    var thisAppCount: Int { selectedAppID.map { queue.count(for: $0) } ?? 0 }
-    var allAppsCount: Int { queue.totalCount }
+    var thisAppCount: Int { (selectedAppID.map { queue.count(for: $0) } ?? 0) + imageCount(thisAppOnly: true) }
+    var allAppsCount: Int { queue.totalCount + imageCount(thisAppOnly: false) }
 
     /// Changes in the current scope, before the source filter.
     var scopedChanges: [PendingChange] {
@@ -64,15 +67,14 @@ final class ReviewPushViewModel {
     /// All, then You, Machine translation and each assistant that has
     /// changes in scope.
     var sourceOptions: [ReviewSourceOption] {
-        let scoped = scopedChanges
+        let scoped = scopedChanges.map(\.source.filter) + scopedImages.map(\.source.filter)
         var options = [ReviewSourceOption(filter: nil, count: scoped.count)]
         var order: [ChangeSourceFilter] = [.you, .machineTranslation]
-        for change in scoped {
-            let filter = change.source.filter
-            if !order.contains(filter) { order.append(filter) }
+        for filter in scoped where !order.contains(filter) {
+            order.append(filter)
         }
         for filter in order {
-            let count = scoped.count { $0.source.filter == filter }
+            let count = scoped.count { $0 == filter }
             if count > 0 { options.append(ReviewSourceOption(filter: filter, count: count)) }
         }
         return options
@@ -121,7 +123,9 @@ final class ReviewPushViewModel {
 
     var subtitle: String {
         let count = visibleChanges.count
-        let changes = count == 1 ? String(localized: "1 change") : String(localized: "\(count) changes")
+        if count == 0, let images = imagesSubtitle { return images }
+        var changes = count == 1 ? String(localized: "1 change") : String(localized: "\(count) changes")
+        if let images = imagesCountTitle { changes += " · " + images }
         guard attentionCount > 0 else { return changes }
         return changes + " · " + (attentionCount == 1 ? String(localized: "1 needs attention") : String(localized: "\(attentionCount) need attention"))
     }

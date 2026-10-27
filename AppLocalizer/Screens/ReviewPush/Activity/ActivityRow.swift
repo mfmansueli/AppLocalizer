@@ -6,11 +6,13 @@
 import SwiftUI
 
 /// One push in Activity: what changed, the app, when and how many, whether
-/// it all succeeded, and Results / Restore Previous Values.
+/// it all succeeded, and Results / Restore Previous Values. A screenshot
+/// push says which sets it kept and offers Restore Previous Screenshots….
 struct ActivityRow: View {
     let record: PushRecord
     let onResults: () -> Void
     let onRestore: () -> Void
+    var onRestoreScreenshots: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.medium) {
@@ -23,6 +25,9 @@ struct ActivityRow: View {
                 Text(details)
                     .font(.caption)
                     .foregroundStyle(Palette.label2)
+                if let screenshots = record.screenshots {
+                    ScreenshotActivityDetails(summary: screenshots)
+                }
                 if record.failedCount > 0 {
                     Pill(text: String(localized: "\(record.failedCount) failed"), style: .danger)
                         .padding(.top, 2)
@@ -43,14 +48,19 @@ struct ActivityRow: View {
                     Button("Results", action: onResults)
                         .accessibilityIdentifier("activity.results")
                 }
-                Button(action: onRestore) {
-                    Label("Restore Previous Values", systemImage: "arrow.uturn.backward")
+                if let screenshots = record.screenshots {
+                    Button {
+                        onRestoreScreenshots?()
+                    } label: {
+                        Label("Restore Previous Screenshots…", systemImage: "arrow.uturn.backward")
+                    }
+                    .disabled(onRestoreScreenshots == nil || screenshots.locales.isEmpty)
+                    .help(String(localized: "Puts a locale’s screenshots from before this push back through Review & Push."))
+                    .accessibilityIdentifier("activity.restoreScreenshots")
                 }
-                .disabled(record.restoringChanges().isEmpty)
-                .help(record.restoringChanges().isEmpty
-                    ? String(localized: "These values can't be restored from here.")
-                    : String(localized: "Queues the values from before this push for review."))
-                .accessibilityIdentifier("activity.restore")
+                if record.screenshots == nil || !record.pushed.isEmpty {
+                    restoreValuesButton
+                }
             }
             .buttonBorderShape(.capsule)
             .controlSize(.small)
@@ -61,9 +71,21 @@ struct ActivityRow: View {
         .accessibilityIdentifier("activity.record.\(record.id.uuidString)")
     }
 
+    private var restoreValuesButton: some View {
+        Button(action: onRestore) {
+            Label("Restore Previous Values", systemImage: "arrow.uturn.backward")
+        }
+        .disabled(record.restoringChanges().isEmpty)
+        .help(record.restoringChanges().isEmpty
+            ? String(localized: "These values can't be restored from here.")
+            : String(localized: "Queues the values from before this push for review."))
+        .accessibilityIdentifier("activity.restore")
+    }
+
     private var details: String {
         let date = record.date.formatted(.dateTime.month(.abbreviated).day().year())
         let time = record.date.formatted(date: .omitted, time: .shortened)
+        guard record.screenshots == nil else { return "\(record.appName) · \(date) · \(time)" }
         let count = record.changeCount == 1 ? String(localized: "1 change") : String(localized: "\(record.changeCount) changes")
         return "\(record.appName) · \(date) · \(time) · \(count)"
     }

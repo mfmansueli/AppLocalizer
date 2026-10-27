@@ -32,6 +32,7 @@ struct ScreenshotsView: View {
             await (viewModel.services as? DebugScreenshotsServices)?.opening?.run(on: viewModel)
             #endif
         }
+        .modifier(ScreenshotPushHooks(viewModel: viewModel))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("screenshots.root")
     }

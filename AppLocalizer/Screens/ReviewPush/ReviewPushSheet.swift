@@ -11,6 +11,8 @@ import SwiftUI
 struct ReviewPushSheet: View {
     @State private var viewModel: ReviewPushViewModel
     @State private var pushToConfirm: [PendingChange]?
+    /// Images waiting on that confirmation: all of them, or the checked.
+    @State private var imagesToConfirm: Bool?
     @State private var isConfirmingDiscard = false
 
     @Environment(WorkspaceNavigator.self) private var navigator
@@ -23,13 +25,16 @@ struct ReviewPushSheet: View {
 
     var body: some View {
         Group {
-            if viewModel.push.phase == .idle {
+            if let run = viewModel.screenshots.run {
+                ScreenshotPushProgressView(push: viewModel.push, run: run, onViewResults: viewResults, onDone: finish)
+            } else if viewModel.push.phase == .idle {
                 review
             } else {
                 PushProgressView(push: viewModel.push, onViewResults: viewResults, onDone: finish)
             }
         }
-        .frame(width: 800, height: 660)
+        // Screenshots need the room for old → new side by side.
+        .frame(width: showsImages ? 860 : 800, height: showsImages ? 690 : 660)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("review.sheet")
         .confirmationDialog(
@@ -37,8 +42,11 @@ struct ReviewPushSheet: View {
             isPresented: Binding(get: { pushToConfirm != nil }, set: { if !$0 { pushToConfirm = nil } }),
             presenting: pushToConfirm
         ) { changes in
-            Button("Push") { viewModel.startPush(changes) }
-                .accessibilityIdentifier("review.confirmPush")
+            Button("Push") {
+                if let selectedOnly = imagesToConfirm { viewModel.startImagePush(selectedOnly: selectedOnly) }
+                viewModel.startPush(changes)
+            }
+            .accessibilityIdentifier("review.confirmPush")
             Button("Cancel", role: .cancel) {}
         } message: { changes in
             Text(viewModel.confirmationMessage(for: changes) ?? "")
@@ -55,11 +63,15 @@ struct ReviewPushSheet: View {
         }
     }
 
+    private var showsImages: Bool {
+        viewModel.screenshots.run != nil || viewModel.showsScreenshots
+    }
+
     private var review: some View {
         VStack(alignment: .leading, spacing: 0) {
             ReviewHeader(viewModel: viewModel)
             Divider()
-            if viewModel.visibleChanges.isEmpty {
+            if viewModel.visibleChanges.isEmpty, !ScreenshotReviewContent.hasContent(viewModel) {
                 ContentUnavailableView(
                     "Nothing to push",
                     systemImage: "checkmark.circle",
@@ -83,31 +95,65 @@ struct ReviewPushSheet: View {
                                 )
                             }
                         }
+                        ScreenshotReviewContent(viewModel: viewModel, onShowInCaptions: showInCaptions)
                     }
                     .padding(.horizontal, Spacing.medium)
                     .padding(.vertical, Spacing.medium)
                 }
             }
             Divider()
-            ReviewFooter(
-                viewModel: viewModel,
-                onDiscardAll: discardAll,
-                onCancel: { dismiss() },
-                onPush: push
-            )
+            if viewModel.visibleImages.isEmpty {
+                ReviewFooter(
+                    viewModel: viewModel,
+                    onDiscardAll: discardAll,
+                    onCancel: { dismiss() },
+                    onPush: push
+                )
+            } else {
+                ScreenshotReviewFooter(
+                    viewModel: viewModel,
+                    onDiscardAll: discardAll,
+                    onCancel: { dismiss() },
+                    onPushSelected: { push(viewModel.selectedPushableChanges, imagesSelectedOnly: true) },
+                    onPushAll: { push(viewModel.pushableChanges, imagesSelectedOnly: false) }
+                )
+            }
         }
+        .modifier(ScreenshotReviewLoader(viewModel: viewModel))
     }
 
     private func push(_ changes: [PendingChange]) {
         guard !changes.isEmpty else { return }
         if viewModel.confirmationMessage(for: changes) != nil {
+            imagesToConfirm = nil
             pushToConfirm = changes
         } else {
             viewModel.startPush(changes)
         }
     }
 
+    /// Pushes text changes and images together; the images wait for a
+    /// confirmation the changes need.
+    private func push(_ changes: [PendingChange], imagesSelectedOnly: Bool) {
+        guard !changes.isEmpty, viewModel.confirmationMessage(for: changes) != nil else {
+            viewModel.startImagePush(selectedOnly: imagesSelectedOnly)
+            if !changes.isEmpty { viewModel.startPush(changes) }
+            return
+        }
+        imagesToConfirm = imagesSelectedOnly
+        pushToConfirm = changes
+    }
+
+    /// Opens Captions on the first failing render.
+    private func showInCaptions(_ exclusion: ScreenshotPlanExclusion) {
+        viewModel.screenshots.showInCaptions(exclusion)
+        dismiss()
+        navigator.open(.storePage)
+    }
+
     private func discardAll() {
+        viewModel.discardVisibleImages()
+        guard !viewModel.visibleChanges.isEmpty else { return }
         if preferences.confirmsDiscarding {
             isConfirmingDiscard = true
         } else {
@@ -125,12 +171,14 @@ struct ReviewPushSheet: View {
 
     private func viewResults() {
         viewModel.push.dismissFinished()
+        viewModel.screenshots.dismissFinished()
         dismiss()
         navigator.open(.subscriptionPricing, intent: .showResults)
     }
 
     private func finish() {
         viewModel.push.dismissFinished()
+        viewModel.screenshots.dismissFinished()
         dismiss()
     }
 }

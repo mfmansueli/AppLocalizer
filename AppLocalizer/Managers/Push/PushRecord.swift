@@ -21,11 +21,13 @@ struct PushRecord: Identifiable, Hashable, Codable, Sendable {
     var failures: [PendingChange.ID: String] = [:]
     /// The rejected changes themselves (they stay in the queue too).
     var failedChanges: [PendingChange] = []
+    /// A screenshot push: the images, and the sets it replaced and kept.
+    var screenshots: ScreenshotPushSummary?
     /// Whether this push changed prices, so Results applies.
     var changedPrices: Bool { pushed.contains { $0.section == .subscriptionPricing } }
 
-    var succeededCount: Int { pushed.count }
-    var failedCount: Int { failures.count }
+    var succeededCount: Int { pushed.count + (screenshots?.pushedCount ?? 0) }
+    var failedCount: Int { failures.count + (screenshots?.failedCount ?? 0) }
     var changeCount: Int { succeededCount + failedCount }
 
     /// The pushed changes that can be put back, as new pending changes.
