@@ -20,4 +20,6 @@ struct ScreenshotCapture: Codable, Hashable, Sendable, Identifiable {
     /// `de-DE/iPhone 17 Pro Max-01_Today.png`.
     var fileName: String
     var pixelSize: PixelSize
+    /// When it was imported; nil for captures imported before it was kept.
+    var importedAt: Date?
 }

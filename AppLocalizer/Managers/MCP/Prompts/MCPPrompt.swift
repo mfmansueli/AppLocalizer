@@ -14,6 +14,10 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
     case fillPrivacyFromCode = "fill_privacy_from_code"
     case fillAgeRating = "fill_age_rating"
     case whatsNewFromGit = "whats_new_from_git"
+    /// `CaptionAssistantPrompt.promptName`, which the Translate sheet copies.
+    case translateCaptions = "translate_captions"
+    case shortenOverflowingCaptions = "shorten_overflowing_captions"
+    case reviseTemplate = "revise_template"
 
     var id: Self { self }
     var name: String { rawValue }
@@ -29,6 +33,9 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         case .fillPrivacyFromCode: "Draft App Privacy from the code"
         case .fillAgeRating: "Answer the age rating questionnaire"
         case .whatsNewFromGit: "Write What’s New from git"
+        case .translateCaptions: "Translate screenshot captions"
+        case .shortenOverflowingCaptions: "Shorten overflowing captions"
+        case .reviseTemplate: "Revise the screenshot template"
         }
     }
 
@@ -39,6 +46,9 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         case .fillPrivacyFromCode: String(localized: "Draft App Privacy from the project")
         case .fillAgeRating: String(localized: "Answer the age rating questionnaire")
         case .whatsNewFromGit: String(localized: "Write What’s New from git history since the last release")
+        case .translateCaptions: String(localized: "Translate missing screenshot captions as proposals")
+        case .shortenOverflowingCaptions: String(localized: "Propose shorter versions of captions that overflow")
+        case .reviseTemplate: String(localized: "Propose a template revision that keeps every locale fitting")
         }
     }
 
@@ -48,6 +58,9 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         case .fillPrivacyFromCode: ["list_apps", "get_privacy_questionnaire", "propose_privacy_answers"]
         case .fillAgeRating: ["list_apps", "get_age_rating", "propose_age_rating"]
         case .whatsNewFromGit: ["list_apps", "get_listing", "propose_listing_text"]
+        case .translateCaptions: ["list_apps", "get_screenshot_context", "get_captions", "get_capture", "measure_caption", "propose_captions"]
+        case .shortenOverflowingCaptions: ["list_apps", "get_captions", "measure_caption", "propose_captions"]
+        case .reviseTemplate: ["list_apps", "get_template", "get_captions", "measure_caption", "render_preview", "propose_template"]
         }
     }
 
@@ -118,6 +131,42 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
             friendly lines, leaving out internal work. Call get_listing to see the editable version and the primary \
             locale, then propose_listing_text with field whatsNew in the primary locale. Mention which commits you \
             left out and why.
+            """
+        case .translateCaptions, .shortenOverflowingCaptions, .reviseTemplate:
+            screenshotInstructions(appPhrase: appPhrase)
+        }
+    }
+
+    private func screenshotInstructions(appPhrase: String) -> String {
+        switch self {
+        case .shortenOverflowingCaptions:
+            """
+            Use AppLocalizer to fix the screenshot captions of \(appPhrase) that don’t fit. Call list_apps to get \
+            its appId, then get_captions and find every caption whose fit says it overflows or shrinks to the \
+            smallest size. Write a shorter caption in the same language that keeps the meaning, check it with \
+            measure_caption until it fits at full size, and send them together with propose_captions, saying \
+            why. If a caption is refused, read how much it’s over and try again. Nothing changes until the \
+            person accepts the proposal in AppLocalizer.
+            """
+        case .reviseTemplate:
+            """
+            Use AppLocalizer to propose a revision of the screenshot template of \(appPhrase) that keeps every \
+            locale’s captions fitting. Call list_apps to get its appId, get_template for the template JSON and \
+            its version, and get_captions to see which captions shrink or overflow. Try changes such as a smaller \
+            headline size, hyphenation or a narrower device with measure_caption and render_preview (pass them \
+            as templatePatch), keeping the primary locale at full size. Then call propose_template with the \
+            version you read, the operations and why. The person reviews the before and after and accepts it as \
+            the next version.
+            """
+        default:
+            """
+            Use AppLocalizer to translate the missing screenshot captions of \(appPhrase). Call list_apps to get \
+            its appId, then get_screenshot_context for the slots, the locales in scope and the primary captions, \
+            and get_captions to find the slots without a caption. Use get_capture to see the screen a caption \
+            describes. Write natural, short marketing captions in each language, keep brand names untranslated, \
+            check each with measure_caption until it fits, and send them with propose_captions, one call per \
+            locale, saying why. If an item is refused, read how much it’s over, shorten it and propose again. \
+            The person accepts or rejects them in AppLocalizer; nothing is pushed.
             """
         }
     }

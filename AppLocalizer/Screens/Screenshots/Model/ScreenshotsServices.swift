@@ -50,4 +50,16 @@ protocol ScreenshotsServices {
     /// DEBUG scenes stop the render queue after this many renders, to show
     /// rendering in progress. Nil renders everything.
     var renderHoldCount: Int? { get }
+
+    /// Keeps the Screenshots view, the Proposals sheet and the assistant
+    /// tools showing one app's document in step; nil keeps nobody else
+    /// informed. Defaults to nil.
+    var documentCenter: ScreenshotsDocumentCenter? { get }
+
+    /// Copies an import's files where captures are kept and returns their
+    /// records. By default it keeps no files: the records alone.
+    func importCaptures(_ items: [CaptureImportItem], for app: StoreApp) async throws -> [ScreenshotCapture]
+
+    /// Exports Xcode result bundles' attachments for an import.
+    var attachmentReader: any XcresultAttachmentReader { get }
 }

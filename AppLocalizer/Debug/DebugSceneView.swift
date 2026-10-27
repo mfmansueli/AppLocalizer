@@ -17,7 +17,8 @@ import SwiftUI
 /// Ids it doesn't know go to each area's own list (`ConnectDebugScenes`,
 /// `SettingsDebugScenes`, `ReviewPushDebugScenes`, `PricingDebugScenes`,
 /// `StorePageDebugScenes`, `AppInformationDebugScenes`,
-/// `ScreenshotsDebugScenes`, `AssistantDebugScenes`).
+/// `ScreenshotsDebugScenes`, `ScreenshotsProposalsDebugScenes`,
+/// `AssistantDebugScenes`).
 struct DebugSceneView: View {
     let id: String
 
@@ -41,6 +42,7 @@ struct DebugSceneView: View {
                 ?? StorePageDebugScenes.view(for: id)
                 ?? AppInformationDebugScenes.view(for: id)
                 ?? ScreenshotsDebugScenes.view(for: id)
+                ?? ScreenshotsProposalsDebugScenes.view(for: id)
                 ?? AssistantDebugScenes.view(for: id)
             {
                 scene

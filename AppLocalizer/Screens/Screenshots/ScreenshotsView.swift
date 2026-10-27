@@ -59,8 +59,7 @@ struct ScreenshotsView: View {
             case .sets: prerequisites { SetsMatrixView(viewModel: viewModel) }
             case .template: prerequisites { TemplateEditorView(viewModel: viewModel) }
             case .captions: CaptionsView(viewModel: viewModel)
-            case .captures:
-                ScreenshotsTabPlaceholder(tab: viewModel.tab) { viewModel.tab = .sets }
+            case .captures: CapturesView(viewModel: viewModel)
             }
         }
     }
@@ -71,8 +70,9 @@ struct ScreenshotsView: View {
         if !viewModel.hasCaptures {
             NoCapturesView(appName: viewModel.app.name) {
                 viewModel.tab = .captures
+                viewModel.captures.isImporterPresented = true
             } onUseLive: {
-                viewModel.tab = .captures
+                viewModel.captures.useLiveScreenshots()
             }
         } else if !viewModel.hasTemplate {
             StarterPickerView(viewModel: viewModel)

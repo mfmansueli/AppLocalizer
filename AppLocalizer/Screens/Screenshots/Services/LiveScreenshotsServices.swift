@@ -22,6 +22,7 @@ struct LiveScreenshotsServices: ScreenshotsServices {
     var translator: any ListingTranslator = AppleListingTranslator()
     var renderCacheDirectory: URL? = URL.cachesDirectory.appending(path: "AppLocalizer/Renders", directoryHint: .isDirectory)
     var renderHoldCount: Int? { nil }
+    var documentCenter: ScreenshotsDocumentCenter? { .shared }
 
     func document(for app: StoreApp, primaryLocale: StoreLocale) async throws -> ScreenshotsDocument {
         try store.load(appID: app.id) ?? .empty(primary: primaryLocale.code)
@@ -45,6 +46,37 @@ struct LiveScreenshotsServices: ScreenshotsServices {
     func captureImage(_ capture: ScreenshotCapture, for app: StoreApp, pixelWidth: Int) async -> CGImage? {
         let url = capturesRoot.appending(path: "\(app.id)/Captures/\(capture.id).png")
         return await Task.detached { Self.thumbnail(at: url, pixelWidth: pixelWidth) }.value
+    }
+
+    /// Copies each file (or downloads each live screenshot at full size)
+    /// into the app's `Captures` folder, named by its checksum.
+    func importCaptures(_ items: [CaptureImportItem], for app: StoreApp) async throws -> [ScreenshotCapture] {
+        let folder = capturesRoot.appending(path: "\(app.id)/Captures", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let date = Date.now
+        var captures: [ScreenshotCapture] = []
+        for item in items {
+            let data = try await Self.data(of: item.candidate)
+            let id = ScreenshotPNG.checksum(data)
+            try data.write(to: folder.appending(path: "\(id).png"), options: .atomic)
+            let size = ScreenshotPNG.image(data).map { PixelSize(width: $0.width, height: $0.height) }
+            captures.append(item.capture(id: id, pixelSize: size, date: date))
+        }
+        return captures
+    }
+
+    private static func data(of candidate: CaptureCandidate) async throws -> Data {
+        switch candidate.origin {
+        case let .file(url):
+            guard let data = await Task.detached(operation: { try? Data(contentsOf: url) }).value else {
+                throw CaptureImportError.unreadable(candidate.path)
+            }
+            return data
+        case let .live(shot):
+            guard let url = shot.imageURL(width: shot.pixelSize?.width ?? 0),
+                  let (data, _) = try? await URLSession.shared.data(from: url) else { throw CaptureImportError.unreadable(candidate.path) }
+            return data
+        }
     }
 
     func liveImage(_ screenshot: LiveScreenshot, pixelWidth: Int) async -> CGImage? {

@@ -24,6 +24,16 @@ struct MCPToolbox {
             ProposePrivacyAnswersTool(),
             GetAgeRatingTool(),
             ProposeAgeRatingTool(),
+            GetScreenshotContextTool(),
+            ListCapturesTool(),
+            GetCaptureTool(),
+            GetTemplateTool(),
+            GetCaptionsTool(),
+            MeasureCaptionTool(),
+            RenderPreviewTool(),
+            ProposeTemplateTool(),
+            ProposeCaptionsTool(),
+            ListProposalsTool(),
         ])
     }
 
