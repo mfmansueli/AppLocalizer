@@ -47,7 +47,7 @@ struct AssistantActivity: Hashable {
         workingClient: String?,
         changes: [PendingChange],
         library: [StoreApp.ID] = [],
-        screenshotProposals: [StoreApp.ID: [String]],
+        screenshotProposals: [StoreApp.ID: [String]] = [:],
         keepsVisible: Bool = false
     ) {
         self.workingClient = workingClient
@@ -73,17 +73,6 @@ struct AssistantActivity: Hashable {
         rows = apps + quiet.map { AppProposals(appID: $0, count: 0) }
         leadingClient = Self.leading(perClient)
         leadingReviewClient = Self.leading(reviewClients)
-    }
-
-    /// Counts screenshot proposals from the shared document center, and
-    /// stays visible while its Proposals sheet is open.
-    @MainActor
-    init(workingClient: String?, changes: [PendingChange], library: [StoreApp.ID] = []) {
-        let center = ScreenshotsDocumentCenter.shared
-        self.init(
-            workingClient: workingClient, changes: changes, library: library,
-            screenshotProposals: center.waitingClients(in: library), keepsVisible: center.presentedProposals != nil
-        )
     }
 
     private static func sorted(_ counts: [StoreApp.ID: Int]) -> [AppProposals] {

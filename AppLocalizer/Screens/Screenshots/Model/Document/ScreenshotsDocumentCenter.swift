@@ -38,6 +38,9 @@ final class ScreenshotsDocumentCenter {
     /// What opens each app's Proposals sheet, from whoever loaded its
     /// document this launch.
     private(set) var sources: [StoreApp.ID: Source] = [:]
+    /// What opens the sheet for an app nobody loaded yet: the main window
+    /// looks the app up in its library.
+    @ObservationIgnored var librarySource: (@MainActor (StoreApp.ID) -> Source?)?
 
     /// An app and the services that read its document.
     struct Source {
@@ -72,18 +75,22 @@ final class ScreenshotsDocumentCenter {
     // MARK: - The Proposals sheet
 
     /// Whether `appID`'s Proposals sheet can open: its document was read
-    /// this launch.
+    /// this launch, or the app is in the library.
     func canOpenProposals(appID: StoreApp.ID) -> Bool {
-        sources[appID] != nil
+        source(for: appID) != nil
     }
 
     /// Opens the Proposals sheet for `appID`, on `proposalID` or the first
     /// waiting proposal.
     func openProposals(appID: StoreApp.ID, proposalID: String? = nil) {
-        guard let source = sources[appID] else { return }
+        guard let source = source(for: appID) else { return }
         presentedProposals = ScreenshotProposalsViewModel(
             app: source.app, services: source.services, primaryLocale: source.primaryLocale, selecting: proposalID
         )
+    }
+
+    private func source(for appID: StoreApp.ID) -> Source? {
+        sources[appID] ?? librarySource?(appID)
     }
 
     /// A services object saved `document`: every watcher of the app adopts

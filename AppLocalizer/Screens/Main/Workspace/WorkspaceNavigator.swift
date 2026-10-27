@@ -24,6 +24,9 @@ final class WorkspaceNavigator {
     /// Set by Activity's "Restore Previous Values": Review & Push opens once
     /// Activity has closed (macOS shows one sheet at a time).
     var opensReviewAfterActivity = false
+    /// Screenshots' Template tab is showing: the sidebar hides until it
+    /// isn't.
+    var hidesSidebar = false
     /// What the current section should do next; nil when nothing is pending.
     private(set) var intent: WorkspaceIntent?
     /// The app to select first, e.g. for Show in Captions on another app's

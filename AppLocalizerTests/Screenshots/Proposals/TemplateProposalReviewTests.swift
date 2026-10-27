@@ -16,7 +16,7 @@ struct TemplateProposalReviewTests {
         let review = try review(ScreenshotsSampleData.templateProposal)
         #expect(!review.isStale)
         #expect(review.nextNumber == 5)
-        #expect(review.rows.map(\.change.title) == ["Headline size", "Headline smallest size", "Hyphenation", "Device width"])
+        #expect(review.rows.map(\.change.title) == ["Headline size", "Smallest headline size", "Hyphenate long words", "Device width"])
         #expect(review.rows.map(\.change.oldText) == ["112 u", "80 u", "off", "80%"])
         #expect(review.rows.map(\.change.newText) == ["104 u", "72 u", "on", "78%"])
         #expect(review.conflicts.isEmpty)

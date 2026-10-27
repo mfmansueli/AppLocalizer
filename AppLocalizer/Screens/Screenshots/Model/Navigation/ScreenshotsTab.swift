@@ -22,4 +22,8 @@ enum ScreenshotsTab: String, CaseIterable, Identifiable, Hashable, Sendable {
         case .captures: String(localized: "Captures")
         }
     }
+
+    /// The template editor needs the window's width: the sidebar hides
+    /// while it shows.
+    var hidesSidebar: Bool { self == .template }
 }

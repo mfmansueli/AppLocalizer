@@ -56,4 +56,17 @@ struct ScreenshotsDocumentCenterTests {
         center.openProposals(appID: ScreenshotsTestFixtures.app.id, proposalID: "p2")
         #expect(center.presentedProposals?.selectedID == "p2")
     }
+
+    @Test func theLibraryOpensTheSheetForAppsNobodyLoaded() {
+        let center = ScreenshotsDocumentCenter()
+        let services = CenteredScreenshotsServices(document: ScreenshotsDebugDocuments.standard, center: center)
+        let app = ScreenshotsTestFixtures.app
+        center.librarySource = { appID in
+            appID == app.id ? ScreenshotsDocumentCenter.Source(app: app, services: services, primaryLocale: .englishUS) : nil
+        }
+        #expect(center.canOpenProposals(appID: app.id))
+        #expect(!center.canOpenProposals(appID: "other"))
+        center.openProposals(appID: app.id, proposalID: "p1")
+        #expect(center.presentedProposals?.selectedID == "p1")
+    }
 }

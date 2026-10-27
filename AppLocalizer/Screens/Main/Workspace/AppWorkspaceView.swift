@@ -69,7 +69,7 @@ struct AppWorkspaceView: View {
                 // default window width.
                 ToolbarItemGroup(placement: .primaryAction) {
                     if assistantActivity.isVisible {
-                        AssistantToolbarIndicator(activity: assistantActivity, appName: push.appName) { client in
+                        AssistantToolbarIndicator(activity: assistantActivity, center: screenshotDocuments, appName: push.appName) { client in
                             navigator.reviewProposals(from: client)
                         }
                         .onGeometryChange(for: CGFloat.self, of: \.size.width) { toolbarLayout.indicatorWidth = $0 }
@@ -100,7 +100,18 @@ struct AppWorkspaceView: View {
     }
 
     private var assistantActivity: AssistantActivity {
-        AssistantActivity(workingClient: assistants.isWorking ? assistants.workingClient : nil, changes: changes.changes, library: library)
+        AssistantActivity(
+            workingClient: assistants.isWorking ? assistants.workingClient : nil,
+            changes: changes.changes,
+            library: library,
+            screenshotProposals: screenshotDocuments?.waitingClients(in: library) ?? [:],
+            keepsVisible: screenshotDocuments?.presentedProposals != nil
+        )
+    }
+
+    /// Screenshot proposals waiting per app, and their sheet.
+    private var screenshotDocuments: ScreenshotsDocumentCenter? {
+        services.screenshots.documentCenter
     }
 
     @ViewBuilder

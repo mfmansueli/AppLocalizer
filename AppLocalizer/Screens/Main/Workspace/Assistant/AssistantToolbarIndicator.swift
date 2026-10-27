@@ -12,11 +12,13 @@ import SwiftUI
 /// screenshot proposals, their Proposals sheet.
 struct AssistantToolbarIndicator: View {
     let activity: AssistantActivity
+    /// Holds the Proposals sheet; nil when these services keep no screenshot
+    /// documents.
+    let center: ScreenshotsDocumentCenter?
     /// The name of an app in the library, by Apple ID.
     let appName: (StoreApp.ID) -> String
     let onReview: (_ client: String?) -> Void
     @State private var isShowingProposals = false
-    @State private var center = ScreenshotsDocumentCenter.shared
 
     var body: some View {
         Button {
@@ -41,7 +43,7 @@ struct AssistantToolbarIndicator: View {
         .popover(isPresented: $isShowingProposals, arrowEdge: .bottom) {
             popover
         }
-        .sheet(item: $center.presentedProposals) { proposals in
+        .sheet(item: presentedProposals) { proposals in
             ScreenshotProposalsSheet(viewModel: proposals)
         }
         #if DEBUG
@@ -54,10 +56,13 @@ struct AssistantToolbarIndicator: View {
         #endif
     }
 
-    /// The app whose screenshot proposals open: the one with the most whose
-    /// document was read this launch.
+    /// The app whose screenshot proposals open: the one with the most.
     private var screenshotApp: StoreApp.ID? {
-        activity.screenshotApps.map(\.appID).first { center.canOpenProposals(appID: $0) }
+        activity.screenshotApps.map(\.appID).first { center?.canOpenProposals(appID: $0) == true }
+    }
+
+    private var presentedProposals: Binding<ScreenshotProposalsViewModel?> {
+        Binding { center?.presentedProposals } set: { center?.presentedProposals = $0 }
     }
 
     private var popover: some View {
@@ -89,7 +94,7 @@ struct AssistantToolbarIndicator: View {
                 Button("Review Proposals…") {
                     isShowingProposals = false
                     if activity.reviewCount == 0, let screenshotApp {
-                        center.openProposals(appID: screenshotApp)
+                        center?.openProposals(appID: screenshotApp)
                     } else {
                         onReview(activity.leadingReviewClient ?? activity.leadingClient)
                     }
@@ -100,7 +105,7 @@ struct AssistantToolbarIndicator: View {
                 if activity.reviewCount > 0, let screenshotApp {
                     Button("Screenshot Proposals…") {
                         isShowingProposals = false
-                        center.openProposals(appID: screenshotApp)
+                        center?.openProposals(appID: screenshotApp)
                     }
                     .accessibilityIdentifier("workspace.screenshotProposals")
                 }

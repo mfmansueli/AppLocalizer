@@ -6,7 +6,6 @@
 import Testing
 @testable import AppLocalizer
 
-@MainActor
 @Suite("AssistantActivity")
 struct AssistantActivityTests {
     private func change(_ id: String, app: String = "1", source: ChangeSource = .you, alternative: ChangeSource? = nil) -> PendingChange {

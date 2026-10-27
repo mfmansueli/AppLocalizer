@@ -14,6 +14,7 @@ struct MainView: View {
     @State private var summaries: AppSummaryStore
     @State private var navigator: WorkspaceNavigator
     @State private var isSyncing: Bool
+    @State private var columnVisibility = NavigationSplitViewVisibility.automatic
     private let services: WorkspaceServices
     private let accounts: [TeamAccount]
     private let currentAccountID: TeamAccount.ID?
@@ -91,6 +92,9 @@ struct MainView: View {
             .task { attachAssistants() }
             .onDisappear { assistants.workspace = nil }
             .task { await loadLibrary() }
+            .onChange(of: navigator.hidesSidebar) {
+                withAnimation { columnVisibility = navigator.hidesSidebar ? .detailOnly : .automatic }
+            }
             .onChange(of: navigator.requestedAppID) {
                 guard let appID = navigator.requestedAppID else { return }
                 viewModel.selectedAppID = appID
@@ -119,7 +123,7 @@ struct MainView: View {
     }
 
     private var library: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             AppSidebar(
                 viewModel: viewModel,
                 summaries: summaries,
@@ -183,8 +187,15 @@ struct MainView: View {
         push.screenshots.attach(ScreenshotPushWorkspace(teamName: teamName, services: services, apps: loadedApps))
     }
 
-    /// Lets connected assistants read and propose for this account.
+    /// Lets connected assistants read and propose for this account, and
+    /// the toolbar open any app's screenshot proposals.
     private func attachAssistants() {
+        services.screenshots.documentCenter?.librarySource = { [viewModel, services] appID in
+            guard let app = viewModel.apps.first(where: { $0.id == appID }),
+                  let primaryLocale = app.primaryLocale.flatMap(StoreLocaleCatalog.locale(code:)) ?? StoreLocaleCatalog.locale(code: "en-US")
+            else { return nil }
+            return ScreenshotsDocumentCenter.Source(app: app, services: services.screenshots, primaryLocale: primaryLocale)
+        }
         assistants.workspace = MCPWorkspace(
             teamName: teamName,
             services: services,

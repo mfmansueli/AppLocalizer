@@ -24,7 +24,7 @@ struct TemplateDiffTests {
         edited.caption.headline.size = 104
         let changes = TemplateDiff.changes(from: template, to: edited)
         #expect(changes.map(\.path) == ["caption.headline.size", "fit.hyphenate"])
-        #expect(TemplateDiff.note(for: changes) == "Headline size 104 u, hyphenation on")
+        #expect(TemplateDiff.note(for: changes) == "Headline size 104 u, hyphenate long words on")
     }
 
     @Test func moreThanThreeChangesAreCounted() {
@@ -57,7 +57,7 @@ struct TemplateDiffTests {
         #expect(TemplateSchema.formatted(.double(168), at: "bg.angle") == "168°")
         #expect(TemplateSchema.formatted(nil, at: "fonts.fallback.thai") == "none")
         #expect(TemplateSchema.title(for: "fonts.fallback.thai") == "Thai fallback")
-        #expect(TemplateSchema.title(for: "caption.headline.min") == "Headline smallest size")
+        #expect(TemplateSchema.title(for: "caption.headline.min") == "Smallest headline size")
     }
 }
 #endif

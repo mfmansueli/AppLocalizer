@@ -6,7 +6,7 @@
 import Foundation
 
 /// What changed between two templates, field by field, and the note a
-/// saved version gets from it ("Headline size 104 u, hyphenation on").
+/// saved version gets from it ("Headline size 104 u, hyphenate long words on").
 /// Part 3's template proposals list the same changes as "old → new".
 enum TemplateDiff {
     /// Every schema field, slot layout and slot override that differs, in

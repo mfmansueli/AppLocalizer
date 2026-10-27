@@ -36,13 +36,13 @@ struct TemplateEditorViewModelTests {
         #expect(screen.editor.set("fit.hyphenate", to: true))
         #expect(screen.editor.hasUnsavedEdits)
         #expect(screen.editor.saveTitle == "Save as v5")
-        #expect(screen.editor.draftSummary == "Hyphenation on")
+        #expect(screen.editor.draftSummary == "Hyphenate long words on")
         #expect(screen.editor.savedTemplate?.fit.hyphenate == false)
 
         await screen.editor.save()
         #expect(!screen.editor.hasUnsavedEdits)
         #expect(screen.editor.versionTitle == "v5")
-        #expect(screen.editor.history?.current?.note == "Hyphenation on")
+        #expect(screen.editor.history?.current?.note == "Hyphenate long words on")
         #expect(screen.editor.history?.current?.author == .you)
         #expect(screen.services.storedDocument?.template?.fit.hyphenate == true)
     }
