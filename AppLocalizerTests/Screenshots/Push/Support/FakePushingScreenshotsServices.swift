@@ -21,6 +21,7 @@ final class FakePushingScreenshotsServices: ScreenshotsServices, ScreenshotPushP
 
     var pushing: any ScreenshotPushServices { pushServices }
     var fonts: ScreenshotFontCatalog { base.fonts }
+    var translator: any ListingTranslator { base.translator }
     var renderCacheDirectory: URL? { base.renderCacheDirectory }
     var renderHoldCount: Int? { base.renderHoldCount }
 
@@ -46,5 +47,9 @@ final class FakePushingScreenshotsServices: ScreenshotsServices, ScreenshotPushP
 
     func otherDisplayTypeNotes(for app: StoreApp) -> [ScreenshotDisplayType: String] {
         base.otherDisplayTypeNotes(for: app)
+    }
+
+    func uploadFont(from url: URL) async throws -> String {
+        try await base.uploadFont(from: url)
     }
 }
