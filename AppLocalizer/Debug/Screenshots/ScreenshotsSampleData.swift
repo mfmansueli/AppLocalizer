@@ -37,22 +37,22 @@ enum ScreenshotsSampleData {
         return template
     }
 
-    /// v1–v4, the last accepted from Claude Code.
+    /// v1–v4 as the design's history popover lists them, all by you.
     static var history: TemplateHistory {
         var first = template
+        first.rightToLeft.mirror = false
+        first.slots[0].layout = .standard
         first.slots[1].over = [:]
-        first.caption.subhead.size = 54
-        var history = TemplateHistory.starting(with: first, date: date(month: 10, day: 5), note: "Started from Caption above device")
+        first.caption.headline.size = 104
+        first.caption.headline.min = 76
+        var history = TemplateHistory.starting(with: first, date: date(month: 10, day: 5), note: "Created from the starter “Caption above device”")
         var second = first
-        second.caption.subhead.size = 50
-        history.save(second, date: date(month: 10, day: 8), note: "Smaller subhead")
-        var third = second
-        third.caption.headline.min = 84
-        history.save(third, date: date(month: 10, day: 11), note: "Smallest headline size 84 u")
-        _ = history.accept(
-            [.replace("caption.headline.min", with: 80), .replace("slots.1.over.caption.headline.size", with: 104)],
-            basedOn: 3, from: "Claude Code", reason: "German and Finnish need a little more room", date: date(month: 10, day: 12)
-        )
+        second.slots[0].layout = .hero
+        history.save(second, date: date(month: 10, day: 8), note: "Slot 1 uses the hero layout with a subhead")
+        var third = template
+        third.rightToLeft.mirror = false
+        history.save(third, date: date(month: 10, day: 11), note: "Headline 112 u, smallest 80 u")
+        history.save(template, date: date(month: 10, day: 12), note: "Arabic and Hebrew mirror the layout")
         return history
     }
 

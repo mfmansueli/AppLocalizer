@@ -109,6 +109,42 @@ extension ScreenshotsSampleData {
             "Giữ lại những bức ảnh đáng nhớ",
             "Riêng tư, chỉ trên thiết bị của bạn",
         ],
+        // Finnish, Polish, Swedish and Turkish: the locales Translate
+        // Missing… fills in the `cap-translate` scenes.
+        "fi": [
+            "Kirjoita vähän joka päivä|Lempeitä kysymyksiä mielialasi mukaan",
+            "Viikkosi yhdellä rauhallisella sivulla",
+            "Hae vuosien merkinnöistä sekunneissa",
+            "Säilytä tärkeät kuvat",
+            "Yksityinen, vain laitteillasi",
+        ],
+        "pl": [
+            "Pisz trochę każdego dnia|Łagodne pytania dopasowane do nastroju",
+            "Twój tydzień na jednej spokojnej stronie",
+            "Przeszukuj lata wpisów w sekundę",
+            "Zachowaj zdjęcia, które się liczą",
+            "Prywatnie i tylko na Twoich urządzeniach",
+        ],
+        "sv": [
+            "Skriv lite varje dag|Varsamma frågor efter ditt humör",
+            "Hela veckan på en lugn sida",
+            "Sök i flera års anteckningar på sekunder",
+            "Spara bilderna som betyder något",
+            "Privat, och bara på dina enheter",
+        ],
+        "tr": [
+            "Her gün biraz yaz|Ruh haline uygun nazik sorular",
+            "Haftan tek bir sakin sayfada",
+            "Yılların kayıtlarında saniyede ara",
+            "Önemli fotoğrafları sakla",
+            "Gizli ve yalnızca senin cihazlarında",
+        ],
+    ]
+
+    /// The shorter headlines "Suggest a Shorter Version" gets, by locale
+    /// and slot.
+    static let shorterCaptions: [String: [Int: String]] = [
+        "de-DE": [1: "Deine Woche auf einen Blick", 2: "Einträge aus Jahren in Sekunden finden", 4: "Privat. Nur auf deinen Geräten."],
     ]
 
     /// The captions on en-GB's hand-uploaded set.

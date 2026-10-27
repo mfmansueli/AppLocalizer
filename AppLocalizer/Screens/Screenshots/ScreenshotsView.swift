@@ -6,8 +6,9 @@
 import SwiftUI
 
 /// Store Page → Screenshots: the banner, the bar, and the chosen view —
-/// the Sets matrix, or what comes before it (no captures, no template) —
-/// plus the full-size viewer and the Locale Scope sheet.
+/// the Sets matrix, the template editor or the captions table, or what
+/// comes before them (no captures, no template) — plus the full-size
+/// viewer and the Locale Scope sheet.
 struct ScreenshotsView: View {
     @Bindable var viewModel: ScreenshotsViewModel
 
@@ -55,15 +56,18 @@ struct ScreenshotsView: View {
             }
         } else {
             switch viewModel.tab {
-            case .sets: sets
-            case .template, .captions, .captures:
+            case .sets: prerequisites { SetsMatrixView(viewModel: viewModel) }
+            case .template: prerequisites { TemplateEditorView(viewModel: viewModel) }
+            case .captions: CaptionsView(viewModel: viewModel)
+            case .captures:
                 ScreenshotsTabPlaceholder(tab: viewModel.tab) { viewModel.tab = .sets }
             }
         }
     }
 
+    /// Captures, then a template, before the matrix or the editor.
     @ViewBuilder
-    private var sets: some View {
+    private func prerequisites(@ViewBuilder _ content: () -> some View) -> some View {
         if !viewModel.hasCaptures {
             NoCapturesView(appName: viewModel.app.name) {
                 viewModel.tab = .captures
@@ -73,7 +77,7 @@ struct ScreenshotsView: View {
         } else if !viewModel.hasTemplate {
             StarterPickerView(viewModel: viewModel)
         } else {
-            SetsMatrixView(viewModel: viewModel)
+            content()
         }
     }
 

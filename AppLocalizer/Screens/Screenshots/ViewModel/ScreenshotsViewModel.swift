@@ -17,6 +17,8 @@ final class ScreenshotsViewModel {
     let app: StoreApp
     let services: any ScreenshotsServices
     let renderQueue: ScreenshotRenderQueue
+    /// Capture images for the editors' live previews.
+    let captureImages: CaptureImageStore
     private(set) var context: ScreenshotsContext
     /// Every App Store locale, in App Store Connect's order.
     let locales: [StoreLocale]
@@ -30,6 +32,15 @@ final class ScreenshotsViewModel {
     private(set) var errorMessage: String?
     /// The starter cards' previews, once rendered.
     var starterPreviews: [StarterPreview] = []
+    /// The fonts templates can use, with fonts uploaded since launch.
+    private(set) var fonts: ScreenshotFontCatalog
+
+    // MARK: - Editors
+
+    /// The Template tab.
+    @ObservationIgnored lazy var templateEditor = TemplateEditorViewModel(screenshots: self)
+    /// The Captions tab.
+    @ObservationIgnored lazy var captions = CaptionsViewModel(screenshots: self)
 
     // MARK: - Navigation
 
@@ -50,12 +61,16 @@ final class ScreenshotsViewModel {
         self.services = services
         self.context = context
         self.locales = locales
+        fonts = services.fonts
         renderQueue = ScreenshotRenderQueue(
             cache: ScreenshotRenderCache(directory: services.renderCacheDirectory),
             holdCount: services.renderHoldCount,
             captureImage: { [services, app] capture, width in await services.captureImage(capture, for: app, pixelWidth: width) },
             liveImage: { [services] screenshot, width in await services.liveImage(screenshot, pixelWidth: width) }
         )
+        captureImages = CaptureImageStore { [services, app] capture, width in
+            await services.captureImage(capture, for: app, pixelWidth: width)
+        }
     }
 
     // MARK: - Loading
@@ -91,13 +106,21 @@ final class ScreenshotsViewModel {
         guard let document else { return }
         let snapshot = ScreenshotsSnapshot(
             document: document, live: live, primaryLocale: context.primaryLocale, locales: locales,
-            version: context.version, fonts: services.fonts
+            version: context.version, fonts: fonts
         )
         matrix = await Task.detached(priority: .userInitiated) {
             ScreenshotMatrixBuilder().build(snapshot)
         }.value
         renderVisibleCells()
         if document.template == nil, !document.captures.isEmpty { await renderStarterPreviews() }
+    }
+
+    /// Upload Font…: registers the file and adds its family to the fonts
+    /// templates can use. Returns the family.
+    func uploadFont(from url: URL) async throws -> String {
+        let family = try await services.uploadFont(from: url)
+        if !fonts.uploaded.contains(family) { fonts.uploaded.append(family) }
+        return family
     }
 
     /// Saves the document and rebuilds.

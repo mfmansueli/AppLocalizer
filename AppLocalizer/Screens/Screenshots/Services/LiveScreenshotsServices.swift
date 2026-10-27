@@ -16,7 +16,10 @@ struct LiveScreenshotsServices: ScreenshotsServices {
     let client: AppStoreConnectClient
     var store: any ScreenshotsDocumentStore = FileScreenshotsDocumentStore()
     var capturesRoot: URL = FileScreenshotsDocumentStore.defaultRoot
-    var fonts: ScreenshotFontCatalog = .standard
+    var fontLibrary = ScreenshotFontLibrary()
+    /// The installed fonts and the ones uploaded before, registered now.
+    var fonts = ScreenshotFontCatalog(uploaded: ScreenshotFontLibrary().registerAll())
+    var translator: any ListingTranslator = AppleListingTranslator()
     var renderCacheDirectory: URL? = URL.cachesDirectory.appending(path: "AppLocalizer/Renders", directoryHint: .isDirectory)
     var renderHoldCount: Int? { nil }
 
@@ -48,6 +51,10 @@ struct LiveScreenshotsServices: ScreenshotsServices {
         guard let url = screenshot.imageURL(width: pixelWidth),
               let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
         return ScreenshotPNG.image(data)
+    }
+
+    func uploadFont(from url: URL) async throws -> String {
+        try fontLibrary.upload(url)
     }
 
     func otherDisplayTypeNotes(for _: StoreApp) -> [ScreenshotDisplayType: String] {

@@ -36,6 +36,14 @@ protocol ScreenshotsServices {
     /// The fonts templates can use, with any aliases for uploaded fonts.
     var fonts: ScreenshotFontCatalog { get }
 
+    /// Copies a font file where AppLocalizer keeps uploaded fonts and
+    /// registers it for this process. Returns its family name.
+    func uploadFont(from url: URL) async throws -> String
+
+    /// Translates captions: the Store Page's translator (Apple Translation
+    /// on this Mac).
+    var translator: any ListingTranslator { get }
+
     /// Where renders are cached between launches; nil keeps them in memory.
     var renderCacheDirectory: URL? { get }
 
