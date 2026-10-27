@@ -31,8 +31,14 @@ final class ScreenshotsPushUITests: XCTestCase {
         XCTAssertTrue(element("review.shots.item.ar-SA.iPhone.1").waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Push 39 Images"].waitForExistence(timeout: 5))
 
-        app.buttons["review.shots.undo"].click()
-        XCTAssertTrue(element("review.shots.item.ar-SA.iPhone.1").waitForExistence(timeout: 10))
+        // Undo sits under the last set, and as a link-style button it isn't
+        // one of `app.buttons`.
+        let undo = element("review.shots.undo")
+        scrollReview(by: -1000, until: undo)
+        undo.click()
+        let restored = element("review.shots.item.ar-SA.iPhone.1")
+        scrollReview(by: 1000, until: restored)
+        XCTAssertTrue(restored.waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["Push 40 Images"].exists)
     }
 
@@ -89,7 +95,7 @@ final class ScreenshotsPushUITests: XCTestCase {
         element("restore.locale.de-DE").click()
         let queue = app.buttons["restore.queue"]
         XCTAssertTrue(queue.waitForExistence(timeout: 5))
-        XCTAssertEqual(queue.title, "Queue 10 Screenshots for Review")
+        XCTAssertEqual(queue.label, "Queue 10 Screenshots for Review")
         queue.click()
 
         XCTAssertTrue(element("review.sheet").waitForExistence(timeout: 20))
@@ -112,5 +118,16 @@ final class ScreenshotsPushUITests: XCTestCase {
 
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier]
+    }
+
+    /// Scrolls Review & Push (down for a negative `deltaY`) until `target`
+    /// exists and is inside the window.
+    private func scrollReview(by deltaY: CGFloat, until target: XCUIElement) {
+        let window = app.windows.firstMatch
+        let sheet = element("review.sheet")
+        for _ in 0..<30 {
+            if target.exists, window.frame.contains(target.frame) { return }
+            sheet.scroll(byDeltaX: 0, deltaY: deltaY)
+        }
     }
 }

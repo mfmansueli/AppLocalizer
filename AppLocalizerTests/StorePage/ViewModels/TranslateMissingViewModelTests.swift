@@ -87,6 +87,14 @@ struct TranslateMissingViewModelTests {
         #expect(model.translation.glossary.tone == .professional)
     }
 
+    @Test func aProviderPickedBeforeTheSheetAppearsStays() async {
+        let model = await makeModel()
+        model.presentTranslate()
+        model.translation.provider = .assistant
+        model.translation.applySettings(provider: .appleTranslation, glossary: TranslationGlossary(), aiProvider: .none)
+        #expect(model.translation.provider == .assistant)
+    }
+
     @Test func theGlossaryStartsWithTheAppsName() async {
         let model = await makeModel()
         model.presentTranslate()

@@ -22,7 +22,13 @@ final class TranslateMissingViewModel {
         case reviewing
     }
 
-    var provider: TranslationProvider = .appleTranslation
+    var provider: TranslationProvider = .appleTranslation {
+        didSet { startsOnSettingsProvider = false }
+    }
+
+    /// Set when the sheet is prepared: it starts on Settings' provider
+    /// unless someone picked one since (a scene, a menu command).
+    private var startsOnSettingsProvider = false
     var glossary: TranslationGlossary
     /// One field, or nil for every field.
     var field: ListingField? {
@@ -61,7 +67,7 @@ final class TranslateMissingViewModel {
     /// Settings → Translation, when the sheet opens: the provider it starts
     /// on, the glossary's terms and tone, and the AI provider.
     func applySettings(provider: TranslationProvider, glossary: TranslationGlossary, aiProvider: AIProviderSetup) {
-        self.provider = provider
+        if startsOnSettingsProvider { self.provider = provider }
         self.aiProvider = aiProvider
         var merged = glossary
         for term in self.glossary.terms {
@@ -78,6 +84,7 @@ final class TranslateMissingViewModel {
         self.scope.fields = scope.fields
         excludedLocales = []
         provider = .appleTranslation
+        startsOnSettingsProvider = true
         isAssistantPromptCopied = false
         if let listing = currentListing(), glossary.terms.isEmpty {
             glossary.add(listing.appName.split(separator: ":").first.map(String.init) ?? listing.appName)

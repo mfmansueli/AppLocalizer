@@ -109,6 +109,9 @@ struct EditorFieldRow: View {
                         .foregroundStyle(Palette.label2)
                 }
             }
+            // One element: a pill is a stack of views, which would leave
+            // the label on none of them.
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(counter.accessibilityLabel))
             .accessibilityIdentifier("storePage.counter.\(field.rawValue)")
         }

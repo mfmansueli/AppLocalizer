@@ -73,8 +73,8 @@ final class AppInformationUITests: XCTestCase {
     func testThePublishSwitchInReview() {
         launch(scene: "a11y-review")
         XCTAssertTrue(element("review.sheet").waitForExistence(timeout: 10))
-        let iPhone = app.switches["review.option.appInformation.\(lumen).accessibility.IPHONE"]
-        let vision = app.switches["review.option.appInformation.\(lumen).accessibility.VISION"]
+        let iPhone = element("review.option.appInformation.\(lumen).accessibility.IPHONE")
+        let vision = element("review.option.appInformation.\(lumen).accessibility.VISION")
         XCTAssertTrue(iPhone.exists)
         XCTAssertFalse(vision.isEnabled)
         XCTAssertTrue(text(containing: "2 declarations publish immediately when pushed").exists)

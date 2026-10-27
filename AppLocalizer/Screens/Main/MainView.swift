@@ -14,7 +14,7 @@ struct MainView: View {
     @State private var summaries: AppSummaryStore
     @State private var navigator: WorkspaceNavigator
     @State private var isSyncing: Bool
-    @State private var columnVisibility = NavigationSplitViewVisibility.automatic
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
     private let services: WorkspaceServices
     private let accounts: [TeamAccount]
     private let currentAccountID: TeamAccount.ID?
@@ -93,7 +93,7 @@ struct MainView: View {
             .onDisappear { assistants.workspace = nil }
             .task { await loadLibrary() }
             .onChange(of: navigator.hidesSidebar) {
-                columnVisibility = navigator.hidesSidebar ? .detailOnly : .automatic
+                columnVisibility = navigator.hidesSidebar ? .detailOnly : .all
             }
             .onChange(of: navigator.requestedAppID) {
                 guard let appID = navigator.requestedAppID else { return }

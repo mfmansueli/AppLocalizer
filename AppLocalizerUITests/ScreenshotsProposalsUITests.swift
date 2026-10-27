@@ -44,7 +44,11 @@ final class ScreenshotsProposalsUITests: XCTestCase {
         importButton.click()
         let notice = element("screenshots.notice")
         XCTAssertTrue(notice.waitForExistence(timeout: 10))
-        XCTAssertTrue(waitForText(element("screenshots.notice"), beginningWith: "52 captures imported for 10 locales."))
+        // A banner is a container: its title is one of its texts.
+        let prefix = "52 captures imported for 10 locales."
+        let message = notice.descendants(matching: .any)
+            .matching(NSPredicate(format: "value BEGINSWITH %@ OR label BEGINSWITH %@", prefix, prefix)).firstMatch
+        XCTAssertTrue(message.waitForExistence(timeout: 10))
     }
 
     func testTheCoverageListsEveryLocale() {

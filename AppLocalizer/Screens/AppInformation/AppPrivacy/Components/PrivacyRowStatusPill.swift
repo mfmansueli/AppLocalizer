@@ -12,6 +12,9 @@ struct PrivacyRowStatusPill: View {
 
     var body: some View {
         Pill(text: status.title, style: style)
+            // One element: a pill is a stack of views, which would leave
+            // the label on none of them.
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text("Status: \(status.title)"))
     }
 

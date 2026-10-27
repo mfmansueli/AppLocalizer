@@ -46,6 +46,7 @@ final class AppPrivacyUITests: XCTestCase {
         launch(scene: "priv-review")
         let accept = app.buttons["appInformation.appPrivacy.type.interaction.accept"]
         XCTAssertTrue(accept.waitForExistence(timeout: 10))
+        reveal(accept)
         accept.click()
         XCTAssertTrue(accept.waitForNonExistence(timeout: 5))
         XCTAssertTrue(status("Accepted", in: "interaction").exists)
@@ -55,6 +56,7 @@ final class AppPrivacyUITests: XCTestCase {
         launch(scene: "priv-review")
         let reject = app.buttons["appInformation.appPrivacy.type.performance.reject"]
         XCTAssertTrue(reject.waitForExistence(timeout: 10))
+        reveal(reject)
         reject.click()
         XCTAssertTrue(reject.waitForNonExistence(timeout: 5))
         XCTAssertTrue(status("Suggestion rejected", in: "performance").exists)
@@ -75,6 +77,7 @@ final class AppPrivacyUITests: XCTestCase {
         launch(scene: "priv-conflict")
         let keep = app.buttons["appInformation.appPrivacy.conflict.keepYours"]
         XCTAssertTrue(keep.waitForExistence(timeout: 10))
+        reveal(keep)
         keep.click()
         XCTAssertTrue(keep.waitForNonExistence(timeout: 5))
         XCTAssertTrue(status("Yours", in: "deviceId").exists)
@@ -84,6 +87,7 @@ final class AppPrivacyUITests: XCTestCase {
         launch(scene: "priv-conflict")
         let useTheirs = app.buttons["appInformation.appPrivacy.conflict.useTheirs"]
         XCTAssertTrue(useTheirs.waitForExistence(timeout: 10))
+        reveal(useTheirs)
         useTheirs.click()
         XCTAssertTrue(useTheirs.waitForNonExistence(timeout: 5))
         XCTAssertTrue(status("Accepted", in: "deviceId").exists)
@@ -126,6 +130,7 @@ final class AppPrivacyUITests: XCTestCase {
         importButton.click()
         XCTAssertTrue(element("appInformation.appPrivacy.importSheet").waitForNonExistence(timeout: 5))
         XCTAssertTrue(element("appInformation.appPrivacy.worksheet").waitForExistence(timeout: 5))
+        reveal(element("appInformation.appPrivacy.type.deviceId"))
         XCTAssertTrue(status("Yours", in: "deviceId").exists)
     }
 
@@ -137,6 +142,25 @@ final class AppPrivacyUITests: XCTestCase {
 
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier]
+    }
+
+    /// Scrolls the worksheet until `target` is in the upper middle of the
+    /// window, then waits for the scroll to settle: rows below the fold
+    /// exist, but a click there, or on a row still moving, misses them.
+    private func reveal(_ target: XCUIElement) {
+        let window = app.windows.firstMatch
+        let worksheet = window.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.5))
+        for _ in 0..<40 {
+            let frame = window.frame
+            let band = frame.minY + frame.height * 0.25...frame.minY + frame.height * 0.6
+            if target.exists, band.contains(target.frame.midY) { break }
+            worksheet.scroll(byDeltaX: 0, deltaY: target.frame.midY > band.upperBound ? -150 : 150)
+        }
+        var previous = CGRect.null
+        for _ in 0..<10 where target.frame != previous {
+            previous = target.frame
+            Thread.sleep(forTimeInterval: 0.2)
+        }
     }
 
     /// A data type row's status pill, read by its accessibility label.

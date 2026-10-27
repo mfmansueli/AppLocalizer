@@ -23,10 +23,11 @@ struct InfoPlistKeyCard: View {
             .foregroundStyle(Palette.label2)
             .fixedSize(horizontal: false, vertical: true)
             HStack(alignment: .top) {
+                // No custom accessibility label: on selectable text it sent
+                // SwiftUI's accessibility into endless recursion (a crash).
                 Text(Self.snippet)
                     .font(.callout.monospaced())
                     .textSelection(.enabled)
-                    .accessibilityLabel(Text("ITSAppUsesNonExemptEncryption set to false"))
                 Spacer(minLength: Spacing.medium)
                 Button(String(localized: "Copy")) {
                     NSPasteboard.general.clearContents()
