@@ -51,6 +51,17 @@ final class ReviewPushViewModel {
     var thisAppCount: Int { (selectedAppID.map { queue.count(for: $0) } ?? 0) + imageCount(thisAppOnly: true) }
     var allAppsCount: Int { queue.totalCount + imageCount(thisAppOnly: false) }
 
+    /// This app | All apps, only when other apps have changes too.
+    var showsScopeSwitch: Bool {
+        selectedAppName != nil && thisAppCount != allAppsCount
+    }
+
+    /// The source filter, only when there's more than one source to pick,
+    /// or one is picked.
+    var showsSourceFilter: Bool {
+        sourceOptions.count > 2 || sourceFilter != nil
+    }
+
     /// Changes in the current scope, before the source filter.
     var scopedChanges: [PendingChange] {
         switch scope {

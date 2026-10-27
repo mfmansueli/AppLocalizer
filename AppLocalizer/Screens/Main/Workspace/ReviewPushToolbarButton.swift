@@ -5,8 +5,8 @@
 
 import SwiftUI
 
-/// "Review & Push" with the number of pending changes across all apps:
-/// prominent glass while anything is waiting (⇧⌘P).
+/// "Review & Push" with the number of pending changes and planned images
+/// across all apps: prominent glass while anything is waiting (⇧⌘P).
 struct ReviewPushToolbarButton: View {
     let count: Int
     let action: () -> Void

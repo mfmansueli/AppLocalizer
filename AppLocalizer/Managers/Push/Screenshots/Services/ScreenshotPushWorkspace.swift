@@ -6,7 +6,7 @@
 import Foundation
 
 /// The account a screenshot push works in: its services and its apps.
-/// Review & Push and Activity attach it when they open.
+/// The main window attaches it (`MainView.configurePush`).
 struct ScreenshotPushWorkspace {
     /// Identifies the account, so switching accounts starts over.
     var teamName: String

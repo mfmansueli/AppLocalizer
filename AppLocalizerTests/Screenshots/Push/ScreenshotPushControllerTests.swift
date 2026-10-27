@@ -20,6 +20,7 @@ struct ScreenshotPushControllerTests {
         await harness.load()
         let plan = try #require(harness.plan)
         #expect(plan.items.count == 40)
+        #expect(harness.controller.imageCount == 40)
         #expect(harness.controller.primaryLocaleName(for: harness.app.id) == "English (U.S.)")
         #expect(harness.controller.canPush)
     }
@@ -47,6 +48,7 @@ struct ScreenshotPushControllerTests {
         let item = try #require(harness.plan?.items.first)
         harness.controller.discard([item])
         #expect(harness.plan?.items.count == 39)
+        #expect(harness.controller.imageCount == 39)
         #expect(harness.plan?.kept.map(\.id) == [item.id])
         #expect(harness.push.stateStore.state(appID: harness.app.id).kept[item.cell] == item.renderKey)
 

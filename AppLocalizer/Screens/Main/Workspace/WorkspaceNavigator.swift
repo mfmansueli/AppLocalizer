@@ -26,6 +26,9 @@ final class WorkspaceNavigator {
     var opensReviewAfterActivity = false
     /// What the current section should do next; nil when nothing is pending.
     private(set) var intent: WorkspaceIntent?
+    /// The app to select first, e.g. for Show in Captions on another app's
+    /// render; the main window selects it and clears it.
+    private(set) var requestedAppID: StoreApp.ID?
     /// Bumped by Refresh (⌘R). The library and every section reload when it
     /// changes (`.onChange(of: navigator.refreshCount)`).
     private(set) var refreshCount = 0
@@ -34,10 +37,12 @@ final class WorkspaceNavigator {
         self.section = section
     }
 
-    /// Switches to `section` and leaves `intent` for it to handle.
-    func open(_ section: AppWorkspaceSection, intent: WorkspaceIntent? = nil) {
+    /// Switches to `section` (of `appID` when given) and leaves `intent`
+    /// for it to handle.
+    func open(_ section: AppWorkspaceSection, intent: WorkspaceIntent? = nil, appID: StoreApp.ID? = nil) {
         self.section = section
         self.intent = intent
+        requestedAppID = appID
     }
 
     /// Asks the current section to do something without switching.
@@ -73,6 +78,11 @@ final class WorkspaceNavigator {
     /// Reloads everything from App Store Connect.
     func refresh() {
         refreshCount += 1
+    }
+
+    /// Called by the main window once it has selected `requestedAppID`.
+    func consumeAppRequest() {
+        requestedAppID = nil
     }
 
     /// Called by the section once it has handled `intent`.

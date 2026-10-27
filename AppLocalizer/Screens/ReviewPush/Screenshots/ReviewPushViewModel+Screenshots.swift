@@ -62,7 +62,7 @@ extension ReviewPushViewModel {
     var unlocalizedRenders: [ScreenshotPlanExclusion] { screenshotPlans.flatMap(\.missingLocalizations) }
 
     func imageCount(thisAppOnly: Bool) -> Int {
-        guard thisAppOnly else { return screenshots.orderedPlans.reduce(0) { $0 + $1.items.count } }
+        guard thisAppOnly else { return screenshots.imageCount }
         return selectedAppID.flatMap { screenshots.plans[$0] }?.items.count ?? 0
     }
 

@@ -64,6 +64,26 @@ struct ReviewPushViewModelTests {
         #expect(vm.assistantsInScope == ["Claude Code"])
     }
 
+    @Test func theScopeSwitchAndSourceFilterShowOnlyWithAChoice() {
+        queue.upsert(contentsOf: [PushFixtures.price("BRA"), PushFixtures.price("MEX")])
+        let vm = makeViewModel()
+        #expect(!vm.showsScopeSwitch)
+        #expect(!vm.showsSourceFilter)
+
+        queue.upsert(PushFixtures.listing("Name", app: "habitat"))
+        queue.upsert(PushFixtures.listing("Subtitle", source: .machineTranslation))
+        #expect(vm.showsScopeSwitch)
+        #expect(vm.showsSourceFilter)
+    }
+
+    @Test func aPickedSourceKeepsTheFilterShowing() {
+        queue.upsert(PushFixtures.listing("Keywords", source: .assistant(client: "Claude Code")))
+        let vm = makeViewModel()
+        #expect(!vm.showsSourceFilter)
+        vm.sourceFilter = .assistant("Claude Code")
+        #expect(vm.showsSourceFilter)
+    }
+
     @Test func blockedChangesNeedAttentionAndArentPushable() {
         fill()
         var blocked = PushFixtures.price("ARG")

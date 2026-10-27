@@ -148,7 +148,7 @@ struct ReviewPushSheet: View {
     private func showInCaptions(_ exclusion: ScreenshotPlanExclusion) {
         viewModel.screenshots.showInCaptions(exclusion)
         dismiss()
-        navigator.open(.storePage)
+        navigator.open(.storePage, intent: .showScreenshots, appID: exclusion.appID)
     }
 
     private func discardAll() {

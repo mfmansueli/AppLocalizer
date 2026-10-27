@@ -91,6 +91,11 @@ struct MainView: View {
             .task { attachAssistants() }
             .onDisappear { assistants.workspace = nil }
             .task { await loadLibrary() }
+            .onChange(of: navigator.requestedAppID) {
+                guard let appID = navigator.requestedAppID else { return }
+                viewModel.selectedAppID = appID
+                navigator.consumeAppRequest()
+            }
             .onChange(of: navigator.refreshCount) {
                 summaries.invalidateAll()
                 Task { await loadLibrary() }
@@ -175,24 +180,33 @@ struct MainView: View {
             }
             navigator.refresh()
         }
+        push.screenshots.attach(ScreenshotPushWorkspace(teamName: teamName, services: services, apps: loadedApps))
     }
 
     /// Lets connected assistants read and propose for this account.
     private func attachAssistants() {
-        let teamName = accounts.first { $0.id == currentAccountID }?.name ?? String(localized: "This account")
         assistants.workspace = MCPWorkspace(
             teamName: teamName,
             services: services,
             changes: changes,
             pricingModes: pricingModes,
-            apps: { [viewModel] in
-                if !viewModel.hasLoaded { await viewModel.load() }
-                if let message = viewModel.errorMessage, viewModel.apps.isEmpty { throw MCPToolError.unavailable(message) }
-                return viewModel.apps
-            },
+            apps: loadedApps,
             glossary: { [translation] in translation.glossary },
             commission: { [preferences] in Commission(preferenceRate: preferences.commissionRate) }
         )
+    }
+
+    private var teamName: String {
+        accounts.first { $0.id == currentAccountID }?.name ?? String(localized: "This account")
+    }
+
+    /// The library, loading it first when the sidebar hasn't yet.
+    private var loadedApps: @MainActor () async throws -> [StoreApp] {
+        { [viewModel] in
+            if !viewModel.hasLoaded { await viewModel.load() }
+            if let message = viewModel.errorMessage, viewModel.apps.isEmpty { throw MCPToolError.unavailable(message) }
+            return viewModel.apps
+        }
     }
 
     private func loadLibrary() async {

@@ -92,7 +92,7 @@ struct AppWorkspaceView: View {
                 }
                 ToolbarSpacer(.fixed, placement: .primaryAction)
                 ToolbarItem(placement: .primaryAction) {
-                    ReviewPushToolbarButton(count: changes.totalCount) {
+                    ReviewPushToolbarButton(count: changes.totalCount + push.screenshots.imageCount) {
                         navigator.isReviewPresented = true
                     }
                 }

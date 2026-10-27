@@ -96,6 +96,10 @@ final class ScreenshotPushController {
 
     var isLoading: Bool { !loadingAppIDs.isEmpty }
 
+    /// The images every planned app would push, for the toolbar's Review &
+    /// Push badge. Apps are planned once Review & Push has opened.
+    var imageCount: Int { plans.values.reduce(0) { $0 + $1.items.count } }
+
     /// Plans the selected app, or every app. `refreshCount` is Refresh's
     /// (⌘R) count: when it changed, live sets are read again.
     func loadPlans(selectedAppID: StoreApp.ID?, allApps: Bool, refreshCount: Int = 0) async {

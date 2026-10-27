@@ -14,7 +14,6 @@ struct ActivitySheet: View {
     @Environment(ChangeQueue.self) private var changes
     @Environment(WorkspaceNavigator.self) private var navigator
     @Environment(PushController.self) private var push
-    @Environment(MCPServerController.self) private var assistants
     @Environment(\.dismiss) private var dismiss
     @State private var restoringScreenshots: ScreenshotRestorePresentation?
 
@@ -74,8 +73,7 @@ struct ActivitySheet: View {
                 }
             }
         }
-        .task(id: assistants.workspace?.teamName) {
-            ScreenshotPushWorkspace.attach(assistants.workspace, to: push.screenshots)
+        .task(id: push.screenshots.workspace?.teamName) {
             if let pending = push.screenshots.pendingRestore {
                 push.screenshots.pendingRestore = nil
                 restoringScreenshots = pending

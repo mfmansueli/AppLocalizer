@@ -28,6 +28,9 @@ enum WorkspaceIntent: Hashable, Sendable {
     case findAndReplace
     /// Store Page: Import Translations.
     case importTranslations
+    /// Store Page: Screenshots, for Review & Push's Show in Captions (the
+    /// Screenshots view then opens Captions on the render).
+    case showScreenshots
     /// Any section: focus its search field.
     case search
 }

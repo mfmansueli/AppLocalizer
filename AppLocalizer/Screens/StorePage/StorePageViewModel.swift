@@ -223,7 +223,7 @@ final class StorePageViewModel {
     /// The intents this section takes; the rest belong to other sections.
     static func handles(_ intent: WorkspaceIntent) -> Bool {
         switch intent {
-        case .translateMissing, .findAndReplace, .importTranslations, .search: true
+        case .translateMissing, .findAndReplace, .importTranslations, .showScreenshots, .search: true
         case .reviewSuggestions, .applyRecommendedPrices, .showResults, .editPriceSchedule, .showPrices, .openAppInformationPage: false
         }
     }
@@ -241,6 +241,7 @@ final class StorePageViewModel {
         case .translateMissing: presentTranslate()
         case .findAndReplace, .search: presentFindReplace()
         case .importTranslations: isImporterPresented = true
+        case .showScreenshots: mode = .screenshots
         case .reviewSuggestions, .applyRecommendedPrices, .showResults, .editPriceSchedule, .showPrices, .openAppInformationPage: break
         }
     }

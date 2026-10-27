@@ -5,26 +5,26 @@
 
 import SwiftUI
 
-/// "Rate limit ▬▬── 457 of 3,600 requests this hour": App Store Connect's
-/// hourly quota, so a long push never surprises anyone.
+/// "Requests this hour ▬▬── 457 of 3,600": App Store Connect's hourly
+/// quota, so a long push never surprises anyone.
 struct RateLimitMeter: View {
     let rateLimit: AppStoreConnectRateLimit
 
     var body: some View {
         HStack(spacing: Spacing.small) {
-            Text("Rate limit")
+            Text("Requests this hour")
                 .font(.caption)
                 .foregroundStyle(Palette.label2)
             MeterBar(fraction: rateLimit.fractionUsed, tint: tint, height: 4)
-            Text("\(rateLimit.used.formatted()) of \(rateLimit.limit.formatted()) requests this hour")
+            Text("\(rateLimit.used.formatted()) of \(rateLimit.limit.formatted())")
                 .font(.caption)
                 .foregroundStyle(Palette.label2)
                 .monospacedDigit()
                 .fixedSize()
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Rate limit"))
-        .accessibilityValue(Text("\(rateLimit.used) of \(rateLimit.limit) requests this hour"))
+        .accessibilityLabel(Text("Requests this hour"))
+        .accessibilityValue(Text("\(rateLimit.used) of \(rateLimit.limit)"))
         .accessibilityIdentifier("push.rateMeter")
     }
 

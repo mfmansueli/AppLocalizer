@@ -52,9 +52,11 @@ struct StorePageSectionView: View {
     }
 
     /// Takes the Store Page's intents (Translate Missing…, Find and
-    /// Replace, Import, Find); the view model runs them once loaded.
+    /// Replace, Import, Find, Screenshots); the view model runs them once
+    /// loaded. An intent for another app waits for that app's page.
     private func handleIntent() {
-        guard let intent = navigator.intent, StorePageViewModel.handles(intent), let viewModel else { return }
+        guard let intent = navigator.intent, StorePageViewModel.handles(intent), let viewModel,
+              navigator.requestedAppID.map({ $0 == app.id }) ?? true else { return }
         viewModel.handle(intent)
         navigator.consume(intent)
     }
