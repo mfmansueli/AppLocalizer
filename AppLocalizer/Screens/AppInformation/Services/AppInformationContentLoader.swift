@@ -40,7 +40,7 @@ struct AppInformationContentLoader: Sendable {
                 usesNonExemptEncryption: build?.attributes.usesNonExemptEncryption
             )
         }
-        export.declaredAnswers = try await Self.declaredAnswers(client.appEncryptionDeclarations(appID: app.id))
+        export.declaredAnswers = try await Self.declaredAnswers(encryptionDeclarations(appID: app.id))
 
         return AppInformationContent(
             versions: versions,
@@ -51,6 +51,16 @@ struct AppInformationContentLoader: Sendable {
             review: review,
             export: export
         )
+    }
+
+    /// Declared answers only fill in Export Compliance, so a list App Store
+    /// Connect can't find leaves them out instead of failing every page.
+    private func encryptionDeclarations(appID: String) async throws -> [AppStoreConnectResource<AppEncryptionDeclarationAttributes>] {
+        do {
+            return try await client.appEncryptionDeclarations(appID: appID)
+        } catch AppStoreConnectError.notFound {
+            return []
+        }
     }
 
     // MARK: - Mapping

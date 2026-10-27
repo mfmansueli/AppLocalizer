@@ -52,9 +52,11 @@ struct LiveAppInformationServicesTests {
         #expect(paths == [
             "/v1/apps/6450000001/appStoreVersions", "/v1/apps/6450000001/appInfos", "/v1/appInfos/info-next", "/v1/apps/6450000001",
             "/v1/appInfos/info-next/ageRatingDeclaration", "/v1/appStoreVersions/v14/appStoreReviewDetail",
-            "/v1/appStoreVersions/v14/build", "/v1/apps/6450000001/appEncryptionDeclarations",
+            "/v1/appStoreVersions/v14/build", "/v1/appEncryptionDeclarations",
         ])
         #expect(transport.requests.allSatisfy { $0.httpMethod == "GET" })
+        let declarations = try #require(transport.requests.last?.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) })
+        #expect(declarations.queryItems?.contains(URLQueryItem(name: "filter[app]", value: "6450000001")) == true)
     }
 
     @Test func aVersionWithoutReviewDetailsOrBuildStillLoads() async throws {
@@ -65,6 +67,15 @@ struct LiveAppInformationServicesTests {
         #expect(content.ids.reviewDetailID == nil)
         #expect(content.review == AppReviewValues())
         #expect(content.export.buildID == nil)
+    }
+
+    @Test func encryptionDeclarationsThatCantBeFoundLeaveOnlyTheDeclaredAnswersOut() async throws {
+        var responses = Canned.content
+        responses[7] = Canned.notFound
+        let content = try await services(FakeHTTPTransport(responses)).content(for: app, versionID: nil)
+        #expect(content.export.buildID == "b42")
+        #expect(content.export.declaredAnswers == nil)
+        #expect(content.review.firstName == "Ana")
     }
 
     @Test func accessibilityLeavesOutReplacedDeclarationsAndKnowsWhatsLive() async throws {

@@ -53,9 +53,10 @@ extension AppStoreConnectClient {
     }
 
     /// Export compliance declarations made in App Store Connect
-    /// (`GET /v1/apps/{id}/appEncryptionDeclarations`).
+    /// (`GET /v1/appEncryptionDeclarations?filter[app]={id}`). Apple no
+    /// longer serves the app's `appEncryptionDeclarations` relationship.
     func appEncryptionDeclarations(appID: String) async throws -> [AppStoreConnectResource<AppEncryptionDeclarationAttributes>] {
-        try await allPages(of: "/v1/apps/\(appID)/appEncryptionDeclarations", query: [Self.pageLimit])
+        try await allPages(of: "/v1/appEncryptionDeclarations", query: [URLQueryItem(name: "filter[app]", value: appID), Self.pageLimit])
     }
 
     /// A to-one resource that may not exist: `data: null` or a 404 is nil.
