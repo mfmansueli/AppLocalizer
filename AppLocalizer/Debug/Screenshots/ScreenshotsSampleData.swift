@@ -9,7 +9,8 @@ import Foundation
 /// The design's sample screenshots for Lumen Journal: a version-4 template,
 /// captions in twelve locales, fastlane captures of ten interfaces, eight
 /// localized sets live from that template plus an English (U.K.) set
-/// uploaded by hand, and a caption proposal from Claude Code.
+/// uploaded by hand, and Claude Code's template and caption proposals
+/// (`ScreenshotsSampleData+Proposals`).
 enum ScreenshotsSampleData {
     static let primary = "en-US"
     static let slotNames = ["Today", "Week", "Search", "Photos", "Privacy"]
@@ -39,6 +40,11 @@ enum ScreenshotsSampleData {
 
     /// v1–v4 as the design's history popover lists them, all by you.
     static var history: TemplateHistory {
+        history(latest: template, note: "Arabic and Hebrew mirror the layout")
+    }
+
+    /// v1–v3, then `latest` as v4.
+    static func history(latest: ScreenshotTemplate, note latestNote: String) -> TemplateHistory {
         var first = template
         first.rightToLeft.mirror = false
         first.slots[0].layout = .standard
@@ -52,7 +58,7 @@ enum ScreenshotsSampleData {
         var third = template
         third.rightToLeft.mirror = false
         history.save(third, date: date(month: 10, day: 11), note: "Headline 112 u, smallest 80 u")
-        history.save(template, date: date(month: 10, day: 12), note: "Arabic and Hebrew mirror the layout")
+        history.save(latest, date: date(month: 10, day: 12), note: latestNote)
         return history
     }
 
@@ -114,16 +120,9 @@ enum ScreenshotsSampleData {
         let canvas = display.isTablet ? display.portraitPixelSize.rotated : display.portraitPixelSize
         return ScreenshotCapture(
             id: "\(locale)|\(display.rawValue)|\(slot)", locale: locale, displayType: display, slot: slot, source: .fastlane,
-            fileName: "\(locale)/\(display.deviceName)-0\(slot + 1)_\(slotNames[slot]).png", pixelSize: pixelSize ?? canvas
+            fileName: "\(locale)/\(display.deviceName)-0\(slot + 1)_\(slotNames[slot]).png", pixelSize: pixelSize ?? canvas,
+            importedAt: date(month: 10, day: 26, hour: 9, minute: 12)
         )
     }
-
-    /// The caption proposal from Claude Code: German slots 2, 3 and 5.
-    static let proposals = [
-        ScreenshotProposalMarker(
-            id: "p2", client: "Claude Code", receivedAt: date(month: 10, day: 26, hour: 10, minute: 42),
-            captionSlots: ["de-DE": [1, 2, 4]], basedOnVersion: nil
-        ),
-    ]
 }
 #endif

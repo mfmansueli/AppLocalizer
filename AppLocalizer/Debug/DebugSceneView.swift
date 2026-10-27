@@ -18,7 +18,7 @@ import SwiftUI
 /// `SettingsDebugScenes`, `ReviewPushDebugScenes`, `PricingDebugScenes`,
 /// `StorePageDebugScenes`, `AppInformationDebugScenes`,
 /// `ScreenshotsDebugScenes`, `ScreenshotsPushDebugScenes`,
-/// `AssistantDebugScenes`).
+/// `ScreenshotsProposalsDebugScenes`, `AssistantDebugScenes`).
 struct DebugSceneView: View {
     let id: String
 
@@ -43,6 +43,7 @@ struct DebugSceneView: View {
                 ?? AppInformationDebugScenes.view(for: id)
                 ?? ScreenshotsDebugScenes.view(for: id)
                 ?? ScreenshotsPushDebugScenes.view(for: id)
+                ?? ScreenshotsProposalsDebugScenes.view(for: id)
                 ?? AssistantDebugScenes.view(for: id)
             {
                 scene

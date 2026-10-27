@@ -41,6 +41,8 @@ final class ScreenshotsViewModel {
     @ObservationIgnored lazy var templateEditor = TemplateEditorViewModel(screenshots: self)
     /// The Captions tab.
     @ObservationIgnored lazy var captions = CaptionsViewModel(screenshots: self)
+    /// The Captures tab: imports and coverage.
+    @ObservationIgnored lazy var captures = CapturesViewModel(screenshots: self)
 
     // MARK: - Navigation
 
@@ -71,6 +73,11 @@ final class ScreenshotsViewModel {
         captureImages = CaptureImageStore { [services, app] capture, width in
             await services.captureImage(capture, for: app, pixelWidth: width)
         }
+        // A proposal an assistant sends, or one accepted in the Proposals
+        // sheet, arrives as a saved document.
+        services.documentCenter?.observe(app.id, owner: self) { [weak self] document in
+            Task { await self?.adopt(document) }
+        }
     }
 
     // MARK: - Loading
@@ -80,7 +87,7 @@ final class ScreenshotsViewModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            let document = try await services.document(for: app, primaryLocale: context.primaryLocale)
+            let document = try await services.loadDocument(for: app, primaryLocale: context.primaryLocale)
             self.document = document
             errorMessage = nil
             live = try await services.liveScreenshots(for: app, localizations: context.localizations)
@@ -123,11 +130,19 @@ final class ScreenshotsViewModel {
         return family
     }
 
+    /// A document saved elsewhere (the Proposals sheet, an assistant's
+    /// tool): shown from now on.
+    func adopt(_ document: ScreenshotsDocument) async {
+        guard isLoaded, document != self.document else { return }
+        self.document = document
+        await rebuild()
+    }
+
     /// Saves the document and rebuilds.
     func commit(_ document: ScreenshotsDocument) async {
         self.document = document
         do {
-            try await services.save(document, for: app)
+            try await services.saveDocument(document, for: app)
         } catch {
             notice = String(localized: "Couldn’t save the screenshot settings: \(error.localizedDescription)")
         }

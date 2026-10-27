@@ -112,7 +112,10 @@ struct MCPServerControllerTests {
 
     @Test func promptsAreOfferedOnlyWithTheirTools() {
         #expect(MCPTestFixtures.controller(toolbox: MCPToolbox(tools: [FakeMCPTool(name: "list_apps")])).availablePrompts.isEmpty)
-        #expect(MCPTestFixtures.controller().availablePrompts == [.translateMissing, .fillPrivacyFromCode, .fillAgeRating, .whatsNewFromGit])
+        #expect(MCPTestFixtures.controller().availablePrompts == [
+            .translateMissing, .fillPrivacyFromCode, .fillAgeRating, .whatsNewFromGit,
+            .translateCaptions, .shortenOverflowingCaptions, .reviseTemplate,
+        ])
     }
 
     @Test func quietSessionsWithoutAStreamAreForgotten() async throws {

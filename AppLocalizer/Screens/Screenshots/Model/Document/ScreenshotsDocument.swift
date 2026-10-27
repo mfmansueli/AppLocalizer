@@ -20,7 +20,8 @@ struct ScreenshotsDocument: Codable, Hashable, Sendable {
     /// Names for the slots, from the capture files ("Today", "Week"…).
     var slotNames: [String]
     var pushed: [PushedRender]
-    var proposals: [ScreenshotProposalMarker]
+    /// Assistants' proposals, decided or not, oldest first.
+    var proposals: [ScreenshotProposal]
 
     init(
         history: TemplateHistory? = nil,
@@ -29,7 +30,7 @@ struct ScreenshotsDocument: Codable, Hashable, Sendable {
         scope: LocaleScope,
         slotNames: [String] = [],
         pushed: [PushedRender] = [],
-        proposals: [ScreenshotProposalMarker] = []
+        proposals: [ScreenshotProposal] = []
     ) {
         self.history = history
         self.captions = captions
@@ -64,7 +65,8 @@ struct ScreenshotsDocument: Codable, Hashable, Sendable {
         pushed.last { $0.cell == cell }
     }
 
-    func proposal(locale: String, slot: Int) -> ScreenshotProposalMarker? {
+    /// The waiting proposal with a caption for `locale` and `slot`.
+    func proposal(locale: String, slot: Int) -> ScreenshotProposal? {
         proposals.first { $0.touches(locale: locale, slot: slot) }
     }
 }

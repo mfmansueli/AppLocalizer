@@ -107,7 +107,7 @@ extension ScreenshotPushController {
                 document.pushed.removeAll { $0.cell == item.plan.cell }
                 document.pushed.append(PushedRender(cell: item.plan.cell, renderKey: key, checksum: checksum, date: date))
             }
-            try await workspace.screenshots.save(document, for: app)
+            try await workspace.screenshots.saveDocument(document, for: app)
         } catch {
             notice = String(localized: "The push went through, but this Mac couldn’t note it: \(error.localizedDescription)")
         }

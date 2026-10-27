@@ -24,6 +24,7 @@ final class FakePushingScreenshotsServices: ScreenshotsServices, ScreenshotPushP
     var translator: any ListingTranslator { base.translator }
     var renderCacheDirectory: URL? { base.renderCacheDirectory }
     var renderHoldCount: Int? { base.renderHoldCount }
+    var documentCenter: ScreenshotsDocumentCenter? { base.documentCenter }
 
     func document(for app: StoreApp, primaryLocale: StoreLocale) async throws -> ScreenshotsDocument {
         try await base.document(for: app, primaryLocale: primaryLocale)

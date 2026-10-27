@@ -25,7 +25,7 @@ extension ScreenshotPushController {
         do {
             var document = try await workspace.screenshots.document(for: app, primaryLocale: primary)
             document.scope.pin(locale.code, at: now())
-            try await workspace.screenshots.save(document, for: app)
+            try await workspace.screenshots.saveDocument(document, for: app)
         } catch {
             notice = String(localized: "Couldn’t queue the restore: \(error.localizedDescription)")
             return false

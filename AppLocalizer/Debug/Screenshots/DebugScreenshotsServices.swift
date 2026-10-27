@@ -21,13 +21,22 @@ final class DebugScreenshotsServices: ScreenshotsServices {
     var translator: any ListingTranslator = DebugCaptionTranslator()
     let renderCacheDirectory: URL? = nil
     var opening: ScreenshotsDebugOpening?
+    /// Scenes report to the shared center, which the toolbar reads; tests
+    /// keep theirs apart.
+    let documentCenter: ScreenshotsDocumentCenter?
     private let store = InMemoryScreenshotsDocumentStore()
     private let captures = MockLumenCaptureRenderer()
 
-    init(scenario: ScreenshotsDebugScenario = .standard, renderHoldCount: Int? = nil, opening: ScreenshotsDebugOpening? = nil) {
+    init(
+        scenario: ScreenshotsDebugScenario = .standard,
+        renderHoldCount: Int? = nil,
+        opening: ScreenshotsDebugOpening? = nil,
+        documentCenter: ScreenshotsDocumentCenter? = nil
+    ) {
         self.scenario = scenario
         self.renderHoldCount = renderHoldCount
         self.opening = opening
+        self.documentCenter = documentCenter
     }
 
     func document(for app: StoreApp, primaryLocale: StoreLocale) async throws -> ScreenshotsDocument {
