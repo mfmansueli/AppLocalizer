@@ -98,4 +98,21 @@ enum AppInformationCannedResponses {
         versionsWithVision,
         app,
     ]
+
+    /// The app infos, then their localizations' privacy URLs: English with
+    /// both, French with the policy only, German with neither.
+    static let privacyURLs: [CannedHTTPResponse] = [
+        appInfos,
+        page([
+            #"""
+            {"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US",\#
+            "privacyPolicyUrl":"https://lumen.example/privacy","privacyChoicesUrl":"https://lumen.example/privacy/choices"}}
+            """#,
+            #"""
+            {"type":"appInfoLocalizations","id":"loc-fr","attributes":{"locale":"fr-FR",\#
+            "privacyPolicyUrl":"https://lumen.example/fr/confidentialite","privacyChoicesUrl":null}}
+            """#,
+            #"{"type":"appInfoLocalizations","id":"loc-de","attributes":{"locale":"de-DE"}}"#,
+        ]),
+    ]
 }

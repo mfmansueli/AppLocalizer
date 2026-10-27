@@ -25,13 +25,12 @@ final class AppInformationUITests: XCTestCase {
     func testThePageColumnSwitchesPages() {
         launch(scene: "info-general")
         XCTAssertTrue(element("appInformation.general").waitForExistence(timeout: 10))
-        let column = element("appInformation.pageColumn")
-        column.staticTexts["Age Rating"].click()
+        element("appInformation.pageRow.ageRating").click()
         XCTAssertTrue(element("appInformation.ageRating").waitForExistence(timeout: 5))
-        column.staticTexts["Export Compliance"].click()
+        element("appInformation.pageRow.exportCompliance").click()
         XCTAssertTrue(element("appInformation.exportCompliance").waitForExistence(timeout: 5))
-        column.staticTexts["App Privacy"].click()
-        XCTAssertTrue(element("appInformation.appPrivacy.coming").waitForExistence(timeout: 5))
+        element("appInformation.pageRow.appPrivacy").click()
+        XCTAssertTrue(element("appInformation.appPrivacy.notASync").waitForExistence(timeout: 5))
     }
 
     func testEditingCopyrightQueuesAChange() {
@@ -68,7 +67,7 @@ final class AppInformationUITests: XCTestCase {
         copy.click()
         let toast = element("appInformation.toast")
         XCTAssertTrue(toast.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Voice Control isn’t available there")).firstMatch.exists)
+        XCTAssertTrue(text(containing: "Voice Control isn’t available there").exists)
     }
 
     func testThePublishSwitchInReview() {
@@ -78,9 +77,9 @@ final class AppInformationUITests: XCTestCase {
         let vision = app.switches["review.option.appInformation.\(lumen).accessibility.VISION"]
         XCTAssertTrue(iPhone.exists)
         XCTAssertFalse(vision.isEnabled)
-        XCTAssertTrue(app.staticTexts["2 declarations publish immediately when pushed"].exists)
+        XCTAssertTrue(text(containing: "2 declarations publish immediately when pushed").exists)
         iPhone.click()
-        XCTAssertTrue(app.staticTexts["1 declaration publishes immediately when pushed"].waitForExistence(timeout: 5))
+        XCTAssertTrue(text(containing: "1 declaration publishes immediately when pushed").waitForExistence(timeout: 5))
     }
 
     func testAnAccessibilityErrorOffersTryAgain() {
@@ -91,18 +90,28 @@ final class AppInformationUITests: XCTestCase {
 
     func testAnAssistantsAnswerShowsItsEvidence() {
         launch(scene: "info-age")
-        let evidence = app.buttons["appInformation.age.wellness.evidence"]
+        let evidence = element("appInformation.age.wellness.evidence")
         XCTAssertTrue(evidence.waitForExistence(timeout: 10))
         evidence.click()
         XCTAssertTrue(app.buttons["appInformation.evidence.confirm"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["appInformation.evidence.reject"].exists)
     }
 
+    /// Ignores saved window state, which can leave the app without a
+    /// window under XCUITest.
     private func launch(scene: String) {
         app.launch(debugScene: scene)
     }
 
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier]
+    }
+
+    /// A SwiftUI `Text` exposes its string as its value on macOS, not its
+    /// label.
+    private func text(containing string: String) -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@", string, string))
+            .firstMatch
     }
 }

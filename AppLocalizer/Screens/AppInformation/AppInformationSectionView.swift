@@ -38,6 +38,10 @@ struct AppInformationSectionView: View {
 
     private func open() async {
         let model = AppInformationViewModel(app: app, services: services, queue: queue, summaries: summaries, push: push)
+        if let request = AppInformationPageRequest.shared.take() {
+            model.page = request.page
+            if let tab = request.tab { model.privacy.tab = tab }
+        }
         viewModel = model
         await model.load()
         #if DEBUG

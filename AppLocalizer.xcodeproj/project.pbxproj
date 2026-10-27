@@ -38,7 +38,7 @@
 		000000000000000160000000 /* Embed Command Line Tool */ = {
 			isa = PBXCopyFilesBuildPhase;
 			dstPath = "";
-			dstSubfolderSpec = 6;
+			dstSubfolder = Executables;
 			files = (
 				000000000000000470000000 /* applocalizer-mcp in Embed Command Line Tool */,
 			);
@@ -116,15 +116,6 @@
 			);
 			sourceTree = "<group>";
 		};
-		000000000000000000000045 /* MCPBridge */ = {
-			isa = PBXGroup;
-			children = (
-				000000000000000000000050 /* Sources */,
-				000000000000000000000060 /* Tool */,
-			);
-			path = MCPBridge;
-			sourceTree = "<group>";
-		};
 		000000000000000000000020 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -134,6 +125,15 @@
 				000000000000000000000420 /* applocalizer-mcp */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		000000000000000000000045 /* MCPBridge */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000050 /* Sources */,
+				000000000000000000000060 /* Tool */,
+			);
+			path = MCPBridge;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

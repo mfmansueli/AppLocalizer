@@ -8,7 +8,8 @@ import Testing
 @testable import AppLocalizer
 
 /// The live services against canned App Store Connect JSON: the pages, the
-/// accessibility declarations and the summary. Nothing reaches the network.
+/// accessibility declarations, the privacy URLs and the summary. Nothing
+/// reaches the network, and worksheets stay in memory.
 @MainActor
 @Suite("LiveAppInformationServices")
 struct LiveAppInformationServicesTests {
@@ -19,6 +20,7 @@ struct LiveAppInformationServicesTests {
         LiveAppInformationServices(
             client: AppStoreConnectClient(credentials: TestKeys.credentials(), transport: transport),
             notes: InMemoryAppInformationNotesStore(),
+            privacy: InMemoryPrivacyWorksheetStore(),
             secrets: InMemorySecretStore()
         )
     }
@@ -75,11 +77,36 @@ struct LiveAppInformationServicesTests {
         #expect(content.upcomingVersion == "1.4")
     }
 
-    @Test func theSummaryHasTheRatingAndAppReview() async throws {
-        let summary = try await services(FakeHTTPTransport(Canned.content)).summary(for: app)
+    @Test func theSummaryHasTheRatingAppReviewTheWorksheetAndThePrivacyURLs() async throws {
+        let summary = try await services(FakeHTTPTransport(Canned.content + Canned.privacyURLs)).summary(for: app)
         #expect(summary.ageRating == "9+")
         #expect(summary.isAppReviewComplete)
-        #expect(summary.privacyStatus == .notStarted)
+        #expect(summary.privacy.status == .notStarted)
+        #expect(summary.privacyURLs == AppInformationSummary.PrivacyURLs(localeCount: 3, policyCount: 2, choicesCount: 1))
+    }
+
+    @Test func privacyURLsThatDontLoadLeaveTheSummaryWithoutThem() async throws {
+        let summary = try await services(FakeHTTPTransport(Canned.content + [Canned.notFound])).summary(for: app)
+        #expect(summary.ageRating == "9+")
+        #expect(summary.privacyURLs == nil)
+    }
+
+    @Test func privacyURLsAreReadFromTheAppInfoBeingPrepared() async throws {
+        let transport = FakeHTTPTransport(Canned.privacyURLs)
+        let content = try await services(transport).privacyURLs(for: app)
+        #expect(content.appInfoID == "info-next")
+        #expect(content.primaryLocale.code == "en-US")
+        #expect(content.locales.map(\.locale.code) == ["en-US", "fr-FR", "de-DE"])
+        let english = try #require(StoreLocaleCatalog.locale(code: "en-US"))
+        let french = try #require(StoreLocaleCatalog.locale(code: "fr-FR"))
+        let german = try #require(StoreLocaleCatalog.locale(code: "de-DE"))
+        #expect(content.remote(english)?.choicesURL == "https://lumen.example/privacy/choices")
+        #expect(content.remote(german)?.policyURL == "")
+        #expect(content.remote(french)?.localizationID == "loc-fr")
+        let last = try #require(transport.requests.last?.url)
+        #expect(last.path == "/v1/appInfos/info-next/appInfoLocalizations")
+        let fields = URLComponents(url: last, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "fields[appInfoLocalizations]" }
+        #expect(fields?.value == "locale,privacyPolicyUrl,privacyChoicesUrl")
     }
 
     @Test func aServerErrorIsThrown() async {

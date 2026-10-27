@@ -5,35 +5,61 @@
 
 import Foundation
 
-/// What the overview's App Information card shows for one app. Produced by
+/// What the overview's App Information cards show for one app. Produced by
 /// `AppInformationServices`.
 struct AppInformationSummary: Hashable, Sendable {
-    /// The App Privacy checklist's state. The API can't write App Privacy, so
-    /// it's tracked on this Mac.
-    enum PrivacyStatus: String, Hashable, Sendable {
-        case notStarted
-        case draft
-        case confirmed
-        case entered
-        case outOfDate
+    /// App Privacy at a glance. The API can't write App Privacy, so it
+    /// comes from the worksheet kept on this Mac.
+    struct Privacy: Hashable, Sendable {
+        var status: PrivacyWorksheetStatus = .notStarted
+        var isWorksheetDone = false
+        var openQuestionCount = 0
+        var lastScanDate: Date?
+        /// e.g. "Claude Code".
+        var lastScanAssistant: String?
 
-        var title: String {
-            switch self {
-            case .notStarted: String(localized: "Not started")
-            case .draft: String(localized: "Draft")
-            case .confirmed: String(localized: "Confirmed")
-            case .entered: String(localized: "Entered")
-            case .outOfDate: String(localized: "Out of date")
-            }
+        init() {}
+
+        init(worksheet: PrivacyWorksheet) {
+            status = worksheet.status
+            isWorksheetDone = worksheet.isDone
+            openQuestionCount = worksheet.openQuestions.count
+            lastScanDate = worksheet.lastScan?.ranAt
+            lastScanAssistant = worksheet.lastScan?.assistant
         }
 
-        /// Not started and out of date need attention.
-        var needsAttention: Bool { self == .notStarted || self == .outOfDate }
+        /// "Done", "In progress" or "Not started".
+        var worksheetTitle: String {
+            if isWorksheetDone { return String(localized: "Done") }
+            return status == .notStarted ? String(localized: "Not started") : String(localized: "In progress")
+        }
+    }
+
+    /// How many locales have each privacy URL.
+    struct PrivacyURLs: Hashable, Sendable {
+        var localeCount: Int
+        var policyCount: Int
+        var choicesCount: Int
+
+        init(localeCount: Int, policyCount: Int, choicesCount: Int) {
+            self.localeCount = localeCount
+            self.policyCount = policyCount
+            self.choicesCount = choicesCount
+        }
+
+        init(table: PrivacyURLsTable) {
+            self.init(localeCount: table.locales.count, policyCount: table.policyCount, choicesCount: table.choicesCount)
+        }
+
+        /// Locales without a valid Privacy Policy URL.
+        var missingPolicyCount: Int { max(0, localeCount - policyCount) }
     }
 
     /// e.g. "4+", "9+"; nil when no questionnaire has been answered.
     var ageRating: String?
-    var privacyStatus: PrivacyStatus
+    var privacy = Privacy()
+    /// Nil when they couldn't be read.
+    var privacyURLs: PrivacyURLs?
     /// Contact and notes are filled in.
     var isAppReviewComplete: Bool
 }

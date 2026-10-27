@@ -31,7 +31,7 @@ struct AppInformationViewModelTests {
         #expect(vm.status(for: .accessibility) == "1 published · 1 not declared")
         #expect(vm.status(for: .appReview) == "Complete")
         #expect(vm.status(for: .exportCompliance) == "Exempt")
-        #expect(vm.status(for: .appPrivacy) == nil)
+        #expect(vm.status(for: .appPrivacy) == "Out of date with App Store Connect")
     }
 
     @Test func aFailedLoadSaysWhyAndKeepsNothing() async {

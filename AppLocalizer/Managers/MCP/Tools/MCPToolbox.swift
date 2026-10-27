@@ -20,6 +20,10 @@ struct MCPToolbox {
             GetPricesTool(),
             GetPricePointsTool(),
             ProposePricesTool(),
+            GetPrivacyQuestionnaireTool(),
+            ProposePrivacyAnswersTool(),
+            GetAgeRatingTool(),
+            ProposeAgeRatingTool(),
         ])
     }
 

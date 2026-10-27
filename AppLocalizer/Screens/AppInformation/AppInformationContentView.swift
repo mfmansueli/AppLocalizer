@@ -6,7 +6,7 @@
 import SwiftUI
 
 /// The page column and the chosen page, with the accessibility editor
-/// sheet and the toast.
+/// sheet and the toast. App Privacy lays out its own columns and scrolling.
 struct AppInformationContentView: View {
     @Bindable var viewModel: AppInformationViewModel
 
@@ -14,17 +14,21 @@ struct AppInformationContentView: View {
         HStack(spacing: 0) {
             AppInformationPageColumn(viewModel: viewModel)
             Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.large) {
-                    refreshBanner
-                    page
+            if viewModel.page == .appPrivacy {
+                AppPrivacyPageView(viewModel: viewModel.privacy)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Spacing.large) {
+                        refreshBanner
+                        page
+                    }
+                    .padding(.horizontal, Spacing.xxLarge - 4)
+                    .padding(.vertical, Spacing.large + 2)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
-                .padding(.horizontal, Spacing.xxLarge - 4)
-                .padding(.vertical, Spacing.large + 2)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("appInformation.page")
             }
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("appInformation.page")
         }
         .background(Palette.content)
         .overlay(alignment: .bottom) {
@@ -44,7 +48,7 @@ struct AppInformationContentView: View {
     private var page: some View {
         switch viewModel.page {
         case .accessibility: AccessibilityPageView(viewModel: viewModel)
-        case .appPrivacy: AppPrivacyPageView()
+        case .appPrivacy: EmptyView()
         case .general, .ageRating, .appReview, .exportCompliance:
             if viewModel.isLoaded {
                 loadedPage

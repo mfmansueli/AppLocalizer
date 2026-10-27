@@ -9,7 +9,8 @@ import Foundation
 /// `AppInformationServices` for DEBUG scenes: the sample apps' canned data
 /// (`DebugAppInformationContent`), optionally failing with `error` or
 /// slowed by `delay`, and the same for accessibility on its own. Never
-/// contacts App Store Connect; notes and the demo password stay in memory.
+/// contacts App Store Connect; notes, App Privacy worksheets and the demo
+/// password stay in memory.
 ///
 /// `opening` puts the section in a scene's state once it has loaded: a
 /// page, an open sheet or popover. It runs once per scene.
@@ -20,7 +21,9 @@ struct DebugAppInformationServices: AppInformationServices {
     var accessibilitySample = DebugAppInformationContent.AccessibilitySample.lumen
     var accessibilityError: AppStoreConnectError?
     var accessibilityDelay: Duration?
+    var privacyURLsError: AppStoreConnectError?
     let notes: any AppInformationNotesStore
+    let privacy: any PrivacyWorksheetStore
     let secrets: any SecretStore
     var opening: Opening?
 
@@ -29,7 +32,8 @@ struct DebugAppInformationServices: AppInformationServices {
         delay: Duration? = nil,
         accessibilitySample: DebugAppInformationContent.AccessibilitySample = .lumen,
         accessibilityError: AppStoreConnectError? = nil,
-        accessibilityDelay: Duration? = nil
+        accessibilityDelay: Duration? = nil,
+        privacy worksheet: PrivacyWorksheet = DebugPrivacyWorksheets.overview
     ) {
         self.error = error
         self.delay = delay
@@ -37,12 +41,25 @@ struct DebugAppInformationServices: AppInformationServices {
         self.accessibilityError = accessibilityError
         self.accessibilityDelay = accessibilityDelay
         notes = InMemoryAppInformationNotesStore([DebugFixtures.AppID.lumen: DebugAppInformationContent.notes])
+        privacy = InMemoryPrivacyWorksheetStore([DebugFixtures.AppID.lumen: worksheet])
         secrets = InMemorySecretStore()
     }
 
+    /// The sample summary, with App Privacy from this scene's worksheet and
+    /// the privacy URLs' coverage.
     func summary(for app: StoreApp) async throws -> AppInformationSummary {
         if let error { throw error }
-        return DebugSummaries.appInformation(for: app.id)
+        var summary = DebugSummaries.appInformation(for: app.id)
+        summary.privacy = AppInformationSummary.Privacy(worksheet: privacy.worksheet(for: app.id))
+        if let urls = try? await privacyURLs(for: app) {
+            summary.privacyURLs = AppInformationSummary.PrivacyURLs(table: PrivacyURLsTable(appID: app.id, content: urls, changes: []))
+        }
+        return summary
+    }
+
+    func privacyURLs(for app: StoreApp) async throws -> PrivacyURLsContent {
+        if let privacyURLsError { throw privacyURLsError }
+        return DebugAppInformationContent.privacyURLs(for: app)
     }
 
     func content(for app: StoreApp, versionID: String?) async throws -> AppInformationContent {

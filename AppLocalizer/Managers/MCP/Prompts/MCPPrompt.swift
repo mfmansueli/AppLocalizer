@@ -45,7 +45,7 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
     var requiredTools: Set<String> {
         switch self {
         case .translateMissing: ["list_apps", "list_missing_translations", "get_listing", "propose_listing_text"]
-        case .fillPrivacyFromCode: ["list_apps", "get_privacy_draft", "propose_privacy_answers"]
+        case .fillPrivacyFromCode: ["list_apps", "get_privacy_questionnaire", "propose_privacy_answers"]
         case .fillAgeRating: ["list_apps", "get_age_rating", "propose_age_rating"]
         case .whatsNewFromGit: ["list_apps", "get_listing", "propose_listing_text"]
         }
@@ -92,21 +92,24 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
             """
         case .fillPrivacyFromCode:
             """
-            Draft the App Privacy answers of \(appPhrase) from this project, with AppLocalizer. Read \
-            PrivacyInfo.xcprivacy, Package.resolved and the privacy manifests of third-party SDKs, Info.plist usage \
-            strings, entitlements, App Tracking Transparency use, web views, and any chat or AI features. Call \
-            get_privacy_draft to see the current draft, then propose_privacy_answers with each data type, its \
-            purposes, whether it's linked to the person and used for tracking, and the evidence (file and line) for \
-            each. List in couldNotSee what the code can't show, such as data a server collects. Nothing is \
-            submitted: the person confirms every answer in AppLocalizer.
+            Draft the App Privacy answers of \(appPhrase) from this project, with AppLocalizer. Call \
+            get_privacy_questionnaire for Apple's definitions, the data type and purpose ids, and the answers already \
+            in the worksheet. Read PrivacyInfo.xcprivacy, Package.resolved and the privacy manifests of third-party \
+            SDKs, Info.plist usage strings, entitlements, App Tracking Transparency use, and any code that sends data \
+            off the device. Call propose_privacy_answers with collects, each data type with its purposes, whether \
+            it's linked to the person and used for tracking, a confidence and the evidence (SDK manifest entry, or \
+            file and line), and the scan details. Ask in open_questions what the code can't show, such as what a \
+            server keeps, with what Yes and No would mean. If an answer is refused, fix it and send it again. \
+            Nothing is submitted: the person reviews every answer in AppLocalizer and enters them in App Store Connect.
             """
         case .fillAgeRating:
             """
             Answer the age rating questionnaire of \(appPhrase) from this project, with AppLocalizer. Call \
-            get_age_rating for the questions and current answers. Look for user-generated content, chat, web \
-            access, gambling, contests, medical or wellness topics, and mature themes in the code and the bundled \
-            content. Call propose_age_rating with an answer and evidence (file and line) for each question, and list \
-            in couldNotSee what you couldn't check. The person reviews every answer in AppLocalizer.
+            get_age_rating for the questions, the answers each takes and the current answers. Look for user-generated \
+            content, chat, web access, advertising, gambling, contests, medical or wellness topics, and mature themes \
+            in the code and the bundled content. Call propose_age_rating with an answer, why, and evidence (file and \
+            line) for each question, and say in could_not_see what you couldn't check. The person confirms every \
+            answer in AppLocalizer before it's pushed.
             """
         case .whatsNewFromGit:
             """

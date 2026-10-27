@@ -52,11 +52,13 @@ enum MCPTestFixtures {
         changes: ChangeQueue = ChangeQueue(),
         pricingModes: PricingModeStore? = nil,
         storePage: (any StorePageServices)? = nil,
+        appInformation: (any AppInformationServices)? = nil,
         glossary: TranslationGlossary = TranslationGlossary(),
         commission: Commission = .smallBusiness
     ) -> MCPWorkspace {
         var services = WorkspaceServices.debug
         if let storePage { services.storePage = storePage }
+        if let appInformation { services.appInformation = appInformation }
         return MCPWorkspace(
             teamName: "Northpier Studio",
             services: services,

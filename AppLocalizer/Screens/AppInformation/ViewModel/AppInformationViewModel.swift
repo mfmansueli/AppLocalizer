@@ -36,10 +36,16 @@ final class AppInformationViewModel {
     /// load.
     private(set) var accessibilityErrorLine: String?
     /// What's kept on this Mac: the override's reason, export answers,
-    /// assistants' evidence.
+    /// assistants' evidence. Read from the store every time, so evidence an
+    /// assistant sends over MCP shows up, and an edit here never writes back
+    /// an older copy over it.
     var notes: AppInformationNotes {
-        didSet { services.notes.setNotes(notes, for: app.id) }
+        get { services.notes.notes(for: app.id) }
+        set { services.notes.setNotes(newValue, for: app.id) }
     }
+
+    /// The App Privacy page.
+    let privacy: AppPrivacyViewModel
 
     // MARK: - Navigation
 
@@ -69,15 +75,18 @@ final class AppInformationViewModel {
         self.queue = queue
         self.summaries = summaries
         self.push = push
-        notes = services.notes.notes(for: app.id)
+        privacy = AppPrivacyViewModel(app: app, services: services, queue: queue)
+        privacy.owner = self
     }
 
     // MARK: - Loading
 
-    /// Loads the pages, then the accessibility declarations.
+    /// Loads the pages, then the accessibility declarations, then the
+    /// privacy URLs if App Privacy showed them.
     func load() async {
         await loadContent()
         await loadAccessibility()
+        await privacy.reloadURLsIfLoaded()
     }
 
     /// Fetches General, Age Rating, App Review and Export Compliance for the
