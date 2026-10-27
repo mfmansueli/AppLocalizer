@@ -35,5 +35,25 @@ struct ScreenshotsDebugScenesTests {
         let otherDocument = try await DebugScreenshotsServices().document(for: other, primaryLocale: .englishUS)
         #expect(otherDocument.template == nil)
     }
+
+    @Test func theGlyphSceneTriesTheBrandFontWithoutSavingIt() {
+        let document = ScreenshotsDebugDocuments.thaiAndVietnamese
+        #expect(document.scope.count == 14)
+        #expect(document.history?.currentNumber == 4)
+        #expect(ScreenshotsDebugDocuments.failedChecks.history?.currentNumber == 5)
+    }
+
+    @Test func theDebugTranslatorAnswersWithTheSampleCaptions() async throws {
+        let translator = DebugCaptionTranslator(delay: .zero)
+        let polish = try #require(StoreLocaleCatalog.locale(code: "pl"))
+        let german = try #require(StoreLocaleCatalog.locale(code: "de-DE"))
+        let headline = try await translator.translateCaption("Search years of entries in seconds", from: .englishUS, to: polish)
+        #expect(headline == ScreenshotsSampleData.captionTexts["pl"]?[2])
+        let shorter = try await translator.translateCaption("Search years of entries in seconds", from: .englishUS, to: german)
+        #expect(shorter == "Einträge aus Jahren in Sekunden finden")
+        await #expect(throws: DebugCaptionTranslator.TranslationError.self) {
+            try await translator.translateCaption("Not a sample caption", from: .englishUS, to: polish)
+        }
+    }
 }
 #endif
