@@ -16,6 +16,11 @@ struct ActivitySheet: View {
     @Environment(PushController.self) private var push
     @Environment(\.dismiss) private var dismiss
     @State private var restoringScreenshots: ScreenshotRestorePresentation?
+    /// The records' height, so the sheet fits them, as the design draws it.
+    @State private var listHeight: CGFloat = 0
+
+    /// Beyond this the records scroll.
+    private static let maxListHeight: CGFloat = 420
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -34,7 +39,7 @@ struct ActivitySheet: View {
                     systemImage: "clock",
                     description: Text("Pushes from Review & Push show here with their results.")
                 )
-                .frame(maxHeight: .infinity)
+                .frame(height: 220)
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
@@ -50,7 +55,9 @@ struct ActivitySheet: View {
                             Divider()
                         }
                     }
+                    .onGeometryChange(for: CGFloat.self, of: \.size.height) { listHeight = $0 }
                 }
+                .frame(height: min(max(listHeight, 1), Self.maxListHeight))
             }
             Divider()
             HStack {
@@ -62,7 +69,7 @@ struct ActivitySheet: View {
             }
             .padding(Spacing.large)
         }
-        .frame(width: 660, height: 520)
+        .frame(width: 660)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("activity.sheet")
         .sheet(item: $restoringScreenshots) { presentation in
