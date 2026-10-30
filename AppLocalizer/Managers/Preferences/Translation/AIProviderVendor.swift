@@ -9,6 +9,7 @@ import Foundation
 enum AIProviderVendor: String, CaseIterable, Identifiable, Codable, Sendable {
     case anthropic
     case openAI
+    case gemini
 
     var id: String { rawValue }
 
@@ -16,6 +17,7 @@ enum AIProviderVendor: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .anthropic: "Anthropic"
         case .openAI: "OpenAI"
+        case .gemini: "Google Gemini"
         }
     }
 

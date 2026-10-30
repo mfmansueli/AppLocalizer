@@ -49,6 +49,12 @@ final class AppPreferences {
         didSet { defaults?.set(confirmsDiscarding, forKey: Key.confirmsDiscarding) }
     }
 
+    /// Overview → the card introducing your own AI assistant, until its
+    /// close button hides it.
+    var showsAssistantIntro: Bool {
+        didSet { defaults?.set(showsAssistantIntro, forKey: Key.showsAssistantIntro) }
+    }
+
     private let defaults: UserDefaults?
 
     /// nil keeps everything in memory (DEBUG scenes, tests).
@@ -63,6 +69,7 @@ final class AppPreferences {
         pushConfirmation = defaults?.string(forKey: Key.pushConfirmation).flatMap(PushConfirmation.init(rawValue:)) ?? .overFifty
         confirmsPriceIncreases = defaults?.object(forKey: Key.confirmsPriceIncreases) as? Bool ?? true
         confirmsDiscarding = defaults?.object(forKey: Key.confirmsDiscarding) as? Bool ?? true
+        showsAssistantIntro = defaults?.object(forKey: Key.showsAssistantIntro) as? Bool ?? true
     }
 
     private enum Key {
@@ -73,5 +80,6 @@ final class AppPreferences {
         static let pushConfirmation = "pushConfirmation"
         static let confirmsPriceIncreases = "confirmsPriceIncreases"
         static let confirmsDiscarding = "confirmsDiscarding"
+        static let showsAssistantIntro = "showsAssistantIntro"
     }
 }

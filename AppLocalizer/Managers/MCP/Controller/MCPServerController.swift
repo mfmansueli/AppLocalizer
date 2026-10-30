@@ -37,10 +37,20 @@ final class MCPServerController {
         didSet { defaults?.set(allowedProposals.map(\.rawValue).sorted(), forKey: Key.allowedProposals) }
     }
 
+    /// "Suggest and edit drafts" in the setup sheet: `suggest_fields` may
+    /// write a value as an unpushed change, marked with the assistant. Off
+    /// ("Suggest only") by default.
+    var editsDrafts: Bool {
+        didSet { defaults?.set(editsDrafts, forKey: Key.editsDrafts) }
+    }
+
     /// The open account; `MainView` sets it, and tools answer "not
     /// connected" without it.
     var workspace: MCPWorkspace?
     var toolbox: MCPToolbox
+    /// An API key set up for suggestions: with no assistant connected, the
+    /// status is Ready and the suggestion bars offer Generate Suggestions….
+    var keyAssistant: KeyAssistantController?
 
     let port: UInt16
     static let logLimit = 200
@@ -93,6 +103,7 @@ final class MCPServerController {
         isEnabled = defaults?.bool(forKey: Key.isEnabled) ?? false
         allowedProposals = defaults?.stringArray(forKey: Key.allowedProposals)
             .map { Set($0.compactMap(MCPProposalKind.init(rawValue:))) } ?? Set(MCPProposalKind.allCases)
+        editsDrafts = defaults?.bool(forKey: Key.editsDrafts) ?? false
         loadPairedClients()
     }
 
@@ -261,5 +272,6 @@ final class MCPServerController {
         static let isEnabled = "mcp.isEnabled"
         static let allowedProposals = "mcp.allowedProposals"
         static let pairedClients = "mcp.pairedClients"
+        static let editsDrafts = "mcp.editsDrafts"
     }
 }

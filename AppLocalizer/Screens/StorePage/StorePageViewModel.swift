@@ -24,6 +24,8 @@ final class StorePageViewModel {
     let queue: ChangeQueue
     let translation: TranslateMissingViewModel
     let inAppTexts: InAppTextsViewModel
+    /// Field suggestions from the built-in checks and assistants.
+    let suggestions: FieldSuggestionStore
     private let summaries: AppSummaryStore?
     private let push: PushController?
 
@@ -68,6 +70,25 @@ final class StorePageViewModel {
     /// Something to say after an action, e.g. "3 fields copied".
     var notice: String?
 
+    // MARK: - Suggestions
+
+    /// The suggestion bar's source filter.
+    var suggestionFilter: SuggestionSourceFilter = .all
+    /// "Only fields with suggestions or changes".
+    var showsOnlySuggestedFields = false
+    /// "Not Now" on the card offering to set up an assistant.
+    var hidesAssistantCTA = false
+    /// The Assistant button's Ask for Suggestions…: the bar asks once shown.
+    var requestsAsk = false
+    /// The field "Use and Edit" filled, for the editor to focus.
+    var focusRequest: ListingFieldKey?
+    /// What a suggestion action did, with Undo.
+    var toast: ToastMessage?
+    /// What the toast's Undo puts back.
+    var suggestionUndo: StorePageSuggestionUndo?
+    /// The window's, so Accept All is one step of Edit → Undo.
+    weak var undoManager: UndoManager?
+
     private var selectedVersionID: String?
     private var pendingIntent: WorkspaceIntent?
     /// The overview numbers last worked out here, to notice when they change.
@@ -77,12 +98,14 @@ final class StorePageViewModel {
         app: StoreApp,
         services: any StorePageServices,
         queue: ChangeQueue,
+        suggestions: FieldSuggestionStore = FieldSuggestionStore(),
         summaries: AppSummaryStore? = nil,
         push: PushController? = nil
     ) {
         self.app = app
         self.services = services
         self.queue = queue
+        self.suggestions = suggestions
         self.summaries = summaries
         self.push = push
         translation = TranslateMissingViewModel(translator: services.translator)
@@ -165,6 +188,7 @@ final class StorePageViewModel {
         listing = rebuilt
         if let locale = editorLocale, !rebuilt.contains(locale) { editorLocale = defaultEditorLocale }
         saveTags()
+        refreshSuggestions()
     }
 
     /// Shows an edited listing and brings the queue in line with it: new and
@@ -186,6 +210,7 @@ final class StorePageViewModel {
             return change == old ? nil : change
         })
         saveTags()
+        refreshSuggestions()
     }
 
     /// Writes the listing's machine-translation tags, and refreshes the
@@ -224,6 +249,7 @@ final class StorePageViewModel {
     static func handles(_ intent: WorkspaceIntent) -> Bool {
         switch intent {
         case .translateMissing, .findAndReplace, .importTranslations, .showScreenshots, .search: true
+        case let .reviewFieldSuggestions(area), let .askForSuggestions(area): area == .storePage
         case .reviewSuggestions, .applyRecommendedPrices, .showResults, .editPriceSchedule, .showPrices, .openAppInformationPage: false
         }
     }
@@ -242,6 +268,10 @@ final class StorePageViewModel {
         case .findAndReplace, .search: presentFindReplace()
         case .importTranslations: isImporterPresented = true
         case .showScreenshots: mode = .screenshots
+        case .reviewFieldSuggestions: openSuggestions()
+        case .askForSuggestions:
+            openSuggestions()
+            requestsAsk = true
         case .reviewSuggestions, .applyRecommendedPrices, .showResults, .editPriceSchedule, .showPrices, .openAppInformationPage: break
         }
     }

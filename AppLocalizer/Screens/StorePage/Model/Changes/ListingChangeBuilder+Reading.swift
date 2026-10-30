@@ -10,7 +10,8 @@ extension ListingChangeBuilder {
     /// values: each change's request body says which fields get which text.
     /// A text whose machine-translation tag matches (`machineTranslated`,
     /// `ListingFieldKey.id` → text) stays tagged; an assistant's change is a
-    /// proposal; anything else is your edit. An assistant's alternative to
+    /// proposal; an accepted built-in or AI provider suggestion keeps its
+    /// source; anything else is your edit. An assistant's alternative to
     /// your change becomes a conflict on the field.
     func apply(_ changes: [PendingChange], to listing: inout StoreListing, machineTranslated: [String: String] = [:]) {
         for change in changes {
@@ -25,6 +26,8 @@ extension ListingChangeBuilder {
                         draft.acceptMachineTranslation(text)
                     } else if case let .assistant(client) = change.source {
                         _ = draft.propose(text, by: client)
+                    } else if change.source == .builtInSuggestion || change.source == .aiProvider {
+                        draft.acceptSuggestion(text, from: change.source)
                     } else {
                         draft.edit(text)
                     }

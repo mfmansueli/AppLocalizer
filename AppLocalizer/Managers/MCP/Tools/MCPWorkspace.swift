@@ -22,6 +22,9 @@ struct MCPWorkspace {
     var glossary: @MainActor () -> TranslationGlossary = { TranslationGlossary() }
     /// Settings → General's commission, for proceeds and price points.
     var commission: @MainActor () -> Commission = { .smallBusiness }
+    /// Where `suggest_fields` puts suggestions; nil answers that
+    /// suggestions aren't available.
+    var suggestions: FieldSuggestionStore?
 
     /// The app an assistant means: its Apple ID, bundle ID, SKU or name (case
     /// and accents ignored). A name may also be the start of one, when only

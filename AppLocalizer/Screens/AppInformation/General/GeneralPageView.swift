@@ -9,6 +9,7 @@ import SwiftUI
 /// release for the version picked in the version menu.
 struct GeneralPageView: View {
     @Bindable var viewModel: AppInformationViewModel
+    @FocusState private var isCopyrightFocused: Bool
 
     var body: some View {
         if let content = viewModel.content, let general = viewModel.general {
@@ -17,36 +18,62 @@ struct GeneralPageView: View {
                     title: AppInformationPage.general.title,
                     subtitle: String(localized: "Category and content rights apply to the whole app. Copyright and release are set per version.")
                 )
-                categorySection(general)
-                contentRightsSection(general)
-                if let version = content.version {
+                AppInformationSuggestionsPanel(viewModel: viewModel, page: .general)
+                if showsCategories {
+                    categorySection(general)
+                }
+                if !viewModel.showsOnlySuggestedFields {
+                    contentRightsSection(general)
+                }
+                if let version = content.version, showsVersion {
                     versionSection(general, content: content, version: version)
                 }
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("appInformation.general")
+            .onChange(of: viewModel.focusRequest, initial: true) {
+                guard viewModel.focusRequest == .copyright else { return }
+                isCopyrightFocused = true
+                viewModel.focusRequest = nil
+            }
         }
+    }
+
+    /// With "Only fields with suggestions or changes" on, a section shows
+    /// while one of its suggestion fields does.
+    private var showsCategories: Bool {
+        viewModel.showsField(.primaryCategory) || viewModel.showsField(.secondaryCategory)
+    }
+
+    private var showsVersion: Bool {
+        viewModel.showsField(.copyright) || viewModel.showsField(.release)
     }
 
     private func categorySection(_ general: GeneralValues) -> some View {
         AppInformationFormSection(title: String(localized: "Category")) {
-            AppInformationFormRow(label: String(localized: "Primary")) {
-                CategoryPicker(title: String(localized: "Primary category"), selection: general.primaryCategory, categories: AppCategory.all) {
-                    viewModel.setPrimaryCategory($0)
+            if viewModel.showsField(.primaryCategory) {
+                AppInformationFormRow(label: String(localized: "Primary")) {
+                    CategoryPicker(title: String(localized: "Primary category"), selection: general.primaryCategory, categories: AppCategory.all) {
+                        viewModel.setPrimaryCategory($0)
+                    }
+                    .accessibilityIdentifier("appInformation.general.primaryCategory")
                 }
-                .accessibilityIdentifier("appInformation.general.primaryCategory")
+                AppInformationFieldSuggestions(viewModel: viewModel, field: .primaryCategory)
             }
-            Divider()
-            AppInformationFormRow(label: String(localized: "Secondary"), detail: String(localized: "· optional")) {
-                CategoryPicker(
-                    title: String(localized: "Secondary category"),
-                    selection: general.secondaryCategory,
-                    categories: AppCategory.all.filter { $0.id != general.primaryCategory },
-                    allowsNone: true
-                ) { viewModel.setSecondaryCategory($0) }
-                    .accessibilityIdentifier("appInformation.general.secondaryCategory")
+            if viewModel.showsField(.secondaryCategory) {
+                if viewModel.showsField(.primaryCategory) { Divider() }
+                AppInformationFormRow(label: String(localized: "Secondary"), detail: String(localized: "· optional")) {
+                    CategoryPicker(
+                        title: String(localized: "Secondary category"),
+                        selection: general.secondaryCategory,
+                        categories: AppCategory.all.filter { $0.id != general.primaryCategory },
+                        allowsNone: true
+                    ) { viewModel.setSecondaryCategory($0) }
+                        .accessibilityIdentifier("appInformation.general.secondaryCategory")
+                }
+                AppInformationFieldSuggestions(viewModel: viewModel, field: .secondaryCategory)
             }
-            if general.isGame {
+            if general.isGame, !viewModel.showsOnlySuggestedFields {
                 Divider()
                 AppInformationFormRow(label: String(localized: "Games subcategories"), detail: String(localized: "· up to two")) {
                     HStack(spacing: Spacing.small) {
@@ -90,43 +117,24 @@ struct GeneralPageView: View {
 
     private func versionSection(_ general: GeneralValues, content: AppInformationContent, version: StorePageVersion) -> some View {
         AppInformationFormSection(title: String(localized: "Version \(version.versionString)")) {
-            AppInformationFormRow(label: String(localized: "Copyright")) {
-                TextField(
-                    String(localized: "Copyright"),
-                    text: Binding(get: { general.copyright }, set: { viewModel.setCopyright($0) }),
-                    prompt: Text("© 2026 Your Company")
-                )
-                .labelsHidden()
-                .frame(width: 260)
-                .disabled(!content.isVersionEditable)
-                .accessibilityIdentifier("appInformation.general.copyright")
-            }
-            Divider()
-            AppInformationFormRow(label: String(localized: "Release")) {
-                Picker(String(localized: "Release"), selection: Binding(get: { general.release }, set: { $0.map(viewModel.setRelease) })) {
-                    ForEach(ReleaseOption.allCases) { option in
-                        Text(option.title).tag(ReleaseOption?.some(option))
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .disabled(!content.isVersionEditable)
-                .accessibilityIdentifier("appInformation.general.release")
-            }
-            if general.release == .scheduled {
-                Divider()
-                AppInformationFormRow(label: String(localized: "Release date"), detail: String(localized: "· earliest, after approval")) {
-                    DatePicker(
-                        String(localized: "Release date"),
-                        selection: Binding(get: { general.earliestReleaseDate ?? .now }, set: { viewModel.setReleaseDate($0) }),
-                        in: Date.now...,
-                        displayedComponents: [.date, .hourAndMinute]
+            if viewModel.showsField(.copyright) {
+                AppInformationFormRow(label: String(localized: "Copyright")) {
+                    TextField(
+                        String(localized: "Copyright"),
+                        text: Binding(get: { general.copyright }, set: { viewModel.setCopyright($0) }),
+                        prompt: Text("© 2026 Your Company")
                     )
                     .labelsHidden()
+                    .frame(width: 260)
+                    .focused($isCopyrightFocused)
                     .disabled(!content.isVersionEditable)
-                    .accessibilityIdentifier("appInformation.general.releaseDate")
+                    .accessibilityIdentifier("appInformation.general.copyright")
                 }
+                AppInformationFieldSuggestions(viewModel: viewModel, field: .copyright)
+            }
+            if viewModel.showsField(.release) {
+                if viewModel.showsField(.copyright) { Divider() }
+                releaseRows(general, content: content)
             }
             if !content.isVersionEditable {
                 Divider()
@@ -135,6 +143,37 @@ struct GeneralPageView: View {
         } trailing: {
             AppInformationVersionMenu(versions: content.versions, selected: version) { id in
                 Task { await viewModel.selectVersion(id) }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func releaseRows(_ general: GeneralValues, content: AppInformationContent) -> some View {
+        AppInformationFormRow(label: String(localized: "Release")) {
+            Picker(String(localized: "Release"), selection: Binding(get: { general.release }, set: { $0.map(viewModel.setRelease) })) {
+                ForEach(ReleaseOption.allCases) { option in
+                    Text(option.title).tag(ReleaseOption?.some(option))
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .disabled(!content.isVersionEditable)
+            .accessibilityIdentifier("appInformation.general.release")
+        }
+        AppInformationFieldSuggestions(viewModel: viewModel, field: .release)
+        if general.release == .scheduled {
+            Divider()
+            AppInformationFormRow(label: String(localized: "Release date"), detail: String(localized: "· earliest, after approval")) {
+                DatePicker(
+                    String(localized: "Release date"),
+                    selection: Binding(get: { general.earliestReleaseDate ?? .now }, set: { viewModel.setReleaseDate($0) }),
+                    in: Date.now...,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .labelsHidden()
+                .disabled(!content.isVersionEditable)
+                .accessibilityIdentifier("appInformation.general.releaseDate")
             }
         }
     }

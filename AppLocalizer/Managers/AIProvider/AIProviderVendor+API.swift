@@ -11,6 +11,7 @@ extension AIProviderVendor {
         switch self {
         case .anthropic: AnthropicMessagesAPI()
         case .openAI: OpenAIChatAPI()
+        case .gemini: GeminiGenerateAPI()
         }
     }
 }

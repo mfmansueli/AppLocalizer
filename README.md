@@ -57,6 +57,16 @@ App Store Connect or the Keychain, and the MCP server in a scene never opens a p
 - **AI Assistants settings:** `set-ai-off`, `set-ai-pair`, `set-ai-waiting`, `set-ai-on`, `set-ai-connected`,
   `set-ai-disc`, `set-ai-log`.
 - **Assistants at work:** `ai-translate`, `ai-streaming`, `ai-review`, `ai-conflict`, `overview-ai`.
+- **Suggestions and assistant setup:** the overview before and after connecting, `ov-first` and `ov-connected`; the
+  Assistant popover, `asst-pop`; the setup sheet, `setup-1` to `setup-4` and `setup-done`; the Store Page with
+  built-in suggestions only, `sp-builtin`, with Claude Code's, `sp-cc`, asking, `sp-ask`, receiving, `sp-streaming`,
+  after accepting and dismissing, `sp-accepted`, Use and Edit, `sp-edit`, and German and Japanese, `sp-de` and
+  `sp-ja`; App Information's General and App Review, `in-general` and `in-review` (`SuggestionsDebugScenes`).
+- **API key and code answers:** the setup sheet with a key, `setup-key-1`, `setup-key-2`, `setup-key-bad`,
+  `setup-key-3` and `setup-key-done`; the Store Page with a key, `sp-key`, and Generate Suggestions… open,
+  `sp-key-ask`; the Assistant popover with a key, `asst-pop-key`; Age Rating's suggested answers, `in-age`, accepted,
+  `in-age-done`, and with a key, `in-key`; Accessibility's for Apple Watch and iPhone, `in-ax` and `in-ax-iphone`
+  (`AssistDebugScenes`).
 - **Review & Push:** `review`, `review-assistant`, `push-progress`, `push-partial`, `push-conflict`, `activity`, the
   `banner-*` scenes, and more (`ReviewPushDebugScenes`).
 - **Pricing** (`PricingDebugScenes`) and **Store Page** (`StorePageDebugScenes`): one scene per design screenshot.
@@ -72,19 +82,58 @@ The UI tests run through these scenes.
 
 Settings → Translation picks who translates: Apple Translation on this Mac, an AI provider, or the assistant connected
 over MCP. The AI provider's key is kept in the Keychain and sent only to that provider (`Managers/AIProvider/`).
-Anthropic is called through the Messages API (`claude-opus-5-5`, low effort, with Anthropic's default fallback if a
-request is declined); OpenAI through Chat Completions (`OpenAIChatAPI.model`). Each field is asked for with its purpose
+The tab checks the saved key when it opens, after a key is saved and when the vendor changes, with a `GET` for the
+model translations use (no tokens spent), and says under the field whether it's saved and connected, rejected, or
+couldn't be checked. Anthropic is called through the Messages API (`claude-opus-5-5`, low effort, with Anthropic's default fallback if a
+request is declined); OpenAI through Chat Completions (`OpenAIChatAPI.model`); Google Gemini through
+`generateContent` (`GeminiGenerateAPI.model`). Each field is asked for with its purpose
 and limit, the tone, and glossary terms swapped for placeholders, so brand names are never sent for translation.
+
+## Field suggestions
+
+A suggestion is a proposed value for one field, in one Store Page language or one App Information page (General, Age
+Rating, Accessibility per device, and App Review), with a reason. It never changes the field by itself: it shows under the field with Dismiss, Use and Edit
+and Accept, and accepting queues an unpushed change tagged with who suggested it (`Managers/Suggestions/`,
+`Screens/Suggestions/`).
+
+- **Sources:** built-in checks that need nothing else (keywords that repeat the name or subtitle, empty URLs other
+  languages fill, a copyright with last year, contact details the previous version had, no advertising when App
+  Privacy's scan found none); the assistant connected over MCP (`suggest_fields`); an API key; and the AI provider.
+- **An API key** (Anthropic, OpenAI or Google Gemini), set up from the same sheet or Settings → AI Assistants, lets
+  AppLocalizer ask the model itself, without an assistant (`Managers/KeyAssistant/`). Generate Suggestions… on a Store
+  Page first lists what it will send and about how many tokens: the language's texts with their limits, and, when
+  allowed, the commit messages since the last release tag and CHANGELOG.md's section from the project folder (git
+  runs from Xcode's or the Command Line Tools' binary, else HEAD's reflog is read) and one page of the latest App Store
+  reviews. Source code is never sent. The answer is checked like an edit and its suggestions are tagged with the
+  key's API ("Anthropic API"). App Information's answers come from the code, so with only a key those pages say how
+  many need an MCP assistant. While an assistant is connected, it suggests instead of the key. The key is kept in the
+  Keychain apart from Settings → Translation's, which can use it too.
+- **The bar** above each language or page counts them, filters by source, and offers Ask (copying the prompt, since
+  AppLocalizer can't start the assistant), Dismiss All, Accept All and Accept All in Every Language. Accept All asks
+  nothing first; its toast, and Edit → Undo, put everything back.
+- **Where they show:** the language picker and App Information's page column count them, and Overview's Suggestions
+  card sums them by area and source. Built-in ones are counted once their page has loaded.
+- Suggestions and decisions are kept on this Mac (`FileFieldSuggestionPersistence`), and DEBUG scenes keep them in
+  memory.
 
 ## AI assistants (MCP)
 
 Settings → AI Assistants turns on a Streamable HTTP MCP server at `http://127.0.0.1:47321/mcp`. It's off by default,
-only accepts connections from this Mac, and runs only while the app is open (`Managers/MCP/`).
+only accepts connections from this Mac, and runs only while the app is open (`Managers/MCP/`). "Set Up Your AI
+Assistant" (from the toolbar's Assistant button, the overview or a suggestion bar) walks through choosing a client,
+turning the server on with Suggest only or Suggest and edit drafts, adding AppLocalizer to the client, and a first
+call.
 
 - **Pairing:** each assistant gets its own bearer token from the "Pair an assistant" sheet, stored in the Keychain.
   Revoking it in Settings ends its sessions.
 - **Tools:**
   - Store text: `list_apps`, `get_listing`, `list_missing_translations` and `propose_listing_text`.
+  - Field suggestions: `get_store_page` and `get_app_information` read the fields, their limits and the suggestions
+    already open; `suggest_fields` sends suggestions per item (queued, unchanged, replaced, or refused with a code:
+    `over_limit`, `unknown_field`, `unknown_locale`, `locked`, `not_permitted`, `invalid_value`). With Suggest and
+    edit drafts, `"apply": true` queues the values as changes instead. Store Page items need the store text
+    permission, App Information items the app information one. `total` drives the bar's progress while the
+    assistant sends them.
   - Prices: `get_prices`, `get_price_points` and `propose_prices`. Proceeds use the commission from Settings →
     General. Every price proposal is refused for apps set to Keep my prices, and a price that isn't a price point is
     refused with the two nearest ones.
@@ -101,7 +150,8 @@ only accepts connections from this Mac, and runs only while the app is open (`Ma
   - When a person already changed the same field, both versions are kept and Review & Push asks which to push.
   - Settings decides what assistants may propose, and the log says why a call was refused.
 - **Prompts:** `translate_missing`, `whats_new_from_git`, `fill_privacy_from_code`, `fill_age_rating`,
-  `translate_captions`, `shorten_overflowing_captions` and `revise_template`. A prompt is offered only while its
+  `translate_captions`, `shorten_overflowing_captions`, `revise_template` and `suggest` (with an optional `area`,
+  `store` or `info`). A prompt is offered only while its
   tools are.
 - **Clients:**
   - Claude Code and Cursor connect over HTTP.
@@ -119,7 +169,10 @@ only accepts connections from this Mac, and runs only while the app is open (`Ma
   - the session and the view models;
   - the AI providers' requests and replies;
   - the screenshot fit engine, renders, the push plan and its uploads, backups and restores;
-  - the MCP server (HTTP parsing, JSON-RPC, pairing, sessions, tools and prompts) and the stdio bridge.
+  - the MCP server (HTTP parsing, JSON-RPC, pairing, sessions, tools and prompts) and the stdio bridge;
+  - field suggestions: the store, the built-in checks, accepting and undoing on both pages, and the setup sheet;
+  - the API key: each vendor's models and requests, the project folder's commits and changelog, the plan and its
+    tokens, reading the answer, and adding what passes to the Store Page.
 - **UI tests:** `AppLocalizerUITests`, written with XCUITest, run against the DEBUG scenes.
 
 Run everything with `xcodebuild -scheme AppLocalizer -destination 'platform=macOS' test`.

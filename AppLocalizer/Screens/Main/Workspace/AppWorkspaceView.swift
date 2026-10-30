@@ -6,8 +6,8 @@
 import SwiftUI
 
 /// The detail column for the selected app: the toolbar (title, section
-/// picker, the assistant indicator while assistants matter, Refresh,
-/// Activity and Review & Push) over the current section.
+/// picker, the Assistant button, Refresh, Activity and Review & Push) over
+/// the current section.
 struct AppWorkspaceView: View {
     let app: StoreApp
     /// Every app in the library.
@@ -68,13 +68,20 @@ struct AppWorkspaceView: View {
                 // own it pushed Review & Push into the overflow menu at the
                 // default window width.
                 ToolbarItemGroup(placement: .primaryAction) {
-                    if assistantActivity.isVisible {
-                        AssistantToolbarIndicator(activity: assistantActivity, center: screenshotDocuments, appName: push.appName) { client in
-                            navigator.reviewProposals(from: client)
-                        }
-                        .onGeometryChange(for: CGFloat.self, of: \.size.width) { toolbarLayout.indicatorWidth = $0 }
-                        .onDisappear { toolbarLayout.indicatorWidth = 0 }
-                    }
+                    AssistantToolbarIndicator(
+                        activity: assistantActivity,
+                        status: assistants.assistantStatus,
+                        client: assistants.leadingClient,
+                        editsDrafts: assistants.editsDrafts,
+                        recentCalls: assistants.leadingClient.map { assistants.recentCalls(of: $0.name) } ?? [],
+                        center: screenshotDocuments,
+                        appName: push.appName,
+                        onReview: { client in navigator.reviewProposals(from: client) },
+                        onAsk: askForSuggestions,
+                        onSetUp: { navigator.isAssistantSetupPresented = true }
+                    )
+                    .onGeometryChange(for: CGFloat.self, of: \.size.width) { toolbarLayout.indicatorWidth = $0 }
+                    .onDisappear { toolbarLayout.indicatorWidth = 0 }
                     Button {
                         navigator.refresh()
                     } label: {
@@ -107,6 +114,15 @@ struct AppWorkspaceView: View {
             screenshotProposals: screenshotDocuments?.waitingClients(in: library) ?? [:],
             keepsVisible: screenshotDocuments?.presentedProposals != nil
         )
+    }
+
+    /// "Ask for Suggestions…": App Information's page when it's open, else
+    /// the Store Page, which copies the prompt and waits.
+    /// An API key only generates Store Page text.
+    private func askForSuggestions() {
+        let onInformation = navigator.section == .appInformation && !assistants.assistantStatus.isReady
+        let area: SuggestionArea = onInformation ? .appInformation : .storePage
+        navigator.open(area.section, intent: .askForSuggestions(area), appID: app.id)
     }
 
     /// Screenshot proposals waiting per app, and their sheet.

@@ -27,8 +27,13 @@ enum AIProviderError: LocalizedError, Equatable {
         case 429: self = .rateLimited(vendor)
         case 500, 502, 503, 504, 529: self = .unavailable(vendor)
         default:
-            // Anthropic and OpenAI both send `{"error": {"message": …}}`.
+            // Anthropic, OpenAI and Gemini all send `{"error": {"message": …}}`.
             let message = (try? JSONDecoder().decode(ErrorBody.self, from: body))?.error?.message
+            // Gemini answers a wrong key with 400 "API key not valid".
+            if vendor == .gemini, statusCode == 400, message?.localizedCaseInsensitiveContains("API key") == true {
+                self = .unauthorized(vendor)
+                return
+            }
             self = .rejected(vendor, statusCode: statusCode, message: message)
         }
     }

@@ -16,6 +16,9 @@ struct OverviewSectionView: View {
     @Environment(PushHistory.self) private var history
     @Environment(PricingModeStore.self) private var pricingModes
     @Environment(WorkspaceNavigator.self) private var navigator
+    @Environment(AppPreferences.self) private var preferences
+    @Environment(MCPServerController.self) private var assistants
+    @Environment(FieldSuggestionStore.self) private var suggestions
 
     var body: some View {
         ScrollView {
@@ -35,6 +38,7 @@ struct OverviewSectionView: View {
                         InlineMessage.error(message)
                             .accessibilityIdentifier("overview.error")
                     }
+                    assistantCard
                     cards
                 }
             }
@@ -45,8 +49,41 @@ struct OverviewSectionView: View {
         .task(id: app.id) { await summaries.load(app) }
     }
 
+    /// Before an assistant is connected or a key set up, the card
+    /// introducing them (until hidden); after, which one and what it can do.
+    @ViewBuilder
+    private var assistantCard: some View {
+        let status = assistants.assistantStatus
+        if status.isConnected, let client = assistants.leadingClient {
+            AssistantConnectedCard(client: client, editsDrafts: assistants.editsDrafts) {
+                navigator.open(.storePage, intent: .askForSuggestions(.storePage))
+            } onDetails: {
+                navigator.requestsAssistantPopover = true
+            }
+        } else if case let .ready(client) = status, let summary = assistants.keyAssistant?.summary {
+            AssistantConnectedCard(keyClient: client, summary: summary) {
+                navigator.open(.storePage, intent: .askForSuggestions(.storePage))
+            } onDetails: {
+                navigator.requestsAssistantPopover = true
+            }
+        } else if !status.canSuggest, preferences.showsAssistantIntro {
+            AssistantIntroCard(appName: app.name, status: status) {
+                navigator.isAssistantSetupPresented = true
+            } onWhatItDoes: {
+                navigator.requestsAssistantPopover = true
+            } onHide: {
+                preferences.showsAssistantIntro = false
+            }
+        }
+    }
+
     private var cards: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: Metrics.overviewCardMinimumWidth), spacing: 14, alignment: .top)], alignment: .leading, spacing: 14) {
+            SuggestionsCard(summary: SuggestionsSummary(open: suggestions.open(for: app.id)), assistant: assistants.assistantStatus.clientName) {
+                navigator.open(.storePage, intent: .reviewFieldSuggestions(.storePage))
+            } onReviewAppInformation: {
+                navigator.open(.appInformation, intent: .reviewFieldSuggestions(.appInformation))
+            }
             if let pricing {
                 SubscriptionsCard(summary: pricing)
                 if pricing.sellsAnything {

@@ -27,7 +27,9 @@ struct MainView: View {
     @Environment(AppPreferences.self) private var preferences
     @Environment(PricingModeStore.self) private var pricingModes
     @Environment(MCPServerController.self) private var assistants
+    @Environment(KeyAssistantController.self) private var keyAssistant
     @Environment(TranslationPreferences.self) private var translation
+    @Environment(FieldSuggestionStore.self) private var suggestions
 
     init(
         credentials: AppStoreConnectCredentials,
@@ -75,6 +77,7 @@ struct MainView: View {
         case .review: navigator.isReviewPresented = true
         case let .proposals(client): navigator.reviewProposals(from: client)
         case .activity: navigator.isActivityPresented = true
+        case .assistantSetup: navigator.isAssistantSetupPresented = true
         case nil: break
         }
         _navigator = State(initialValue: navigator)
@@ -88,6 +91,14 @@ struct MainView: View {
             .sheet(isPresented: $navigator.isActivityPresented, onDismiss: navigator.activityDidClose) {
                 ActivitySheet()
             }
+            .sheet(isPresented: $navigator.isAssistantSetupPresented, onDismiss: { navigator.assistantSetupMethod = nil }, content: {
+                AssistantSetupSheet(
+                    assistants: assistants,
+                    keyAssistant: keyAssistant,
+                    appName: viewModel.selectedApp?.name ?? String(localized: "your app"),
+                    method: navigator.assistantSetupMethod
+                )
+            })
             .task { configurePush() }
             .task { attachAssistants() }
             .onDisappear { assistants.workspace = nil }
@@ -203,7 +214,8 @@ struct MainView: View {
             pricingModes: pricingModes,
             apps: loadedApps,
             glossary: { [translation] in translation.glossary },
-            commission: { [preferences] in Commission(preferenceRate: preferences.commissionRate) }
+            commission: { [preferences] in Commission(preferenceRate: preferences.commissionRate) },
+            suggestions: suggestions
         )
     }
 

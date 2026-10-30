@@ -24,6 +24,15 @@ final class WorkspaceNavigator {
     /// Set by Activity's "Restore Previous Values": Review & Push opens once
     /// Activity has closed (macOS shows one sheet at a time).
     var opensReviewAfterActivity = false
+    /// "Set Up Your AI Assistant" (the Assistant button, the overview, the
+    /// suggestion bars).
+    var isAssistantSetupPresented = false
+    /// The method the setup sheet opens on, e.g. an assistant from "Add an
+    /// MCP Assistant…"; nil opens where setup left off.
+    var assistantSetupMethod: AssistantSetupMethod?
+    /// Asks the toolbar's Assistant button to show its popover (the
+    /// overview's What Can It Do? and Details); the button clears it.
+    var requestsAssistantPopover = false
     /// The view that asked to hide the sidebar (Screenshots' Template tab);
     /// nil shows it. Only that view can bring it back, so one that's
     /// leaving can't undo another's request.

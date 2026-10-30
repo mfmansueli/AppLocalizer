@@ -23,6 +23,9 @@ final class AppInformationViewModel {
     let app: StoreApp
     let services: any AppInformationServices
     let queue: ChangeQueue
+    /// Field suggestions for General and App Review, from the built-in
+    /// checks and assistants.
+    let suggestions: FieldSuggestionStore
     private let summaries: AppSummaryStore?
     private let push: PushController?
 
@@ -61,18 +64,45 @@ final class AppInformationViewModel {
     var showsExportEvidence = false
     var isPasswordVisible = false
 
+    // MARK: - Suggestions
+
+    /// The suggestion bar's source filter.
+    var suggestionFilter: SuggestionSourceFilter = .all
+    /// "Only fields with suggestions or changes".
+    var showsOnlySuggestedFields = false
+    /// "Not Now" on the card offering to set up an assistant.
+    var hidesAssistantCTA = false
+    /// The Assistant button's Ask for Suggestions…: the bar asks once shown.
+    var requestsAsk = false
+    /// The field "Use and Edit" filled, for the page to focus.
+    var focusRequest: AppInformationSuggestionField?
+    /// The device Accessibility's suggestions are shown for.
+    var accessibilitySuggestionFamily: DeviceFamily = .iPhone
+    /// What a suggestion action did, with Undo. `toast` stays the page's
+    /// plain message.
+    var suggestionToast: ToastMessage?
+    /// What the toast's Undo puts back.
+    var suggestionUndo: AppInformationSuggestionUndo?
+    /// The window's, so Accept All is one step of Edit → Undo.
+    weak var undoManager: UndoManager?
+    /// The version before the shown one's App Review details, for the
+    /// built-in contact suggestions.
+    var previousReview: AppInformationBuiltInSuggestions.PreviousReview?
+
     private var selectedVersionID: String?
 
     init(
         app: StoreApp,
         services: any AppInformationServices,
         queue: ChangeQueue,
+        suggestions: FieldSuggestionStore = FieldSuggestionStore(),
         summaries: AppSummaryStore? = nil,
         push: PushController? = nil
     ) {
         self.app = app
         self.services = services
         self.queue = queue
+        self.suggestions = suggestions
         self.summaries = summaries
         self.push = push
         privacy = AppPrivacyViewModel(app: app, services: services, queue: queue)
@@ -99,6 +129,8 @@ final class AppInformationViewModel {
             content = try await services.content(for: app, versionID: selectedVersionID)
             errorMessage = nil
             refreshSummaryIfNeeded(after: previous)
+            if let content { previousReview = await services.previousReview(for: app, content: content) }
+            refreshSuggestions()
         } catch {
             errorMessage = AppInformationErrorReporter.report(error, to: push)
         }
@@ -149,6 +181,7 @@ final class AppInformationViewModel {
     func apply(_ change: PendingChange?, id: String) {
         guard var change else {
             queue.discard(id: id)
+            refreshSuggestions()
             return
         }
         if let old = queue.change(id: change.id) {
@@ -159,6 +192,7 @@ final class AppInformationViewModel {
             if old.source.isAssistant, !change.source.isAssistant { queue.discard(id: old.id) }
         }
         queue.upsert(change)
+        refreshSuggestions()
     }
 
     /// Tells the overview and sidebar when a reload brought a different

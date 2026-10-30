@@ -36,7 +36,7 @@ struct QueuedPrice: Hashable, Sendable {
     var isManual: Bool {
         switch source {
         case .you, .restore, .assistant: true
-        case .suggestion, .machineTranslation: false
+        case .suggestion, .builtInSuggestion, .aiProvider, .machineTranslation: false
         }
     }
 }

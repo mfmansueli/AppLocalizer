@@ -10,6 +10,8 @@ import SwiftUI
 struct AppInformationPageRow: View {
     let page: AppInformationPage
     let status: String?
+    /// Open suggestions on the page: "2 suggestions" replaces the status.
+    var suggestionCount = 0
     let hasPendingChanges: Bool
 
     var body: some View {
@@ -17,10 +19,10 @@ struct AppInformationPageRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(page.title)
                     .lineLimit(1)
-                if let status {
-                    Text(status)
+                if let subtitle {
+                    Text(subtitle)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(suggestionCount > 0 ? AnyShapeStyle(Palette.machineTranslated) : AnyShapeStyle(.secondary))
                         .lineLimit(1)
                 }
             }
@@ -35,9 +37,17 @@ struct AppInformationPageRow: View {
         .accessibilityIdentifier("appInformation.pageRow.\(page.rawValue)")
     }
 
-    /// "Age Rating, 9+, not pushed".
+    private var subtitle: String? {
+        switch suggestionCount {
+        case 0: status
+        case 1: String(localized: "1 suggestion")
+        default: String(localized: "\(suggestionCount) suggestions")
+        }
+    }
+
+    /// "Age Rating, 9+, not pushed" or "General, 2 suggestions".
     private var accessibilityText: String {
-        [page.title, status, hasPendingChanges ? String(localized: "not pushed") : nil].compactMap(\.self).joined(separator: ", ")
+        [page.title, subtitle, hasPendingChanges ? String(localized: "not pushed") : nil].compactMap(\.self).joined(separator: ", ")
     }
 }
 

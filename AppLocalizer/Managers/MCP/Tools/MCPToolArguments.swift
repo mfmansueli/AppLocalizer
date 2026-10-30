@@ -52,6 +52,20 @@ struct MCPToolArguments: Hashable, Sendable {
         return array
     }
 
+    /// nil when absent or null.
+    func optionalInt(_ name: String) throws -> Int? {
+        guard let value = values[name], !value.isNull else { return nil }
+        guard let int = value.intValue else { throw MCPToolError.invalidArgument(name: name, expected: String(localized: "a whole number")) }
+        return int
+    }
+
+    /// nil when absent or null.
+    func optionalBool(_ name: String) throws -> Bool? {
+        guard let value = values[name], !value.isNull else { return nil }
+        guard let bool = value.boolValue else { throw MCPToolError.invalidArgument(name: name, expected: String(localized: "true or false")) }
+        return bool
+    }
+
     func optionalObject(_ name: String) throws -> [String: JSONValue]? {
         guard let value = values[name], !value.isNull else { return nil }
         guard let object = value.objectValue else { throw MCPToolError.invalidArgument(name: name, expected: String(localized: "an object")) }

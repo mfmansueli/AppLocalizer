@@ -16,6 +16,9 @@ final class FakeStorePageServices: StorePageServices {
     var defaultVersionID: String
     var error: (any Error)?
     var inAppTextsContent = InAppTextsContent.empty
+    /// What `customerReviews(for:limit:)` returns, or why it fails.
+    var reviews: [CustomerReview] = []
+    var reviewsError: (any Error)?
     var screenshots: any ScreenshotsServices = FakeScreenshotsServices()
     let translator: any ListingTranslator
     let machineTranslations: any MachineTranslationStore
@@ -50,5 +53,10 @@ final class FakeStorePageServices: StorePageServices {
     func inAppTexts(for _: StoreApp) async throws -> InAppTextsContent {
         if let error { throw error }
         return inAppTextsContent
+    }
+
+    func customerReviews(for _: StoreApp, limit: Int) async throws -> [CustomerReview] {
+        if let reviewsError { throw reviewsError }
+        return Array(reviews.prefix(limit))
     }
 }

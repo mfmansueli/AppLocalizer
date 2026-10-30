@@ -5,9 +5,9 @@
 
 import SwiftUI
 
-/// Accessibility: one card per device family the app supports, loading
-/// and error states, the never-declared explanation, Other Devices and the
-/// accessibility URL.
+/// Accessibility: suggested answers for one device at a time, one card per
+/// device family the app supports, loading and error states, the
+/// never-declared explanation, Other Devices and the accessibility URL.
 struct AccessibilityPageView: View {
     @Bindable var viewModel: AppInformationViewModel
 
@@ -44,6 +44,7 @@ struct AccessibilityPageView: View {
     @ViewBuilder
     private var loaded: some View {
         let cards = viewModel.accessibilityCards
+        AccessibilitySuggestionsSection(viewModel: viewModel)
         if viewModel.isNeverDeclared, let first = cards.first {
             AccessibilityEmptyState(appName: viewModel.app.name, firstFamily: first.family) {
                 viewModel.openEditor(first.family)

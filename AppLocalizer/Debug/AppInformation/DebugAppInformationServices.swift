@@ -22,6 +22,9 @@ struct DebugAppInformationServices: AppInformationServices {
     var accessibilityError: AppStoreConnectError?
     var accessibilityDelay: Duration?
     var privacyURLsError: AppStoreConnectError?
+    /// Lumen's 1.4 still says © 2025 and has no contact phone, which 1.3's
+    /// App Review details had: what the built-in suggestions find.
+    var hasOutdatedDetails = false
     let notes: any AppInformationNotesStore
     let privacy: any PrivacyWorksheetStore
     let secrets: any SecretStore
@@ -68,7 +71,18 @@ struct DebugAppInformationServices: AppInformationServices {
         guard app.id == DebugFixtures.AppID.lumen else {
             return DebugAppInformationContent.released(app, versionString: DebugSummaries.storePage(for: app.id).versionString ?? "1.0")
         }
-        return DebugAppInformationContent.lumen(versionID: versionID)
+        var content = DebugAppInformationContent.lumen(versionID: versionID)
+        if hasOutdatedDetails, content.isVersionEditable {
+            content.general.copyright = "© 2025 Northpier Studio"
+            content.general.release = .manual
+            content.review.phone = ""
+        }
+        return content
+    }
+
+    func previousReview(for app: StoreApp, content: AppInformationContent) async -> AppInformationBuiltInSuggestions.PreviousReview? {
+        guard app.id == DebugFixtures.AppID.lumen, content.isVersionEditable else { return nil }
+        return AppInformationBuiltInSuggestions.PreviousReview(versionString: "1.3", review: DebugAppInformationContent.review)
     }
 
     func accessibility(for app: StoreApp) async throws -> AccessibilityContent {

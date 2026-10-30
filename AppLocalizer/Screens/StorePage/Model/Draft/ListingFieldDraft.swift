@@ -15,6 +15,9 @@ import Foundation
 ///   reviewed, even after it's pushed.
 /// - An assistant proposing over a change of yours doesn't overwrite it:
 ///   both are kept as a conflict, and you pick one before pushing.
+/// - An accepted field suggestion keeps its source while it's pending: an
+///   assistant's as `proposedBy`, a built-in check's or the AI provider's
+///   as `suggestionSource`. Editing it makes it yours.
 /// - Discarding returns to the remote value and clears every tag.
 struct ListingFieldDraft: Hashable, Sendable {
     /// What App Store Connect has, as of the last fetch or push.
@@ -28,6 +31,9 @@ struct ListingFieldDraft: Hashable, Sendable {
     private(set) var proposedBy: String?
     /// An assistant's different proposal for a field you had already changed.
     private(set) var conflictingProposal: ListingAssistantProposal?
+    /// The built-in check or AI provider whose accepted suggestion `local`
+    /// is, while it's pending (`.builtInSuggestion` or `.aiProvider`).
+    private(set) var suggestionSource: ChangeSource?
 
     init(remote: String = "", local: String? = nil, isMachineTranslated: Bool = false, proposedBy: String? = nil) {
         self.remote = remote
@@ -35,6 +41,7 @@ struct ListingFieldDraft: Hashable, Sendable {
         self.isMachineTranslated = isMachineTranslated
         self.proposedBy = proposedBy
         conflictingProposal = nil
+        suggestionSource = nil
     }
 
     /// The local value differs from App Store Connect's.
@@ -45,6 +52,7 @@ struct ListingFieldDraft: Hashable, Sendable {
     /// Who the pending value came from, for the review sheet's source tag.
     var source: ChangeSource {
         if let proposedBy { return .assistant(client: proposedBy) }
+        if let suggestionSource { return suggestionSource }
         return isMachineTranslated ? .machineTranslation : .you
     }
 
@@ -53,6 +61,7 @@ struct ListingFieldDraft: Hashable, Sendable {
         local = value
         isMachineTranslated = false
         proposedBy = nil
+        suggestionSource = nil
         guard let proposal = conflictingProposal else { return }
         if proposal.value == value {
             conflictingProposal = nil
@@ -68,6 +77,20 @@ struct ListingFieldDraft: Hashable, Sendable {
     mutating func acceptMachineTranslation(_ value: String) {
         edit(value)
         isMachineTranslated = true
+    }
+
+    /// You accepted a field suggestion: the value is yours to push, tagged
+    /// with who suggested it while it's pending. An assistant's other
+    /// proposal for the field is dropped: you decided.
+    mutating func acceptSuggestion(_ value: String, from source: ChangeSource) {
+        conflictingProposal = nil
+        edit(value)
+        guard isPending else { return }
+        switch source {
+        case let .assistant(client): proposedBy = client
+        case .builtInSuggestion, .aiProvider: suggestionSource = source
+        case .you, .suggestion, .machineTranslation, .restore: break
+        }
     }
 
     /// "Mark Reviewed": the text stays, the tag goes.
@@ -86,6 +109,7 @@ struct ListingFieldDraft: Hashable, Sendable {
         proposedBy = isPending ? client : nil
         isMachineTranslated = false
         conflictingProposal = nil
+        suggestionSource = nil
         return .queued
     }
 
@@ -105,6 +129,7 @@ struct ListingFieldDraft: Hashable, Sendable {
         isMachineTranslated = false
         proposedBy = nil
         conflictingProposal = nil
+        suggestionSource = nil
     }
 
     /// "Reject All from <client>": drops that assistant's proposals only.
@@ -129,6 +154,7 @@ struct ListingFieldDraft: Hashable, Sendable {
         remote = local
         proposedBy = nil
         conflictingProposal = nil
+        suggestionSource = nil
     }
 
     /// A fresh fetch. An untouched field follows the new value; a pending
@@ -137,6 +163,9 @@ struct ListingFieldDraft: Hashable, Sendable {
         let wasPending = isPending
         remote = value
         if !wasPending { local = value }
-        if !isPending { proposedBy = nil }
+        if !isPending {
+            proposedBy = nil
+            suggestionSource = nil
+        }
     }
 }

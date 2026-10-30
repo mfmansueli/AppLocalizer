@@ -51,6 +51,13 @@ extension MCPServerController {
         pendingPairing = nil
     }
 
+    /// "Finish Without Testing": the client keeps its token and counts as
+    /// paired, and the Assistant button waits for its first call.
+    func finishPairingWithoutTesting() {
+        if pendingPairing?.isConnected == false { _ = completePairing() }
+        pendingPairing = nil
+    }
+
     /// Revoke: the client is disconnected now and its token stops working.
     func revoke(_ clientID: MCPPairedClient.ID) {
         for session in sessions where session.pairedClientID == clientID {
@@ -123,7 +130,8 @@ extension MCPServerController {
         savePairedClients()
     }
 
-    /// The pending client connected: it's paired from now on.
+    /// The pending client connected (or the person finished without
+    /// testing): it's paired from now on.
     private func completePairing() -> MCPPairedClient.ID? {
         guard var pairing = pendingPairing else { return nil }
         let client = MCPPairedClient(id: pairing.clientID, kind: pairing.kind, name: pairing.kind.title, pairedAt: now())

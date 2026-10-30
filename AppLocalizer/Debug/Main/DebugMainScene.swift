@@ -17,6 +17,7 @@ struct DebugMainScene: View {
     @State private var history: PushHistory
     @State private var push: PushController
     @State private var pricingModes: PricingModeStore
+    @State private var suggestions: FieldSuggestionStore
     private let autoPush: Bool
     private let presentedSheet: WorkspaceSheet?
     private let notice: PushNotice?
@@ -30,6 +31,7 @@ struct DebugMainScene: View {
         pendingChanges: [PendingChange] = DebugWorkspace.pendingChanges,
         pushRecords: [PushRecord] = DebugWorkspace.pushRecords,
         pricingModes: [StoreApp.ID: PricingMode] = DebugWorkspace.pricingModes,
+        suggestions: FieldSuggestionStore = FieldSuggestionStore(),
         presentedSheet: WorkspaceSheet? = nil,
         autoPush: Bool = false,
         notice: PushNotice? = nil,
@@ -50,6 +52,7 @@ struct DebugMainScene: View {
         // pushing in a scene never reads the Keychain.
         _push = State(initialValue: PushController(queue: changes, history: history, transport: services.push, secrets: services.appInformation.secrets))
         _pricingModes = State(initialValue: PricingModeStore(defaults: nil, modes: pricingModes))
+        _suggestions = State(initialValue: suggestions)
     }
 
     var body: some View {
@@ -67,6 +70,7 @@ struct DebugMainScene: View {
         .environment(history)
         .environment(push)
         .environment(pricingModes)
+        .environment(suggestions)
         .task {
             // Push scenes start with every pending change already sending.
             if autoPush, push.phase == .idle { push.push(changes.changes) }

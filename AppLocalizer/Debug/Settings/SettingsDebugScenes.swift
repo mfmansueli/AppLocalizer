@@ -10,14 +10,15 @@ import SwiftUI
 /// Settings DEBUG scenes (`-AppLocalizerDebugScene <id>`): `set-account`,
 /// `set-pricing`, `set-translation` and `set-general` open the real Settings
 /// window on that tab, with the design's two saved keys (Northpier Studio
-/// in use, Brightline Apps without Sales and Trends) and its glossary. The
+/// in use, Brightline Apps without Sales and Trends) and its glossary.
+/// `set-translation-rejected` saves an Anthropic key the vendor refuses. The
 /// `set-ai-*` scenes open AI Assistants with the server off, pairing,
 /// paired (`set-ai-on`, also `set-ai-connected`), a client disconnected, or
 /// the activity log; `set-ai-waiting` is the pairing sheet waiting. The
 /// main window closes, so the Settings window is the only one.
 enum SettingsDebugScenes {
     static let ids = [
-        "set-account", "set-pricing", "set-translation", "set-general",
+        "set-account", "set-pricing", "set-translation", "set-translation-rejected", "set-general",
         "set-ai-off", "set-ai-pair", "set-ai-waiting", "set-ai-on", "set-ai-connected", "set-ai-disc", "set-ai-log",
     ]
 
@@ -27,7 +28,7 @@ enum SettingsDebugScenes {
         switch id {
         case "set-account": .account
         case "set-pricing": .pricing
-        case "set-translation": .translation
+        case "set-translation", "set-translation-rejected": .translation
         case "set-general": .general
         case _ where assistantsState(for: id) != nil: .assistants
         default: nil
@@ -67,9 +68,14 @@ enum SettingsDebugScenes {
         ])
     }
 
-    /// Translation shows a saved Anthropic key as dots.
+    /// Translation shows a saved Anthropic key as dots: one that works, or
+    /// one `DebugAIProviderKeyChecker` rejects.
     static func secretStore(for id: String) -> InMemorySecretStore {
-        id == "set-translation" ? InMemorySecretStore(secrets: [AIProviderVendor.anthropic.secretName: "sk-ant-debug"]) : InMemorySecretStore()
+        switch id {
+        case "set-translation": InMemorySecretStore(secrets: [AIProviderVendor.anthropic.secretName: "sk-ant-debug"])
+        case "set-translation-rejected": InMemorySecretStore(secrets: [AIProviderVendor.anthropic.secretName: DebugAIProviderKeyChecker.rejectedKey])
+        default: InMemorySecretStore()
+        }
     }
 
     @MainActor

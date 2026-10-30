@@ -22,6 +22,14 @@ struct AIProviderErrorTests {
         #expect(error.errorDescription == "OpenAI returned an error (404). The model does not exist.")
     }
 
+    @Test func geminiAnswersAWrongKeyWith400() {
+        let body = Data(#"{"error":{"code":400,"message":"API key not valid. Please pass a valid API key."}}"#.utf8)
+        #expect(AIProviderError(vendor: .gemini, statusCode: 400, body: body) == .unauthorized(.gemini))
+        let other = Data(#"{"error":{"code":400,"message":"Invalid JSON payload."}}"#.utf8)
+        #expect(AIProviderError(vendor: .gemini, statusCode: 400, body: other) == .rejected(.gemini, statusCode: 400, message: "Invalid JSON payload."))
+        #expect(AIProviderError(vendor: .openAI, statusCode: 400, body: body) != .unauthorized(.openAI))
+    }
+
     @Test func aRejectionWithoutABodyKeepsTheStatus() {
         let error = AIProviderError(vendor: .anthropic, statusCode: 413, body: Data())
         #expect(error.errorDescription == "Anthropic returned an error (413).")

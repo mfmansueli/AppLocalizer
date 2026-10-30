@@ -13,8 +13,10 @@ struct AppLocalizerApp: App {
     @State private var push: PushController
     @State private var pricingModes = PricingModeStore(defaults: Self.defaults)
     @State private var preferences = AppPreferences(defaults: Self.defaults)
-    @State private var translation = TranslationPreferences(defaults: Self.defaults, secrets: Self.secretStore)
-    @State private var assistants = MCPServerController(server: Self.httpServer, secrets: Self.secretStore, defaults: Self.defaults)
+    @State private var translation: TranslationPreferences
+    @State private var assistants: MCPServerController
+    @State private var keyAssistant: KeyAssistantController
+    @State private var suggestions = FieldSuggestionStore(persistence: Self.suggestionPersistence)
 
     init() {
         let changes = ChangeQueue(persistence: Self.changePersistence)
@@ -22,6 +24,18 @@ struct AppLocalizerApp: App {
         _changes = State(initialValue: changes)
         _history = State(initialValue: history)
         _push = State(initialValue: PushController(queue: changes, history: history))
+        let translation = TranslationPreferences(defaults: Self.defaults, secrets: Self.secretStore)
+        let keyAssistant = KeyAssistantController(
+            service: Self.keyAssistantService,
+            secrets: Self.secretStore,
+            defaults: Self.defaults,
+            translation: translation
+        )
+        let assistants = MCPServerController(server: Self.httpServer, secrets: Self.secretStore, defaults: Self.defaults)
+        assistants.keyAssistant = keyAssistant
+        _translation = State(initialValue: translation)
+        _keyAssistant = State(initialValue: keyAssistant)
+        _assistants = State(initialValue: assistants)
     }
 
     var body: some Scene {
@@ -37,6 +51,8 @@ struct AppLocalizerApp: App {
                 .environment(preferences)
                 .environment(translation)
                 .environment(assistants)
+                .environment(keyAssistant)
+                .environment(suggestions)
                 .environment(\.keyChecker, Self.keyChecker)
                 .frame(minWidth: Metrics.minimumWindowWidth, minHeight: Metrics.minimumWindowHeight)
                 // The local MCP server runs while AppLocalizer is open, if
@@ -60,7 +76,9 @@ struct AppLocalizerApp: App {
             .environment(preferences)
             .environment(translation)
             .environment(assistants)
+            .environment(keyAssistant)
             .environment(\.keyChecker, Self.keyChecker)
+            .environment(\.aiProviderKeyChecker, Self.aiProviderKeyChecker)
         }
     }
 
@@ -94,6 +112,24 @@ struct AppLocalizerApp: App {
         if let id = DebugScene.requestedID { return ConnectDebugScenes.keyChecker(for: id) }
         #endif
         return LiveKeyChecker()
+    }
+
+    /// DEBUG scenes answer API key requests from canned data, never from
+    /// the vendor.
+    private static var keyAssistantService: any KeyAssistantService {
+        #if DEBUG
+        if DebugScene.requestedID != nil { return DebugKeyAssistantService() }
+        #endif
+        return LiveKeyAssistantService()
+    }
+
+    /// DEBUG scenes check AI provider keys with canned answers, never with
+    /// the vendor.
+    private static var aiProviderKeyChecker: any AIProviderKeyChecker {
+        #if DEBUG
+        if DebugScene.requestedID != nil { return DebugAIProviderKeyChecker() }
+        #endif
+        return LiveAIProviderKeyChecker()
     }
 
     private static var initialSettingsTab: SettingsTab {
@@ -132,6 +168,10 @@ struct AppLocalizerApp: App {
 
     private static var changePersistence: (any ChangeQueuePersistence)? {
         isDebugScene ? nil : FileChangeQueuePersistence()
+    }
+
+    private static var suggestionPersistence: (any FieldSuggestionPersistence)? {
+        isDebugScene ? nil : FileFieldSuggestionPersistence()
     }
 
     private static var historyURL: URL? {

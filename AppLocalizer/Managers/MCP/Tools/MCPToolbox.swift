@@ -34,6 +34,9 @@ struct MCPToolbox {
             ProposeTemplateTool(),
             ProposeCaptionsTool(),
             ListProposalsTool(),
+            GetStorePageTool(),
+            GetAppInformationTool(),
+            SuggestFieldsTool(),
         ])
     }
 

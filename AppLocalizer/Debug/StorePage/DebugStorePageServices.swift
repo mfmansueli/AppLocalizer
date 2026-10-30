@@ -47,6 +47,20 @@ struct DebugStorePageServices: StorePageServices {
         return app.id == DebugFixtures.AppID.lumen ? DebugStorePageContent.inAppTexts : .empty
     }
 
+    /// Lumen's reviews for Generate Suggestions…: a handful of kinds,
+    /// repeated up to `limit`.
+    func customerReviews(for app: StoreApp, limit: Int) async throws -> [CustomerReview] {
+        if let error { throw error }
+        guard app.id == DebugFixtures.AppID.lumen else { return [] }
+        let kinds = [
+            CustomerReview(rating: 5, title: "Finally private", body: "I write every night and nothing leaves my phone."),
+            CustomerReview(rating: 5, title: "Calm", body: "The prompts help on days I don’t know what to write."),
+            CustomerReview(rating: 4, title: "Love the mood tags", body: "Search could be faster with years of entries."),
+            CustomerReview(rating: 3, title: "Sync", body: "iCloud sync is slow on my old iPad."),
+        ]
+        return (0..<min(limit, 220)).map { kinds[$0 % kinds.count] }
+    }
+
     /// Runs a scene's setup once, on the first view model that loads.
     @MainActor
     final class Opening {

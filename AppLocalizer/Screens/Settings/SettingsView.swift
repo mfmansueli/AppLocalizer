@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var selection: SettingsTab
     @Environment(AppSession.self) private var session
     @Environment(\.keyChecker) private var keyChecker
+    @Environment(\.aiProviderKeyChecker) private var aiProviderKeyChecker
 
     /// DEBUG scenes open AI Assistants on the pairing sheet or the log.
     private let opensPairing: Bool
@@ -33,7 +34,7 @@ struct SettingsView: View {
                 PricingSettingsTab()
             }
             Tab("Translation", systemImage: "globe", value: .translation) {
-                TranslationSettingsTab()
+                TranslationSettingsTab(keyStatus: AIProviderKeyStatusModel(checker: aiProviderKeyChecker))
             }
             Tab("AI Assistants", systemImage: "apple.terminal", value: .assistants) {
                 AssistantsSettingsTab(opensPairing: opensPairing, scrollsToLog: scrollsToLog)

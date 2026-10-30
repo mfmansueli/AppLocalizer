@@ -12,4 +12,6 @@ enum WorkspaceSheet: Hashable, Sendable {
     /// toolbar indicator's "Review Proposals…" opens it.
     case proposals(client: String)
     case activity
+    /// "Set Up Your AI Assistant".
+    case assistantSetup
 }

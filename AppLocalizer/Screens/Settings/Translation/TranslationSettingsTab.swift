@@ -8,12 +8,19 @@ import SwiftUI
 /// Settings → Translation: who translates (Apple Translation on this Mac,
 /// an AI provider with its own API key, or the assistant connected through
 /// MCP), the glossary of terms that stay as they are, the source locale and
-/// the tone.
+/// the tone. Under the API key, whether it's saved and the vendor takes it.
 struct TranslationSettingsTab: View {
     @Environment(TranslationPreferences.self) private var preferences
+    @State private var keyStatus: AIProviderKeyStatusModel
     @State private var draftKey = ""
     @State private var keyErrorMessage: String?
+    /// Bumped by saving a key and by Check Again, to check once more.
+    @State private var checkRequests = 0
     @FocusState private var isKeyFocused: Bool
+
+    init(keyStatus: AIProviderKeyStatusModel) {
+        _keyStatus = State(initialValue: keyStatus)
+    }
 
     var body: some View {
         @Bindable var preferences = preferences
@@ -48,27 +55,34 @@ struct TranslationSettingsTab: View {
             }
         }
         .formStyle(.grouped)
+        // A newer check (another vendor, a new key) cancels the one running.
+        .task(id: KeyCheckID(vendor: preferences.vendor, request: checkRequests)) {
+            await keyStatus.check(preferences)
+        }
     }
 
     private var aiProviderControls: some View {
         @Bindable var preferences = preferences
-        return HStack(spacing: Spacing.small) {
-            Picker("Provider", selection: $preferences.vendor) {
-                ForEach(AIProviderVendor.allCases) { Text($0.title).tag($0) }
-            }
-            .labelsHidden()
-            .fixedSize()
-            SecureField("API key", text: $draftKey, prompt: Text(preferences.hasAPIKey ? "••••••••••••••••••••" : "Paste an API key"))
-                .labelsHidden()
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 180)
-                .focused($isKeyFocused)
-                .onSubmit(saveKey)
-                .onChange(of: isKeyFocused) { _, focused in
-                    if !focused { saveKey() }
+        return VStack(alignment: .trailing, spacing: Spacing.xxSmall) {
+            HStack(spacing: Spacing.small) {
+                Picker("Provider", selection: $preferences.vendor) {
+                    ForEach(AIProviderVendor.allCases) { Text($0.title).tag($0) }
                 }
-                .help(Text("Kept in this Mac’s Keychain"))
-                .accessibilityIdentifier("settings.apiKey")
+                .labelsHidden()
+                .fixedSize()
+                SecureField("API key", text: $draftKey, prompt: Text(preferences.hasAPIKey ? "••••••••••••••••••••" : "Paste an API key"))
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 180)
+                    .focused($isKeyFocused)
+                    .onSubmit(saveKey)
+                    .onChange(of: isKeyFocused) { _, focused in
+                        if !focused { saveKey() }
+                    }
+                    .help(Text("Kept in this Mac’s Keychain"))
+                    .accessibilityIdentifier("settings.apiKey")
+            }
+            AIProviderKeyStatusLine(status: keyStatus.status) { checkRequests += 1 }
         }
     }
 
@@ -79,8 +93,14 @@ struct TranslationSettingsTab: View {
             try preferences.saveAPIKey(draftKey)
             draftKey = ""
             keyErrorMessage = nil
+            checkRequests += 1
         } catch {
             keyErrorMessage = error.localizedDescription
         }
+    }
+
+    private struct KeyCheckID: Hashable {
+        let vendor: AIProviderVendor
+        let request: Int
     }
 }

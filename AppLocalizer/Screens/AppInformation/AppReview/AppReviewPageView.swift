@@ -9,6 +9,7 @@ import SwiftUI
 /// required, and notes for the reviewer, for the version in the menu.
 struct AppReviewPageView: View {
     @Bindable var viewModel: AppInformationViewModel
+    @FocusState private var focusedField: AppInformationSuggestionField?
 
     var body: some View {
         if let content = viewModel.content, let review = viewModel.review {
@@ -31,23 +32,45 @@ struct AppReviewPageView: View {
                 if let version = content.version, !content.isVersionEditable {
                     ReadOnlyVersionNote(version: version, editable: content.editableVersion)
                 }
+                AppInformationSuggestionsPanel(viewModel: viewModel, page: .appReview)
                 Group {
-                    contactSection(review)
-                    signInSection(review)
-                    notesSection(review)
+                    if !contactFields.isEmpty {
+                        contactSection(review)
+                    }
+                    if !viewModel.showsOnlySuggestedFields {
+                        signInSection(review)
+                    }
+                    if viewModel.showsField(.notes) {
+                        notesSection(review)
+                    }
                 }
                 .disabled(!viewModel.isReviewEditable)
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("appInformation.appReview")
+            .onChange(of: viewModel.focusRequest, initial: true) {
+                guard let field = viewModel.focusRequest, field.page == .appReview else { return }
+                focusedField = field
+                viewModel.focusRequest = nil
+            }
+        }
+    }
+
+    /// The contact rows "Only fields with suggestions or changes" leaves.
+    private var contactFields: [AppReviewField] {
+        [AppReviewField.firstName, .lastName, .phone, .email].filter { field in
+            AppInformationSuggestionField(reviewField: field).map(viewModel.showsField) ?? true
         }
     }
 
     private func contactSection(_ review: AppReviewValues) -> some View {
         AppInformationFormSection(title: String(localized: "Contact")) {
-            ForEach(Array([AppReviewField.firstName, .lastName, .phone, .email].enumerated()), id: \.element) { index, field in
+            ForEach(Array(contactFields.enumerated()), id: \.element) { index, field in
                 if index > 0 { Divider() }
                 textRow(field, review)
+                if let suggestionField = AppInformationSuggestionField(reviewField: field) {
+                    AppInformationFieldSuggestions(viewModel: viewModel, field: suggestionField)
+                }
             }
         }
     }
@@ -99,6 +122,7 @@ struct AppReviewPageView: View {
                     RoundedRectangle(cornerRadius: Radius.field, style: .continuous)
                         .strokeBorder(isOver ? Palette.dangerMark : Palette.separator2, lineWidth: isOver ? 1.5 : 0.5)
                 }
+                .focused($focusedField, equals: .notes)
                 .accessibilityLabel(Text(AppReviewField.notes.title))
                 .accessibilityIdentifier("appInformation.review.notes")
             if isOver {
@@ -106,6 +130,8 @@ struct AppReviewPageView: View {
                     .font(.caption)
                     .foregroundStyle(Palette.danger)
             }
+            AppInformationFieldSuggestions(viewModel: viewModel, field: .notes)
+                .padding(.horizontal, -(Spacing.medium + 2))
         }
     }
 
@@ -115,6 +141,7 @@ struct AppReviewPageView: View {
                 .labelsHidden()
                 .textContentType(field == .userName ? .username : nil)
                 .frame(width: 260)
+                .focused($focusedField, equals: AppInformationSuggestionField(reviewField: field))
                 .accessibilityIdentifier("appInformation.review.\(field.rawValue)")
         }
     }

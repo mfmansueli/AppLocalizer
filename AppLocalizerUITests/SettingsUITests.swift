@@ -99,6 +99,24 @@ final class SettingsUITests: XCTestCase {
         XCTAssertFalse(app.buttons["settings.provider.appleTranslation"].isSelected)
     }
 
+    func testASavedAPIKeySaysItIsConnected() {
+        launch(scene: "set-translation")
+        XCTAssertTrue(apiKeyStatus("Saved · connected to Anthropic · 182 ms").waitForExistence(timeout: 10))
+        XCTAssertFalse(element("settings.apiKeyCheckAgain").exists)
+    }
+
+    func testARejectedAPIKeyCanBeReplaced() {
+        launch(scene: "set-translation-rejected")
+        XCTAssertTrue(apiKeyStatus("Saved, but Anthropic rejected this key").waitForExistence(timeout: 10))
+        XCTAssertTrue(element("settings.apiKeyCheckAgain").exists)
+
+        let field = app.secureTextFields["settings.apiKey"]
+        field.click()
+        field.typeText("sk-ant-new\r")
+        XCTAssertTrue(apiKeyStatus("Saved · connected to Anthropic · 182 ms").waitForExistence(timeout: 10))
+        XCTAssertFalse(element("settings.apiKeyCheckAgain").exists)
+    }
+
     func testGeneralConfirmations() {
         launch(scene: "set-general")
         let picker = element("settings.pushConfirmation")
@@ -118,5 +136,12 @@ final class SettingsUITests: XCTestCase {
 
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier]
+    }
+
+    /// The line under the API key field, once it says `text`.
+    private func apiKeyStatus(_ text: String) -> XCUIElement {
+        app.staticTexts.matching(identifier: "settings.apiKeyStatus")
+            .matching(NSPredicate(format: "value == %@ OR label == %@", text, text))
+            .firstMatch
     }
 }

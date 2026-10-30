@@ -35,22 +35,31 @@ struct DebugSceneView: View {
         case "lib-loading":
             DebugMainScene(services: services { $0.appList = DebugAppListServices(delay: .seconds(3600)) })
         default:
-            if let scene = ConnectDebugScenes.view(for: id)
-                ?? SettingsDebugScenes.view(for: id)
-                ?? ReviewPushDebugScenes.view(for: id)
-                ?? PricingDebugScenes.view(for: id)
-                ?? StorePageDebugScenes.view(for: id)
-                ?? AppInformationDebugScenes.view(for: id)
-                ?? ScreenshotsDebugScenes.view(for: id)
-                ?? ScreenshotsPushDebugScenes.view(for: id)
-                ?? ScreenshotsProposalsDebugScenes.view(for: id)
-                ?? AssistantDebugScenes.view(for: id)
-            {
+            if let scene = Self.scene(for: id) {
                 scene
             } else {
                 ContentUnavailableView("Unknown debug scene", systemImage: "questionmark.square.dashed", description: Text(id))
             }
         }
+    }
+
+    /// The first area's scene with this id.
+    private static func scene(for id: String) -> AnyView? {
+        let areas: [@MainActor (String) -> AnyView?] = [
+            ConnectDebugScenes.view(for:),
+            SettingsDebugScenes.view(for:),
+            ReviewPushDebugScenes.view(for:),
+            PricingDebugScenes.view(for:),
+            StorePageDebugScenes.view(for:),
+            AppInformationDebugScenes.view(for:),
+            ScreenshotsDebugScenes.view(for:),
+            ScreenshotsPushDebugScenes.view(for:),
+            ScreenshotsProposalsDebugScenes.view(for:),
+            AssistantDebugScenes.view(for:),
+            SuggestionsDebugScenes.view(for:),
+            AssistDebugScenes.view(for:),
+        ]
+        return areas.lazy.compactMap { $0(id) }.first
     }
 
     private func services(_ change: (inout WorkspaceServices) -> Void) -> WorkspaceServices {

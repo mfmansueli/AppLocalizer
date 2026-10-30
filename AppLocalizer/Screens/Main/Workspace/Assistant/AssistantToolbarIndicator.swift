@@ -5,55 +5,106 @@
 
 import SwiftUI
 
-/// The toolbar's quiet assistant indicator: "CC Claude Code" with a spinner
-/// while an assistant works, "CC 2 proposals" while its proposals wait.
-/// Never modal; clicking it lists what waits per app, with Review
-/// Proposals… opening Review & Push filtered to that assistant, or, for
-/// screenshot proposals, their Proposals sheet.
+/// The toolbar's Assistant button, always there: a dot for how far the
+/// person's own assistant is set up (grey, yellow, green), a spinner while
+/// it works, and the count of its proposals waiting. Never modal; clicking
+/// it shows the status, recent calls and what waits per app, with Review
+/// Proposals… opening Review & Push filtered to that assistant (or, for
+/// screenshot proposals, their Proposals sheet), and Ask for Suggestions…
+/// or Set Up Assistant….
 struct AssistantToolbarIndicator: View {
     let activity: AssistantActivity
+    let status: AssistantStatus
+    /// The client the button names, once paired.
+    var client: MCPPairedClient?
+    var editsDrafts = false
+    var recentCalls: [MCPLogEntry] = []
     /// Holds the Proposals sheet; nil when these services keep no screenshot
     /// documents.
     let center: ScreenshotsDocumentCenter?
     /// The name of an app in the library, by Apple ID.
     let appName: (StoreApp.ID) -> String
     let onReview: (_ client: String?) -> Void
-    @State private var isShowingProposals = false
+    var onAsk: () -> Void = {}
+    var onSetUp: () -> Void = {}
+    @Environment(WorkspaceNavigator.self) private var navigator
+    @Environment(KeyAssistantController.self) private var keyAssistant
+    @State private var isShowingPopover = false
 
     var body: some View {
         Button {
-            isShowingProposals.toggle()
+            isShowingPopover.toggle()
         } label: {
             HStack(spacing: Spacing.xSmall) {
-                if let client = activity.client {
-                    AssistantMonogram(letters: ChangeSource.assistant(client: client).monogram ?? "AI")
-                }
-                Text(activity.title)
-                    .font(.caption)
-                    .lineLimit(1)
                 if activity.isWorking {
                     ProgressView()
                         .controlSize(.mini)
+                } else {
+                    AssistantStatusDot(status: status)
+                }
+                Text("Assistant")
+                    .font(.caption)
+                    .lineLimit(1)
+                if activity.proposalCount > 0 {
+                    Text(activity.proposalCount, format: .number)
+                        .font(.caption2.weight(.semibold).monospacedDigit())
+                        .padding(.horizontal, 5)
+                        .background(Palette.accentTint, in: Capsule())
                 }
             }
         }
-        .help(activity.accessibilityLabel)
-        .accessibilityLabel(Text(activity.accessibilityLabel))
+        .help(accessibilityLabel)
+        .accessibilityLabel(Text(accessibilityLabel))
         .accessibilityIdentifier("workspace.assistantIndicator")
-        .popover(isPresented: $isShowingProposals, arrowEdge: .bottom) {
-            popover
+        .popover(isPresented: $isShowingPopover, arrowEdge: .bottom) {
+            AssistantPopoverContent(
+                status: status,
+                activity: activity,
+                client: client,
+                editsDrafts: editsDrafts,
+                recentCalls: recentCalls,
+                key: keyAssistant.configuration,
+                recentRequests: keyAssistant.recentRequests,
+                appName: appName,
+                canOpenScreenshotProposals: screenshotApp != nil,
+                onReviewProposals: reviewProposals,
+                onScreenshotProposals: {
+                    isShowingPopover = false
+                    if let screenshotApp { center?.openProposals(appID: screenshotApp) }
+                },
+                onAsk: {
+                    isShowingPopover = false
+                    onAsk()
+                },
+                onSetUp: {
+                    isShowingPopover = false
+                    onSetUp()
+                }
+            )
         }
         .sheet(item: presentedProposals) { proposals in
             ScreenshotProposalsSheet(viewModel: proposals)
+        }
+        .onChange(of: navigator.requestsAssistantPopover, initial: true) {
+            guard navigator.requestsAssistantPopover else { return }
+            navigator.requestsAssistantPopover = false
+            isShowingPopover = true
         }
         #if DEBUG
         .task {
             if Self.debugShowsPopover {
                 Self.debugShowsPopover = false
-                isShowingProposals = true
+                isShowingPopover = true
             }
         }
         #endif
+    }
+
+    /// "Claude Code is proposing changes", "2 proposals waiting for
+    /// review", or "Assistant, Connected".
+    private var accessibilityLabel: String {
+        if activity.isWorking || activity.proposalCount > 0 { return activity.accessibilityLabel }
+        return String(localized: "Assistant, \(status.title)")
     }
 
     /// The app whose screenshot proposals open: the one with the most.
@@ -65,57 +116,12 @@ struct AssistantToolbarIndicator: View {
         Binding { center?.presentedProposals } set: { center?.presentedProposals = $0 }
     }
 
-    private var popover: some View {
-        VStack(alignment: .leading, spacing: Spacing.xSmall) {
-            Text("Waiting for you")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundStyle(Palette.label2)
-                .padding(.bottom, Spacing.xxSmall)
-            if activity.rows.isEmpty {
-                Text("Nothing yet. Proposals show here as \(activity.client ?? String(localized: "the assistant")) sends them.")
-                    .font(.callout)
-                    .foregroundStyle(Palette.label2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            ForEach(activity.rows) { entry in
-                HStack {
-                    Text(appName(entry.appID))
-                        .lineLimit(1)
-                    Spacer(minLength: Spacing.large)
-                    Text(AssistantActivity.proposalsText(entry.count))
-                        .font(.caption)
-                        .monospacedDigit()
-                        .foregroundStyle(entry.count == 0 ? Palette.label3 : Palette.label2)
-                }
-                .accessibilityElement(children: .combine)
-            }
-            HStack(spacing: Spacing.xSmall) {
-                Button("Review Proposals…") {
-                    isShowingProposals = false
-                    if activity.reviewCount == 0, let screenshotApp {
-                        center?.openProposals(appID: screenshotApp)
-                    } else {
-                        onReview(activity.leadingReviewClient ?? activity.leadingClient)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(activity.apps.isEmpty || (activity.reviewCount == 0 && screenshotApp == nil))
-                .accessibilityIdentifier("workspace.reviewProposals")
-                if activity.reviewCount > 0, let screenshotApp {
-                    Button("Screenshot Proposals…") {
-                        isShowingProposals = false
-                        center?.openProposals(appID: screenshotApp)
-                    }
-                    .accessibilityIdentifier("workspace.screenshotProposals")
-                }
-            }
-            .controlSize(.small)
-            .padding(.top, Spacing.xSmall)
+    private func reviewProposals() {
+        isShowingPopover = false
+        if activity.reviewCount == 0, let screenshotApp {
+            center?.openProposals(appID: screenshotApp)
+        } else {
+            onReview(activity.leadingReviewClient ?? activity.leadingClient)
         }
-        .padding(Spacing.medium)
-        .frame(width: 280, alignment: .leading)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("workspace.assistantPopover")
     }
 }

@@ -7,7 +7,8 @@ import SwiftUI
 
 /// One field in the editor: its title, level, tags and counter, the primary
 /// locale's text on the left and the edited locale's on the right, the
-/// inline error, and for keywords the token view underneath.
+/// inline error, for keywords the token view, then the field's suggestion
+/// or where its pending value came from.
 struct EditorFieldRow: View {
     let viewModel: StorePageViewModel
     let field: ListingField
@@ -24,8 +25,11 @@ struct EditorFieldRow: View {
                     locale: locale,
                     text: binding,
                     isEditable: viewModel.canEdit(field),
-                    isBlocked: validation.isBlocking
-                )
+                    isBlocked: validation.isBlocking,
+                    isFocusRequested: viewModel.focusRequest == ListingFieldKey(locale, field)
+                ) {
+                    viewModel.focusRequest = nil
+                }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             if let message = validation.message {
@@ -39,6 +43,23 @@ struct EditorFieldRow: View {
                     isEditable: viewModel.canEdit(.keywords),
                     onRemove: { viewModel.removeKeyword(at: $0, in: locale) },
                     onOptimize: { viewModel.optimizeKeywords(in: locale) }
+                )
+            }
+            if let provenance = viewModel.provenance(field, in: locale) {
+                SuggestionProvenanceLine(provenance: provenance, currentValue: viewModel.value(field, in: locale)) {
+                    viewModel.undoSuggestion(field, in: locale)
+                }
+            }
+            if let suggestion = viewModel.shownSuggestion(field, in: locale) {
+                FieldSuggestionCard(
+                    fieldTitle: field.title,
+                    suggestion: suggestion,
+                    current: viewModel.value(field, in: locale),
+                    suggested: suggestion.value,
+                    meta: viewModel.suggestionMeta(suggestion),
+                    onDismiss: { viewModel.dismissSuggestion(suggestion) },
+                    onUseAndEdit: { viewModel.useAndEditSuggestion(suggestion) },
+                    onAccept: { viewModel.acceptSuggestion(suggestion) }
                 )
             }
         }
@@ -76,6 +97,8 @@ struct EditorFieldRow: View {
             }
             if let client = draft.proposedBy {
                 SourceTag(source: .assistant(client: client))
+            } else if let source = draft.suggestionSource {
+                SourceTag(source: source)
             }
             if draft.isPending {
                 HStack(spacing: Spacing.xxSmall) {

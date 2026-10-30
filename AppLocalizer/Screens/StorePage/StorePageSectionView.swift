@@ -18,6 +18,7 @@ struct StorePageSectionView: View {
     @Environment(AppSummaryStore.self) private var summaries
     @Environment(PushController.self) private var push
     @Environment(WorkspaceNavigator.self) private var navigator
+    @Environment(FieldSuggestionStore.self) private var suggestions
     @State private var viewModel: StorePageViewModel?
 
     var body: some View {
@@ -40,7 +41,7 @@ struct StorePageSectionView: View {
     }
 
     private func open() async {
-        let model = StorePageViewModel(app: app, services: services, queue: queue, summaries: summaries, push: push)
+        let model = StorePageViewModel(app: app, services: services, queue: queue, suggestions: suggestions, summaries: summaries, push: push)
         viewModel = model
         handleIntent()
         await model.load()

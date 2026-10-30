@@ -29,7 +29,10 @@ struct LocaleEditorHeader: View {
             .accessibilityLabel(Text("Previous locale"))
             Picker("Locale to edit", selection: $viewModel.editorLocale) {
                 ForEach(viewModel.editorLocales) { locale in
-                    Text(locale.name).tag(Optional(locale))
+                    let count = viewModel.suggestionCount(in: locale)
+                    Text(count > 0 ? "\(locale.name) · \(count)" : locale.name)
+                        .accessibilityLabel(count > 0 ? Text("\(locale.name), \(count) suggestions") : Text(locale.name))
+                        .tag(Optional(locale))
                 }
             }
             .labelsHidden()

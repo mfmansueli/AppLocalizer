@@ -92,16 +92,18 @@ extension AppInformationViewModel {
         toast = String(localized: "The draft will be deleted when you push. Published declarations can’t be deleted, only replaced.")
     }
 
-    private func queueDeclaration(_ answer: AccessibilityAnswer, for family: DeviceFamily) {
+    /// Queues `answer` as the family's declaration, tagged with who
+    /// answered (an accepted suggestion keeps its source).
+    func queueDeclaration(_ answer: AccessibilityAnswer, for family: DeviceFamily, source: ChangeSource = .you) {
         guard let card = card(for: family) ?? otherCard(family) else { return }
         var base = card
         base.queued = nil
         base.isDeletionQueued = false
-        apply(builder.declarationChange(for: base, answer: answer), id: builder.accessibilityChangeID(family))
+        apply(builder.declarationChange(for: base, answer: answer, source: source), id: builder.accessibilityChangeID(family))
     }
 
     /// A card for a family from Other Devices, which has no declaration.
-    private func otherCard(_ family: DeviceFamily) -> AccessibilityCard? {
+    func otherCard(_ family: DeviceFamily) -> AccessibilityCard? {
         guard let content = accessibility.value else { return nil }
         return AccessibilityCard(family: family, isLive: content.liveFamilies.contains(family), upcomingVersion: content.upcomingVersion)
     }

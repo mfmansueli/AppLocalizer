@@ -33,4 +33,15 @@ protocol AppInformationServices {
 
     /// Where the demo account's password is kept: the Keychain.
     var secrets: any SecretStore { get }
+
+    /// The App Review details of the version before the one in `content`,
+    /// for the built-in suggestions; nil when there's none or it can't be
+    /// read.
+    func previousReview(for app: StoreApp, content: AppInformationContent) async -> AppInformationBuiltInSuggestions.PreviousReview?
+}
+
+extension AppInformationServices {
+    func previousReview(for _: StoreApp, content _: AppInformationContent) async -> AppInformationBuiltInSuggestions.PreviousReview? {
+        nil
+    }
 }

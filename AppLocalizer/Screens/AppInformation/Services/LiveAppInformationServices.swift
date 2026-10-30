@@ -40,4 +40,16 @@ struct LiveAppInformationServices: AppInformationServices {
     func privacyURLs(for app: StoreApp) async throws -> PrivacyURLsContent {
         try await PrivacyURLsLoader(client: client).content(for: app)
     }
+
+    /// The newest version older than the shown one that can't change any
+    /// more: the one whose contact details App Review last had.
+    func previousReview(for _: StoreApp, content: AppInformationContent) async -> AppInformationBuiltInSuggestions.PreviousReview? {
+        guard let version = content.version, let index = content.versions.firstIndex(of: version),
+              let previous = content.versions[(index + 1)...].first(where: { !$0.isEditable }),
+              let detail = try? await client.appStoreReviewDetail(versionID: previous.id) else { return nil }
+        return AppInformationBuiltInSuggestions.PreviousReview(
+            versionString: previous.versionString,
+            review: AppInformationContentLoader.review(detail.attributes)
+        )
+    }
 }

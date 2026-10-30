@@ -125,7 +125,8 @@ extension MCPServerController {
             guard let name = params?["name"]?.stringValue, let prompt = MCPPrompt(rawValue: name), availablePrompts.contains(prompt) else {
                 return .error(.invalidParams("Unknown prompt: \(params?["name"]?.stringValue ?? "")"), id: id)
             }
-            return .result(prompt.message(app: params?["arguments"]?["app"]?.stringValue), id: id)
+            let arguments = params?["arguments"]
+            return .result(prompt.message(app: arguments?["app"]?.stringValue, area: arguments?["area"]?.stringValue), id: id)
         case let method:
             return .error(.methodNotFound(method), id: id)
         }
@@ -152,7 +153,13 @@ extension MCPServerController {
         if let kind = tool.definition.proposalKind, !allows(kind) { return .failed(kind.refusal, target: target) }
         guard let workspace else { return .failed(MCPToolError.notConnected.localizedDescription, target: target) }
         do {
-            return try await tool.call(arguments, in: MCPToolContext(workspace: workspace, clientName: session.displayName))
+            let context = MCPToolContext(
+                workspace: workspace,
+                clientName: session.displayName,
+                allowedProposals: allowedProposals,
+                editsDrafts: editsDrafts
+            )
+            return try await tool.call(arguments, in: context)
         } catch {
             return .failed(error.localizedDescription, target: target)
         }

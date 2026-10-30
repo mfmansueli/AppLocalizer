@@ -18,6 +18,8 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
     case translateCaptions = "translate_captions"
     case shortenOverflowingCaptions = "shorten_overflowing_captions"
     case reviseTemplate = "revise_template"
+    /// What "Ask Claude Code…" copies, with the area as an argument.
+    case suggest
 
     var id: Self { self }
     var name: String { rawValue }
@@ -36,6 +38,7 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         case .translateCaptions: "Translate screenshot captions"
         case .shortenOverflowingCaptions: "Shorten overflowing captions"
         case .reviseTemplate: "Revise the screenshot template"
+        case .suggest: "Suggest field values"
         }
     }
 
@@ -49,6 +52,7 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         case .translateCaptions: String(localized: "Translate missing screenshot captions as proposals")
         case .shortenOverflowingCaptions: String(localized: "Propose shorter versions of captions that overflow")
         case .reviseTemplate: String(localized: "Propose a template revision that keeps every locale fitting")
+        case .suggest: String(localized: "Suggest Store Page or App Information values for the person to accept")
         }
     }
 
@@ -61,34 +65,70 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         case .translateCaptions: ["list_apps", "get_screenshot_context", "get_captions", "get_capture", "measure_caption", "propose_captions"]
         case .shortenOverflowingCaptions: ["list_apps", "get_captions", "measure_caption", "propose_captions"]
         case .reviseTemplate: ["list_apps", "get_template", "get_captions", "measure_caption", "render_preview", "propose_template"]
+        case .suggest: ["list_apps", "get_store_page", "get_app_information", "suggest_fields"]
         }
     }
 
     /// The `prompts/list` entry.
     var json: JSONValue {
-        [
+        var arguments: [JSONValue] = [
+            [
+                "name": "app",
+                "description": "The app's name, bundle ID or Apple ID. Leave it out when the project folder makes it clear.",
+                "required": false,
+            ],
+        ]
+        if self == .suggest {
+            arguments.insert(
+                ["name": "area", "description": "store (Store Page text) or info (App Information and App Review).", "required": false],
+                at: 0
+            )
+        }
+        return [
             "name": .string(name),
             "title": .string(title),
             "description": .string(summary),
-            "arguments": [
-                [
-                    "name": "app",
-                    "description": "The app's name, bundle ID or Apple ID. Leave it out when the project folder makes it clear.",
-                    "required": false,
-                ],
+            "arguments": .array(arguments),
+        ]
+    }
+
+    /// The `prompts/get` result for the app the person named; `area` is
+    /// `suggest`'s.
+    func message(app: String?, area: String? = nil) -> JSONValue {
+        let appPhrase = app.map { "the app “\($0)”" } ?? "the app this project builds (find it with list_apps)"
+        let text = self == .suggest
+            ? Self.suggestInstructions(appPhrase: appPhrase, area: area.flatMap(SuggestionArea.init(rawValue:)))
+            : instructions(appPhrase: appPhrase)
+        return [
+            "description": .string(summary),
+            "messages": [
+                ["role": "user", "content": ["type": "text", "text": .string(text)]],
             ],
         ]
     }
 
-    /// The `prompts/get` result for the app the person named.
-    func message(app: String?) -> JSONValue {
-        let appPhrase = app.map { "the app “\($0)”" } ?? "the app this project builds (find it with list_apps)"
-        return [
-            "description": .string(summary),
-            "messages": [
-                ["role": "user", "content": ["type": "text", "text": .string(instructions(appPhrase: appPhrase))]],
-            ],
-        ]
+    /// `suggest`: what the Ask popover copies, with how to send the
+    /// suggestions.
+    private static func suggestInstructions(appPhrase: String, area: SuggestionArea?) -> String {
+        let what = switch area {
+        case .storePage:
+            "Store Page text: What’s New, promotional text and subtitle, in the primary language and in every language that has a translation"
+        case .appInformation:
+            "App Information and App Review details, from the code"
+        case nil:
+            "Store Page text (What’s New, promotional text, subtitle) and App Information and App Review details"
+        }
+        return """
+        Suggest \(what) for \(appPhrase) in AppLocalizer. Call list_apps to get its appId, then get_store_page \
+        (each language's texts, the limits in characters or bytes, and the suggestions already open, so you don't \
+        repeat them) and get_app_information (copyright, categories, release and App Review contact and notes). \
+        Read the project: git log since the last release tag for What’s New, the README and the app's strings for \
+        promotional text and subtitles, and the code for App Review notes such as sign-in, demo data and hidden \
+        features. Send them with suggest_fields, one item per field with the value, a one-sentence reason and \
+        evidence (git range, file and line, or review), and pass total with how many you'll send in all. If an \
+        item is refused, read the reason (over_limit gives the count), fix it and send it again. Nothing changes \
+        until the person accepts each suggestion in AppLocalizer.
+        """
     }
 
     private func instructions(appPhrase: String) -> String {
@@ -134,6 +174,8 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
             """
         case .translateCaptions, .shortenOverflowingCaptions, .reviseTemplate:
             screenshotInstructions(appPhrase: appPhrase)
+        case .suggest:
+            Self.suggestInstructions(appPhrase: appPhrase, area: nil)
         }
     }
 

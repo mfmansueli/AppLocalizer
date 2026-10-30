@@ -9,6 +9,7 @@ import SwiftUI
 /// sheet and the toast. App Privacy lays out its own columns and scrolling.
 struct AppInformationContentView: View {
     @Bindable var viewModel: AppInformationViewModel
+    @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         HStack(spacing: 0) {
@@ -32,13 +33,24 @@ struct AppInformationContentView: View {
         }
         .background(Palette.content)
         .overlay(alignment: .bottom) {
-            if let toast = viewModel.toast {
+            if let toast = viewModel.suggestionToast {
+                ActionToast(message: toast) {
+                    viewModel.undoLastSuggestionBatch()
+                } onDismiss: {
+                    if viewModel.suggestionToast == toast { viewModel.suggestionToast = nil }
+                }
+                .padding(.bottom, Spacing.large)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else if let toast = viewModel.toast {
                 AppInformationToast(text: toast) { viewModel.toast = nil }
                     .padding(.bottom, Spacing.large)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.default, value: viewModel.toast)
+        .animation(.default, value: viewModel.suggestionToast)
+        .onAppear { viewModel.undoManager = undoManager }
+        .onChange(of: undoManager) { viewModel.undoManager = undoManager }
         .sheet(item: $viewModel.editor) { item in
             AccessibilityEditorSheet(viewModel: viewModel, draft: viewModel.editor ?? item)
         }

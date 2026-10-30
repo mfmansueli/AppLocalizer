@@ -31,6 +31,12 @@ enum WorkspaceIntent: Hashable, Sendable {
     /// Store Page: Screenshots, for Review & Push's Show in Captions (the
     /// Screenshots view then opens Captions on the render).
     case showScreenshots
+    /// Store Page or App Information: the fields with suggestions, from the
+    /// overview's Suggestions card or the Assistant button.
+    case reviewFieldSuggestions(SuggestionArea)
+    /// Store Page or App Information: "Ask Claude Code…", from the Assistant
+    /// button's Ask for Suggestions….
+    case askForSuggestions(SuggestionArea)
     /// Any section: focus its search field.
     case search
 }

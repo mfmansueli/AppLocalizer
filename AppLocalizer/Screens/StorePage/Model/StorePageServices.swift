@@ -28,4 +28,12 @@ protocol StorePageServices {
 
     /// Where "machine-translated, not reviewed" is kept between launches.
     var machineTranslations: any MachineTranslationStore { get }
+
+    /// The newest App Store reviews, for Generate Suggestions… when the
+    /// person allowed them.
+    func customerReviews(for app: StoreApp, limit: Int) async throws -> [CustomerReview]
+}
+
+extension StorePageServices {
+    func customerReviews(for _: StoreApp, limit _: Int) async throws -> [CustomerReview] { [] }
 }

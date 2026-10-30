@@ -8,7 +8,8 @@ import SwiftUI
 /// Settings → AI Assistants: the local MCP server's switch and status, what
 /// a paired assistant can and can't do, the paired assistants with Revoke
 /// and "Pair Assistant…", what they may propose, the prompts they offer,
-/// and the activity log with the reason for every refused call.
+/// and the activity log with the reason for every refused call; then the
+/// API key, which can be set up as well as an assistant.
 struct AssistantsSettingsTab: View {
     @Environment(MCPServerController.self) private var server
     @State private var isPairing = false
@@ -40,6 +41,9 @@ struct AssistantsSettingsTab: View {
                     pairedSection
                     permissionsSection
                     promptsSection
+                }
+                KeyAssistantSettingsSection()
+                if server.isEnabled {
                     logSection
                 }
             }

@@ -15,6 +15,7 @@ struct AppInformationSectionView: View {
     @Environment(AppSummaryStore.self) private var summaries
     @Environment(PushController.self) private var push
     @Environment(WorkspaceNavigator.self) private var navigator
+    @Environment(FieldSuggestionStore.self) private var suggestions
     @State private var viewModel: AppInformationViewModel?
 
     var body: some View {
@@ -44,7 +45,14 @@ struct AppInformationSectionView: View {
     }
 
     private func open() async {
-        let model = AppInformationViewModel(app: app, services: services, queue: queue, summaries: summaries, push: push)
+        let model = AppInformationViewModel(
+            app: app,
+            services: services,
+            queue: queue,
+            suggestions: suggestions,
+            summaries: summaries,
+            push: push
+        )
         viewModel = model
         handleIntent()
         await model.load()

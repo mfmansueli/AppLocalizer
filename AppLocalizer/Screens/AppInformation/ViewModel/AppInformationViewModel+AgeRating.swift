@@ -22,8 +22,11 @@ extension AppInformationViewModel {
     }
 
     /// Questions an assistant answered, with who and whether you confirmed.
+    /// An accepted suggestion isn't one: it shows who suggested it instead.
     var assistantAnswers: [AgeRatingQuestion: (client: String, confirmed: Bool)] {
-        builder.assistantAnswers(in: changes)
+        builder.assistantAnswers(in: changes).filter { question, _ in
+            suggestions.provenance(for: AppInformationSuggestionSlot.ageRating(question).target, appID: app.id) == nil
+        }
     }
 
     /// "Claude Code answered 7 questions from the project · 5 not confirmed
