@@ -5,7 +5,7 @@
 
 import XCTest
 
-/// Store Page → Screenshots' Template and Captions tabs, driven through
+/// Screenshots' Template and Captions tabs, driven through
 /// the DEBUG scenes in `ScreenshotsDebugScenes` (sample documents and a
 /// sample translator; nothing leaves the Mac): a template edit saved as a
 /// new version, Undo, restoring from History, editing a caption with its

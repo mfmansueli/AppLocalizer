@@ -6,7 +6,8 @@
 import SwiftUI
 
 /// Under the context bar: Translate Missing…, Fill, Import & Export and Add
-/// Locale, with the coverage summary line on the right.
+/// Locale (the languages the app supports first), with the coverage summary
+/// line on the right.
 struct StorePageActionBar: View {
     let viewModel: StorePageViewModel
 
@@ -86,8 +87,18 @@ struct StorePageActionBar: View {
 
     private var addLocaleMenu: some View {
         Menu {
+            let pending = viewModel.pendingLocales
+            if !pending.isEmpty {
+                Section("In the app, not on the App Store") {
+                    ForEach(pending) { locale in
+                        Button(locale.name) {
+                            viewModel.addLocale(locale)
+                        }
+                    }
+                }
+            }
             Section("Add a locale") {
-                ForEach(viewModel.addableLocales) { locale in
+                ForEach(viewModel.addableLocales.filter { !pending.contains($0) }) { locale in
                     Button(locale.name) {
                         viewModel.addLocale(locale)
                     }

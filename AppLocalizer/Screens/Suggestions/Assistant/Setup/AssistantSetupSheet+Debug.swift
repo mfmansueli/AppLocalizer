@@ -16,6 +16,8 @@ extension AssistantSetupSheet {
     /// The key `setup-key-*` paste and check, with the project folder
     /// chosen; on step 4 the test runs too.
     static var debugKey: String?
+    /// `ev-none` opens it from Suggest Everything…, saying why.
+    static var debugReason: String?
 }
 
 @MainActor

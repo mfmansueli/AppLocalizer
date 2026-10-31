@@ -21,5 +21,9 @@ enum ScreenshotsDebugScenario: Sendable {
     case noCaptures
     /// Captures from fastlane but no template: the starter picker.
     case noTemplate
+    /// Standard, plus LumenWatch's four screens and three Apple Vision Pro
+    /// windows captured in every language, with two English watch
+    /// screenshots live.
+    case everyDevice
 }
 #endif

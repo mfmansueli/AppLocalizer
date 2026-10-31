@@ -71,12 +71,11 @@ enum ScreenshotsPushDebugScenes {
         )
         var storePage = DebugStorePageServices()
         storePage.screenshots = DebugPushingScreenshotsServices(base: base, push: push)
-        storePage.opening = DebugStorePageServices.Opening { $0.mode = .screenshots }
         var services = WorkspaceServices.debug
         services.storePage = storePage
         return AnyView(
             DebugMainScene(
-                services: services, section: .storePage, pendingChanges: [], pushRecords: ScreenshotsPushDebugData.records, presentedSheet: sheet
+                services: services, section: .screenshots, pendingChanges: [], pushRecords: ScreenshotsPushDebugData.records, presentedSheet: sheet
             )
             .preferredColorScheme(colorScheme)
         )

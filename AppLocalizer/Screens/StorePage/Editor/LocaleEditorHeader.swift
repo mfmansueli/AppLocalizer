@@ -6,8 +6,9 @@
 import SwiftUI
 
 /// The editor's bar: which locale is on the left, the locale picker with
-/// ‹ › to step through locales, "Right to left", and Mark All Reviewed when
-/// the locale has machine-translated fields.
+/// ‹ › to step through locales (the App Store page's, then the new ones the
+/// app supports), "New" and "Right to left", and Mark All Reviewed when the
+/// locale has machine-translated fields.
 struct LocaleEditorHeader: View {
     @Bindable var viewModel: StorePageViewModel
 
@@ -28,11 +29,16 @@ struct LocaleEditorHeader: View {
             .buttonStyle(.borderless)
             .accessibilityLabel(Text("Previous locale"))
             Picker("Locale to edit", selection: $viewModel.editorLocale) {
-                ForEach(viewModel.editorLocales) { locale in
-                    let count = viewModel.suggestionCount(in: locale)
-                    Text(count > 0 ? "\(locale.name) · \(count)" : locale.name)
-                        .accessibilityLabel(count > 0 ? Text("\(locale.name), \(count) suggestions") : Text(locale.name))
-                        .tag(Optional(locale))
+                ForEach(viewModel.appStoreEditorLocales) { locale in
+                    item(locale, isNew: false)
+                }
+                let new = viewModel.newEditorLocales
+                if !new.isEmpty {
+                    Section("Not on the App Store yet") {
+                        ForEach(new) { locale in
+                            item(locale, isNew: true)
+                        }
+                    }
                 }
             }
             .labelsHidden()
@@ -46,6 +52,11 @@ struct LocaleEditorHeader: View {
             .buttonStyle(.borderless)
             .accessibilityLabel(Text("Next locale"))
             HStack(spacing: Spacing.xSmall) {
+                if let locale = viewModel.editorLocale, viewModel.isNewLanguage(locale) {
+                    Pill(text: String(localized: "New"), style: .outline)
+                        .accessibilityLabel(Text("New, not on the App Store yet"))
+                        .accessibilityIdentifier("storePage.editorLocale.new")
+                }
                 if viewModel.editorLocale?.isRTL == true {
                     Pill(text: String(localized: "Right to left"), style: .outline)
                 }
@@ -64,5 +75,30 @@ struct LocaleEditorHeader: View {
         .controlSize(.small)
         .padding(.horizontal, Spacing.medium)
         .padding(.vertical, Spacing.xSmall)
+    }
+
+    private func item(_ locale: StoreLocale, isNew: Bool) -> some View {
+        let count = viewModel.suggestionCount(in: locale)
+        let coming = viewModel.comingCount(in: locale)
+        return Text(Self.localeTitle(locale, count: count, coming: coming, isNew: isNew))
+            .accessibilityLabel(Text(Self.localeAccessibilityLabel(locale, count: count, coming: coming, isNew: isNew)))
+            .tag(Optional(locale))
+    }
+
+    /// "German · 2", with "· 1 coming" while Suggest Everything owes it
+    /// more; "Polish · New · 8" for a language not on the App Store yet.
+    static func localeTitle(_ locale: StoreLocale, count: Int, coming: Int, isNew: Bool = false) -> String {
+        var title = isNew ? "\(locale.name) · " + String(localized: "New") : locale.name
+        if count > 0 { title += " · \(count)" }
+        if coming > 0 { title += " · " + String(localized: "\(coming) coming") }
+        return title
+    }
+
+    private static func localeAccessibilityLabel(_ locale: StoreLocale, count: Int, coming: Int, isNew: Bool) -> String {
+        var parts = [locale.name]
+        if isNew { parts.append(String(localized: "new, not on the App Store yet")) }
+        if count > 0 { parts.append(String(localized: "\(count) suggestions")) }
+        if coming > 0 { parts.append(String(localized: "\(coming) coming")) }
+        return parts.joined(separator: ", ")
     }
 }

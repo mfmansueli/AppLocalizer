@@ -10,8 +10,9 @@ import SwiftUI
 /// it works, and the count of its proposals waiting. Never modal; clicking
 /// it shows the status, recent calls and what waits per app, with Review
 /// Proposals… opening Review & Push filtered to that assistant (or, for
-/// screenshot proposals, their Proposals sheet), and Ask for Suggestions…
-/// or Set Up Assistant….
+/// screenshot proposals, their Proposals sheet), and Suggest Everything…
+/// (Show Progress while it runs) with Ask About This Page…, or Set Up
+/// Assistant….
 struct AssistantToolbarIndicator: View {
     let activity: AssistantActivity
     let status: AssistantStatus
@@ -25,7 +26,12 @@ struct AssistantToolbarIndicator: View {
     /// The name of an app in the library, by Apple ID.
     let appName: (StoreApp.ID) -> String
     let onReview: (_ client: String?) -> Void
+    /// Suggest Everything is receiving: a spinner, and Show Progress.
+    var isSuggestingEverything = false
+    /// On the Store Page or App Information: Ask About This Page….
+    var canAskAboutPage = false
     var onAsk: () -> Void = {}
+    var onSuggestEverything: () -> Void = {}
     var onSetUp: () -> Void = {}
     @Environment(WorkspaceNavigator.self) private var navigator
     @Environment(KeyAssistantController.self) private var keyAssistant
@@ -36,7 +42,7 @@ struct AssistantToolbarIndicator: View {
             isShowingPopover.toggle()
         } label: {
             HStack(spacing: Spacing.xSmall) {
-                if activity.isWorking {
+                if activity.isWorking || isSuggestingEverything {
                     ProgressView()
                         .controlSize(.mini)
                 } else {
@@ -67,6 +73,8 @@ struct AssistantToolbarIndicator: View {
                 recentRequests: keyAssistant.recentRequests,
                 appName: appName,
                 canOpenScreenshotProposals: screenshotApp != nil,
+                isSuggestingEverything: isSuggestingEverything,
+                canAskAboutPage: canAskAboutPage,
                 onReviewProposals: reviewProposals,
                 onScreenshotProposals: {
                     isShowingPopover = false
@@ -75,6 +83,10 @@ struct AssistantToolbarIndicator: View {
                 onAsk: {
                     isShowingPopover = false
                     onAsk()
+                },
+                onSuggestEverything: {
+                    isShowingPopover = false
+                    onSuggestEverything()
                 },
                 onSetUp: {
                     isShowingPopover = false
@@ -104,6 +116,7 @@ struct AssistantToolbarIndicator: View {
     /// review", or "Assistant, Connected".
     private var accessibilityLabel: String {
         if activity.isWorking || activity.proposalCount > 0 { return activity.accessibilityLabel }
+        if isSuggestingEverything { return String(localized: "Assistant, suggesting everything") }
         return String(localized: "Assistant, \(status.title)")
     }
 

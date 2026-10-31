@@ -239,15 +239,10 @@ struct StorePageViewModelTests {
         #expect(model.isImporterPresented)
     }
 
-    @Test func theScreenshotsIntentOpensScreenshots() async {
-        let model = await makeModel()
-        model.handle(.showScreenshots)
-        #expect(model.mode == .screenshots)
-    }
-
     @Test func onlyStorePageIntentsAreTaken() {
         #expect(StorePageViewModel.handles(.translateMissing))
-        #expect(StorePageViewModel.handles(.showScreenshots))
+        // Screenshots is its own section now.
+        #expect(!StorePageViewModel.handles(.showScreenshots))
         #expect(StorePageViewModel.handles(.search))
         #expect(!StorePageViewModel.handles(.reviewSuggestions))
         #expect(!StorePageViewModel.handles(.editPriceSchedule(productID: nil)))

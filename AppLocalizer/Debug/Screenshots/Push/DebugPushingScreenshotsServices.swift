@@ -26,6 +26,8 @@ final class DebugPushingScreenshotsServices: ScreenshotsServices, ScreenshotPush
     var renderCacheDirectory: URL? { base.renderCacheDirectory }
     var renderHoldCount: Int? { base.renderHoldCount }
     var documentCenter: ScreenshotsDocumentCenter? { base.documentCenter }
+    var initialTab: ScreenshotsTab { base.initialTab }
+    var autopilot: AutopilotCenter? { base.autopilot }
 
     func document(for app: StoreApp, primaryLocale: StoreLocale) async throws -> ScreenshotsDocument {
         try await base.document(for: app, primaryLocale: primaryLocale)

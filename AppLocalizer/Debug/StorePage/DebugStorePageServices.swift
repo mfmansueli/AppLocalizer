@@ -27,6 +27,13 @@ struct DebugStorePageServices: StorePageServices {
     var opening: Opening?
     /// Lumen's sample screenshots (`ScreenshotsSampleData`).
     var screenshots: any ScreenshotsServices = DebugScreenshotsServices()
+    /// What Lumen's project supports; nil hides new languages.
+    var appSupport: AppSupportCenter?
+    /// The version's build has an Apple Watch app, as App Store Connect
+    /// would say once one is attached.
+    var buildHasWatchApp = false
+
+    func hasWatchApp(for _: StoreApp, versionID _: String) async throws -> Bool { buildHasWatchApp }
 
     func summary(for app: StoreApp) async throws -> StorePageSummary {
         if let error { throw error }

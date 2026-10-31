@@ -15,7 +15,9 @@ import Observation
 /// Pushed changes leave the queue and are recorded in `PushHistory`.
 ///
 /// A change sends its `pushRequests` (its own, then its option's when that's
-/// on). Placeholders are filled in just before each request goes: a
+/// on). Changes with the same `mergeKey` (an age rating declaration's
+/// answers) go out together as one `PATCH`, since App Store Connect only
+/// takes that resource whole. Placeholders are filled in just before each request goes: a
 /// `{createdID}` with the ID an earlier `POST` of the same change returned,
 /// a `{secret:…}` from `secrets`.
 @MainActor
@@ -179,22 +181,33 @@ final class PushController {
         var failures: [PendingChange.ID: String] = [:]
         var stopReason: String?
 
+        // Items sent with an earlier one's merged request aren't queued
+        // anymore when the loop reaches them.
         for index in items.indices where items[index].status == .queued {
             if let reason = stopReason ?? (isCancelling ? String(localized: "Cancelled") : nil) {
                 items[index].status = .notSent(reason)
                 continue
             }
-            let outcome = await process(index)
-            switch outcome {
-            case let .pushed(appID):
-                pushedApps.insert(appID)
-            case let .failed(text, stop):
-                failures[items[index].id] = text
-                stopReason = stop
-            case let .stopped(reason):
-                stopReason = reason
-            case .skipped:
-                break
+            let batch = mergedBatch(startingAt: index)
+            let outcomes: [(Int, ItemOutcome)]
+            if batch.count > 1 {
+                outcomes = await processMerged(batch)
+            } else {
+                let outcome = await process(index)
+                outcomes = [(index, outcome)]
+            }
+            for (itemIndex, outcome) in outcomes {
+                switch outcome {
+                case let .pushed(appID):
+                    pushedApps.insert(appID)
+                case let .failed(text, stop):
+                    failures[items[itemIndex].id] = text
+                    stopReason = stop ?? stopReason
+                case let .stopped(reason):
+                    stopReason = reason
+                case .skipped:
+                    break
+                }
             }
         }
 
@@ -209,16 +222,8 @@ final class PushController {
 
     /// Sends one item and sets its status.
     private func process(_ index: Int) async -> ItemOutcome {
-        guard let change = queue.change(id: items[index].id) else {
-            items[index].status = .notSent(String(localized: "Discarded"))
-            return .skipped
-        }
-        guard !change.isBlocked else {
-            items[index].status = change.needsDecision ? .conflict : .notSent(change.blockingMessage ?? "")
-            return .skipped
-        }
-        items[index].change = change
-        items[index].status = .sending
+        guard prepare(index) else { return .skipped }
+        let change = items[index].change
         do {
             try await send(index)
             items[index].status = .done
@@ -231,9 +236,104 @@ final class PushController {
         } catch {
             let (status, stop) = handle(error)
             items[index].status = status
-            if case let .failed(text) = status { return .failed(text, stop: stop) }
-            return stop.map(ItemOutcome.stopped) ?? .skipped
+            return Self.outcome(status, stop: stop)
         }
+    }
+
+    // MARK: - Merged writes
+
+    /// The queued items sent with the one at `index`: itself, then the later
+    /// ones whose change shares its merge key.
+    private func mergedBatch(startingAt index: Int) -> [Int] {
+        guard let key = queue.change(id: items[index].id)?.mergeKey else { return [index] }
+        return [index] + items.indices.filter { other in
+            other > index && items[other].status == .queued && queue.change(id: items[other].id)?.mergeKey == key
+        }
+    }
+
+    /// Sends items whose changes write one resource App Store Connect only
+    /// takes whole: their conflict checks (one `GET` per path), then a
+    /// single `PATCH` with all their attributes. Those that go out succeed
+    /// or fail together.
+    private func processMerged(_ indices: [Int]) async -> [(Int, ItemOutcome)] {
+        var sending = indices.filter { prepare($0) }
+        var outcomes = indices.filter { !sending.contains($0) }.map { ($0, ItemOutcome.skipped) }
+        do {
+            guard let transport else { throw AppStoreConnectError.invalidResponse }
+            let conflicted = try await markMergedConflicts(among: sending, transport: transport)
+            outcomes += conflicted.map { ($0, .skipped) }
+            sending.removeAll(where: conflicted.contains)
+            guard !sending.isEmpty else { return outcomes }
+            try await sendMerged(sending, transport: transport)
+            outcomes += sending.map { ($0, .pushed(items[$0].change.appID)) }
+        } catch {
+            let (status, stop) = handle(error)
+            for index in sending where items[index].status == .sending {
+                items[index].status = status
+                outcomes.append((index, Self.outcome(status, stop: stop)))
+            }
+        }
+        return outcomes
+    }
+
+    /// Takes the item at `index` from the queue to send it, or sets why it
+    /// can't go (discarded, or blocked by a conflict or a problem).
+    private func prepare(_ index: Int) -> Bool {
+        guard let change = queue.change(id: items[index].id) else {
+            items[index].status = .notSent(String(localized: "Discarded"))
+            return false
+        }
+        guard !change.isBlocked else {
+            items[index].status = change.needsDecision ? .conflict : .notSent(change.blockingMessage ?? "")
+            return false
+        }
+        items[index].change = change
+        items[index].status = .sending
+        return true
+    }
+
+    /// Runs the merged items' conflict checks, fetching each path once, and
+    /// marks those App Store Connect changed since; returns them.
+    private func markMergedConflicts(among indices: [Int], transport: any PushTransport) async throws -> [Int] {
+        var fetched: [String: Data] = [:]
+        var conflicted: [Int] = []
+        for index in indices {
+            guard let check = items[index].change.conflictCheck else { continue }
+            if fetched[check.path] == nil {
+                let response = try await transport.fetch(check.path)
+                noteRequest(response.rateLimit)
+                fetched[check.path] = response.data
+            }
+            let actual = check.value(in: fetched[check.path] ?? Data())
+            guard check.differs(from: actual) else { continue }
+            items[index].status = .conflict
+            queue.markRemoteConflict(
+                id: items[index].id,
+                RemoteConflict(remoteRawValue: actual, remoteDisplayValue: check.format.display(actual))
+            )
+            conflicted.append(index)
+        }
+        return conflicted
+    }
+
+    /// One `PATCH` for every item in `indices`, which are all done after it.
+    private func sendMerged(_ indices: [Int], transport: any PushTransport) async throws {
+        guard let request = PushRequest.merged(indices.map { items[$0].change.pushRequests[0] }) else {
+            throw AppStoreConnectError.invalidResponse
+        }
+        let resolved = try request.resolved(createdID: nil) { try secrets.secret(named: $0) }
+        let response = try await transport.send(resolved)
+        noteRequest(response.rateLimit)
+        for index in indices {
+            items[index].sentRequestCount = 1
+            items[index].status = .done
+            queue.discard(id: items[index].id)
+        }
+    }
+
+    private static func outcome(_ status: PushItemStatus, stop: String?) -> ItemOutcome {
+        if case let .failed(text) = status { return .failed(text, stop: stop) }
+        return stop.map(ItemOutcome.stopped) ?? .skipped
     }
 
     /// Checks for a conflict, then sends the item's remaining requests.

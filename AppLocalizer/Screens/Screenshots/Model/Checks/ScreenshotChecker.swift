@@ -20,10 +20,12 @@ enum ScreenshotChecker {
             text: String(localized: "PNG · \(canvas.pixelSize.title) px · RGB, no transparency")
         )]
         let hasCaption = !layout.headline.isEmpty
-        if let glyphs = glyphCheck(layout) { checks.append(glyphs) }
-        checks.append(hasCaption ? fitCheck(layout) : RenderCheck(
-            kind: .captionPresent, status: .pending, text: String(localized: "No caption yet"), shortReason: String(localized: "No caption")
-        ))
+        if canvas.display.hasCaptions {
+            if let glyphs = glyphCheck(layout) { checks.append(glyphs) }
+            checks.append(hasCaption ? fitCheck(layout) : RenderCheck(
+                kind: .captionPresent, status: .pending, text: String(localized: "No caption yet"), shortReason: String(localized: "No caption")
+            ))
+        }
         if let capture {
             if let size = captureSizeCheck(capture.capture, layout: layout) { checks.append(size) }
             if !capture.isInterfaceLocalized {
@@ -75,8 +77,10 @@ enum ScreenshotChecker {
         let display = layout.canvas.display
         let wrongSize = String(localized: "Wrong size")
         let size = capture.pixelSize
+        // A visionOS window takes the capture's own shape.
+        if display == .visionPro { return nil }
         let isTabletCapture = size.aspectRatio < 1.7
-        if isTabletCapture != display.isTablet {
+        if display.isRendered, isTabletCapture != display.isTablet {
             let kind = isTabletCapture ? String(localized: "an iPad screenshot") : String(localized: "an iPhone screenshot")
             let text = String(localized: "Wrong size: the capture is \(size.title), \(kind). Retake it on an \(display.deviceName) simulator.")
             return RenderCheck(kind: .captureSize, status: .failed, text: text, shortReason: wrongSize)

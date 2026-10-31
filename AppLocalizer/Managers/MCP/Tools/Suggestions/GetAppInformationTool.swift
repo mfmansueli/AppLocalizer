@@ -22,7 +22,10 @@ struct GetAppInformationTool: MCPTool {
         contactEmail, notes). Each field has its current value, App Store Connect's (`live`) where it differs, \
         its limit, and whether it's locked (the version is in review or live); an unanswered question or \
         feature has value null. Categories and release are picked from `choices`, by id. `suggestions` lists \
-        the ones already open with their source. Send suggestions with suggest_fields.
+        the ones already open with their source. App Store Connect won't create review details without a \
+        contact email: when the review contact is empty, suggest it from what the project shows (a support or \
+        contact email in the app or its docs, or the git author's name and email), and never make up a phone \
+        number. Send suggestions with suggest_fields.
         """,
         inputSchema: MCPToolDefinition.schema(
             ["appId": MCPToolDefinition.string("The app's Apple ID, bundle ID, SKU or name, from list_apps.")],

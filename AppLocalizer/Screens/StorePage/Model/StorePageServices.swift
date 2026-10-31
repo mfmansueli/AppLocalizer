@@ -19,7 +19,7 @@ protocol StorePageServices {
     /// Subscription and in-app purchase names and descriptions.
     func inAppTexts(for app: StoreApp) async throws -> InAppTextsContent
 
-    /// Store Page → Screenshots: templates, captions, captures and the
+    /// Screenshots: templates, captions, captures and the
     /// live screenshot sets.
     var screenshots: any ScreenshotsServices { get }
 
@@ -32,8 +32,20 @@ protocol StorePageServices {
     /// The newest App Store reviews, for Generate Suggestions… when the
     /// person allowed them.
     func customerReviews(for app: StoreApp, limit: Int) async throws -> [CustomerReview]
+
+    /// What each app's Xcode project supports (devices and languages), as
+    /// its assistant reported it.
+    var appSupport: AppSupportCenter? { get }
+
+    /// Whether the build attached to the version has an Apple Watch app, so
+    /// App Store Connect wants Apple Watch screenshots.
+    func hasWatchApp(for app: StoreApp, versionID: String) async throws -> Bool
 }
 
 extension StorePageServices {
     func customerReviews(for _: StoreApp, limit _: Int) async throws -> [CustomerReview] { [] }
+
+    var appSupport: AppSupportCenter? { nil }
+
+    func hasWatchApp(for _: StoreApp, versionID _: String) async throws -> Bool { false }
 }

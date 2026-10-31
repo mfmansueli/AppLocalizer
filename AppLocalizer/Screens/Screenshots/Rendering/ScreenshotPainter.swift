@@ -87,6 +87,12 @@ struct ScreenshotPainter {
             layer.fill(screen, with: .color(Self.emptyScreen))
         }
         drawCapture(in: &context, clip: screen)
+        if layout.screenRim > 0 {
+            context.stroke(screen, with: .color(.white.opacity(0.55)), lineWidth: layout.screenRim)
+        }
+        if let bar = layout.windowBar {
+            context.fill(Path(roundedRect: bar, cornerRadius: bar.height / 2, style: .continuous), with: .color(.white.opacity(0.65)))
+        }
     }
 
     /// The capture, aspect-filling the screen, top-aligned, never

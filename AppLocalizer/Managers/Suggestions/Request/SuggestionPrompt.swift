@@ -22,7 +22,10 @@ enum SuggestionPrompt {
             \(primary) and in every language that has a translation.
             """)
         case .appInformation:
-            return String(localized: "Suggest App Information and App Review details for \(subject) in AppLocalizer, from the code.")
+            return String(localized: """
+            Suggest App Information and App Review details for \(subject) in AppLocalizer, from the code, and App \
+            Review's contact if it's empty.
+            """)
         }
     }
 }

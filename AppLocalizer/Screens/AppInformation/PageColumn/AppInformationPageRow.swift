@@ -12,6 +12,8 @@ struct AppInformationPageRow: View {
     let status: String?
     /// Open suggestions on the page: "2 suggestions" replaces the status.
     var suggestionCount = 0
+    /// Still to come from Suggest Everything: "3 suggestions · 4 coming".
+    var comingCount = 0
     let hasPendingChanges: Bool
 
     var body: some View {
@@ -22,7 +24,7 @@ struct AppInformationPageRow: View {
                 if let subtitle {
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundStyle(suggestionCount > 0 ? AnyShapeStyle(Palette.machineTranslated) : AnyShapeStyle(.secondary))
+                        .foregroundStyle(suggestionCount > 0 || comingCount > 0 ? AnyShapeStyle(Palette.machineTranslated) : AnyShapeStyle(.secondary))
                         .lineLimit(1)
                 }
             }
@@ -38,11 +40,13 @@ struct AppInformationPageRow: View {
     }
 
     private var subtitle: String? {
-        switch suggestionCount {
-        case 0: status
+        let suggestions: String? = switch suggestionCount {
+        case 0: comingCount > 0 ? String(localized: "0 suggestions") : status
         case 1: String(localized: "1 suggestion")
         default: String(localized: "\(suggestionCount) suggestions")
         }
+        guard comingCount > 0, let suggestions else { return suggestions }
+        return suggestions + " · " + String(localized: "\(comingCount) coming")
     }
 
     /// "Age Rating, 9+, not pushed" or "General, 2 suggestions".

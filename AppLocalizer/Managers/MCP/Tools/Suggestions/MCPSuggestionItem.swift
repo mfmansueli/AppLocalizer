@@ -6,8 +6,9 @@
 import Foundation
 
 /// One item of a `suggest_fields` call: `{area, locale | page, device,
-/// field, value, reason, evidence}`. Only the shape is checked here; the tool
-/// checks the field, the limit and the permissions.
+/// field, value, reason, evidence}`, or of a `begin_suggestions` plan,
+/// which has no value. Only the shape is checked here; the tool checks the
+/// field, the limit and the permissions.
 struct MCPSuggestionItem: Hashable, Sendable {
     var area: SuggestionArea
     /// A Store Page locale code, e.g. `de-DE`.
@@ -23,7 +24,8 @@ struct MCPSuggestionItem: Hashable, Sendable {
     var reason: String
     var evidence: [SuggestionEvidence]
 
-    init(_ object: [String: JSONValue]) throws {
+    /// `isPlanned`: a plan's entry, which names a field without a value.
+    init(_ object: [String: JSONValue], isPlanned: Bool = false) throws {
         let arguments = MCPToolArguments(object)
         let areaName = try arguments.optionalString("area")
         if let areaName {
@@ -39,7 +41,7 @@ struct MCPSuggestionItem: Hashable, Sendable {
         page = try arguments.optionalString("page")
         device = try arguments.optionalString("device")
         field = try arguments.string("field")
-        guard let value = object["value"]?.stringValue else {
+        guard let value = object["value"]?.stringValue ?? (isPlanned ? "" : nil) else {
             throw MCPToolError.invalidArgument(name: "value", expected: String(localized: "a string"))
         }
         self.value = value

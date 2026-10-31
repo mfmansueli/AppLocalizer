@@ -11,7 +11,8 @@ import Foundation
 /// with `Content-Length` or chunked.
 struct HTTPRequestParser {
     static let maximumHeaderSize = 16 * 1024
-    static let maximumBodySize = 4 * 1024 * 1024
+    /// Room for an Autopilot capture: a 13″ iPad PNG can pass 20 MB.
+    static let maximumBodySize = 40 * 1024 * 1024
 
     private(set) var buffer = Data()
 

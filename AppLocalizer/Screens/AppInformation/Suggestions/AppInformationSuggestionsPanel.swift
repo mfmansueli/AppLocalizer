@@ -37,6 +37,7 @@ struct AppInformationSuggestionsPanel: View {
                 appID: viewModel.app.id,
                 area: .appInformation,
                 scopeTitle: scope.title,
+                scopes: [scope],
                 model: viewModel.suggestionBar(for: scope, assistant: assistants.assistantStatus.clientName),
                 filter: $viewModel.suggestionFilter,
                 showsOnlyFields: $viewModel.showsOnlySuggestedFields,

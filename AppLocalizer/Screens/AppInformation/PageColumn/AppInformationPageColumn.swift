@@ -18,6 +18,7 @@ struct AppInformationPageColumn: View {
                     page: page,
                     status: viewModel.status(for: page),
                     suggestionCount: viewModel.suggestionCount(on: page),
+                    comingCount: viewModel.comingCount(on: page),
                     hasPendingChanges: viewModel.hasPendingChanges(on: page)
                 )
                 .tag(page)

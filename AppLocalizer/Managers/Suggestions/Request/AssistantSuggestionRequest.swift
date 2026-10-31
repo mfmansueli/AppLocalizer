@@ -23,6 +23,21 @@ struct AssistantSuggestionRequest: Hashable, Sendable {
     /// `total`), when it said.
     var total: Int?
 
+    /// The fields its prompt asks for, which Suggest Everything leaves to
+    /// it while it goes on: the Store Page's subtitle, promotional text and
+    /// What’s New in every language, or App Information's General and App
+    /// Review fields.
+    func covers(_ target: SuggestionTarget) -> Bool {
+        switch area {
+        case .storePage:
+            guard case .storePage = target.scope, let field = ListingField(rawValue: target.field) else { return false }
+            return [.subtitle, .promotionalText, .whatsNew].contains(field)
+        case .appInformation:
+            guard case .field = AppInformationSuggestionSlot(target: target) else { return false }
+            return true
+        }
+    }
+
     /// Something arrived: the popover closes and the banner takes over.
     var isReceiving: Bool { received > 0 }
 

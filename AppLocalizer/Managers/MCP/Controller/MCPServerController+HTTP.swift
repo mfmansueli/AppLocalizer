@@ -11,6 +11,7 @@ import Foundation
 /// `POST /mcp/pair` trades a pairing code for that token.
 extension MCPServerController {
     func handle(_ request: HTTPRequest) async -> HTTPReply {
+        if request.path.hasPrefix(MCPEndpoint.autopilotPath) { return await .response(receiveAutopilotUpload(request)) }
         guard request.path == MCPEndpoint.path || request.path == MCPEndpoint.pairingPath else { return .response(.text(404)) }
         guard Self.isLocal(origin: request.header("origin")), Self.isLocal(host: request.header("host")) else {
             return .response(.text(403, "Only clients on this Mac may connect."))
@@ -157,7 +158,8 @@ extension MCPServerController {
                 workspace: workspace,
                 clientName: session.displayName,
                 allowedProposals: allowedProposals,
-                editsDrafts: editsDrafts
+                editsDrafts: editsDrafts,
+                port: port
             )
             return try await tool.call(arguments, in: context)
         } catch {

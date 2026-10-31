@@ -148,7 +148,10 @@ struct AppInformationSuggestionsTests {
         #expect(vm.page == .general)
         #expect(vm.requestsAsk)
         #expect(!vm.handle(.reviewFieldSuggestions(.storePage)))
-        #expect(vm.suggestionPrompt() == "Suggest App Information and App Review details for Lumen Journal 1.4 in AppLocalizer, from the code.")
+        #expect(vm.suggestionPrompt() == """
+        Suggest App Information and App Review details for Lumen Journal 1.4 in AppLocalizer, from the code, and App \
+        Review's contact if it's empty.
+        """)
     }
 
     @Test func theWriterRefusesALockedVersionAndADatelessSchedule() async throws {

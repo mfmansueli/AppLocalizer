@@ -45,6 +45,83 @@ enum SuggestionsDebugData {
         return store
     }
 
+    // MARK: - Suggest Everything
+
+    /// Board 20's run for Lumen 1.4: five Store Page fields, the secondary
+    /// category, six Age Rating questions, five accessibility features and
+    /// the App Review notes, in the order the plan lists them.
+    static var runPlan: [SuggestionTarget] {
+        let order = SuggestionPage.allCases
+        return runItems.map(\.target).sorted { lhs, rhs in
+            (order.firstIndex { $0 == SuggestionPage(lhs.scope) } ?? 0) < (order.firstIndex { $0 == SuggestionPage(rhs.scope) } ?? 0)
+        }
+    }
+
+    /// Suggest Everything receiving: Claude Code announced `runPlan` and
+    /// sent the first `arrived` of its suggestions (9 is "9 of 18": English
+    /// 3/3, General, 2 Age Rating answers, iPhone and one Apple Watch
+    /// feature, and the notes; 12 adds German, a question and a feature).
+    /// `now` dates what arrives.
+    static func runStore(arrived: Int, now: @escaping () -> Date = Date.init) -> FieldSuggestionStore {
+        let store = FieldSuggestionStore(now: now)
+        let prompt = SuggestEverythingScope(appName: StorePageSampleData.appName, versionString: "1.4").prompt
+        store.beginRun(appID: appID, client: client, prompt: prompt)
+        let run = store.startRun(appID: appID, client: client, plan: runPlan)
+        for item in runItems.prefix(arrived) {
+            addRunItem(item, to: store, runID: run.id)
+        }
+        return store
+    }
+
+    /// Sends the run's next suggestion, e.g. the last one, which finishes it.
+    static func sendNextRunItem(to store: FieldSuggestionStore) {
+        guard let run = store.run, let item = runItems.first(where: { !run.arrived.contains($0.target) }) else { return }
+        addRunItem(item, to: store, runID: run.id)
+    }
+
+    private static func addRunItem(_ item: Item, to store: FieldSuggestionStore, runID: SuggestionRun.ID) {
+        store.add(appID: appID, target: item.target, value: item.value, reason: item.reason, source: item.source, runID: runID)
+    }
+
+    /// In the order Claude Code sends them.
+    private static var runItems: [Item] {
+        let all = storePage + appInformation + codeAnswers + [japaneseWhatsNew]
+        let order: [SuggestionTarget] = [
+            .storePage(.englishUS, .whatsNew),
+            .storePage(.englishUS, .promotionalText),
+            .storePage(.englishUS, .subtitle),
+            .appInformation(.secondaryCategory),
+            AppInformationSuggestionSlot.ageRating(.wellness).target,
+            AppInformationSuggestionSlot.ageRating(.webAccess).target,
+            AppInformationSuggestionSlot.accessibility(.iPhone, .reducedMotion).target,
+            AppInformationSuggestionSlot.accessibility(.appleWatch, .voiceOver).target,
+            .appInformation(.notes),
+            .storePage(.german, .whatsNew),
+            AppInformationSuggestionSlot.ageRating(.userGeneratedContent).target,
+            AppInformationSuggestionSlot.accessibility(.appleWatch, .largerText).target,
+            AppInformationSuggestionSlot.ageRating(.messaging).target,
+            .storePage(.japanese, .whatsNew),
+            AppInformationSuggestionSlot.ageRating(.parentalControls).target,
+            AppInformationSuggestionSlot.ageRating(.ageAssurance).target,
+            AppInformationSuggestionSlot.accessibility(.appleWatch, .differentiateWithoutColor).target,
+            AppInformationSuggestionSlot.accessibility(.appleWatch, .reducedMotion).target,
+        ]
+        return order.compactMap { target in all.first { $0.target == target } }
+    }
+
+    private static var japaneseWhatsNew: Item {
+        Item(
+            .storePage(.japanese, .whatsNew),
+            """
+            • 週ごとのふりかえり：毎週日曜日に、あなたの一週間を穏やかにまとめます
+            • 何年分もの記録をすばやく検索
+            • 古いデバイスでのiCloud同期を修正
+            """,
+            "Translated from the English suggestion with your glossary.",
+            .assistant(client: client)
+        )
+    }
+
     private struct Item {
         var target: SuggestionTarget
         var value: String

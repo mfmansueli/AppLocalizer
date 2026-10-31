@@ -72,8 +72,6 @@ struct StorePageContextBar: View {
     }
 
     private var subtitle: String {
-        viewModel.mode == .screenshots
-            ? String(localized: "Screenshots belong to a version; they go live with it")
-            : String(localized: "Name, Subtitle and Privacy URL are app-level; everything else is per version")
+        String(localized: "Name, Subtitle and Privacy URL are app-level; everything else is per version")
     }
 }

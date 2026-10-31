@@ -5,19 +5,11 @@
 
 import Foundation
 
-/// The overview's Suggestions card: an app's open field suggestions by area,
-/// by Store Page language, and by source.
+/// The overview's Suggestions card: an app's open field suggestions per
+/// page (Store Page, General, Age Rating, Accessibility, App Review) and
+/// per source.
 struct SuggestionsSummary: Hashable, Sendable {
-    /// One Store Page language with suggestions open.
-    struct LocaleCount: Hashable, Sendable {
-        var name: String
-        var count: Int
-    }
-
-    var storePageCount = 0
-    /// Most first, then by name.
-    var locales: [LocaleCount] = []
-    var appInformationCount = 0
+    private var counts: [SuggestionPage: Int] = [:]
     var builtInCount = 0
     var assistantCount = 0
     var aiProviderCount = 0
@@ -25,41 +17,35 @@ struct SuggestionsSummary: Hashable, Sendable {
     var assistantName: String?
 
     init(open suggestions: [FieldSuggestion]) {
-        var perLocale: [String: Int] = [:]
         for suggestion in suggestions {
-            switch suggestion.target.scope {
-            case let .storePage(code):
-                storePageCount += 1
-                perLocale[StoreLocaleCatalog.locale(code: code)?.name ?? code, default: 0] += 1
-            case .appInformation, .accessibility:
-                appInformationCount += 1
-            }
+            if let page = SuggestionPage(suggestion.target.scope) { counts[page, default: 0] += 1 }
             switch suggestion.source {
             case .builtIn: builtInCount += 1
             case .assistant: assistantCount += 1
             case .aiProvider: aiProviderCount += 1
             }
         }
-        locales = perLocale.map { LocaleCount(name: $0.key, count: $0.value) }
-            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
         assistantName = suggestions.filter(\.source.isAssistant).max { $0.createdAt < $1.createdAt }?.source.assistantName
     }
 
-    var total: Int { storePageCount + appInformationCount }
+    var total: Int { counts.values.reduce(0, +) }
+
+    func count(on page: SuggestionPage) -> Int {
+        counts[page] ?? 0
+    }
 
     /// "5 to review", or "All reviewed".
     var pillText: String {
         total > 0 ? String(localized: "\(total) to review") : String(localized: "All reviewed")
     }
 
-    /// "5 · English (U.S.) 3 · German 2", or "None".
-    var storePageText: String {
-        guard storePageCount > 0 else { return String(localized: "None") }
-        return ([storePageCount.formatted()] + locales.map { "\($0.name) \($0.count.formatted())" }).joined(separator: " · ")
-    }
-
-    var appInformationText: String {
-        appInformationCount > 0 ? appInformationCount.formatted() : String(localized: "None")
+    /// "6 · 2 coming" while Suggest Everything sends more, "3", "None", or
+    /// "Locked" when the page can't change now.
+    func text(on page: SuggestionPage, coming: Int = 0, isLocked: Bool = false) -> String {
+        let count = count(on: page)
+        if coming > 0 { return String(localized: "\(count) · \(coming) coming") }
+        if count > 0 { return count.formatted() }
+        return isLocked ? String(localized: "Locked") : String(localized: "None")
     }
 
     /// "Built-in 2 · Claude Code 3 · AI provider 0"; `assistant` names the

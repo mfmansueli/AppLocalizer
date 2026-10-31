@@ -6,7 +6,7 @@
 #if DEBUG
 import SwiftUI
 
-/// Store Page → Screenshots' DEBUG scenes (`-AppLocalizerDebugScene <id>`),
+/// Screenshots' DEBUG scenes (`-AppLocalizerDebugScene <id>`),
 /// named after the design's screenshots. Every scene is Lumen Journal's
 /// store page, version 1.4, on the Screenshots view:
 ///
@@ -166,10 +166,9 @@ enum ScreenshotsDebugScenes {
         if let translator { screenshots.translator = translator }
         var storePage = DebugStorePageServices(hasEditableVersion: hasEditableVersion)
         storePage.screenshots = screenshots
-        storePage.opening = DebugStorePageServices.Opening { $0.mode = .screenshots }
         var services = WorkspaceServices.debug
         services.storePage = storePage
-        return AnyView(DebugMainScene(services: services, section: .storePage, pendingChanges: DebugWorkspace.pendingChanges))
+        return AnyView(DebugMainScene(services: services, section: .screenshots, pendingChanges: DebugWorkspace.pendingChanges))
     }
 }
 #endif

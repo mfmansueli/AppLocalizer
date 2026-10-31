@@ -73,6 +73,14 @@ struct SuggestionReadToolsTests {
         #expect(result["choices"]?["release"]?.arrayValue?.count == ReleaseOption.allCases.count)
     }
 
+    /// Every prompt reads get_app_information first, so its description is
+    /// where an assistant learns to fill an empty App Review contact.
+    @Test func appInformationAsksForAnEmptyReviewContact() {
+        let description = GetAppInformationTool().definition.description
+        #expect(description.contains("App Store Connect won't create review details without a contact email"))
+        #expect(description.contains("never make up a phone number"))
+    }
+
     @Test func theSuggestPromptNamesTheAreaAndTheTools() {
         let text = MCPPrompt.suggest.message(app: "Lumen Journal", area: "info")["messages"]?.arrayValue?.first?["content"]?["text"]?.stringValue ?? ""
         #expect(text.contains("App Information and App Review details, from the code"))

@@ -16,6 +16,9 @@ struct StorePageSummary: Hashable, Sendable {
     var hasEditableVersion: Bool
     /// Locales with a store page.
     var localeCount: Int
+    /// Their App Store Connect codes, e.g. `en-US`, to compare with the
+    /// languages the app's project supports.
+    var localeCodes: [String] = []
     /// Every App Store locale.
     var totalLocaleCount: Int = 39
     /// Filled fields ÷ all fields across the app's locales, 0…1.

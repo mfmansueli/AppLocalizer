@@ -73,9 +73,18 @@ extension AppInformationChangeBuilder {
             oldValue: String(localized: "None"),
             newValue: [contact, values.email].filter { !$0.isEmpty }.joined(separator: " · "),
             source: source,
-            blockedReason: AppReviewField.allCases.lazy.compactMap { Self.reviewProblem($0, in: values) }.first,
+            blockedReason: Self.newReviewDetailProblem(values)
+                ?? AppReviewField.allCases.lazy.compactMap { Self.reviewProblem($0, in: values) }.first,
             requests: [PushRequest(method: .post, path: "/v1/appStoreReviewDetails", body: document.encoded())]
         )
+    }
+
+    /// App Store Connect won't create review details without a contact
+    /// email ("ENTITY_ERROR.ATTRIBUTE.REQUIRED — You must provide a value
+    /// for the attribute 'contactEmail'").
+    static func newReviewDetailProblem(_ values: AppReviewValues) -> String? {
+        guard values.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return String(localized: "Add a contact email: App Store Connect needs one to create the review details.")
     }
 
     // MARK: - Reading

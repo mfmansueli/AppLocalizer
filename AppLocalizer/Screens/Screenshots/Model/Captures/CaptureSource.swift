@@ -16,6 +16,8 @@ enum CaptureSource: String, Codable, Hashable, Sendable, CaseIterable {
     /// The screenshots live in App Store Connect; they may already have
     /// captions.
     case appStoreConnect
+    /// Screenshot Autopilot: the assistant captured the app in Simulator.
+    case autopilot
 
     var title: String {
         switch self {
@@ -23,6 +25,7 @@ enum CaptureSource: String, Codable, Hashable, Sendable, CaseIterable {
         case .xcodeResults: String(localized: "Xcode test results")
         case .folder: String(localized: "Folder")
         case .appStoreConnect: String(localized: "App Store Connect")
+        case .autopilot: String(localized: "Autopilot")
         }
     }
 }

@@ -7,12 +7,14 @@ import SwiftUI
 
 /// What an action did, at the bottom of a section for a few seconds, with
 /// Undo when it can be taken back. Nothing asks for confirmation first:
-/// the toast is how the person takes a batch back. VoiceOver announces it.
+/// the toast is how the person takes a batch back. A toast can also offer
+/// to go on (its message's `actionTitle`). VoiceOver announces it.
 struct ActionToast: View {
     let message: ToastMessage
     /// How long it stays; a toast with Undo stays longer, to reach it.
     var duration: Duration?
     var onUndo: () -> Void = {}
+    var onAction: () -> Void = {}
     let onDismiss: () -> Void
 
     var body: some View {
@@ -28,6 +30,11 @@ struct ActionToast: View {
                 Button("Undo", action: onUndo)
                     .controlSize(.small)
                     .accessibilityIdentifier("toast.undo")
+            }
+            if let actionTitle = message.actionTitle {
+                Button(actionTitle, action: onAction)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("toast.action")
             }
             Button("Dismiss", systemImage: "xmark", action: onDismiss)
                 .labelStyle(.iconOnly)
@@ -46,7 +53,7 @@ struct ActionToast: View {
         .accessibilityIdentifier("toast")
         .task(id: message.id) {
             AccessibilityNotification.Announcement(message.text).post()
-            try? await Task.sleep(for: duration ?? (message.canUndo ? .seconds(10) : .seconds(6)))
+            try? await Task.sleep(for: duration ?? (message.canUndo || message.actionTitle != nil ? .seconds(10) : .seconds(6)))
             guard !Task.isCancelled else { return }
             onDismiss()
         }

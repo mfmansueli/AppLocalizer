@@ -33,6 +33,16 @@ struct MCPPromptTests {
         #expect(unnamed["messages"]?.arrayValue?.first?["role"] == "user")
     }
 
+    /// App Store Connect won't create review details without a contact
+    /// email, so an empty contact is part of what the assistant suggests.
+    @Test(arguments: [(MCPPrompt.suggest, "info"), (.suggest, nil), (.suggestAll, nil)] as [(MCPPrompt, String?)])
+    func suggestingAppInformationAsksForAnEmptyReviewContact(prompt: MCPPrompt, area: String?) {
+        let text = prompt.message(app: "Alba", area: area)["messages"]?.arrayValue?.first?["content"]?["text"]?.stringValue ?? ""
+        #expect(text.contains("If App Review's contact (first name, last name, phone, email) is empty"))
+        #expect(text.contains("git config user.name and user.email"))
+        #expect(text.contains("never make up a phone number"))
+    }
+
     @Test func everyToolAPromptNamesIsOneItRequires() {
         for prompt in MCPPrompt.allCases {
             let text = prompt.message(app: nil)["messages"]?.arrayValue?.first?["content"]?["text"]?.stringValue ?? ""

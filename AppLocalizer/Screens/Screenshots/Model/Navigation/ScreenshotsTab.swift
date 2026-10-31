@@ -7,6 +7,8 @@ import Foundation
 
 /// The screenshots bar's views.
 enum ScreenshotsTab: String, CaseIterable, Identifiable, Hashable, Sendable {
+    /// The App Store preview, with Screenshot Autopilot above it.
+    case preview
     case sets
     case template
     case captions
@@ -16,6 +18,7 @@ enum ScreenshotsTab: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var title: String {
         switch self {
+        case .preview: String(localized: "Preview")
         case .sets: String(localized: "Sets")
         case .template: String(localized: "Template")
         case .captions: String(localized: "Captions")

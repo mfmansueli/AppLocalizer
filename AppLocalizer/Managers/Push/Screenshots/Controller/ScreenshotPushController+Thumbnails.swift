@@ -34,7 +34,7 @@ extension ScreenshotPushController {
     func prepareThumbnails(for plan: ScreenshotPushPlan, app: StoreApp) {
         guard let screenshots = workspace?.screenshots else { return }
         let items = plan.items + plan.kept
-        for display in ScreenshotDisplayType.rendered {
+        for display in ScreenshotDisplayType.studio {
             let shown = items.filter { $0.cell.displayType == display }
             guard !shown.isEmpty else { continue }
             let key = "\(app.id)|\(display.rawValue)"

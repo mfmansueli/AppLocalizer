@@ -15,8 +15,11 @@ struct MCPToolDefinition: Hashable, Sendable {
     var inputSchema: JSONValue
     /// nil for tools that only read.
     var proposalKind: MCPProposalKind?
+    /// A tool that changes state without proposing anything (Autopilot's
+    /// reports): not gated by a proposal switch, but not read-only either.
+    var changesState = false
 
-    var isReadOnly: Bool { proposalKind == nil }
+    var isReadOnly: Bool { proposalKind == nil && !changesState }
 
     /// The entry in a `tools/list` result.
     var json: JSONValue {

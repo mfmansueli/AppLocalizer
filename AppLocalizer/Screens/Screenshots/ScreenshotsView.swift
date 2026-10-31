@@ -5,10 +5,11 @@
 
 import SwiftUI
 
-/// Store Page → Screenshots: the banner, the bar, and the chosen view —
-/// the Sets matrix, the template editor or the captions table, or what
-/// comes before them (no captures, no template) — plus the full-size
-/// viewer and the Locale Scope sheet.
+/// The Screenshots section: the banner, then the App Store preview with
+/// Autopilot (Preview), or the bar and the chosen view — the Sets matrix,
+/// the template editor, the captions table or the captures, or what comes
+/// before them (no captures, no template) — plus the full-size viewer and
+/// the Locale Scope sheet.
 struct ScreenshotsView: View {
     @Bindable var viewModel: ScreenshotsViewModel
     /// Nil in previews and scenes without the main window.
@@ -18,8 +19,10 @@ struct ScreenshotsView: View {
     var body: some View {
         VStack(spacing: 0) {
             banners
-            ScreenshotsBar(viewModel: viewModel)
-            Divider()
+            if viewModel.tab != .preview {
+                ScreenshotsBar(viewModel: viewModel)
+                Divider()
+            }
             content
         }
         .background(Palette.content)
@@ -62,6 +65,7 @@ struct ScreenshotsView: View {
             }
         } else {
             switch viewModel.tab {
+            case .preview: ScreenshotStudioView(screenshots: viewModel)
             case .sets: prerequisites { SetsMatrixView(viewModel: viewModel) }
             case .template: prerequisites { TemplateEditorView(viewModel: viewModel) }
             case .captions: CaptionsView(viewModel: viewModel)

@@ -8,7 +8,9 @@ import SwiftUI
 /// The locale editor: the primary locale read-only on the left and the
 /// chosen locale on the right, field by field, or "Korean has no text yet"
 /// for a locale with nothing in it. The locale's suggestions sit above its
-/// fields, each one under the field it's for.
+/// fields, each one under the field it's for. Languages the app supports
+/// and the App Store doesn't have show as a banner on the App Store's
+/// languages, a card on their own tab until added, and a note once added.
 struct LocaleEditorView: View {
     @Bindable var viewModel: StorePageViewModel
 
@@ -21,7 +23,7 @@ struct LocaleEditorView: View {
             LocaleEditorHeader(viewModel: viewModel)
             Divider()
             if let locale = viewModel.editorLocale {
-                if viewModel.isEmptyLocale(locale) {
+                if viewModel.showsEmptyLocale(locale) {
                     EmptyLocaleView(viewModel: viewModel, locale: locale)
                 } else {
                     fields(in: locale)
@@ -33,7 +35,7 @@ struct LocaleEditorView: View {
         .overlay(alignment: .bottom) {
             if let toast = viewModel.toast {
                 ActionToast(message: toast) {
-                    viewModel.undoLastSuggestionBatch()
+                    viewModel.undoToast()
                 } onDismiss: {
                     if viewModel.toast == toast { viewModel.toast = nil }
                 }
@@ -55,6 +57,7 @@ struct LocaleEditorView: View {
                 appID: viewModel.app.id,
                 area: .storePage,
                 scopeTitle: locale.name,
+                scopes: [.storePage(locale)],
                 model: viewModel.suggestionBar(for: locale, assistant: assistants.assistantStatus.clientName),
                 filter: $viewModel.suggestionFilter,
                 showsOnlyFields: $viewModel.showsOnlySuggestedFields,
@@ -74,11 +77,39 @@ struct LocaleEditorView: View {
         }
     }
 
+    /// The project's languages: on an App Store language, the ones to add;
+    /// on a suggested one, why and Create Page; on an added one, that its
+    /// page comes with the push.
+    private func newLanguages(in locale: StoreLocale) -> some View {
+        Group {
+            if viewModel.isPendingLanguage(locale) {
+                NewLanguageCard(
+                    title: viewModel.newLanguageTitle(locale),
+                    text: viewModel.newLanguageText(locale),
+                    onNotNow: { viewModel.declineLanguage(locale) },
+                    onCreate: { viewModel.createPage(locale) }
+                )
+            } else if viewModel.isAddedLanguage(locale) {
+                NewLanguageAddedBanner { viewModel.removeLanguage(locale) }
+            } else if !viewModel.isNewLanguage(locale), let text = viewModel.newLanguagesBannerText {
+                NewLanguagesBanner(
+                    text: text,
+                    addTitle: viewModel.addAllLanguagesTitle,
+                    onReview: { viewModel.presentNewLanguages() },
+                    onAddAll: { viewModel.addAllPendingLanguages() }
+                )
+            }
+        }
+        .padding(.horizontal, Spacing.large)
+        .padding(.top, Spacing.small)
+    }
+
     private func fields(in locale: StoreLocale) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(spacing: 0) {
                     suggestionsPanel(in: locale)
+                    newLanguages(in: locale)
                     ForEach(viewModel.editorFields(in: locale)) { field in
                         EditorFieldRow(viewModel: viewModel, field: field, locale: locale)
                             .id(field)

@@ -6,7 +6,8 @@
 import SwiftUI
 
 /// A heading ("Subscription Pricing · Lumen Plus Annual · 164 changes"), the
-/// price schedule line with Edit…, and the group's rows.
+/// price schedule line with Edit…, and the group's rows: what's created
+/// ("Create the Polish page") with its fields, then one row per change.
 struct ReviewChangeGroupView: View {
     let group: ReviewChangeGroup
     let viewModel: ReviewPushViewModel
@@ -18,7 +19,7 @@ struct ReviewChangeGroupView: View {
                 Text(group.title)
                     .font(.headline)
                 Spacer()
-                Text(group.changes.count == 1 ? "1 change" : "\(group.changes.count) changes")
+                Text(group.countText)
                     .font(.caption)
                     .foregroundStyle(Palette.label2)
             }
@@ -45,7 +46,16 @@ struct ReviewChangeGroupView: View {
                 .padding(.horizontal, Spacing.medium)
                 .padding(.vertical, Spacing.small)
             }
-            ForEach(group.changes) { change in
+            ForEach(group.creations) { creation in
+                Divider()
+                ReviewCreationRows(
+                    creation: creation,
+                    isSelected: viewModel.isSelected(creation),
+                    onToggle: { viewModel.toggle(creation) },
+                    onDiscard: { viewModel.discard(creation) }
+                )
+            }
+            ForEach(group.plainChanges) { change in
                 Divider()
                 ReviewChangeRow(
                     change: change,

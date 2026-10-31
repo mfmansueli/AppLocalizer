@@ -61,6 +61,8 @@ struct EditorFieldRow: View {
                     onUseAndEdit: { viewModel.useAndEditSuggestion(suggestion) },
                     onAccept: { viewModel.acceptSuggestion(suggestion) }
                 )
+            } else if viewModel.isComing(field, in: locale), let run = viewModel.suggestionRun {
+                SuggestionComingPlaceholder(client: run.client)
             }
         }
         .padding(.horizontal, Spacing.large)

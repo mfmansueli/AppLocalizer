@@ -28,10 +28,13 @@ struct SuggestFieldsTool: MCPTool {
         status is queued, unchanged (the field already has that value or you suggested it already), replaced \
         (your older open suggestion for the field was replaced) or refused with a code: over_limit (with count), \
         unknown_field, unknown_locale, locked (the version is in review), not_permitted, invalid_value or \
-        invalid_answer (not one of the question's or feature's answers). Pass \
-        total, how many you'll send in all, so AppLocalizer shows progress. apply: true queues the values as \
-        changes instead, only when the person allowed editing drafts. Read get_store_page and \
-        get_app_information first.
+        invalid_answer (not one of the question's or feature's answers) or run_stopped (the person stopped \
+        receiving the run: stop sending). Pass total, how many you'll send in all, so AppLocalizer shows \
+        progress; when suggesting everything, call begin_suggestions with your plan first and pass its run \
+        instead. apply: true queues the values as changes instead, only when the person allowed editing \
+        drafts. A store locale may also be a language the app supports and the App Store doesn't have yet \
+        (get_store_page's languagesNotOnAppStore): it stays a suggestion, even with apply, in its own tab \
+        until the person adds the page. Read get_store_page and get_app_information first.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -39,6 +42,7 @@ struct SuggestFieldsTool: MCPTool {
                 "version": MCPToolDefinition.string("The version string, e.g. 1.4, to check it's the one being prepared."),
                 "items": ["type": "array", "description": "The suggestions, one per field.", "items": Self.itemSchema],
                 "total": ["type": "integer", "description": "How many suggestions you'll send in all, across calls."],
+                "run": MCPToolDefinition.string("The run begin_suggestions returned, when suggesting everything."),
                 "apply": ["type": "boolean", "description": "Queue the values as changes. Only with “Suggest and edit drafts”."],
             ],
             required: ["appId", "items"]
@@ -77,8 +81,17 @@ struct SuggestFieldsTool: MCPTool {
             return try MCPSuggestionItem(object)
         }
         let wantsApply = try arguments.optionalBool("apply") ?? false
+        let runID = try arguments.optionalString("run")
+        if let runID, store.isStopped(runID) { return Self.stopped(items) }
         let app = try await context.workspace.app(matching: arguments.string("appId"))
-        var session = try await MCPSuggestionSession(app: app, items: items, store: store, context: context, applies: wantsApply && context.editsDrafts)
+        var session = try await MCPSuggestionSession(
+            app: app,
+            items: items,
+            store: store,
+            context: context,
+            applies: wantsApply && context.editsDrafts,
+            runID: runID
+        )
         try session.check(version: arguments.optionalString("version"))
         if let total = try arguments.optionalInt("total") {
             store.noteExpectedTotal(total, client: context.clientName, appID: app.id)
@@ -104,6 +117,19 @@ struct SuggestFieldsTool: MCPTool {
     }
 
     // MARK: - Helpers
+
+    /// Every item refused: the person pressed Stop Receiving.
+    private static func stopped(_ items: [MCPSuggestionItem]) -> MCPToolOutcome {
+        let refusal = MCPSuggestionRefusal.runStopped
+        let results = items.map { item -> JSONValue in
+            var result: [String: JSONValue] = ["field": .string(item.field)]
+            result.merge(refusal.json) { _, new in new }
+            return .object(result)
+        }
+        let summary: JSONValue = ["results": .array(results), "queued": 0, "refused": .int(results.count)]
+        let line = MCPToolOutcome.LogLine(target: "", outcome: .refused, reason: refusal.reason)
+        return MCPToolOutcome(result: summary, isError: false, logLines: [line])
+    }
 
     /// A `version` argument that isn't the one being prepared.
     static func check(version: String?, against shown: String, app: String) throws {

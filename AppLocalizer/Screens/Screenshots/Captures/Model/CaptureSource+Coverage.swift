@@ -13,6 +13,7 @@ extension CaptureSource {
         case .xcodeResults: String(localized: "Xcode")
         case .folder: String(localized: "folder")
         case .appStoreConnect: String(localized: "App Store Connect")
+        case .autopilot: String(localized: "Autopilot")
         }
     }
 }

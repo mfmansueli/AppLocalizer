@@ -13,4 +13,7 @@ struct ToastMessage: Identifiable, Hashable, Sendable {
     var text: String
     /// Shows Undo, which the section handles.
     var canUndo = false
+    /// A button that goes on from here, e.g. "Review by Area"; the host
+    /// handles it.
+    var actionTitle: String?
 }

@@ -16,7 +16,7 @@ struct ScreenshotRestoreStage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.medium) {
             Picker("Display type", selection: $displayType) {
-                ForEach(ScreenshotDisplayType.rendered) { display in
+                ForEach(ScreenshotDisplayType.studio.filter { $0.isRendered || !choice.images(on: $0).isEmpty }) { display in
                     Text(display.title).tag(display)
                 }
             }

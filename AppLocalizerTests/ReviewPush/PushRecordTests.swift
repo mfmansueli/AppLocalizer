@@ -31,6 +31,18 @@ struct PushRecordTests {
         #expect(title.contains("Store Page"))
     }
 
+    @Test func screenshotTitlesNameOneOrCountThem() {
+        #expect(PushRecord.title(for: [PushFixtures.screenshot("German · Slot 3")]) == "Screenshots · German · Slot 3")
+        let three = ["German · Slot 1", "German · Slot 2", "French · Slot 1"].map { PushFixtures.screenshot($0) }
+        #expect(PushRecord.title(for: three) == "Screenshots · 3 screenshots")
+    }
+
+    @Test func mixedSectionsUseFullNamesInShortcutOrder() {
+        let changes = [PushFixtures.screenshot("German · Slot 3"), PushFixtures.price("BRA"), PushFixtures.screenshot("German · Slot 4")]
+        let names = ["Subscription Pricing", "Screenshots"].formatted(.list(type: .and))
+        #expect(PushRecord.title(for: changes) == "\(names) · 3 changes")
+    }
+
     @Test func restoringSwapsValuesAndRequests() throws {
         let pushed = PushFixtures.price("BRA", delta: -50)
         let restored = try #require(pushed.restoring())

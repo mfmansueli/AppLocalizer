@@ -20,6 +20,10 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
     case reviseTemplate = "revise_template"
     /// What "Ask Claude Code…" copies, with the area as an argument.
     case suggest
+    /// What Suggest Everything… copies: every field, as one run.
+    case suggestAll = "suggest_all"
+    /// What Start Autopilot copies: drive the Screenshot Autopilot run.
+    case runScreenshots = "run_screenshots"
 
     var id: Self { self }
     var name: String { rawValue }
@@ -39,6 +43,8 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         case .shortenOverflowingCaptions: "Shorten overflowing captions"
         case .reviseTemplate: "Revise the screenshot template"
         case .suggest: "Suggest field values"
+        case .suggestAll: "Suggest everything"
+        case .runScreenshots: "Run Screenshot Autopilot"
         }
     }
 
@@ -53,6 +59,8 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         case .shortenOverflowingCaptions: String(localized: "Propose shorter versions of captions that overflow")
         case .reviseTemplate: String(localized: "Propose a template revision that keeps every locale fitting")
         case .suggest: String(localized: "Suggest Store Page or App Information values for the person to accept")
+        case .suggestAll: String(localized: "Suggest every Store Page and App Information field the code can answer")
+        case .runScreenshots: String(localized: "Capture the app in Simulator for the screenshot run the person started, step by step")
         }
     }
 
@@ -66,6 +74,11 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         case .shortenOverflowingCaptions: ["list_apps", "get_captions", "measure_caption", "propose_captions"]
         case .reviseTemplate: ["list_apps", "get_template", "get_captions", "measure_caption", "render_preview", "propose_template"]
         case .suggest: ["list_apps", "get_store_page", "get_app_information", "suggest_fields"]
+        case .suggestAll: ["list_apps", "get_store_page", "get_app_information", "begin_suggestions", "suggest_fields", "end_suggestions"]
+        case .runScreenshots: [
+                "list_apps", "get_capture_plan", "update_capture_plan", "report_capture", "report_capture_problem", "next_step",
+                "get_design_brief", "propose_direction", "revise_direction", "propose_captions", "report_app_support",
+            ]
         }
     }
 
@@ -124,8 +137,12 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         repeat them) and get_app_information (copyright, categories, release and App Review contact and notes). \
         Read the project: git log since the last release tag for What’s New, the README and the app's strings for \
         promotional text and subtitles, and the code for App Review notes such as sign-in, demo data and hidden \
-        features. Send them with suggest_fields, one item per field with the value, a one-sentence reason and \
-        evidence (git range, file and line, or review), and pass total with how many you'll send in all. If an \
+        features. If App Review's contact (first name, last name, phone, email) is empty, suggest it from what \
+        the project shows, such as a support or contact email in the app or its docs, or the git author (git \
+        config user.name and user.email), with that as evidence; leave out what you can't find, and never make \
+        up a phone number. Send them with suggest_fields, one item per field with the value, a one-sentence \
+        reason and evidence (git range, file and line, or review), and pass total with how many you'll send in \
+        all. If an \
         item is refused, read the reason (over_limit gives the count), fix it and send it again. Nothing changes \
         until the person accepts each suggestion in AppLocalizer.
         """
@@ -176,7 +193,63 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
             screenshotInstructions(appPhrase: appPhrase)
         case .suggest:
             Self.suggestInstructions(appPhrase: appPhrase, area: nil)
+        case .suggestAll:
+            """
+            Suggest everything for \(appPhrase) in AppLocalizer: every Store Page field in every language, \
+            including languages the app supports that aren’t on the App Store yet, and App Information's General, \
+            Age Rating, Accessibility for each device, and App Review. Call list_apps to get its appId. Read the \
+            project's targets, devices and string catalogs and send them with report_app_support first, so \
+            AppLocalizer knows the languages the App Store page lacks. Then call get_store_page and \
+            get_app_information: they say which fields are locked, which the person changed (a `live` value that \
+            differs), the suggestions already open, and `languagesNotOnAppStore`, the languages to suggest every \
+            field for as new pages (they stay suggestions until the person adds the page). Read the \
+            project: git log since the last release tag, CHANGELOG.md, the README and the app's strings for \
+            the Store Page, and the code for categories, App Review notes (sign-in, demo data, hidden features), \
+            Age Rating's questions (user-generated content, web access, messaging, purchases) and each device's \
+            Accessibility features (VoiceOver labels, Dynamic Type, Dark Mode, Reduce Motion, captions), \
+            answering only what the code shows. If App Review's contact (first name, last name, phone, email) is \
+            empty, suggest it from what the project shows, such as a support or contact email in the app or its \
+            docs, or the git author (git config user.name and user.email), with that as evidence; leave out what \
+            you can't find, and never make up a phone number. Then call begin_suggestions with your plan, one \
+            entry {area, locale | page, device, field} per field you'll suggest, leaving out locked fields and the ones the \
+            person changed; it returns a run and the entries it skipped. Send the suggestions with suggest_fields \
+            and that run, in as many calls as you like, each with the value, a one-sentence reason and evidence \
+            (git range, file and line, or review). If an item is refused, read the reason, fix it and send it \
+            again; run_stopped means the person stopped receiving, so stop. Call end_suggestions when you're \
+            done. Nothing changes until the person accepts each suggestion in AppLocalizer.
+            """
+        case .runScreenshots:
+            Self.runScreenshotsInstructions(appPhrase: appPhrase)
         }
+    }
+
+    /// `run_screenshots`: drive the Autopilot run the person started.
+    private static func runScreenshotsInstructions(appPhrase: String) -> String {
+        """
+        Run the Screenshot Autopilot plan the person started in AppLocalizer for \(appPhrase). Call list_apps for \
+        its appId, then get_capture_plan (pass xcode and simulators): it gives the screens and the steps to reach \
+        each, the devices, locales with their launch arguments, simulator setup commands and an upload URL. When \
+        chooseScreens is true, decide first which screens show the app best: read the project (its views and \
+        navigation, onboarding, UI tests, the App Store description) and pick its strongest moments, strongest \
+        first and the first saying what the app is for: usually 5 to 8 on iPhone and iPad (at most 10), 3 or 4 \
+        of the watch app's, and 3 Apple Vision Pro windows. Send them with update_capture_plan replace: true, \
+        each with the steps to reach it and a short caption. Otherwise keep the plan's screens; if they lack \
+        steps, write them from the project's UI tests, deep links or launch arguments and send them with \
+        update_capture_plan. List the watch app's screens and the Apple Vision Pro windows there too \
+        (device watch or vision) when the plan has those devices. If you haven't told AppLocalizer what the \
+        project supports, call report_app_support first (targets, devices, and every language in its string \
+        catalogs). Build the app with xcodebuild, boot each simulator (pair the watch with the iPhone), run the \
+        setup commands, and for each device and locale launch the app with its arguments, reach each screen and \
+        capture it (up to 3 times); locales marked notOnAppStoreYet are captured too. \
+        Upload each PNG with curl --data-binary to the upload URL and call report_capture with the returned \
+        upload ID, the attempt, a score from 0 to 1 and notes saying why. When a screen can't be reached, call \
+        report_capture_problem with what happened and a fix, and go on. After each step call next_step and do \
+        what it says: capture, wait (ask again after retryAfterSeconds), design (get_design_brief, then \
+        propose_direction with templates in AppLocalizer's format, designed with the connected design project; \
+        report what you find in it with report_design_source), revise_direction, or write_captions (then \
+        propose_captions with run). Stop when it says done. Never draw the interface; use the real captures. \
+        Nothing is uploaded to App Store Connect until the person pushes in AppLocalizer.
+        """
     }
 
     private func screenshotInstructions(appPhrase: String) -> String {

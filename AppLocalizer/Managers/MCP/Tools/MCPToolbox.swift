@@ -37,6 +37,18 @@ struct MCPToolbox {
             GetStorePageTool(),
             GetAppInformationTool(),
             SuggestFieldsTool(),
+            BeginSuggestionsTool(),
+            EndSuggestionsTool(),
+            GetCapturePlanTool(),
+            UpdateCapturePlanTool(),
+            ReportCaptureTool(),
+            ReportCaptureProblemTool(),
+            NextStepTool(),
+            GetDesignBriefTool(),
+            ProposeDirectionTool(),
+            ReviseDirectionTool(),
+            ReportDesignSourceTool(),
+            ReportAppSupportTool(),
         ])
     }
 

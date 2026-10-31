@@ -17,6 +17,7 @@ struct TemplateCanvas: Codable, Hashable, Sendable {
         switch display {
         case .iPhone: iphone
         case .iPad: ipad
+        case .visionPro: .landscape
         default: .portrait
         }
     }

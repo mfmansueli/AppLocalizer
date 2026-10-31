@@ -7,13 +7,17 @@ import SwiftUI
 
 /// Age Rating: Apple's questionnaire in three groups, the override, and
 /// the rating preview beside them, updating as you answer. Suggested
-/// answers show under their questions, with the suggestion bar above.
+/// answers show under their questions, with the suggestion bar above. In a
+/// narrow window the preview goes above the questionnaire.
 struct AgeRatingPageView: View {
     @Bindable var viewModel: AppInformationViewModel
 
+    /// Narrower than this, the questions' labels wrap around their pickers.
+    private static let minimumQuestionnaireWidth: CGFloat = 420
+
     var body: some View {
         if let ageRating = viewModel.ageRating {
-            HStack(alignment: .top, spacing: Spacing.xLarge) {
+            SideColumnLayout(sideWidth: 250, minimumMainWidth: Self.minimumQuestionnaireWidth) {
                 questionnaire(ageRating)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 AgeRatingPreviewCard(
@@ -21,7 +25,6 @@ struct AgeRatingPageView: View {
                     currentRating: viewModel.content?.ageRating.currentRating,
                     changesWithPush: viewModel.ratingChanges
                 )
-                .frame(width: 250)
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("appInformation.ageRating")

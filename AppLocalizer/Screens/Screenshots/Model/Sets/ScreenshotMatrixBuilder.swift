@@ -21,9 +21,13 @@ struct ScreenshotMatrixBuilder {
             slotCount: document.slotCount, cells: [:], localizedLocales: localized, restoredLocales: restored,
             fallbackLocales: fallback, hasTemplate: document.template != nil, hasCaptures: !document.captures.isEmpty
         )
+        for display in ScreenshotDisplayType.ownScreens {
+            let count = document.slotCount(on: display)
+            if count > 0 { matrix.ownSlotCounts[display] = count }
+        }
         let engine = ScreenshotLayoutEngine(catalog: snapshot.fonts)
-        for display in ScreenshotDisplayType.rendered {
-            for slot in 0..<matrix.slotCount {
+        for display in document.displays {
+            for slot in 0..<document.slotCount(on: display) {
                 for code in localized {
                     guard let locale = snapshot.locale(code: code) else { continue }
                     let key = ScreenshotCellKey(locale: code, displayType: display, slot: slot)
@@ -55,8 +59,13 @@ struct ScreenshotMatrixBuilder {
             return cell
         }
         let capture = document.captures.capture(locale: key.locale, displayType: key.displayType, slot: key.slot, primary: document.scope.primary)
-        let caption = document.captions.caption(locale: key.locale, slot: key.slot)
-        let layout = engine.layout(template, slot: key.slot, locale: locale, displayType: key.displayType, caption: caption)
+        let captionSlot = document.captionSlot(key.slot, on: key.displayType)
+        let caption = captionSlot.flatMap { document.captions.caption(locale: key.locale, slot: $0) }
+        let templateSlot = min(captionSlot ?? key.slot, max(0, template.slots.count - 1))
+        let layout = engine.layout(
+            template, slot: templateSlot, locale: locale, displayType: key.displayType, caption: caption,
+            captureSize: capture?.capture.pixelSize
+        )
         let renderKey = RenderKey(
             templateHash: template.contentHash, locale: key.locale, displayType: key.displayType, slot: key.slot,
             caption: caption, captureID: capture?.capture.id
@@ -72,7 +81,7 @@ struct ScreenshotMatrixBuilder {
 
     private func state(of cell: ScreenshotCell, renderKey: RenderKey, pushed: PushedRender?) -> ScreenshotCellState {
         if cell.capture == nil { return .noCapture }
-        if cell.caption == nil { return .noCaption }
+        if cell.caption == nil, cell.key.displayType.hasCaptions { return .noCaption }
         if let failure = cell.firstFailure { return .failed(reason: failure.shortReason ?? String(localized: "Check failed")) }
         if let live = cell.live, let pushed, pushed.renderKey == renderKey, pushed.checksum == live.checksum { return .live }
         return .notPushed

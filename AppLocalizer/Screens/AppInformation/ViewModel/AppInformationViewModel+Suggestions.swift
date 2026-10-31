@@ -95,6 +95,30 @@ extension AppInformationViewModel {
         visibleSuggestions(on: page, filter: .all).count
     }
 
+    // MARK: - Suggest Everything
+
+    /// Suggest Everything for this app, while it receives.
+    var suggestionRun: SuggestionRun? {
+        guard let run = suggestions.run, run.appID == app.id, run.isRunning else { return nil }
+        return run
+    }
+
+    /// The run still owes it a suggestion: its striped placeholder.
+    func isComing(_ slot: AppInformationSuggestionSlot) -> Bool {
+        suggestionRun?.isComing(slot.target) == true
+    }
+
+    /// Next to a device: how many the run still owes it.
+    func comingCount(in scope: SuggestionScope) -> Int {
+        suggestionRun?.comingCount(in: [scope]) ?? 0
+    }
+
+    /// "· 4 coming" under a page in the page column.
+    func comingCount(on page: AppInformationPage) -> Int {
+        guard Self.suggestionPages.contains(page) else { return 0 }
+        return suggestionRun?.comingCount(in: suggestionScopes(on: page)) ?? 0
+    }
+
     /// Whether the page shows the suggestion bar: General, Age Rating,
     /// Accessibility and App Review, once loaded.
     func showsSuggestions(on page: AppInformationPage) -> Bool {
@@ -107,7 +131,7 @@ extension AppInformationViewModel {
     /// With "Only fields with suggestions or changes" on, a field shows
     /// only while it has one or a change.
     func showsField(_ slot: AppInformationSuggestionSlot) -> Bool {
-        !showsOnlySuggestedFields || shownSuggestion(slot) != nil || isPending(slot)
+        !showsOnlySuggestedFields || shownSuggestion(slot) != nil || isPending(slot) || isComing(slot)
     }
 
     func showsField(_ field: AppInformationSuggestionField) -> Bool {
@@ -232,7 +256,13 @@ extension AppInformationViewModel {
     /// Opens the first page with suggestions (General when none has any),
     /// and on Accessibility the first device with some.
     func openSuggestions() {
-        page = Self.suggestionPages.first { suggestionCount(on: $0) > 0 } ?? .general
+        openSuggestions(on: Self.suggestionPages.first { suggestionCount(on: $0) > 0 } ?? .general)
+    }
+
+    /// Opens `page`, and on Accessibility the first device with
+    /// suggestions.
+    func openSuggestions(on page: AppInformationPage) {
+        self.page = page
         if page == .accessibility, let family = accessibilitySuggestionFamilies.first(where: { suggestionCount(in: .accessibility($0)) > 0 }) {
             accessibilitySuggestionFamily = family
         }

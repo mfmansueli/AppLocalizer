@@ -18,6 +18,10 @@ final class AppSummaryStore {
 
     private let services: WorkspaceServices
 
+    /// What each app's Xcode project supports, for the languages the App
+    /// Store page doesn't have yet.
+    var appSupport: AppSupportCenter? { services.storePage.appSupport }
+
     init(services: WorkspaceServices) {
         self.services = services
     }

@@ -78,6 +78,21 @@ final class ReviewPushUITests: XCTestCase {
         XCTAssertTrue(element("review.row.price.6450100002.CHL").waitForExistence(timeout: 5))
     }
 
+    /// The banner appears once the push ends, above the section. (Content
+    /// that scrolled under a safe-area banner showed through it; XCUITest
+    /// reports the same frames either way, so screenshots checked that.)
+    func testTheFailureBannerDoesntCoverTheSection() {
+        launch(scene: "push-partial")
+        XCTAssertTrue(app.staticTexts["24 pushed · 2 failed"].waitForExistence(timeout: 20))
+        app.buttons["push.done"].click()
+        let banner = element("workspace.banner")
+        XCTAssertTrue(banner.waitForExistence(timeout: 5))
+        let overview = element("workspace.overview")
+        XCTAssertTrue(overview.waitForExistence(timeout: 5))
+        overview.scroll(byDeltaX: 0, deltaY: -120)
+        XCTAssertGreaterThanOrEqual(overview.frame.minY, banner.frame.maxY, "The Overview at \(overview.frame) runs under the banner at \(banner.frame).")
+    }
+
     func testConflictMustBeResolvedBeforePushing() {
         launch(scene: "push-conflict")
         XCTAssertTrue(app.buttons["Push 3 Changes"].waitForExistence(timeout: 10))

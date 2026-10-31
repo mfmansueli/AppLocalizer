@@ -62,4 +62,19 @@ protocol ScreenshotsServices {
 
     /// Exports Xcode result bundles' attachments for an import.
     var attachmentReader: any XcresultAttachmentReader { get }
+
+    /// Screenshot Autopilot's runs, shared with the assistant tools; nil
+    /// when Autopilot isn't available. Defaults to nil.
+    var autopilot: AutopilotCenter? { get }
+    /// What each app's Xcode project supports: the devices Autopilot plans
+    /// and the languages beyond the App Store page.
+    var appSupport: AppSupportCenter? { get }
+
+    /// The view the Screenshots section opens on: Preview, except in DEBUG
+    /// scenes made for the other tabs. Defaults to Preview.
+    var initialTab: ScreenshotsTab { get }
+
+    /// Keeps a PNG the assistant captured with the app's captures, named by
+    /// its checksum. By default it keeps nothing and only reads the size.
+    func storeCapture(_ data: Data, for app: StoreApp) async throws -> CaptureFile
 }

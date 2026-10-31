@@ -17,7 +17,11 @@ struct LiveScreenshotPushServices: ScreenshotPushServices {
     var uploads: any ScreenshotUploadTransport { client }
 
     func context(for app: StoreApp) async throws -> ScreenshotsContext {
-        try await ScreenshotsContext(content: StorePageContentLoader(client: client).content(for: app, versionID: nil))
+        let loader = StorePageContentLoader(client: client)
+        let content = try await loader.content(for: app, versionID: nil)
+        var context = ScreenshotsContext(content: content)
+        await context.readVisionLocalizations(in: content) { id in try await loader.content(for: app, versionID: id) }
+        return context
     }
 
     func liveImageData(_ screenshot: LiveScreenshot) async throws -> Data {

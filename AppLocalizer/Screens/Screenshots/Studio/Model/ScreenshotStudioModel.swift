@@ -1,0 +1,233 @@
+//
+//  ScreenshotStudioModel.swift
+//  AppLocalizer
+//
+
+import CoreGraphics
+import Foundation
+import Observation
+
+/// The Screenshots section's first page: the App Store preview for a
+/// device, language and set, the Live set / New set card, and Screenshot
+/// Autopilot above them. Renders its shots at preview size on a queue of
+/// its own.
+@MainActor
+@Observable
+final class ScreenshotStudioModel {
+    @ObservationIgnored unowned let screenshots: ScreenshotsViewModel
+    /// The version's languages, names and subtitles.
+    var storeTexts = StudioStoreTexts()
+    /// Nil shows the primary language.
+    var localeCode: String?
+    /// The device the preview shows. iPhone and iPad follow (and set) the
+    /// Sets tab's; Apple Watch and Apple Vision Pro are the Studio's own.
+    var device: ScreenshotDisplayType {
+        get { ownDevice ?? screenshots.displayType }
+        set {
+            if newValue.isRendered {
+                ownDevice = nil
+                screenshots.displayType = newValue
+            } else {
+                ownDevice = newValue
+            }
+        }
+    }
+
+    private var ownDevice: ScreenshotDisplayType?
+    var choice: StudioSetChoice = .live
+    var appearance: StoreAppearance = .light
+    var isAutopilotPresented = false
+    var isDesignProjectPresented = false
+    /// The step the Autopilot sheet shows; nil follows the run.
+    var viewedStep: AutopilotStage?
+    /// "Ask for changes" on Choose a direction.
+    var revisionNote = ""
+    /// Upload One by Hand…'s file picker, for this problem.
+    var uploadingProblem: AutopilotProblem?
+    /// Copy Again's confirmation on Capture's waiting step.
+    var didCopyPrompt = false
+    let renderQueue: ScreenshotRenderQueue
+    /// Directions' layouts by direction and version, for their thumbnails.
+    @ObservationIgnored var directionLayouts: [String: [ScreenshotLayout]] = [:]
+
+    init(screenshots: ScreenshotsViewModel) {
+        self.screenshots = screenshots
+        let services = screenshots.services
+        let app = screenshots.app
+        renderQueue = ScreenshotRenderQueue(
+            cache: screenshots.renderQueue.cache,
+            holdCount: services.renderHoldCount,
+            captureImage: { [services, app] capture, width in await services.captureImage(capture, for: app, pixelWidth: width) },
+            liveImage: { [services] screenshot, width in await services.liveImage(screenshot, pixelWidth: width) }
+        )
+    }
+
+    var app: StoreApp { screenshots.app }
+    var primaryLocale: StoreLocale { screenshots.context.primaryLocale }
+
+    // MARK: - Header
+
+    /// Primary first.
+    var locales: [StoreLocale] {
+        storeTexts.locales.isEmpty ? [primaryLocale] : storeTexts.locales
+    }
+
+    var selectedLocale: String {
+        get { localeCode ?? primaryLocale.code }
+        set { localeCode = newValue }
+    }
+
+    /// iPhone and iPad, then Apple Watch and Apple Vision Pro when the app
+    /// runs there: the project says so, App Store Connect has a visionOS
+    /// version or watch screenshots, or the set or plan has them.
+    var devices: [ScreenshotDisplayType] {
+        var own = Set(appSupport?.profile(for: app.id)?.devices.map(\.displayType) ?? [])
+        if screenshots.context.hasVisionVersion { own.insert(.visionPro) }
+        if screenshots.context.hasWatchApp { own.insert(.watch) }
+        own.formUnion(run?.plan.displayTypes ?? [])
+        own.formUnion(screenshots.document?.displays ?? [])
+        own.formUnion(screenshots.live.screenshotSets.filter { !$0.screenshots.isEmpty }.map(\.displayType))
+        return ScreenshotDisplayType.studio.filter { $0.isRendered || own.contains($0) }
+    }
+
+    var appSupport: AppSupportCenter? { screenshots.services.appSupport }
+
+    /// "Version 1.4 · what people see before they download".
+    var subtitle: String {
+        String(localized: "Version \(screenshots.context.version.versionString) · what people see before they download")
+    }
+
+    // MARK: - Preview
+
+    var builder: StudioPreviewBuilder {
+        let document = screenshots.document
+        var ownSlotNames: [ScreenshotDisplayType: [String]] = [:]
+        for display in ScreenshotDisplayType.ownScreens {
+            if let screens = document?.screens(on: display) { ownSlotNames[display] = screens.map(\.name) }
+        }
+        return StudioPreviewBuilder(
+            displayType: devices.contains(device) ? device : .iPhone,
+            locale: selectedLocale,
+            primaryLocale: primaryLocale,
+            choice: choice,
+            matrix: screenshots.matrix,
+            live: screenshots.live,
+            slotNames: (0..<max(document?.slotCount ?? 0, 10)).map { document?.slotName($0) ?? String(localized: "Slot \($0 + 1)") },
+            ownSlotNames: ownSlotNames,
+            storeTexts: storeTexts,
+            appName: app.name,
+            templateName: document?.template?.name,
+            run: run,
+            pushedChecksums: Set(document?.pushed.map(\.checksum) ?? [])
+        )
+    }
+
+    var hasNewSet: Bool { builder.hasNewSet }
+
+    var preview: StudioPreview { builder.preview() }
+
+    var summary: StudioSetSummary {
+        StudioSetSummaryBuilder(
+            preview: builder,
+            templateVersion: screenshots.document?.history?.currentNumber,
+            captureCount: screenshots.document?.captures.captures.count ?? 0,
+            devices: devices
+        ).summary()
+    }
+
+    /// The width a shot renders at: twice the preview's points.
+    static func pixelWidth(for display: ScreenshotDisplayType) -> Int {
+        switch display {
+        case .iPad, .visionPro: 640
+        case .watch: 300
+        default: 320
+        }
+    }
+
+    /// Queues the shots' renders and live images.
+    func loadImages(for preview: StudioPreview) {
+        let width = Self.pixelWidth(for: preview.displayType)
+        renderQueue.render(preview.shots.compactMap(\.image.renderJob), pixelWidth: width)
+        let lives = preview.shots.compactMap { shot -> LiveScreenshot? in
+            if case let .live(live) = shot.image { return live }
+            return nil
+        }
+        renderQueue.loadLive(lives, pixelWidth: width)
+    }
+
+    func image(for shot: StudioShot) -> CGImage? {
+        switch shot.image {
+        case let .render(job): renderQueue.images[job.key] ?? screenshots.renderQueue.images[job.key]
+        case let .live(live): renderQueue.liveImages[live.id] ?? screenshots.renderQueue.liveImages[live.id]
+        case .none: nil
+        }
+    }
+
+    /// Sets, Template and Captions.
+    func openSets() {
+        screenshots.tab = .sets
+    }
+
+    // MARK: - Autopilot
+
+    var autopilot: AutopilotCenter? { screenshots.services.autopilot }
+    var run: AutopilotRun? { autopilot?.run(for: app.id) }
+    var designProject: DesignProject? { autopilot?.designProject(for: app.id) }
+
+    var context: AutopilotContext {
+        AutopilotContext(app: app, services: screenshots.services, primaryLocale: primaryLocale)
+    }
+
+    func strip(assistant: String?) -> AutopilotStripContent {
+        AutopilotStripContent.make(run: run, appName: app.name, assistant: assistant, designProject: designProject, hasNewSet: hasNewSet)
+    }
+
+    /// Run Autopilot…: a plan from the screens the set has, or the run in
+    /// progress.
+    func runAutopilot() {
+        guard let autopilot else { return }
+        let support = AutopilotSupport.make(
+            profile: appSupport?.profile(for: app.id),
+            declined: appSupport?.declinedLanguages[app.id] ?? [],
+            storeLocales: locales.map(\.code),
+            hasVisionVersion: screenshots.context.hasVisionVersion,
+            hasWatchApp: screenshots.context.hasWatchApp,
+            live: screenshots.live
+        )
+        let plan = AutopilotPlanner.plan(
+            document: screenshots.document, live: screenshots.live, primaryLocale: primaryLocale,
+            localeCodes: locales.map(\.code), previous: run, support: support
+        )
+        autopilot.prepare(appID: app.id, versionString: screenshots.context.version.versionString, plan: plan)
+        viewedStep = nil
+        isAutopilotPresented = true
+    }
+
+    func openAutopilot() {
+        viewedStep = nil
+        isAutopilotPresented = true
+    }
+
+    /// The step the sheet shows.
+    var shownStep: AutopilotStage {
+        viewedStep ?? run?.stage.step ?? .plan
+    }
+
+    /// Steps the run has reached can be looked at again.
+    func canView(_ step: AutopilotStage) -> Bool {
+        guard let run else { return step == .plan }
+        return step.number <= run.stage.number
+    }
+
+    /// The run reached Ready: the new set shows.
+    func runDidChange(from old: AutopilotStage?, to new: AutopilotStage?) {
+        guard old != new else { return }
+        if new == .ready {
+            // Held strongly: the task may run after the section closes.
+            Task { [screenshots] in
+                await screenshots.reloadDocument()
+                choice = .new
+            }
+        }
+    }
+}

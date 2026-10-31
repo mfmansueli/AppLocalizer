@@ -33,6 +33,14 @@ final class WorkspaceNavigator {
     /// Asks the toolbar's Assistant button to show its popover (the
     /// overview's What Can It Do? and Details); the button clears it.
     var requestsAssistantPopover = false
+    /// Asks Overview to start Suggest Everything (the Assistant button, the
+    /// Suggestions card, the toast after setup); Overview clears it.
+    var requestsSuggestEverything = false
+    /// Setup opened from Suggest Everything…: it says why, and when it ends
+    /// connected, a toast offers Suggest Everything.
+    var setupStartsSuggestEverything = false
+    /// The toast the whole window shows, over any section.
+    var toast: WorkspaceToast?
     /// The view that asked to hide the sidebar (Screenshots' Template tab);
     /// nil shows it. Only that view can bring it back, so one that's
     /// leaving can't undo another's request.
@@ -86,6 +94,12 @@ final class WorkspaceNavigator {
         guard opensReviewAfterActivity else { return }
         opensReviewAfterActivity = false
         isReviewPresented = true
+    }
+
+    /// Overview, starting Suggest Everything.
+    func suggestEverything() {
+        open(.overview)
+        requestsSuggestEverything = true
     }
 
     /// Reloads everything from App Store Connect.

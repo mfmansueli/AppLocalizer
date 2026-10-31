@@ -18,6 +18,9 @@ import Foundation
 ///   its pending fields: a single `POST` creates the localization with
 ///   them, since a second `POST` for the same locale would be refused.
 ///   It can't be restored (the new localization's ID isn't known here).
+///   Review & Push shows it as a new App Store language, "Create the Polish
+///   page", with its fields under it (`PendingChange.creation`). A language
+///   the app's project has (`newPages`) is created even before it has text.
 /// - Ids are `storePage.<appID>.version.<versionID>.<locale>.<field>` or
 ///   `storePage.<appID>.appInfo.<appInfoID>.<locale>.<field>`, and
 ///   `….<locale>.new` for a new locale.
@@ -25,6 +28,10 @@ struct ListingChangeBuilder: Hashable, Sendable {
     let appID: StoreApp.ID
     let ids: ListingResourceIDs
     let versionString: String
+    /// Languages the app's project has that its App Store page doesn't:
+    /// AppLocalizer suggested them, so creating one is tagged Built-in, and
+    /// one the person added is created when pushed, even before it has text.
+    var newPages: Set<StoreLocale> = []
 
     static let versionLocalizationType = "appStoreVersionLocalizations"
     static let appInfoLocalizationType = "appInfoLocalizations"
@@ -70,6 +77,21 @@ struct ListingChangeBuilder: Hashable, Sendable {
         }
     }
 
+    /// A new App Store language's heading, both levels together: "Store
+    /// Page · Polish (new)".
+    static func newLocaleGroup(_ locale: StoreLocale) -> String {
+        String(localized: "Store Page · \(locale.name) (new)")
+    }
+
+    /// The languages queued changes create (their `….<locale>.new`
+    /// writes), by App Store Connect code.
+    static func newLocaleCodes(in changes: [PendingChange], appID: StoreApp.ID) -> Set<String> {
+        Set(changes.compactMap { change in
+            guard change.appID == appID, change.section == .storePage, change.id.hasSuffix(".\(newLocaleSuffix)") else { return nil }
+            return StorePageWriteDocument.decode(change.requests.first?.body)?.attribute("locale")
+        })
+    }
+
     static func localizationType(at level: ListingFieldLevel) -> String {
         level == .app ? appInfoLocalizationType : versionLocalizationType
     }
@@ -77,20 +99,27 @@ struct ListingChangeBuilder: Hashable, Sendable {
     // MARK: - Building
 
     /// One change per pending field, or per new locale and level: locales
-    /// in display order, app-level fields before version-level ones.
+    /// in display order, app-level fields before version-level ones. A new
+    /// page in `newPages` gets its version text created even when empty.
     func changes(for listing: StoreListing) -> [PendingChange] {
         listing.displayLocales.flatMap { locale in
             [ListingFieldLevel.app, .version].flatMap { level in
                 let pending = ListingField.allCases
                     .filter { $0.level == level }
                     .compactMap { listing.change(for: ListingFieldKey(locale, $0)) }
-                guard !pending.isEmpty else { return [PendingChange]() }
                 guard let localizationID = ids.localizationID(for: locale, at: level) else {
-                    return [newLocaleChange(pending, locale: locale, level: level)]
+                    guard !pending.isEmpty || createsEmpty(locale, at: level, in: listing) else { return [PendingChange]() }
+                    return [newLocaleChange(pending, locale: locale, level: level, listing: listing)]
                 }
                 return pending.map { fieldChange($0, localizationID: localizationID) }
             }
         }
+    }
+
+    /// An added project language with no text yet at `level`: its version
+    /// localization is still created, so the page exists after the push.
+    private func createsEmpty(_ locale: StoreLocale, at level: ListingFieldLevel, in listing: StoreListing) -> Bool {
+        level == .version && listing.version.isEditable && newPages.contains(locale) && isNewPage(locale)
     }
 
     private func fieldChange(_ change: ListingChange, localizationID: String) -> PendingChange {
@@ -123,7 +152,12 @@ struct ListingChangeBuilder: Hashable, Sendable {
         return pending
     }
 
-    private func newLocaleChange(_ changes: [ListingChange], locale: StoreLocale, level: ListingFieldLevel) -> PendingChange {
+    private func newLocaleChange(
+        _ changes: [ListingChange],
+        locale: StoreLocale,
+        level: ListingFieldLevel,
+        listing: StoreListing
+    ) -> PendingChange {
         var attributes: [String: String?] = ["locale": locale.code]
         for change in changes {
             attributes[change.field.rawValue] = Self.apiValue(change.newValue)
@@ -137,18 +171,60 @@ struct ListingChangeBuilder: Hashable, Sendable {
         )
         let sources = Set(changes.map(\.source))
         let blocked = changes.lazy.compactMap { change in blockedReason(change).map { "\(change.field.title): \($0)" } }.first
-        return PendingChange(
+        let createsPage = isNewPage(locale)
+        var change = PendingChange(
             id: newLocaleChangeID(for: locale, at: level),
             appID: appID,
             section: .storePage,
-            group: group(at: level),
-            title: changes.count == 1 ? changes[0].title : "\(locale.name) · " + String(localized: "New locale · \(changes.count) fields"),
+            group: createsPage ? Self.newLocaleGroup(locale) : group(at: level),
+            title: newLocaleTitle(changes, locale: locale),
             flagRegion: locale.regionCode,
             oldValue: "",
             newValue: changes.count == 1 ? changes[0].newValue : changes.map { "\($0.field.title): \($0.newValue)" }.joined(separator: " · "),
-            source: sources.count == 1 ? changes[0].source : .you,
+            source: sources.count == 1 ? changes[0].source : (changes.isEmpty && newPages.contains(locale) ? .builtInSuggestion : .you),
             blockedReason: blocked,
             requests: [PushRequest(method: .post, path: "/v1/\(Self.localizationType(at: level))", body: document.encoded())]
+        )
+        if createsPage { change.creation = creation(of: locale, fields: changes, in: listing) }
+        return change
+    }
+
+    /// App Store Connect has the locale at neither level: a new App Store
+    /// language, not just a version that lacks it.
+    private func isNewPage(_ locale: StoreLocale) -> Bool {
+        ids.localizationID(for: locale, at: .app) == nil && ids.localizationID(for: locale, at: .version) == nil
+    }
+
+    /// "Polish · New page" with no text, "Polish · Name" with one field,
+    /// "Polish · New locale · 6 fields" with more; the locale comes first,
+    /// as Activity reads it.
+    private func newLocaleTitle(_ changes: [ListingChange], locale: StoreLocale) -> String {
+        switch changes.count {
+        case 0: "\(locale.name) · " + String(localized: "New page")
+        case 1: changes[0].title
+        default: "\(locale.name) · " + String(localized: "New locale · \(changes.count) fields")
+        }
+    }
+
+    /// "Create the Polish page", its fields and who suggested it.
+    private func creation(of locale: StoreLocale, fields changes: [ListingChange], in listing: StoreListing) -> PendingCreation {
+        let hasText = listing.fields.contains { listing.draft($0, in: locale).isPending }
+        return PendingCreation(
+            id: "storePage.\(appID).\(locale.code)",
+            title: String(localized: "Create the \(locale.name) page"),
+            detail: hasText
+                ? String(localized: "A new App Store language for \(listing.appName), with the text below")
+                : String(localized: "A new App Store language for \(listing.appName)"),
+            source: newPages.contains(locale) ? .builtInSuggestion : .you,
+            fields: changes.map { change in
+                PendingChangePart(
+                    id: change.field.rawValue,
+                    title: change.field.title,
+                    oldValue: change.oldValue,
+                    newValue: change.newValue,
+                    source: change.source
+                )
+            }
         )
     }
 

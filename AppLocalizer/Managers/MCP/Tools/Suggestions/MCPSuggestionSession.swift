@@ -9,7 +9,10 @@ import Foundation
 /// Information as the assistant sees them (loaded only when an item needs
 /// them), and each item checked and put in the suggestion store, or with
 /// `apply` queued as a change. `commit()` queues the Store Page's applied
-/// values together, as the Store Page does.
+/// values together, as the Store Page does. A language the app's project
+/// has and the App Store page doesn't takes suggestions, never applied
+/// values: its page is created only when the person adds it. `begin_suggestions` checks its
+/// plan with the same session (`planned(_:)`).
 @MainActor
 struct MCPSuggestionSession {
     /// An item's result and its activity log line.
@@ -23,15 +26,25 @@ struct MCPSuggestionSession {
     let context: MCPToolContext
     /// "Suggest and edit drafts" and `apply: true`.
     let applies: Bool
+    /// The Suggest Everything run the items were sent with.
+    let runID: SuggestionRun.ID?
     private(set) var listing: MCPListingDraft?
     private(set) var information: MCPAppInformationDraft?
     private var hasAppliedStoreText = false
 
-    init(app: StoreApp, items: [MCPSuggestionItem], store: FieldSuggestionStore, context: MCPToolContext, applies: Bool) async throws {
+    init(
+        app: StoreApp,
+        items: [MCPSuggestionItem],
+        store: FieldSuggestionStore,
+        context: MCPToolContext,
+        applies: Bool,
+        runID: SuggestionRun.ID? = nil
+    ) async throws {
         self.app = app
         self.store = store
         self.context = context
         self.applies = applies
+        self.runID = runID
         listing = items.contains { $0.area == .storePage } ? try await MCPListingDraft.load(app: app.id, in: context.workspace) : nil
         information = items.contains { $0.area == .appInformation }
             ? try await MCPAppInformationDraft.load(
@@ -84,34 +97,49 @@ struct MCPSuggestionSession {
         var result: [String: JSONValue] = ["field": .string(field.rawValue)]
         if listing?.listing.value(field, in: locale) == item.value {
             result["status"] = "unchanged"
-        } else if applies, var draft = listing {
+            noteSettled(.storePage(locale, field))
+        } else if applies, var draft = listing, draft.listing.contains(locale) {
             _ = draft.propose(item.value, for: field, locale: locale.code, by: context.clientName)
             listing = draft
             hasAppliedStoreText = true
             result["status"] = "applied"
+            noteSettled(.storePage(locale, field))
         } else {
             result.merge(add(item.value, for: .storePage(locale, field), item: item)) { _, new in new }
+        }
+        // Even with apply: only the person creates a page.
+        if listing?.isNewLanguage(locale) == true {
+            result["note"] = .string(String(localized: """
+            \(locale.name) isn’t on the App Store yet: this shows in its own tab of the Store Page, and its page is created only when the person adds it and pushes.
+            """))
         }
         return result
     }
 
-    /// The field and language an item is for, checked like an edit.
+    /// The field and language an item is for, and its value checked like an
+    /// edit.
     private func storeTarget(of item: MCPSuggestionItem) throws(MCPSuggestionRefusal) -> (ListingField, StoreLocale) {
-        guard let listing = listing?.listing else { throw .invalidValue(String(localized: "The Store Page couldn’t be read.")) }
-        guard let field = ListingField.matching(item.field) else { throw .unknownField(item.field, known: ListingField.mcpNames) }
-        guard let code = item.locale else { throw .unknownLocale(String(localized: "Store Page suggestions need a locale, e.g. en-US.")) }
-        guard let locale = StoreLocaleCatalog.locale(code: code), listing.contains(locale) else {
-            let known = listing.displayLocales.map(\.code).joined(separator: ", ")
-            throw .unknownLocale(String(localized: "\(app.name) has no locale “\(code)”. Its locales are \(known)."))
-        }
-        guard context.allows(.storeText) else { throw .notPermitted(.storeText) }
-        guard listing.canEdit(field) else { throw .locked(version: listing.version.versionString) }
+        let (field, locale) = try storeField(of: item)
         switch ListingFieldValidator.validate(item.value, for: field) {
         case let .overLimit(count, limit): throw .overLimit(count: count, limit: limit)
         case .invalidURL: throw .invalidValue(String(localized: "Not a full https:// URL."))
         case .empty: throw .invalidValue(String(localized: "The value is empty."))
         case .valid: return (field, locale)
         }
+    }
+
+    /// The field and language an item names, if the assistant may suggest
+    /// it now.
+    private func storeField(of item: MCPSuggestionItem) throws(MCPSuggestionRefusal) -> (ListingField, StoreLocale) {
+        guard let listing = listing?.listing else { throw .invalidValue(String(localized: "The Store Page couldn’t be read.")) }
+        guard let field = ListingField.matching(item.field) else { throw .unknownField(item.field, known: ListingField.mcpNames) }
+        guard let code = item.locale else { throw .unknownLocale(String(localized: "Store Page suggestions need a locale, e.g. en-US.")) }
+        guard let draft = self.listing, let locale = StoreLocaleCatalog.locale(code: code), listing.contains(locale) || draft.isNewLanguage(locale) else {
+            throw .unknownLocale(self.listing?.unknownLocaleMessage(code) ?? code)
+        }
+        guard context.allows(.storeText) else { throw .notPermitted(.storeText) }
+        guard listing.canEdit(field) else { throw .locked(version: listing.version.versionString) }
+        return (field, locale)
     }
 
     // MARK: - App Information
@@ -122,6 +150,7 @@ struct MCPSuggestionSession {
         let source = ChangeSource.assistant(client: context.clientName)
         if draft.slots.value(slot) == value {
             result["status"] = "unchanged"
+            noteSettled(slot.target)
         } else if applies, let written = draft.slots.change(slot, to: value, source: source, confirmed: false) {
             let changes = context.workspace.changes
             if let change = written.change { changes.upsert(change) } else { changes.discard(id: written.id) }
@@ -129,6 +158,7 @@ struct MCPSuggestionSession {
             information = draft.with(changes: changes.changes(for: app.id, section: .appInformation))
             result["status"] = "applied"
             result["changeId"] = .string(written.id)
+            noteSettled(slot.target)
         } else {
             result.merge(add(value, for: slot.target, item: item)) { _, new in new }
         }
@@ -140,19 +170,13 @@ struct MCPSuggestionSession {
     private func informationTarget(
         of item: MCPSuggestionItem
     ) throws(MCPSuggestionRefusal) -> (AppInformationSuggestionSlot, String, MCPAppInformationDraft) {
-        guard let draft = information else { throw .invalidValue(String(localized: "App Information couldn’t be read.")) }
-        let slot = try Self.slot(of: item, in: draft)
-        guard context.allows(.appInformation) else { throw .notPermitted(.appInformation) }
+        let (slot, draft) = try informationSlot(of: item)
         guard case let .field(field) = slot else {
-            guard draft.slots.canSuggest(slot) else {
-                throw .invalidValue(String(localized: "App Store Connect has no age rating questionnaire for \(app.name) yet."))
-            }
             guard let value = slot.normalized(item.value) else {
                 throw .invalidAnswer(String(localized: "“\(item.value)” isn’t an answer to \(item.field). The answers are \(slot.choiceList)."))
             }
             return (slot, value, draft)
         }
-        guard !draft.isLocked(field) else { throw .locked(version: draft.content.version?.versionString ?? "") }
         guard let value = field.normalized(item.value), !value.isEmpty || field.isPicked else {
             throw .invalidValue(field.isPicked
                 ? String(localized: "“\(item.value)” isn’t one of the choices get_app_information lists for \(field.rawValue).")
@@ -163,6 +187,23 @@ struct MCPSuggestionSession {
             throw .invalidValue(String(localized: "“On a date” needs a date, which the person picks in AppLocalizer."))
         }
         return (slot, value, draft)
+    }
+
+    /// The field, question or feature an item names, if the assistant may
+    /// suggest it now.
+    private func informationSlot(of item: MCPSuggestionItem) throws(MCPSuggestionRefusal) -> (AppInformationSuggestionSlot, MCPAppInformationDraft) {
+        guard let draft = information else { throw .invalidValue(String(localized: "App Information couldn’t be read.")) }
+        let slot = try Self.slot(of: item, in: draft)
+        guard context.allows(.appInformation) else { throw .notPermitted(.appInformation) }
+        switch slot {
+        case let .field(field):
+            guard !draft.isLocked(field) else { throw .locked(version: draft.content.version?.versionString ?? "") }
+        case .ageRating, .accessibility:
+            guard draft.slots.canSuggest(slot) else {
+                throw .invalidValue(String(localized: "App Store Connect has no age rating questionnaire for \(app.name) yet."))
+            }
+        }
+        return (slot, draft)
     }
 
     /// What an item names: a General or App Review field (on any page when
@@ -210,6 +251,28 @@ struct MCPSuggestionSession {
         return json
     }
 
+    // MARK: - Plans
+
+    /// A `begin_suggestions` entry: the field it names, or why the run
+    /// leaves it out. A field the person changed and hasn't pushed is left
+    /// alone.
+    func planned(_ item: MCPSuggestionItem) -> Result<SuggestionTarget, MCPPlanSkip> {
+        do throws(MCPSuggestionRefusal) {
+            switch item.area {
+            case .storePage:
+                let (field, locale) = try storeField(of: item)
+                if listing?.listing.draft(field, in: locale).isPending == true { return .failure(.changedByYou) }
+                return .success(.storePage(locale, field))
+            case .appInformation:
+                let (slot, draft) = try informationSlot(of: item)
+                if draft.slots.isPending(slot) { return .failure(.changedByYou) }
+                return .success(slot.target)
+            }
+        } catch {
+            return .failure(.refused(error))
+        }
+    }
+
     // MARK: - Helpers
 
     /// Into the suggestion store: queued, replaced or unchanged, and its id.
@@ -220,9 +283,15 @@ struct MCPSuggestionSession {
             value: value,
             reason: item.reason,
             source: .assistant(client: context.clientName),
-            evidence: item.evidence
+            evidence: item.evidence,
+            runID: runID
         )
         return ["status": .string(added.outcome.rawValue), "id": .string(added.suggestion.id)]
+    }
+
+    /// A field that needed no suggestion counts toward the run.
+    private func noteSettled(_ target: SuggestionTarget) {
+        store.noteSettled(target, appID: app.id, source: .assistant(client: context.clientName), runID: runID)
     }
 
     /// "Lumen Journal · de-DE · Subtitle", "Lumen Journal · App Review ·

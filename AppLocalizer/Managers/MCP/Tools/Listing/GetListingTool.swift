@@ -18,7 +18,9 @@ struct GetListingTool: MCPTool {
         `fields` gives each field's level and limit: name, subtitle and privacyPolicyUrl belong to the app; \
         promotionalText, description, keywords (comma-separated, counted in bytes), whatsNew, supportUrl and \
         marketingUrl belong to the version. `glossary.keepUntranslated` lists terms to leave as they are, and \
-        `glossary.tone` the tone to write in. Pass `locales` to read only some.
+        `glossary.tone` the tone to write in. Pass `locales` to read only some. `languagesNotOnAppStore` lists \
+        the languages the app's project supports and its App Store page doesn't have yet: suggest their texts \
+        with suggest_fields; only the person adds their pages.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -56,12 +58,13 @@ struct GetListingTool: MCPTool {
                 "keepUntranslated": .array(glossary.terms.map(JSONValue.string)),
                 "tone": .string(glossary.tone.rawValue),
             ],
-            "locales": .array(locales.map { Self.entry(for: $0, in: listing) }),
+            "locales": .array(locales.map { Self.entry(for: $0, in: listing, isNew: draft.isNewLanguage($0) || draft.isUnpushed($0)) }),
+            "languagesNotOnAppStore": draft.languagesNotOnAppStoreJSON,
         ]
         return .read(result, target: draft.target)
     }
 
-    private static func entry(for locale: StoreLocale, in listing: StoreListing) -> JSONValue {
+    private static func entry(for locale: StoreLocale, in listing: StoreListing, isNew: Bool) -> JSONValue {
         var texts: [String: JSONValue] = [:]
         var states: [String: JSONValue] = [:]
         for field in listing.fields {
@@ -70,6 +73,7 @@ struct GetListingTool: MCPTool {
             if let note = listing.coverageState(of: field, in: locale).assistantNote { states[field.rawValue] = .string(note) }
         }
         var entry: [String: JSONValue] = ["code": .string(locale.code), "name": .string(locale.name), "texts": .object(texts)]
+        if isNew { entry["new"] = true }
         if !states.isEmpty { entry["states"] = .object(states) }
         return .object(entry)
     }

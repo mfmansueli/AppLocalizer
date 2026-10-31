@@ -171,11 +171,31 @@ final class ReviewPushViewModel {
         if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
     }
 
+    /// "Create the Polish page" is checked when all its writes are.
+    func isSelected(_ creation: ReviewCreation) -> Bool {
+        !creation.isBlocked && creation.changeIDs.allSatisfy(selection.contains)
+    }
+
+    /// Checks or unchecks what's created and every field it comes with.
+    func toggle(_ creation: ReviewCreation) {
+        if isSelected(creation) {
+            selection.subtract(creation.changeIDs)
+        } else if !creation.isBlocked {
+            selection.formUnion(creation.changeIDs)
+        }
+    }
+
     // MARK: - Actions
 
     func discard(_ id: PendingChange.ID) {
         selection.remove(id)
         queue.discard(id: id)
+    }
+
+    /// Discards what would be created, with its fields.
+    func discard(_ creation: ReviewCreation) {
+        selection.subtract(creation.changeIDs)
+        queue.discard(ids: creation.changeIDs)
     }
 
     /// "Discard All": every change the sheet shows.

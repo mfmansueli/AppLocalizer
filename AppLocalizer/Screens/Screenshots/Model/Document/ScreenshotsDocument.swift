@@ -22,6 +22,9 @@ struct ScreenshotsDocument: Codable, Hashable, Sendable {
     var pushed: [PushedRender]
     /// Assistants' proposals, decided or not, oldest first.
     var proposals: [ScreenshotProposal]
+    /// Apple Watch's and Apple Vision Pro's own screens; nil when the set
+    /// has only iPhone and iPad (and in documents from before them).
+    var deviceScreens: [DeviceScreenSet]?
 
     init(
         history: TemplateHistory? = nil,
@@ -30,7 +33,8 @@ struct ScreenshotsDocument: Codable, Hashable, Sendable {
         scope: LocaleScope,
         slotNames: [String] = [],
         pushed: [PushedRender] = [],
-        proposals: [ScreenshotProposal] = []
+        proposals: [ScreenshotProposal] = [],
+        deviceScreens: [DeviceScreenSet]? = nil
     ) {
         self.history = history
         self.captions = captions
@@ -39,6 +43,7 @@ struct ScreenshotsDocument: Codable, Hashable, Sendable {
         self.slotNames = slotNames
         self.pushed = pushed
         self.proposals = proposals
+        self.deviceScreens = deviceScreens
     }
 
     /// A document with nothing in it yet.

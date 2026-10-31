@@ -5,7 +5,7 @@
 
 import XCTest
 
-/// Store Page → Screenshots, driven through the DEBUG scenes in
+/// Screenshots, driven through the DEBUG scenes in
 /// `ScreenshotsDebugScenes` (sample documents and live sets, nothing
 /// leaves the Mac): the Sets matrix, the full-size viewer and the Locale
 /// Scope sheet.

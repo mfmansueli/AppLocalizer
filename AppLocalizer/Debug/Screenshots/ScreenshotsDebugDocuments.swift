@@ -19,6 +19,8 @@ enum ScreenshotsDebugDocuments {
             return thaiAndVietnamese
         case .noCaptures:
             return .empty(primary: data.primary)
+        case .everyDevice:
+            return DebugEveryDevice.document
         case .noTemplate:
             var scope = LocaleScope(primary: data.primary)
             scope.setLocalized(data.capturedLocales[.iPhone] ?? [])

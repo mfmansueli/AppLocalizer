@@ -39,4 +39,18 @@ enum PushFixtures {
             requests: [PushRequest(method: .patch, path: "/v1/appStoreVersionLocalizations/de-\(field)")]
         )
     }
+
+    /// A render waiting in Screenshots, titled like "German · Slot 3".
+    static func screenshot(_ title: String, app: StoreApp.ID = "lumen") -> PendingChange {
+        PendingChange(
+            id: "screenshots.\(title)",
+            appID: app,
+            section: .screenshots,
+            group: "Screenshots · version 1.4",
+            title: title,
+            oldValue: "",
+            newValue: "render",
+            requests: [PushRequest(method: .post, path: "/v1/appScreenshots")]
+        )
+    }
 }

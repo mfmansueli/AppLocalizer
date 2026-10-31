@@ -19,7 +19,9 @@ struct ProposeCaptionsTool: MCPTool {
         much, e.g. "needs 3 lines at 72 u; the template allows 2"), when the font can't draw it, or when the \
         locale is unknown. The others are queued together in AppLocalizer's Proposals sheet; nothing changes \
         until the person accepts them, and accepted captions read "Proposed by" you until someone edits them. \
-        Keep brand names and the glossary's terms untranslated.
+        Keep brand names and the glossary's terms untranslated. During a Screenshot Autopilot run, when \
+        next_step asks for write_captions, pass the run's ID as run: the captions are saved right away instead \
+        of queued, and the run checks them again.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -36,6 +38,7 @@ struct ProposeCaptionsTool: MCPTool {
                 ],
                 "reason": MCPToolDefinition.string("Why, in a sentence or two the person reads before accepting."),
                 "title": MCPToolDefinition.string("A short title, e.g. Shorter German captions."),
+                "run": MCPToolDefinition.string("An Autopilot run's ID, when next_step asked for write_captions."),
             ],
             required: ["appId", "items", "reason"]
         ),
@@ -43,6 +46,9 @@ struct ProposeCaptionsTool: MCPTool {
     )
 
     func call(_ arguments: MCPToolArguments, in context: MCPToolContext) async throws -> MCPToolOutcome {
+        if let run = try arguments.optionalString("run"), !run.isEmpty {
+            return try await saveForAutopilot(arguments, in: context)
+        }
         var draft = try await MCPScreenshotsDraft.load(app: arguments.string("appId"), in: context.workspace)
         let reason = try arguments.string("reason")
         let items = try arguments.array("items")

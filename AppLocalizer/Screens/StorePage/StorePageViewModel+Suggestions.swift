@@ -18,12 +18,17 @@ extension StorePageViewModel {
     }
 
     /// Reruns the built-in checks and forgets who suggested values that
-    /// aren't pending any more.
+    /// aren't pending any more. Languages suggested from the project are
+    /// checked as if added, so their empty URLs get suggestions too.
     func refreshSuggestions() {
         guard tracksSuggestions, let listing else { return }
-        let shownScopes = listing.displayLocales.map { SuggestionScope.storePage($0) }
+        var checked = listing
+        for locale in pendingLocales {
+            checked.addLocale(locale)
+        }
+        let shownScopes = checked.displayLocales.map { SuggestionScope.storePage($0) }
         let scopes = Set(suggestions.all(for: app.id, area: .storePage).map(\.target.scope)).union(shownScopes)
-        suggestions.setBuiltIn(StorePageBuiltInSuggestions.suggestions(for: listing, appID: app.id), appID: app.id, scopes: scopes)
+        suggestions.setBuiltIn(StorePageBuiltInSuggestions.suggestions(for: checked, appID: app.id), appID: app.id, scopes: scopes)
         let pending = listing.displayLocales.flatMap { locale in
             listing.fields.filter { listing.draft($0, in: locale).isPending }.map { SuggestionTarget.storePage(locale, $0) }
         }
@@ -33,9 +38,10 @@ extension StorePageViewModel {
     // MARK: - Reading
 
     /// The suggestion under a field: the newest open one the filter shows,
-    /// unless the field already holds it.
+    /// unless the field already holds it. A language suggested from the
+    /// project shows its suggestions before it's added.
     func shownSuggestion(_ field: ListingField, in locale: StoreLocale, filter: SuggestionSourceFilter? = nil) -> FieldSuggestion? {
-        guard tracksSuggestions, canEdit(field), listing?.contains(locale) == true else { return nil }
+        guard tracksSuggestions, canEdit(field), listing?.contains(locale) == true || isPendingLanguage(locale) else { return nil }
         return suggestions.shown(for: .storePage(locale, field), appID: app.id, currentValue: value(field, in: locale), filter: filter ?? suggestionFilter)
     }
 
@@ -58,7 +64,7 @@ extension StorePageViewModel {
 
     /// Every language's open suggestions, for the action bar.
     var totalSuggestionCount: Int {
-        (listing?.displayLocales ?? []).reduce(0) { $0 + suggestionCount(in: $1) }
+        editorLocales.reduce(0) { $0 + suggestionCount(in: $1) }
     }
 
     /// The editor's fields, or only those with a suggestion or a change
@@ -66,7 +72,25 @@ extension StorePageViewModel {
     func editorFields(in locale: StoreLocale) -> [ListingField] {
         let fields = listing?.fields ?? []
         guard showsOnlySuggestedFields else { return fields }
-        return fields.filter { shownSuggestion($0, in: locale) != nil || draft($0, in: locale).isPending }
+        return fields.filter { shownSuggestion($0, in: locale) != nil || draft($0, in: locale).isPending || isComing($0, in: locale) }
+    }
+
+    // MARK: - Suggest Everything
+
+    /// Suggest Everything for this app, while it receives.
+    var suggestionRun: SuggestionRun? {
+        guard let run = suggestions.run, run.appID == app.id, run.isRunning else { return nil }
+        return run
+    }
+
+    /// The run still owes this field a suggestion: its striped placeholder.
+    func isComing(_ field: ListingField, in locale: StoreLocale) -> Bool {
+        suggestionRun?.isComing(.storePage(locale, field)) == true
+    }
+
+    /// Next to a language: how many the run still owes it.
+    func comingCount(in locale: StoreLocale) -> Int {
+        suggestionRun?.comingCount(in: [.storePage(locale)]) ?? 0
     }
 
     func suggestionBar(for locale: StoreLocale, assistant: String?) -> SuggestionBarModel {
@@ -77,7 +101,7 @@ extension StorePageViewModel {
         for filter in SuggestionSourceFilter.allCases where filter != .all {
             counts[filter] = visibleSuggestions(in: locale, filter: filter).count
         }
-        let everywhere = (listing?.displayLocales ?? []).reduce(0) { $0 + visibleSuggestions(in: $1).count }
+        let everywhere = editorLocales.reduce(0) { $0 + visibleSuggestions(in: $1).count }
         return SuggestionBarModel(
             openCount: visibleSuggestions(in: locale, filter: .all).count,
             totalCount: all.count + provenanceCount,
@@ -145,9 +169,10 @@ extension StorePageViewModel {
         accept(batch, toast: text)
     }
 
-    /// "Accept All n in Every Language".
+    /// "Accept All n in Every Language", languages suggested from the
+    /// project included: accepting adds them.
     func acceptSuggestionsEverywhere() {
-        let batch = (listing?.displayLocales ?? []).flatMap { visibleSuggestions(in: $0) }
+        let batch = editorLocales.flatMap { visibleSuggestions(in: $0) }
         accept(batch, toast: String(localized: "Accepted \(batch.count) suggestions across languages. Nothing is pushed yet."))
     }
 
@@ -179,6 +204,11 @@ extension StorePageViewModel {
         for (key, draft) in undo.drafts {
             edited.update(key.field, in: key.locale) { $0 = draft }
         }
+        // A language the batch added goes back to being suggested.
+        for locale in undo.addedLocales where !edited.fields.contains(where: { edited.draft($0, in: locale).isPending }) {
+            edited.removeLocale(locale)
+            forgetAdded(locale)
+        }
         commit(edited, replacing: Array(undo.drafts.keys))
         suggestions.restoreReview(undo.review)
         if suggestionUndo == undo { suggestionUndo = nil }
@@ -208,8 +238,8 @@ extension StorePageViewModel {
 
     /// Opens the editor on the first language with suggestions.
     func openSuggestions() {
-        guard let listing else { return }
-        let locale = listing.displayLocales.first { suggestionCount(in: $0) > 0 } ?? editorLocale ?? defaultEditorLocale
+        guard listing != nil else { return }
+        let locale = editorLocales.first { suggestionCount(in: $0) > 0 } ?? editorLocale ?? defaultEditorLocale
         if let locale { openEditor(locale) }
     }
 
@@ -223,6 +253,7 @@ extension StorePageViewModel {
     private func accept(_ batch: [FieldSuggestion], isForEditing: Bool = false, toast text: String?) {
         guard var edited = listing, !batch.isEmpty else { return }
         var undo = StorePageSuggestionUndo(drafts: [:], review: suggestions.review)
+        undo.addedLocales = pendingLocales.filter { locale in batch.contains { storeField(of: $0)?.1 == locale } }
         var accepted: [(suggestion: FieldSuggestion, previous: String)] = []
         for suggestion in batch {
             guard let (field, locale) = storeField(of: suggestion), edited.canEdit(field) else { continue }
@@ -238,6 +269,7 @@ extension StorePageViewModel {
             suggestions.markAccepted(item.suggestion, previousValue: item.previous, isForEditing: isForEditing)
         }
         suggestionUndo = undo
+        addedLanguagesUndo = nil
         if let text { toast = ToastMessage(text: text, canUndo: true) }
         registerUndo(undo, name: accepted.count == 1 ? String(localized: "Accept Suggestion") : String(localized: "Accept Suggestions"))
     }

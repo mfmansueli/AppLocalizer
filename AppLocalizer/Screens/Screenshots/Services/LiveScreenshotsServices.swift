@@ -23,6 +23,8 @@ struct LiveScreenshotsServices: ScreenshotsServices {
     var renderCacheDirectory: URL? = URL.cachesDirectory.appending(path: "AppLocalizer/Renders", directoryHint: .isDirectory)
     var renderHoldCount: Int? { nil }
     var documentCenter: ScreenshotsDocumentCenter? { .shared }
+    var autopilot: AutopilotCenter? { .shared }
+    var appSupport: AppSupportCenter? { .shared }
 
     func document(for app: StoreApp, primaryLocale: StoreLocale) async throws -> ScreenshotsDocument {
         try store.load(appID: app.id) ?? .empty(primary: primaryLocale.code)
@@ -46,6 +48,16 @@ struct LiveScreenshotsServices: ScreenshotsServices {
     func captureImage(_ capture: ScreenshotCapture, for app: StoreApp, pixelWidth: Int) async -> CGImage? {
         let url = capturesRoot.appending(path: "\(app.id)/Captures/\(capture.id).png")
         return await Task.detached { Self.thumbnail(at: url, pixelWidth: pixelWidth) }.value
+    }
+
+    /// Writes an Autopilot capture into the app's `Captures` folder, named
+    /// by its checksum like an imported one.
+    func storeCapture(_ data: Data, for app: StoreApp) async throws -> CaptureFile {
+        let file = try Self.captureFile(for: data)
+        let folder = capturesRoot.appending(path: "\(app.id)/Captures", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try data.write(to: folder.appending(path: "\(file.id).png"), options: .atomic)
+        return file
     }
 
     /// Copies each file (or downloads each live screenshot at full size)

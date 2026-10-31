@@ -91,12 +91,13 @@ struct MainView: View {
             .sheet(isPresented: $navigator.isActivityPresented, onDismiss: navigator.activityDidClose) {
                 ActivitySheet()
             }
-            .sheet(isPresented: $navigator.isAssistantSetupPresented, onDismiss: { navigator.assistantSetupMethod = nil }, content: {
+            .sheet(isPresented: $navigator.isAssistantSetupPresented, onDismiss: assistantSetupDidClose, content: {
                 AssistantSetupSheet(
                     assistants: assistants,
                     keyAssistant: keyAssistant,
                     appName: viewModel.selectedApp?.name ?? String(localized: "your app"),
-                    method: navigator.assistantSetupMethod
+                    method: navigator.assistantSetupMethod,
+                    reason: navigator.setupStartsSuggestEverything ? AssistantSetupSheet.suggestEverythingReason : nil
                 )
             })
             .task { configurePush() }
@@ -196,6 +197,17 @@ struct MainView: View {
             navigator.refresh()
         }
         push.screenshots.attach(ScreenshotPushWorkspace(teamName: teamName, services: services, apps: loadedApps))
+    }
+
+    /// Setup opened from Suggest Everything… that ends with an assistant
+    /// connected offers to start it.
+    private func assistantSetupDidClose() {
+        navigator.assistantSetupMethod = nil
+        guard navigator.setupStartsSuggestEverything else { return }
+        navigator.setupStartsSuggestEverything = false
+        if case let .connected(client) = assistants.assistantStatus {
+            navigator.toast = .connected(client)
+        }
     }
 
     /// Lets connected assistants read and propose for this account, and

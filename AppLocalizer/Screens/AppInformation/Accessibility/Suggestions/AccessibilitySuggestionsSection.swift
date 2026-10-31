@@ -19,7 +19,7 @@ struct AccessibilitySuggestionsSection: View {
                 devicePicker(selected: family)
                 AppInformationSuggestionsPanel(viewModel: viewModel, scope: .accessibility(family), showsFieldsToggle: false)
                 let slots = viewModel.suggestionSlots(in: .accessibility(family)).filter { slot in
-                    viewModel.shownSuggestion(slot) != nil || viewModel.provenance(slot) != nil
+                    viewModel.shownSuggestion(slot) != nil || viewModel.provenance(slot) != nil || viewModel.isComing(slot)
                 }
                 if !slots.isEmpty {
                     VStack(spacing: 0) {
@@ -44,7 +44,8 @@ struct AccessibilitySuggestionsSection: View {
             Picker("Device", selection: Binding(get: { selected }, set: { viewModel.accessibilitySuggestionFamily = $0 })) {
                 ForEach(families) { family in
                     let count = viewModel.suggestionCount(in: .accessibility(family))
-                    Text(count > 0 ? "\(family.name) \(count.formatted())" : family.name).tag(family)
+                    let coming = viewModel.comingCount(in: .accessibility(family))
+                    Text(Self.deviceTitle(family, count: count, coming: coming)).tag(family)
                 }
             }
             .pickerStyle(.segmented)
@@ -52,6 +53,14 @@ struct AccessibilitySuggestionsSection: View {
             .fixedSize()
             .accessibilityIdentifier("appInformation.accessibility.suggestions.device")
         }
+    }
+
+    /// "Apple Watch 2", with "· 3 coming" while Suggest Everything owes it
+    /// more.
+    private static func deviceTitle(_ family: DeviceFamily, count: Int, coming: Int) -> String {
+        var title = count > 0 ? "\(family.name) \(count.formatted())" : family.name
+        if coming > 0 { title += " · " + String(localized: "\(coming) coming") }
+        return title
     }
 
     private func row(_ slot: AppInformationSuggestionSlot) -> some View {

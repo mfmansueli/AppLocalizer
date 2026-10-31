@@ -39,8 +39,6 @@ final class StorePageViewModel {
     private(set) var errorMessage: String?
     /// Locales added with "Add Locale" that have nothing queued yet.
     private(set) var addedLocales: [StoreLocale] = []
-    /// Store Page → Screenshots, made once the store page has loaded.
-    private(set) var screenshots: ScreenshotsViewModel?
 
     // MARK: - Navigation
 
@@ -89,6 +87,13 @@ final class StorePageViewModel {
     /// The window's, so Accept All is one step of Edit → Undo.
     weak var undoManager: UndoManager?
 
+    // MARK: - New languages
+
+    /// The languages sheet's checkboxes: the project's languages to add.
+    var languageSelection: Set<StoreLocale> = []
+    /// What the toast's Undo takes back after adding languages.
+    var addedLanguagesUndo: [StoreLocale]?
+
     private var selectedVersionID: String?
     private var pendingIntent: WorkspaceIntent?
     /// The overview numbers last worked out here, to notice when they change.
@@ -123,12 +128,10 @@ final class StorePageViewModel {
         defer { isLoading = false }
         do {
             let loaded = try await services.content(for: app, versionID: selectedVersionID)
-            let versionChanged = content?.version.id != loaded.version.id
             content = loaded
             errorMessage = nil
             rebuild()
             refreshSummaryIfNeeded()
-            await updateScreenshots(content: loaded, reload: versionChanged || mode == .screenshots)
             if mode == .inAppTexts { await inAppTexts.load(listing: listing, force: true) }
             performPendingIntent()
         } catch {
@@ -146,30 +149,20 @@ final class StorePageViewModel {
 
     var isLoaded: Bool { content != nil }
 
-    /// Makes the Screenshots view's model the first time, and keeps it on
-    /// the shown version; it loads when the view first opens.
-    private func updateScreenshots(content: StorePageContent, reload: Bool) async {
-        guard let screenshots else {
-            screenshots = ScreenshotsViewModel(app: app, services: services.screenshots, context: ScreenshotsContext(content: content))
-            return
-        }
-        let context = ScreenshotsContext(content: content)
-        if context != screenshots.context {
-            await screenshots.update(context: context)
-        } else if reload, screenshots.isLoaded {
-            await screenshots.load()
-        }
-    }
-
     private func modeDidChange() {
         if mode == .editor, editorLocale == nil { editorLocale = defaultEditorLocale }
     }
 
     // MARK: - Queue
 
-    /// The builder for the loaded version's changes.
+    /// The builder for the loaded version's changes. The project's
+    /// languages the App Store doesn't have are its new pages.
     var changeBuilder: ListingChangeBuilder? {
-        content.map { ListingChangeBuilder(appID: app.id, ids: $0.ids, versionString: $0.version.versionString) }
+        content.map { content in
+            var builder = ListingChangeBuilder(appID: app.id, ids: content.ids, versionString: content.version.versionString)
+            builder.newPages = projectLocalesNotOnStore
+            return builder
+        }
     }
 
     /// The queue changed: rebuild what's shown from App Store Connect's
@@ -186,7 +179,7 @@ final class StorePageViewModel {
         var rebuilt = content.listing(machineTranslated: tags, addedLocales: addedLocales)
         builder.apply(queue.changes(for: app.id, section: .storePage), to: &rebuilt, machineTranslated: tags)
         listing = rebuilt
-        if let locale = editorLocale, !rebuilt.contains(locale) { editorLocale = defaultEditorLocale }
+        if let locale = editorLocale, !rebuilt.contains(locale), !isPendingLanguage(locale) { editorLocale = defaultEditorLocale }
         saveTags()
         refreshSuggestions()
     }
@@ -248,9 +241,10 @@ final class StorePageViewModel {
     /// The intents this section takes; the rest belong to other sections.
     static func handles(_ intent: WorkspaceIntent) -> Bool {
         switch intent {
-        case .translateMissing, .findAndReplace, .importTranslations, .showScreenshots, .search: true
+        case .translateMissing, .findAndReplace, .importTranslations, .search: true
         case let .reviewFieldSuggestions(area), let .askForSuggestions(area): area == .storePage
-        case .reviewSuggestions, .applyRecommendedPrices, .showResults, .editPriceSchedule, .showPrices, .openAppInformationPage: false
+        case .reviewSuggestions, .applyRecommendedPrices, .showResults, .editPriceSchedule, .showPrices, .openAppInformationPage,
+             .reviewPageSuggestions, .showScreenshots: false
         }
     }
 
@@ -267,12 +261,12 @@ final class StorePageViewModel {
         case .translateMissing: presentTranslate()
         case .findAndReplace, .search: presentFindReplace()
         case .importTranslations: isImporterPresented = true
-        case .showScreenshots: mode = .screenshots
         case .reviewFieldSuggestions: openSuggestions()
         case .askForSuggestions:
             openSuggestions()
             requestsAsk = true
-        case .reviewSuggestions, .applyRecommendedPrices, .showResults, .editPriceSchedule, .showPrices, .openAppInformationPage: break
+        case .reviewSuggestions, .applyRecommendedPrices, .showResults, .editPriceSchedule, .showPrices, .openAppInformationPage,
+             .reviewPageSuggestions, .showScreenshots: break
         }
     }
 
@@ -320,11 +314,30 @@ final class StorePageViewModel {
 
     /// "Add Locale": the locale shows empty in the grid and opens in the
     /// editor. Nothing is created in App Store Connect until a field of it
-    /// is pushed.
+    /// is pushed, except for a language the app's project has: its page is
+    /// created when you push (`addLanguages`).
     func addLocale(_ locale: StoreLocale) {
+        if projectLocalesNotOnStore.contains(locale), listing?.contains(locale) != true {
+            addLanguages([locale], toast: nil)
+            openEditor(locale)
+            return
+        }
         if listing?.contains(locale) != true, !addedLocales.contains(locale) { addedLocales.append(locale) }
         rebuild()
         openEditor(locale)
+    }
+
+    /// Adds locales to what's shown even before anything of theirs is
+    /// queued, so they stay through a rebuild.
+    func keepAdded(_ locales: [StoreLocale]) {
+        for locale in locales where !addedLocales.contains(locale) {
+            addedLocales.append(locale)
+        }
+    }
+
+    /// Forgets a locale added here.
+    func forgetAdded(_ locale: StoreLocale) {
+        addedLocales.removeAll { $0 == locale }
     }
 
     /// Opens the editor on a locale, scrolled to `field`.

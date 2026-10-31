@@ -50,6 +50,10 @@ struct PendingChange: Identifiable, Hashable, Codable, Sendable {
     /// A switch the review row shows under the change, e.g. "Publish to the
     /// App Store"; nil for most changes.
     var option: ChangeOption?
+    /// What it creates in App Store Connect, e.g. a new App Store language
+    /// with its fields; Review & Push shows it as "Create the Polish page"
+    /// with the fields under it. Nil for most changes.
+    var creation: PendingCreation?
     var createdAt: Date
 
     init(
@@ -111,6 +115,14 @@ struct PendingChange: Identifiable, Hashable, Codable, Sendable {
     var pushRequests: [PushRequest] {
         guard let option, option.isEffective else { return requests }
         return requests + option.requests
+    }
+
+    /// Set when its one request writes a resource App Store Connect only
+    /// takes whole (an age rating declaration): a push sends it in one
+    /// request with the other changes that share the key.
+    var mergeKey: String? {
+        guard pushRequests.count == 1 else { return nil }
+        return pushRequests[0].mergeKey
     }
 
     /// Requests a push sends for it, counting the conflict check's `GET`.

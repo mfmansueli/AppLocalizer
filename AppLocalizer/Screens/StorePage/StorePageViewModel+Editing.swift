@@ -111,8 +111,14 @@ extension StorePageViewModel {
 
     // MARK: - Editor navigation
 
-    /// The editor's locale picker: every locale, primary first.
-    var editorLocales: [StoreLocale] { listing?.displayLocales ?? [] }
+    /// The editor's locale picker: the App Store page's locales, primary
+    /// first, then the new ones (`newEditorLocales`).
+    var editorLocales: [StoreLocale] { appStoreEditorLocales + newEditorLocales }
+
+    /// The picker's first part: the locales the App Store page has.
+    var appStoreEditorLocales: [StoreLocale] {
+        (listing?.displayLocales ?? []).filter { !isNewLanguage($0) }
+    }
 
     /// The previous or next locale in the picker (‹ ›).
     func stepEditorLocale(by offset: Int) {

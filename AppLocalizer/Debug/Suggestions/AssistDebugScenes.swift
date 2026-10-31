@@ -94,7 +94,7 @@ enum AssistDebugScenes {
     // MARK: - The key
 
     @MainActor
-    private static func withKey(_ content: some View) -> AnyView {
+    static func withKey(_ content: some View) -> AnyView {
         AnyView(content.modifier(KeyOn()))
     }
 

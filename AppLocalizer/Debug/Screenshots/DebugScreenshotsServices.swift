@@ -21,6 +21,12 @@ final class DebugScreenshotsServices: ScreenshotsServices {
     var translator: any ListingTranslator = DebugCaptionTranslator()
     let renderCacheDirectory: URL? = nil
     var opening: ScreenshotsDebugOpening?
+    /// The scenes made before Preview open on Sets; Studio scenes on
+    /// Preview.
+    var initialTab: ScreenshotsTab = .sets
+    /// Studio scenes' Autopilot, holding its stages.
+    var autopilot: AutopilotCenter?
+    var appSupport: AppSupportCenter?
     /// Scenes report to the shared center, which the toolbar reads; tests
     /// keep theirs apart.
     let documentCenter: ScreenshotsDocumentCenter?
@@ -51,7 +57,7 @@ final class DebugScreenshotsServices: ScreenshotsServices {
 
     func liveScreenshots(for app: StoreApp, localizations _: [StoreLocale: String]) async throws -> LiveScreenshots {
         guard app.id == DebugFixtures.AppID.lumen, scenario != .noCaptures else { return LiveScreenshots() }
-        return ScreenshotsDebugDocuments.live
+        return scenario == .everyDevice ? DebugEveryDevice.live : ScreenshotsDebugDocuments.live
     }
 
     func captureImage(_ capture: ScreenshotCapture, for _: StoreApp, pixelWidth: Int) async -> CGImage? {
@@ -61,6 +67,9 @@ final class DebugScreenshotsServices: ScreenshotsServices {
     /// Only English (U.K.)'s hand-uploaded set is shown from App Store
     /// Connect; it's drawn with the old look it was made with.
     func liveImage(_ screenshot: LiveScreenshot, pixelWidth: Int) async -> CGImage? {
+        if let capture = DebugEveryDevice.liveWatchCapture(for: screenshot.id) {
+            return captures.image(for: capture, pixelWidth: pixelWidth)
+        }
         guard let source = ScreenshotsDebugDocuments.legacySource(for: screenshot.id),
               let locale = StoreLocaleCatalog.locale(code: source.locale) else { return nil }
         let caption = ScreenshotCaption(headline: ScreenshotsSampleData.legacyCaptions[source.slot])

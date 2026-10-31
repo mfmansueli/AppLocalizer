@@ -5,7 +5,7 @@
 
 import XCTest
 
-/// Store Page → Screenshots' Captures tab and the assistant's Proposals
+/// Screenshots' Captures tab and the assistant's Proposals
 /// sheet, driven through the DEBUG scenes in
 /// `ScreenshotsProposalsDebugScenes` (sample captures and proposals;
 /// nothing leaves the Mac): importing a fastlane folder after settling a

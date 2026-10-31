@@ -21,7 +21,7 @@ import SwiftUI
 ///   Chinese (Simplified) and Dutch added; the Translate sheet, the batch
 ///   stopped at "Korean · Description", and the suggestions with the first
 ///   three accepted.
-/// - `store-iap`, `store-shots`: the In-App Texts and Screenshots views.
+/// - `store-iap`: the In-App Texts view.
 /// - `store-import`: the translator's XLIFF in the import diff.
 /// - `store-find`: Find and Replace, "Lumen Plus" → "Lumen Premium".
 /// - `store-noversion`: only the live 1.3 exists.
@@ -31,7 +31,7 @@ import SwiftUI
 enum StorePageDebugScenes {
     static let ids = [
         "store-coverage", "store-editor", "store-keywords", "store-translate", "store-translating", "store-suggestions",
-        "store-iap", "store-shots", "store-import", "store-find", "store-noversion", "store-emptylocale",
+        "store-iap", "store-import", "store-find", "store-noversion", "store-emptylocale",
         "store-loading", "store-ratelimited",
     ]
 
@@ -58,8 +58,6 @@ enum StorePageDebugScenes {
             scene(pending: DebugStorePageContent.pendingChanges(for: germanKeywords)) { $0.openEditor(.german, field: .keywords) }
         case "store-iap":
             scene { $0.mode = .inAppTexts }
-        case "store-shots":
-            scene { $0.mode = .screenshots }
         case "store-import":
             scene { $0.showImport(Data(StorePageSampleData.translatorXLIFF.utf8), fileName: StorePageSampleData.translatorFileName) }
         case "store-find":

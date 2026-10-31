@@ -9,8 +9,17 @@ import SwiftUI
 /// "Set Up Your AI Assistant", from the Assistant button, the overview and
 /// the suggestion bars: how (an assistant over MCP, or an API key), then
 /// that method's steps, with the step bars on top and Cancel, a note, Back
-/// and Continue at the bottom.
+/// and Continue at the bottom. Opened from Suggest Everything…, it says
+/// why on its first step.
 struct AssistantSetupSheet: View {
+    /// Why it opened, e.g. "Suggest Everything needs an assistant…".
+    var reason: String?
+
+    /// Setup opened from Suggest Everything….
+    static let suggestEverythingReason = String(
+        localized: "Suggest Everything needs an assistant. Connect one here; when you’re done, it starts from Overview."
+    )
+
     @State private var viewModel: AssistantSetupViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -19,9 +28,12 @@ struct AssistantSetupSheet: View {
         keyAssistant: KeyAssistantController,
         appName: String,
         method: AssistantSetupMethod? = nil,
-        step: AssistantSetupStep? = nil
+        step: AssistantSetupStep? = nil,
+        reason: String? = nil
     ) {
+        self.reason = reason
         #if DEBUG
+        self.reason = reason ?? Self.debugReason
         let step = step ?? Self.debugStep
         let method = method ?? Self.debugMethod
         #endif
@@ -127,8 +139,24 @@ struct AssistantSetupSheet: View {
 
     // MARK: - Steps
 
-    @ViewBuilder
     private var content: some View {
+        VStack(alignment: .leading, spacing: Spacing.medium) {
+            if let reason, viewModel.step == .assistant {
+                Text(reason)
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, Spacing.medium)
+                    .padding(.vertical, Spacing.small)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Palette.accentTint, in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous))
+                    .accessibilityIdentifier("assistantSetup.reason")
+            }
+            stepContent
+        }
+    }
+
+    @ViewBuilder
+    private var stepContent: some View {
         switch (viewModel.method, viewModel.step) {
         case (_, .assistant): AssistantSetupMethodStep(viewModel: viewModel)
         case (.assistant, .server): serverStep

@@ -26,10 +26,15 @@ final class FieldSuggestionStore {
     private(set) var review = SuggestionReviewState()
     /// "Ask Claude Code…", while it waits or suggestions arrive.
     private(set) var request: AssistantSuggestionRequest?
+    /// Suggest Everything, from Suggest Everything… until Done.
+    private(set) var run: SuggestionRun?
     /// Set when the saved suggestions couldn't be read or written.
     private(set) var persistenceError: String?
 
     private var nextNumber = 1
+    private var nextRunNumber = 1
+    /// Runs stopped with Stop Receiving: their calls are refused.
+    private var stoppedRunIDs: Set<SuggestionRun.ID> = []
     private let persistence: (any FieldSuggestionPersistence)?
     private let now: () -> Date
 
@@ -112,7 +117,8 @@ final class FieldSuggestionStore {
 
     /// An assistant's or the AI provider's suggestion. Replaces the open one
     /// from the same source for the same field; the same value again
-    /// changes nothing.
+    /// changes nothing. `runID` is the Suggest Everything run it was sent
+    /// with.
     @discardableResult
     func add(
         appID: StoreApp.ID,
@@ -120,10 +126,12 @@ final class FieldSuggestionStore {
         value: String,
         reason: String,
         source: SuggestionSource,
-        evidence: [SuggestionEvidence] = []
+        evidence: [SuggestionEvidence] = [],
+        runID: SuggestionRun.ID? = nil
     ) -> (suggestion: FieldSuggestion, outcome: SuggestionAddOutcome) {
         let sameField = suggestions.filter { $0.appID == appID && $0.target == target && $0.source == source && isOpen($0) }
         if let existing = sameField.first(where: { $0.value == value }) {
+            noteRunArrival(of: target, appID: appID, source: source, runID: runID, suggestionID: existing.id)
             return (existing, .unchanged)
         }
         let suggestion = FieldSuggestion(
@@ -140,7 +148,9 @@ final class FieldSuggestionStore {
         let replacedIDs = Set(sameField.map(\.id))
         suggestions.removeAll { replacedIDs.contains($0.id) }
         suggestions.append(suggestion)
-        noteArrival(of: suggestion)
+        if !noteRunArrival(of: target, appID: appID, source: source, runID: runID, suggestionID: suggestion.id) {
+            noteArrival(of: suggestion)
+        }
         save()
         return (suggestion, replacedIDs.isEmpty ? .queued : .replaced)
     }
@@ -233,6 +243,91 @@ final class FieldSuggestionStore {
     private func noteArrival(of suggestion: FieldSuggestion) {
         guard case let .assistant(client) = suggestion.source, request?.client == client, request?.appID == suggestion.appID else { return }
         request?.received += 1
+    }
+
+    // MARK: - Suggest Everything
+
+    /// Suggest Everything…: the prompt is copied and the run waits for
+    /// `client` to announce its plan.
+    func beginRun(appID: StoreApp.ID, client: String, prompt: String) {
+        run = SuggestionRun(id: nextRunID(), appID: appID, client: client, prompt: prompt, phase: .waiting, startedAt: now(), lastActivityAt: now())
+    }
+
+    /// `begin_suggestions`: the assistant's plan. It takes over the run
+    /// Suggest Everything… left waiting for the same app and client, else
+    /// starts its own; an empty plan is over at once.
+    @discardableResult
+    func startRun(appID: StoreApp.ID, client: String, plan: [SuggestionTarget]) -> SuggestionRun {
+        var started = run.flatMap { $0.phase == .waiting && $0.appID == appID && $0.client == client ? $0 : nil }
+            ?? SuggestionRun(id: nextRunID(), appID: appID, client: client, prompt: "", phase: .waiting, startedAt: now(), lastActivityAt: now())
+        var planned: [SuggestionTarget] = []
+        for target in plan where !planned.contains(target) {
+            planned.append(target)
+        }
+        started.plan = planned
+        started.phase = planned.isEmpty ? .finished : .running
+        started.lastActivityAt = now()
+        run = started
+        return started
+    }
+
+    /// `end_suggestions`: what arrived is all there is.
+    func endRun(id: SuggestionRun.ID) {
+        guard run?.id == id, run?.isRunning == true else { return }
+        run?.phase = .finished
+    }
+
+    /// Stop Receiving: what arrived stays; calls with the run are refused.
+    func stopRun() {
+        guard let id = run?.id, run?.isRunning == true else { return }
+        run?.phase = .stopped
+        stoppedRunIDs.insert(id)
+    }
+
+    /// Done, or Cancel while it waits. A run still going stops first.
+    func dismissRun() {
+        stopRun()
+        run = nil
+    }
+
+    func isStopped(_ id: SuggestionRun.ID) -> Bool {
+        stoppedRunIDs.contains(id)
+    }
+
+    /// What the run brought that the person hasn't accepted or dismissed:
+    /// the card's Accept All (n).
+    func toReview(in run: SuggestionRun) -> [FieldSuggestion] {
+        run.suggestionIDs.compactMap(suggestion(id:)).filter(isOpen)
+    }
+
+    /// A field the run's assistant settled without a suggestion, because it
+    /// already held the value or the value went in as a change: it counts
+    /// as arrived.
+    func noteSettled(_ target: SuggestionTarget, appID: StoreApp.ID, source: SuggestionSource, runID: SuggestionRun.ID?) {
+        noteRunArrival(of: target, appID: appID, source: source, runID: runID, suggestionID: nil)
+    }
+
+    /// Counts a field toward the run when it's sent with the run's id or
+    /// was planned, while the run goes on.
+    @discardableResult
+    private func noteRunArrival(
+        of target: SuggestionTarget,
+        appID: StoreApp.ID,
+        source: SuggestionSource,
+        runID: SuggestionRun.ID?,
+        suggestionID: FieldSuggestion.ID?
+    ) -> Bool {
+        guard case let .assistant(client) = source, var run, run.isRunning, run.appID == appID, run.client == client,
+              runID == run.id || (runID == nil && run.plan.contains(target)) else { return false }
+        run.noteArrival(of: target, suggestionID: suggestionID, at: now())
+        if run.isComplete { run.phase = .finished }
+        self.run = run
+        return true
+    }
+
+    private func nextRunID() -> SuggestionRun.ID {
+        defer { nextRunNumber += 1 }
+        return "run_\(nextRunNumber)"
     }
 
     // MARK: - Storage

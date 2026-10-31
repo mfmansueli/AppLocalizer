@@ -11,23 +11,27 @@ extension ListingChangeBuilder {
     /// A text whose machine-translation tag matches (`machineTranslated`,
     /// `ListingFieldKey.id` → text) stays tagged; an assistant's change is a
     /// proposal; an accepted built-in or AI provider suggestion keeps its
-    /// source; anything else is your edit. An assistant's alternative to
-    /// your change becomes a conflict on the field.
+    /// source; anything else is your edit. A new language's fields each keep
+    /// their own source (`PendingChange.creation`), and the language shows
+    /// even before it has text. An assistant's alternative to your change
+    /// becomes a conflict on the field.
     func apply(_ changes: [PendingChange], to listing: inout StoreListing, machineTranslated: [String: String] = [:]) {
         for change in changes {
             guard let level = level(of: change),
                   let document = StorePageWriteDocument.decode(change.requests.first?.body),
                   let locale = locale(of: change, document: document, level: level)
             else { continue }
+            if change.creation != nil { listing.addLocale(locale) }
             for (field, text) in Self.texts(in: document, at: level) {
                 let key = ListingFieldKey(locale, field)
+                let source = change.creation?.fields.first { $0.id == field.rawValue }?.source ?? change.source
                 listing.update(field, in: locale) { draft in
                     if !text.isEmpty, machineTranslated[key.id] == text {
                         draft.acceptMachineTranslation(text)
-                    } else if case let .assistant(client) = change.source {
+                    } else if case let .assistant(client) = source {
                         _ = draft.propose(text, by: client)
-                    } else if change.source == .builtInSuggestion || change.source == .aiProvider {
-                        draft.acceptSuggestion(text, from: change.source)
+                    } else if source == .builtInSuggestion || source == .aiProvider {
+                        draft.acceptSuggestion(text, from: source)
                     } else {
                         draft.edit(text)
                     }

@@ -76,6 +76,19 @@ struct ReviewAndExportChangeTests {
         #expect(builder.newReviewDetailChange(AppReviewValues()) == nil)
     }
 
+    /// Apple: "You must provide a value for the attribute 'contactEmail'".
+    @Test func newReviewDetailsWaitForAContactEmail() throws {
+        var ids = Support.ids
+        ids.reviewDetailID = nil
+        let builder = AppInformationChangeBuilder(appID: Support.appID, ids: ids, versionString: "1.0")
+        var values = saved
+        values.email = " "
+        let blocked = try #require(builder.newReviewDetailChange(values))
+        #expect(blocked.blockedReason == "Add a contact email: App Store Connect needs one to create the review details.")
+        #expect(blocked.isBlocked)
+        #expect(try #require(builder.newReviewDetailChange(saved)).blockedReason == nil)
+    }
+
     @Test func reviewIsCompleteWithContactAndADemoAccountWhenNeeded() {
         var values = saved
         #expect(values.isComplete)

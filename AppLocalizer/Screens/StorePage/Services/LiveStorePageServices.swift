@@ -31,4 +31,10 @@ struct LiveStorePageServices: StorePageServices {
     var screenshots: any ScreenshotsServices {
         LiveScreenshotsServices(client: client)
     }
+
+    var appSupport: AppSupportCenter? { .shared }
+
+    func hasWatchApp(for _: StoreApp, versionID: String) async throws -> Bool {
+        try await client.versionHasWatchApp(versionID: versionID)
+    }
 }

@@ -6,12 +6,14 @@
 import Foundation
 
 extension ScreenshotDisplayType {
-    /// "iphone" or "ipad", as the screenshot tools name the rendered
-    /// display types; App Store Connect's own value also works.
+    /// "iphone", "ipad", "watch" or "vision", as the screenshot tools name
+    /// the display types; App Store Connect's own value also works.
     var mcpValue: String {
         switch self {
         case .iPhone: "iphone"
         case .iPad: "ipad"
+        case .watch: "watch"
+        case .visionPro: "vision"
         default: rawValue
         }
     }
@@ -20,6 +22,8 @@ extension ScreenshotDisplayType {
         switch mcpValue.lowercased() {
         case "iphone", "iphone_69", "app_iphone_67": self = .iPhone
         case "ipad", "ipad_13", "app_ipad_pro_3gen_129": self = .iPad
+        case "watch", "applewatch", "apple_watch", "watchos", "app_watch_ultra": self = .watch
+        case "vision", "visionpro", "vision_pro", "apple_vision_pro", "visionos", "app_apple_vision_pro": self = .visionPro
         default: return nil
         }
     }

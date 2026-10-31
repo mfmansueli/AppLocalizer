@@ -51,7 +51,8 @@ struct ScreenshotLayoutEngine {
         slot: Int,
         locale: StoreLocale,
         displayType: ScreenshotDisplayType,
-        caption: ScreenshotCaption?
+        caption: ScreenshotCaption?,
+        captureSize: PixelSize? = nil
     ) -> ScreenshotLayout {
         let resolved = template.resolved(forSlot: slot)
         let canvas = ScreenshotCanvas(display: displayType, orientation: resolved.canvas.orientation(for: displayType))
@@ -79,6 +80,20 @@ struct ScreenshotLayoutEngine {
         )
         let frame = fitted.frame
         let captionHeight = frame.headlineHeight + frame.subheadHeight
+        if displayType == .watch {
+            result.captionBox = .zero
+            result.screen = CGRect(origin: .zero, size: canvas.size)
+            result.isFullBleed = true
+            return result
+        }
+        if displayType == .visionPro {
+            let top = 0.07 * height
+            result.captionBox = CGRect(x: frame.boxX, y: top, width: frame.boxWidth, height: captionHeight)
+            let aspect = captureSize.flatMap { $0.width > 0 ? CGFloat($0.height) / CGFloat($0.width) : nil } ?? 0.75
+            placeWindow(in: &result, top: top + captionHeight + 0.05 * height, hasCaption: captionHeight > 0, aspect: min(max(aspect, 0.5625), 1.25))
+            result.lines = lines(fitted, box: result.captionBox, context: context)
+            return result
+        }
         if resolved.caption.placement == .band {
             let padding = 0.035 * height
             let bandHeight = captionHeight + 2 * padding
@@ -121,7 +136,8 @@ struct ScreenshotLayoutEngine {
             ? min(width * 0.62, width - 2 * side)
             : (style.align == .start ? width - 2 * side - width * 0.04 : width - 2 * side)
         let boxX = canvas.isLandscape ? (width - boxWidth) / 2 : (style.align == .start && context.isMirrored ? width - side - boxWidth : side)
-        let alignment: LayoutTextAlignment = style.align == .center ? .center : (context.isRightToLeft ? .right : .left)
+        let isCentered = style.align == .center || canvas.display == .visionPro
+        let alignment: LayoutTextAlignment = isCentered ? .center : (context.isRightToLeft ? .right : .left)
         let box = CaptionFitter.Box(unit: canvas.unit, width: boxWidth, locale: Locale(identifier: context.locale.code), script: script)
         let fitter = CaptionFitter(catalog: catalog)
         let headlineScale = isHero ? 1.06 : 1
@@ -186,6 +202,32 @@ struct ScreenshotLayoutEngine {
                 isRightToLeft: context.isRightToLeft, isOverflow: !fit.fits && index >= style.maxLines
             )
         }
+    }
+
+    // MARK: - Window
+
+    /// Apple Vision Pro: the capture in a floating window of its own shape
+    /// (height ÷ width), with a light rim, centered under the caption, and
+    /// the window bar below it.
+    private func placeWindow(in layout: inout ScreenshotLayout, top: CGFloat, hasCaption: Bool, aspect: CGFloat) {
+        let width = layout.canvas.width
+        let height = layout.canvas.height
+        let barHeight = max(2, (0.011 * width).rounded())
+        let barBottom = 0.045 * height
+        let available = height - barBottom - barHeight - 0.03 * height - top
+        var windowWidth = width * (hasCaption ? 0.5 : 0.6)
+        var windowHeight = windowWidth * aspect
+        if windowHeight > available {
+            windowHeight = max(0, available)
+            windowWidth = windowHeight / aspect
+        }
+        let y = hasCaption ? top : (height - windowHeight) / 2 - 0.03 * height
+        let window = CGRect(x: (width - windowWidth) / 2, y: y, width: windowWidth, height: windowHeight)
+        layout.screen = window
+        layout.screenCornerRadius = max(3, 0.025 * width)
+        layout.screenHasShadow = true
+        layout.screenRim = max(1, (0.004 * width).rounded())
+        layout.windowBar = CGRect(x: (width - 0.16 * width) / 2, y: height - barBottom - barHeight, width: 0.16 * width, height: barHeight)
     }
 
     // MARK: - Device

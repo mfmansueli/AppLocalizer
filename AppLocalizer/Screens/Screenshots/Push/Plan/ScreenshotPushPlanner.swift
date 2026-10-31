@@ -34,14 +34,14 @@ struct ScreenshotPushPlanner {
             )
             if input.state.kept[cell.key] == job.key {
                 plan.kept.append(item)
-            } else if input.context.localizations[locale] == nil {
+            } else if input.context.localizationID(for: locale, displayType: cell.key.displayType) == nil {
                 plan.excluded.append(ScreenshotPlanExclusion(appID: input.appID, cell: cell.key, localeName: locale.name, failedCheck: nil))
             } else {
                 add(item, locale: locale, to: &groups, input: input)
             }
         }
         for request in input.state.restores where input.document.scope.isPinned(request.locale) {
-            guard let locale = snapshot.locale(code: request.locale), input.context.localizations[locale] != nil else { continue }
+            guard let locale = snapshot.locale(code: request.locale) else { continue }
             addRestore(request, locale: locale, to: &groups, kept: &plan.kept, input: input)
         }
         plan.groups = groups.values.sorted { order($0, primary: input.context.primaryLocale.code) < order($1, primary: input.context.primaryLocale.code) }
@@ -52,7 +52,7 @@ struct ScreenshotPushPlanner {
         let display = item.cell.displayType
         let id = "\(input.appID)|\(locale.code)|\(display.rawValue)"
         groups[id, default: ScreenshotPlanGroup(
-            appID: input.appID, locale: locale, displayType: display, localizationID: input.context.localizations[locale],
+            appID: input.appID, locale: locale, displayType: display, localizationID: input.context.localizationID(for: locale, displayType: display),
             liveSet: input.live.set(locale: locale.code, displayType: display), items: [],
             previews: input.live.previews(locale: locale.code, displayType: display)
         )].items.append(item)
@@ -67,9 +67,9 @@ struct ScreenshotPushPlanner {
         kept: inout [ScreenshotPlanItem],
         input: ScreenshotPlanInput
     ) {
-        for display in ScreenshotDisplayType.rendered {
+        for display in ScreenshotDisplayType.studio {
             let images = request.images.filter { $0.displayType == display }.sorted { $0.position < $1.position }
-            guard !images.isEmpty else { continue }
+            guard !images.isEmpty, let localizationID = input.context.localizationID(for: locale, displayType: display) else { continue }
             let liveSet = input.live.set(locale: locale.code, displayType: display)
             var items: [ScreenshotPlanItem] = []
             for image in images {
@@ -88,7 +88,7 @@ struct ScreenshotPushPlanner {
             let extra = items.isEmpty ? [] : Array((liveSet?.screenshots ?? []).dropFirst(images.count))
             guard !items.isEmpty else { continue }
             let group = ScreenshotPlanGroup(
-                appID: input.appID, locale: locale, displayType: display, localizationID: input.context.localizations[locale],
+                appID: input.appID, locale: locale, displayType: display, localizationID: localizationID,
                 liveSet: liveSet, items: items, extraLive: extra, restoredFrom: request.backupDate,
                 previews: input.live.previews(locale: locale.code, displayType: display)
             )
@@ -110,9 +110,10 @@ struct ScreenshotPushPlanner {
         return .template
     }
 
-    /// iPhone before iPad; the primary locale first, then by name.
+    /// iPhone, iPad, Apple Watch, then Apple Vision Pro; the primary locale
+    /// first, then by name.
     private func order(_ group: ScreenshotPlanGroup, primary: String) -> String {
-        let display = ScreenshotDisplayType.rendered.firstIndex(of: group.displayType) ?? 9
+        let display = ScreenshotDisplayType.studio.firstIndex(of: group.displayType) ?? 9
         return "\(display)|\(group.locale.code == primary ? 0 : 1)|\(group.locale.name)"
     }
 }

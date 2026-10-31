@@ -19,6 +19,8 @@ enum MCPSuggestionRefusal: Error, Hashable, Sendable {
     /// Not one of an Age Rating question's or Accessibility feature's
     /// answers.
     case invalidAnswer(String)
+    /// The person stopped receiving the run's suggestions.
+    case runStopped
 
     var code: String {
         switch self {
@@ -29,6 +31,7 @@ enum MCPSuggestionRefusal: Error, Hashable, Sendable {
         case .notPermitted: "not_permitted"
         case .invalidValue: "invalid_value"
         case .invalidAnswer: "invalid_answer"
+        case .runStopped: "run_stopped"
         }
     }
 
@@ -46,6 +49,8 @@ enum MCPSuggestionRefusal: Error, Hashable, Sendable {
             kind.refusal
         case let .invalidValue(message), let .invalidAnswer(message):
             message
+        case .runStopped:
+            String(localized: "The person stopped receiving this run’s suggestions in AppLocalizer. Don’t send more for it.")
         }
     }
 

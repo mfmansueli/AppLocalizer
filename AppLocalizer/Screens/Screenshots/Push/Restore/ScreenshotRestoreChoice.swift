@@ -25,7 +25,7 @@ struct ScreenshotRestoreChoice: Identifiable, Hashable, Sendable {
     /// (U.S.)".
     var note: String {
         guard let first = images.first else { return String(localized: "Had none · used \(primaryLocaleName)") }
-        let counts = ScreenshotDisplayType.rendered.map { images(on: $0).count }.filter { $0 > 0 }
+        let counts = ScreenshotDisplayType.studio.map { images(on: $0).count }.filter { $0 > 0 }
         let count = counts.map(String.init).joined(separator: " + ")
         let screenshots = counts == [1] ? String(localized: "\(count) screenshot") : String(localized: "\(count) screenshots")
         return "\(screenshots) · \(first.origin.title)"

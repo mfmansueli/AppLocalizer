@@ -16,6 +16,7 @@ extension StorePageContent {
             versionState: version.state.title,
             hasEditableVersion: editableVersion != nil,
             localeCount: coverage.localeCount,
+            localeCodes: locales.map(\.code),
             totalLocaleCount: coverage.catalogCount,
             completeness: coverage.completeness,
             missingCount: coverage.missingCount,

@@ -41,6 +41,7 @@ struct CaptureImportSession: Hashable, Sendable {
         case .xcodeResults: String(localized: "Xcode test results · \(fileCount) attachments")
         case .folder: String(localized: "Folder · \(fileCount) files")
         case .appStoreConnect: String(localized: "App Store Connect · \(fileCount) live screenshots")
+        case .autopilot: String(localized: "Autopilot · \(fileCount) captures")
         }
     }
 

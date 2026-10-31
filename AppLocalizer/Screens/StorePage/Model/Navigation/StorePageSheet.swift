@@ -13,6 +13,8 @@ enum StorePageSheet: String, Identifiable, Hashable, Sendable {
     case findReplace
     /// "Import translations": the diff of a chosen file.
     case importPreview
+    /// "Languages in the app, not on the App Store".
+    case newLanguages
 
     var id: String { rawValue }
 }

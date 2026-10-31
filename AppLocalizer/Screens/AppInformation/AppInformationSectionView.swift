@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-/// The App Information section of an app's workspace (⌘4): one view model
+/// The App Information section of an app's workspace (⌘5): one view model
 /// per app, reloaded by the toolbar's Refresh.
 struct AppInformationSectionView: View {
     let app: StoreApp

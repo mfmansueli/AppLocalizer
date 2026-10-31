@@ -17,6 +17,8 @@ struct MCPToolContext {
     /// "Suggest and edit drafts": `suggest_fields` may write the value as an
     /// unpushed change (`apply: true`).
     var editsDrafts = false
+    /// The server's port, for Autopilot's upload link.
+    var port: UInt16 = MCPEndpoint.defaultPort
 
     func allows(_ kind: MCPProposalKind) -> Bool {
         allowedProposals.contains(kind)

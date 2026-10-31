@@ -166,7 +166,7 @@ final class ScreenshotPushController {
 
     private func live(for app: StoreApp, context: ScreenshotsContext, screenshots: any ScreenshotsServices) async throws -> LiveScreenshots {
         if let live = liveSets[app.id] { return live }
-        let live = try await screenshots.liveScreenshots(for: app, localizations: context.localizations)
+        let live = try await screenshots.liveScreenshots(for: app, context: context)
         liveSets[app.id] = live
         return live
     }

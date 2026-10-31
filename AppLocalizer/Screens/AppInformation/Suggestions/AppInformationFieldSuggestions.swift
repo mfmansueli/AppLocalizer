@@ -7,8 +7,9 @@ import SwiftUI
 
 /// Under an App Information row: who suggested the value waiting to be
 /// pushed, with Undo, and the open suggestion for the field, question or
-/// feature. Categories, the release option and answers read by name; picked
-/// values and answers have no Use and Edit.
+/// feature, or while Suggest Everything still owes one, its placeholder.
+/// Categories, the release option and answers read by name; picked values
+/// and answers have no Use and Edit.
 struct AppInformationFieldSuggestions: View {
     let viewModel: AppInformationViewModel
     let slot: AppInformationSuggestionSlot
@@ -25,7 +26,8 @@ struct AppInformationFieldSuggestions: View {
     var body: some View {
         let provenance = viewModel.provenance(slot)
         let suggestion = viewModel.shownSuggestion(slot)
-        if provenance != nil || suggestion != nil {
+        let coming = viewModel.isComing(slot) ? viewModel.suggestionRun : nil
+        if provenance != nil || suggestion != nil || coming != nil {
             VStack(alignment: .leading, spacing: Spacing.xSmall) {
                 if let provenance {
                     SuggestionProvenanceLine(provenance: provenance, currentValue: viewModel.suggestionValue(slot)) {
@@ -44,12 +46,22 @@ struct AppInformationFieldSuggestions: View {
                         onUseAndEdit: { viewModel.useAndEditSuggestion(suggestion) },
                         onAccept: { viewModel.acceptSuggestion(suggestion) }
                     )
+                } else if let coming {
+                    SuggestionComingPlaceholder(client: coming.client, kind: placeholderKind)
                 }
             }
             .padding(.horizontal, Spacing.medium + 2)
             .padding(.bottom, Spacing.small + 1)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("appInformation.suggestions.\(identifier)")
+        }
+    }
+
+    private var placeholderKind: SuggestionComingPlaceholder.Kind {
+        switch slot {
+        case .field: .field
+        case .ageRating: .question
+        case .accessibility: .feature
         }
     }
 

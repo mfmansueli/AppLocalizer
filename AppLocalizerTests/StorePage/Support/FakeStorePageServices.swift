@@ -20,6 +20,8 @@ final class FakeStorePageServices: StorePageServices {
     var reviews: [CustomerReview] = []
     var reviewsError: (any Error)?
     var screenshots: any ScreenshotsServices = FakeScreenshotsServices()
+    /// What the app's project supports; nil when no assistant reported it.
+    var appSupport: AppSupportCenter?
     let translator: any ListingTranslator
     let machineTranslations: any MachineTranslationStore
 

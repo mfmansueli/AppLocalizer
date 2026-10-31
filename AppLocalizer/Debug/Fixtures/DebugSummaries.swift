@@ -35,6 +35,7 @@ enum DebugSummaries {
                 versionState: "Prepare for Submission",
                 hasEditableVersion: true,
                 localeCount: 10,
+                localeCodes: StorePageSampleData.presentLocales.map(\.code),
                 completeness: 0.88,
                 missingCount: 11,
                 machineTranslatedCount: 1,

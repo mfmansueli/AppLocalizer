@@ -9,8 +9,9 @@ import SwiftUI
 /// connected, which client, its project and its latest calls (with an API
 /// key, the key's API and model and its latest requests), else what an
 /// assistant could do; the proposals waiting for review; what it can
-/// suggest here; and Settings…, Ask for Suggestions… (Generate
-/// Suggestions… with a key) or Set Up Assistant….
+/// suggest here; and Settings…, Suggest Everything… (Show Progress while it
+/// runs) with Ask About This Page… on the Store Page and App Information,
+/// Generate Suggestions… with a key, or Set Up Assistant….
 struct AssistantPopoverContent: View {
     let status: AssistantStatus
     let activity: AssistantActivity
@@ -24,9 +25,14 @@ struct AssistantPopoverContent: View {
     /// The name of an app in the library, by Apple ID.
     let appName: (StoreApp.ID) -> String
     var canOpenScreenshotProposals = false
+    /// Suggest Everything is receiving: Show Progress.
+    var isSuggestingEverything = false
+    /// On the Store Page or App Information: Ask About This Page….
+    var canAskAboutPage = false
     var onReviewProposals: () -> Void = {}
     var onScreenshotProposals: () -> Void = {}
     var onAsk: () -> Void = {}
+    var onSuggestEverything: () -> Void = {}
     var onSetUp: () -> Void = {}
 
     var body: some View {
@@ -249,8 +255,16 @@ struct AssistantPopoverContent: View {
                 Text("Settings…")
             }
             .accessibilityIdentifier("assistant.settings")
-            if status.canSuggest {
-                Button(status.isReady ? String(localized: "Generate Suggestions…") : String(localized: "Ask for Suggestions…"), action: onAsk)
+            if status.isConnected {
+                if canAskAboutPage, !isSuggestingEverything {
+                    Button("Ask About This Page…", action: onAsk)
+                        .accessibilityIdentifier("assistant.ask")
+                }
+                Button(isSuggestingEverything ? String(localized: "Show Progress") : String(localized: "Suggest Everything…"), action: onSuggestEverything)
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("assistant.suggestEverything")
+            } else if status.isReady {
+                Button("Generate Suggestions…", action: onAsk)
                     .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("assistant.ask")
             } else {

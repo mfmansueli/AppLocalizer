@@ -23,6 +23,7 @@ struct StorePageContentView: View {
             case .translate: TranslateMissingSheet(viewModel: viewModel)
             case .findReplace: FindReplaceSheet(viewModel: viewModel)
             case .importPreview: ImportPreviewSheet(viewModel: viewModel)
+            case .newLanguages: NewLanguagesSheet(viewModel: viewModel)
             }
         }
         .fileImporter(isPresented: $viewModel.isImporterPresented, allowedContentTypes: ListingTransferFormat.importableContentTypes) { result in
@@ -51,8 +52,6 @@ struct StorePageContentView: View {
             } else {
                 StorePageSkeleton(showsContextBar: false)
             }
-        } else if viewModel.mode == .screenshots, let screenshots = viewModel.screenshots {
-            ScreenshotsView(viewModel: screenshots)
         } else if viewModel.showsNoVersionPage {
             NoVersionView(viewModel: viewModel)
         } else {
@@ -104,7 +103,6 @@ struct StorePageContentView: View {
             case .coverage: CoverageGridView(viewModel: viewModel)
             case .editor: LocaleEditorView(viewModel: viewModel)
             case .inAppTexts: InAppTextsView(viewModel: viewModel)
-            case .screenshots: viewModel.screenshots.map { ScreenshotsView(viewModel: $0) }
             }
         }
     }

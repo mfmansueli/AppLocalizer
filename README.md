@@ -6,9 +6,17 @@ macOS app (SwiftUI, macOS 27+) for localizing apps faster through the App Store 
   scheduled changes, the map and the histogram, and the results of past changes.
 - **Store page:** the App Store listing's text in every locale, with import, Find and Replace, and translation by Apple
   Translation, an AI provider (Anthropic or OpenAI, with your own API key) or your assistant.
-- **Localized screenshots:** one template, captions per locale, imported captures, and renders checked for fit before
-  they're pushed. Review & Push uploads them, keeps the screenshots they replace on this Mac, and Activity puts those
-  back.
+- **Screenshots (⌘4):** an App Store preview of the live set or the new one, per device, language and appearance;
+  one template, captions per locale, imported captures, and renders checked for fit before they're pushed. Review &
+  Push uploads them, keeps the screenshots they replace on this Mac, and Activity puts those back. **Screenshot
+  Autopilot** plans the screens, has a connected assistant (Claude Code, Cursor or Codex) capture them in Simulator in
+  every language, lets you pick the best captures, gets three design directions (from Claude Design, a Figma file, a
+  brand folder or AppLocalizer's starters), then localizes and checks every caption; the new set waits in Review &
+  Push. Once the assistant reports the Xcode project (`report_app_support`), or App Store Connect shows it (a build
+  with a watch app, from the build's icons; a visionOS version), the plan covers every device the app runs on, iPhone, iPad, Apple Watch (the watch app's own screens, no captions) and Apple Vision Pro (windows of the
+  same moments as iPhone, under their captions, pushed to the visionOS version), and every language its string
+  catalogs have, including the ones the App Store page doesn't have yet. Unless you keep your own screens, the
+  assistant reads the project and picks the screens that show the app best before capturing.
 - **App Information:** general information, the age rating, accessibility declarations and an App Privacy worksheet.
 - **AI assistants (optional):** a local MCP server lets Claude Code, Claude Desktop, Cursor or Codex read the
   listing and propose text, prices, privacy answers and screenshots. Proposals wait for review like any other change;
@@ -67,11 +75,30 @@ App Store Connect or the Keychain, and the MCP server in a scene never opens a p
   `sp-key-ask`; the Assistant popover with a key, `asst-pop-key`; Age Rating's suggested answers, `in-age`, accepted,
   `in-age-done`, and with a key, `in-key`; Accessibility's for Apple Watch and iPhone, `in-ax` and `in-ax-iphone`
   (`AssistDebugScenes`).
+- **Suggest Everything:** Overview's entry points, `ev-start`, and the Assistant popover's, `ev-pop`; the prompt
+  copied and waiting, `ev-wait`, and while a page's Ask still sends, `ev-busy`; 9 of 18 on Overview, `ev-run`, on
+  German's Store Page, `ev-run-store`, on Age Rating, `ev-run-info`, and the Assistant popover's Show Progress,
+  `ev-run-pop`; nothing for 3 minutes, `ev-quiet`; the last one arriving, `ev-done`; stopped at 12, `ev-stopped`;
+  with only a key, `ev-key`, and with nothing set up, `ev-none` (`EverythingDebugScenes`). `ev-wait` and `ev-busy`
+  copy the prompt to the clipboard, as the real button does.
+- **New languages:** languages Lumen's project has and its App Store page doesn't (Polish, Turkish, Hebrew), drafted
+  by Claude Code: the banner on English (U.S.), `sp-newlang`; Polish's tab before it's added, `sp-newlang-tab`;
+  Hebrew added with every draft accepted, `sp-newlang-added`; the languages sheet, `langs-sheet`; Review & Push with
+  "Create the Polish page", `review-newlang`; Overview's New languages and Languages lines, `ov-newlang`; and
+  Suggest Everything waiting, its scope listing the new pages, `ev-newlang` (`NewLanguagesDebugScenes`).
 - **Review & Push:** `review`, `review-assistant`, `push-progress`, `push-partial`, `push-conflict`, `activity`, the
   `banner-*` scenes, and more (`ReviewPushDebugScenes`).
 - **Pricing** (`PricingDebugScenes`) and **Store Page** (`StorePageDebugScenes`): one scene per design screenshot.
 - **App Information:** `info-*`, `a11y-*` and, for App Privacy, `priv-*` (`AppInformationDebugScenes`).
-- **Screenshots:** `sets*`, `viewer*` and `scope`; the Template editor, `tpl*` and `starter`; Captions, `cap*`
+- **Screenshots:** the Preview page and Autopilot, `st-*` (`StudioDebugScenes`): `st-home`, `st-live-ar`,
+  `st-noasst`, `st-design` (Connect a Design Project), one sheet per stage (`st-plan`, `st-wait`, `st-cap`, `st-fail`,
+  `st-pick`, `st-des`, `st-choose`, `st-choose-rev`, `st-nodesign`, `st-loc`, `st-ready-sheet`), the strip on the
+  page (`st-cap-page`, `st-pick-page`) and the new set (`st-ready`, `st-ready-de`, `st-ready-ar`, `st-ready-ipad`).
+  On every device and with the project's new languages: `st-plan-all`, `st-cap-watch`, `st-cap-vision`,
+  `st-pick-all`, `st-choose-all`, `st-loc-all`, `st-ready-sheet-all`, `st-live-watch`, `st-live-vision`,
+  `st-ready-watch` and `st-ready-vision`. With no project report but a build with a watch app, `st-asc-watch`. A
+  Claude Design link nobody has read yet, a long assistant name and a long screen name, `st-plan-link`.
+  The Sets matrix, `sets*`, `viewer*` and `scope`; the Template editor, `tpl*` and `starter`; Captions, `cap*`
   (`ScreenshotsDebugScenes`). Captures, `capt*`, and assistants' proposals, `prop-*`
   (`ScreenshotsProposalsDebugScenes`). Pushing them, `shots-review`, `shots-push`, `shots-push-partial`, and
   restoring them from Activity, `shots-act` and `shots-act-restore` (`ScreenshotsPushDebugScenes`).
@@ -111,8 +138,27 @@ and Accept, and accepting queues an unpushed change tagged with who suggested it
 - **The bar** above each language or page counts them, filters by source, and offers Ask (copying the prompt, since
   AppLocalizer can't start the assistant), Dismiss All, Accept All and Accept All in Every Language. Accept All asks
   nothing first; its toast, and Edit → Undo, put everything back.
+- **Suggest Everything** (Overview's assistant and Suggestions cards, and the Assistant button) copies one prompt for
+  every field the connected assistant can suggest, listing what it covers page by page: the Store Page's fields
+  that can change, General, Age Rating, Accessibility and App Review. While the version is in review only what can
+  still change is asked, and App Review says it's locked. The assistant announces its plan with
+  `begin_suggestions`, and Overview then shows a card with the run's total, each page's progress and Review, and
+  Stop Receiving; pages, languages and devices say what's still coming, with striped placeholders where a
+  suggestion will land, and a bar on each page leads back to Overview. When the run ends a toast gives the total;
+  Accept All (n) takes what's left from the run and its toast offers Undo. A run that sends nothing for two minutes
+  says the assistant stopped sending. With only an API key it generates on the Store Page, and with nothing set up,
+  setup opens and says why (`Managers/Suggestions/Run/`, `Screens/Overview/Components/SuggestEverything/`).
 - **Where they show:** the language picker and App Information's page column count them, and Overview's Suggestions
   card sums them by area and source. Built-in ones are counted once their page has loaded.
+- **New languages:** once the assistant reported the project (`report_app_support`), each language its string
+  catalogs have and the App Store page doesn't is a built-in suggestion to create its page: a banner on the App
+  Store languages (Review… opens "Languages in the app, not on the App Store", Add All n adds them, with Undo), and
+  its own entry in the language picker, marked New, with the fields empty and their suggestions. Not Now stops
+  suggesting it; Create Page, or accepting or editing one of its fields, adds it. An added language says its page is
+  created when you push, with Don’t Add. Review & Push shows "Create the Polish page" under "Store Page · Polish
+  (new)", with its fields under it, checked and discarded together; the page is created even before it has text.
+  Overview's Suggestions card names them under New languages (their drafts aren't counted under Store Page), and the
+  Store page card says "10 · 3 more in the app" or "10 · 2 new to push". Suggest Everything asks for them too.
 - Suggestions and decisions are kept on this Mac (`FileFieldSuggestionPersistence`), and DEBUG scenes keep them in
   memory.
 
@@ -133,7 +179,14 @@ call.
     `over_limit`, `unknown_field`, `unknown_locale`, `locked`, `not_permitted`, `invalid_value`). With Suggest and
     edit drafts, `"apply": true` queues the values as changes instead. Store Page items need the store text
     permission, App Information items the app information one. `total` drives the bar's progress while the
-    assistant sends them.
+    assistant sends them. Both read tools (and `get_listing`) list `languagesNotOnAppStore`, the languages the
+    project has and the App Store page doesn't (suggested, added, or said Not Now to), and `get_store_page` lists
+    the suggested ones in `locales` with `new: true`. `suggest_fields` takes them as locales: they stay suggestions
+    in their own tab, even with `apply`, until the person adds the page.
+  - Suggest Everything: `begin_suggestions` takes the plan, one entry per field, and returns the run's id, how
+    many AppLocalizer counts, and what it skipped with a code (`changed_by_you`, `locked`, `in_another_request`,
+    `already_suggested`, and the `suggest_fields` ones). `suggest_fields` calls carry the run's id, and are refused
+    with `run_stopped` once the person stops receiving; `end_suggestions` ends the run.
   - Prices: `get_prices`, `get_price_points` and `propose_prices`. Proceeds use the commission from Settings →
     General. Every price proposal is refused for apps set to Keep my prices, and a price that isn't a price point is
     refused with the two nearest ones.
@@ -145,13 +198,28 @@ call.
     `propose_captions` and `list_proposals`. `get_capture` and `render_preview` return PNG images. Slots are
     numbered from 1. Screenshot proposals wait in their own Proposals sheet, opened from the toolbar's assistant
     indicator, rather than in Review & Push.
+  - Screenshot Autopilot: `get_capture_plan` returns the plan, the simulator commands and an upload URL;
+    `update_capture_plan` writes the screens and steps; captures are sent as raw PNG bodies to
+    `POST /autopilot/<token>` on the MCP server (the app is sandboxed, so it can't read the assistant's files), which
+    returns an upload id for `report_capture`; `report_capture_problem` reports a screen that can't be reached.
+    `next_step` says what to do next (capture, wait, design, revise, write captions, done). `get_design_brief`,
+    `report_design_source`, `propose_direction` and `revise_direction` carry the design stage, and
+    `propose_captions` with the run's id shortens captions while localizing. The person plans, picks, chooses and
+    pushes in the app; the assistant never pushes. The plan lists each device's screens and how to capture them
+    (`devices`), and marks the languages not on the App Store yet (`notOnAppStoreYet`); `update_capture_plan` takes
+    `device: watch` or `vision` for those devices' own screens, and `sameMomentAs` for a Vision Pro window. When the
+    plan says `chooseScreens`, the assistant picks the screens and sends them with `replace: true`, which puts them
+    in place of the plan's on each device it sends, before the first capture.
+  - The app's devices and languages: `report_app_support` records the targets and platforms, and the languages in
+    the string catalogs with how much of each is translated. Autopilot plans from it, and Store Page suggests pages
+    for the languages the App Store doesn't have yet.
   - Every proposal is validated like a manual edit (limits, URLs, read-only versions), then queued as a change tagged
     with the assistant's name.
   - When a person already changed the same field, both versions are kept and Review & Push asks which to push.
   - Settings decides what assistants may propose, and the log says why a call was refused.
 - **Prompts:** `translate_missing`, `whats_new_from_git`, `fill_privacy_from_code`, `fill_age_rating`,
-  `translate_captions`, `shorten_overflowing_captions`, `revise_template` and `suggest` (with an optional `area`,
-  `store` or `info`). A prompt is offered only while its
+  `translate_captions`, `shorten_overflowing_captions`, `revise_template`, `suggest` (with an optional `area`,
+  `store` or `info`), `suggest_all`, Suggest Everything's, and `run_screenshots`, Screenshot Autopilot's. A prompt is offered only while its
   tools are.
 - **Clients:**
   - Claude Code and Cursor connect over HTTP.
@@ -171,8 +239,14 @@ call.
   - the screenshot fit engine, renders, the push plan and its uploads, backups and restores;
   - the MCP server (HTTP parsing, JSON-RPC, pairing, sessions, tools and prompts) and the stdio bridge;
   - field suggestions: the store, the built-in checks, accepting and undoing on both pages, and the setup sheet;
+  - Suggest Everything: what it covers and its prompt, the run's plan, progress and end, Accept All and its Undo,
+    and the toasts;
   - the API key: each vendor's models and requests, the project folder's commits and changelog, the plan and its
-    tokens, reading the answer, and adding what passes to the Store Page.
+    tokens, reading the answer, and adding what passes to the Store Page;
+  - Screenshot Autopilot: the run's stages, captures, problems and picks, the planner and estimate, caption checks
+    and direction pills, brand folders, the MCP tools and the upload endpoint, and the App Store preview and its
+    Live/New set summaries; Apple Watch and Apple Vision Pro (their screens, layouts, checks, previews and pushes to
+    the visionOS version) and the project's new languages.
 - **UI tests:** `AppLocalizerUITests`, written with XCUITest, run against the DEBUG scenes.
 
 Run everything with `xcodebuild -scheme AppLocalizer -destination 'platform=macOS' test`.

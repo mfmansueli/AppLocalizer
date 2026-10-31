@@ -10,7 +10,6 @@ enum StorePageMode: String, CaseIterable, Identifiable, Hashable, Sendable {
     case coverage
     case editor
     case inAppTexts
-    case screenshots
 
     var id: String { rawValue }
 
@@ -19,7 +18,6 @@ enum StorePageMode: String, CaseIterable, Identifiable, Hashable, Sendable {
         case .coverage: String(localized: "Coverage")
         case .editor: String(localized: "Editor")
         case .inAppTexts: String(localized: "In-App Texts")
-        case .screenshots: String(localized: "Screenshots")
         }
     }
 }

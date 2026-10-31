@@ -46,7 +46,7 @@ struct MCPScreenshotsDraft {
 
     func template() throws -> ScreenshotTemplate {
         guard let template = document.template else {
-            throw MCPToolError.notFound(String(localized: "\(app.name) has no screenshot template yet. Ask the person to import captures and pick a starter in AppLocalizer → Store Page → Screenshots."))
+            throw MCPToolError.notFound(String(localized: "\(app.name) has no screenshot template yet. Ask the person to import captures and pick a starter in AppLocalizer → Screenshots."))
         }
         return template
     }
@@ -68,7 +68,8 @@ struct MCPScreenshotsDraft {
 
     func displayType(_ value: String?) throws -> ScreenshotDisplayType {
         guard let value else { return .iPhone }
-        guard let display = ScreenshotDisplayType(mcpValue: value) else {
+        // The template tools work on the set's slots: iPhone and iPad.
+        guard let display = ScreenshotDisplayType(mcpValue: value), display.isRendered else {
             throw MCPToolError.invalidArgument(name: "displayType", expected: String(localized: "“iphone” or “ipad”"))
         }
         return display

@@ -6,7 +6,7 @@
 #if DEBUG
 import SwiftUI
 
-/// Store Page → Screenshots' Captures tab and the Proposals sheet as DEBUG
+/// Screenshots' Captures tab and the Proposals sheet as DEBUG
 /// scenes (`-AppLocalizerDebugScene <id>`), named after the design's
 /// screenshots. Lumen Journal, version 1.4:
 ///
@@ -89,10 +89,9 @@ enum ScreenshotsProposalsDebugScenes {
         let screenshots = DebugScreenshotsServices(scenario: scenario, opening: ScreenshotsDebugOpening(opening), documentCenter: center)
         var storePage = DebugStorePageServices()
         storePage.screenshots = screenshots
-        storePage.opening = DebugStorePageServices.Opening { $0.mode = .screenshots }
         var services = WorkspaceServices.debug
         services.storePage = storePage
-        let main = DebugMainScene(services: services, section: .storePage, pendingChanges: DebugWorkspace.pendingChanges)
+        let main = DebugMainScene(services: services, section: .screenshots, pendingChanges: DebugWorkspace.pendingChanges)
         return AnyView(main.modifier(Assistants(state: assistants)))
     }
 

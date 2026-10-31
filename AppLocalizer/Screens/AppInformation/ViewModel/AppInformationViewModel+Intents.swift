@@ -18,6 +18,9 @@ extension AppInformationViewModel {
         case .reviewFieldSuggestions(.appInformation):
             openSuggestions()
             return true
+        case let .reviewPageSuggestions(page):
+            openSuggestions(on: page)
+            return true
         case .askForSuggestions(.appInformation):
             openSuggestions()
             requestsAsk = true

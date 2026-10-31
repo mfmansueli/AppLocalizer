@@ -18,6 +18,8 @@ struct ScreenshotMatrix: Hashable, Sendable {
     var fallbackLocales: [String]
     var hasTemplate: Bool
     var hasCaptures: Bool
+    /// Apple Watch's and Apple Vision Pro's screens, when the set has them.
+    var ownSlotCounts: [ScreenshotDisplayType: Int] = [:]
 
     static let empty = ScreenshotMatrix(
         slotCount: 0, cells: [:], localizedLocales: [], restoredLocales: [], fallbackLocales: [], hasTemplate: false, hasCaptures: false
@@ -28,13 +30,24 @@ struct ScreenshotMatrix: Hashable, Sendable {
     }
 
     func row(locale: String, displayType: ScreenshotDisplayType) -> [ScreenshotCell] {
-        (0..<slotCount).compactMap { cell(locale: locale, displayType: displayType, slot: $0) }
+        (0..<slotCount(on: displayType)).compactMap { cell(locale: locale, displayType: displayType, slot: $0) }
+    }
+
+    /// The set's slots on iPhone and iPad; Apple Watch's and Apple Vision
+    /// Pro's own screens.
+    func slotCount(on display: ScreenshotDisplayType) -> Int {
+        display.hasOwnScreens ? ownSlotCounts[display] ?? 0 : slotCount
+    }
+
+    /// iPhone and iPad, then the devices with screens of their own.
+    var displays: [ScreenshotDisplayType] {
+        ScreenshotDisplayType.rendered + ScreenshotDisplayType.ownScreens.filter { (ownSlotCounts[$0] ?? 0) > 0 }
     }
 
     /// The localized cells in push order: iPhone then iPad, locales in
     /// scope order, slots in order.
     var localizedCells: [ScreenshotCell] {
-        ScreenshotDisplayType.rendered.flatMap { display in
+        displays.flatMap { display in
             localizedLocales.flatMap { row(locale: $0, displayType: display) }
         }
     }

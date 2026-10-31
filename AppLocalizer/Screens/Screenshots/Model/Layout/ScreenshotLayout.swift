@@ -32,6 +32,10 @@ struct ScreenshotLayout: Hashable, Sendable {
     var screenHasShadow: Bool
     /// The capture fills the canvas (band placement).
     var isFullBleed: Bool
+    /// A visionOS window's light rim around the floating screen, in pixels.
+    var screenRim: CGFloat = 0
+    /// The window bar under a visionOS window.
+    var windowBar: CGRect?
     var headline: CaptionFit
     var subhead: CaptionFit?
     var headlineFont: FontChoice

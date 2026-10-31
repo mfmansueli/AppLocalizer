@@ -7,7 +7,7 @@ import CoreGraphics
 import Foundation
 import Observation
 
-/// Store Page → Screenshots: the app's screenshot document and what's live,
+/// Screenshots: the app's screenshot document and what's live,
 /// turned into the Sets matrix (built off the main actor), the render
 /// queue that fills it, and the bar, banner, viewer and scope sheet around
 /// it.
@@ -43,6 +43,8 @@ final class ScreenshotsViewModel {
     @ObservationIgnored lazy var captions = CaptionsViewModel(screenshots: self)
     /// The Captures tab: imports and coverage.
     @ObservationIgnored lazy var captures = CapturesViewModel(screenshots: self)
+    /// The Preview tab: the App Store preview and Screenshot Autopilot.
+    @ObservationIgnored lazy var studio = ScreenshotStudioModel(screenshots: self)
 
     // MARK: - Navigation
 
@@ -90,7 +92,7 @@ final class ScreenshotsViewModel {
             let document = try await services.loadDocument(for: app, primaryLocale: context.primaryLocale)
             self.document = document
             errorMessage = nil
-            live = try await services.liveScreenshots(for: app, localizations: context.localizations)
+            live = try await services.liveScreenshots(for: app, context: context)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -136,6 +138,13 @@ final class ScreenshotsViewModel {
         guard isLoaded, document != self.document else { return }
         self.document = document
         await rebuild()
+    }
+
+    /// Reads the document again (Autopilot saved a new template version)
+    /// and shows it.
+    func reloadDocument() async {
+        guard isLoaded, let document = try? await services.loadDocument(for: app, primaryLocale: context.primaryLocale) else { return }
+        await adopt(document)
     }
 
     /// Saves the document and rebuilds.

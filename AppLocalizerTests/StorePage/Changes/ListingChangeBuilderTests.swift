@@ -42,13 +42,18 @@ struct ListingChangeBuilderTests {
         #expect(try body(change.restoreRequests.first).data.attributes == ["keywords": String?.none])
     }
 
+    /// A language App Store Connect has at neither level is a new App Store
+    /// language: its own group, created by the change.
     @Test func aNewLocaleAtAppLevelIsPostedUnderTheAppInfo() throws {
         var listing = listing
         listing.edit(.name, in: .french, to: "Lumen : Journal")
         listing.edit(.subtitle, in: .french, to: "Notes privées")
         let change = try #require(builder.changes(for: listing).first)
         #expect(change.id == "storePage.app1.appInfo.info.fr-FR.new")
-        #expect(change.group == "Store Page · App information")
+        #expect(change.group == "Store Page · French (new)")
+        #expect(change.creation?.title == "Create the French page")
+        #expect(change.creation?.source == .you)
+        #expect(change.creation?.fields.map(\.id) == ["name", "subtitle"])
         #expect(change.title == "French · New locale · 2 fields")
         #expect(change.requests.first?.path == "/v1/appInfoLocalizations")
         let document = try body(change.requests.first)

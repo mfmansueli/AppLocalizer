@@ -12,10 +12,10 @@ extension PushRecord {
     static func title(for changes: [PendingChange]) -> String {
         let sections = Array(Set(changes.map(\.section))).sorted { $0.shortcutDigit < $1.shortcutDigit }
         guard sections.count == 1, let section = sections.first else {
-            let names = sections.map(\.title).formatted(.list(type: .and))
+            let names = sections.map(\.fullTitle).formatted(.list(type: .and))
             return String(localized: "\(names) · \(changes.count) changes")
         }
-        return "\(section.title) · \(detail(for: changes, in: section))"
+        return "\(section.fullTitle) · \(detail(for: changes, in: section))"
     }
 
     private static func detail(for changes: [PendingChange], in section: AppWorkspaceSection) -> String {
@@ -30,6 +30,8 @@ extension PushRecord {
             let texts = changes.count == 1 ? String(localized: "1 text") : String(localized: "\(changes.count) texts")
             let inLocales = locales.count == 1 ? String(localized: "1 locale") : String(localized: "\(locales.count) locales")
             return String(localized: "\(texts) in \(inLocales)")
+        case .screenshots:
+            return changes.count == 1 ? changes[0].title : String(localized: "\(changes.count) screenshots")
         case .appInformation, .overview:
             return changes.count == 1 ? changes[0].title : String(localized: "\(changes.count) fields")
         }

@@ -13,12 +13,16 @@ import SwiftUI
 /// AppLocalizer can't start the assistant) and ends the request with a
 /// toast once the suggestions stop coming. With an API key it runs
 /// Generate Suggestions… where there's a `generator`, and says what only an
-/// assistant that reads the code can answer.
+/// assistant that reads the code can answer. While Suggest Everything
+/// receives, its banner shows how much arrived here and Ask is hidden.
 struct SuggestionsPanel: View {
     let appID: StoreApp.ID
     let area: SuggestionArea
     /// "German" or "App Review".
     let scopeTitle: String
+    /// The language, page or device it's above, for Suggest Everything's
+    /// "Here: 2 of 3 arrived."
+    let scopes: [SuggestionScope]
     let model: SuggestionBarModel
     @Binding var filter: SuggestionSourceFilter
     @Binding var showsOnlyFields: Bool
@@ -60,7 +64,7 @@ struct SuggestionsPanel: View {
                 showsOnlyFields: $showsOnlyFields,
                 showsAskPopover: $showsAskPopover,
                 showsFieldsToggle: showsFieldsToggle,
-                isStreaming: streamingRequest != nil,
+                hidesAsk: streamingRequest != nil || run != nil,
                 askRequest: request,
                 generate: generate,
                 canAsk: !status.isReady || generator != nil,
@@ -79,6 +83,11 @@ struct SuggestionsPanel: View {
             if let streamingRequest {
                 SuggestionStreamingBanner(request: streamingRequest)
             }
+            if let run {
+                SuggestionRunBanner(run: run, hereText: run.hereText(in: scopes)) {
+                    navigator.open(.overview)
+                }
+            }
             if status.isReady, codeOnlyCount > 0 {
                 KeyAssistantCodeNote(count: codeOnlyCount, appName: appName) {
                     navigator.assistantSetupMethod = .assistant
@@ -92,7 +101,7 @@ struct SuggestionsPanel: View {
                     navigator.isAssistantSetupPresented = true
                 }
             }
-            if model.totalCount == 0, streamingRequest == nil {
+            if model.totalCount == 0, streamingRequest == nil, (run?.comingCount(in: scopes) ?? 0) == 0 {
                 SuggestionsEmptyNote(scopeTitle: scopeTitle, area: area, status: status)
             }
         }
@@ -130,6 +139,12 @@ struct SuggestionsPanel: View {
     private var request: AssistantSuggestionRequest? {
         guard let request = suggestions.request, request.appID == appID, request.area == area else { return nil }
         return request
+    }
+
+    /// Suggest Everything for this app, while it receives.
+    private var run: SuggestionRun? {
+        guard let run = suggestions.run, run.appID == appID, run.isRunning else { return nil }
+        return run
     }
 
     private var streamingRequest: AssistantSuggestionRequest? {
