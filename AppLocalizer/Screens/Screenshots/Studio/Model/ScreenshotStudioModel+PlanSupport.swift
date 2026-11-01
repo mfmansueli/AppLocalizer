@@ -41,9 +41,11 @@ extension ScreenshotStudioModel {
     }
 
     /// Why the App Store wants this device's screenshots, if it does:
-    /// "Lumen runs on iPad", "1.4 adds visionOS".
+    /// "Lumen runs on iPad", "1.4 adds visionOS". iPhone Duo is Apple's
+    /// rule from April 2027, so it's required already.
     func requiredReason(_ display: ScreenshotDisplayType) -> String? {
         if display == .iPhone { return String(localized: "for every iPhone app") }
+        if display == .iPhoneDuo { return String(localized: "from April 2027 for apps built with the iOS 27.1 SDK") }
         if let reason = appSupport?.profile(for: app.id)?.device(display)?.reason { return reason }
         let version = screenshots.context.version.versionString
         if display == .visionPro, screenshots.context.hasVisionVersion {
@@ -56,7 +58,7 @@ extension ScreenshotStudioModel {
     }
 
     /// "2752 × 2064 · required: Lumen runs on iPad", iPhone Duo's inner
-    /// display and when Apple starts requiring it, and when it's off and
+    /// display and when Apple's rule starts, and when it's off and
     /// required, that its screenshots have to be uploaded by hand.
     func planDeviceDetail(_ display: ScreenshotDisplayType, plan: AutopilotPlan) -> String {
         // Autopilot captures iPad on its side.
@@ -72,9 +74,8 @@ extension ScreenshotStudioModel {
             break
         }
         if let reason = requiredReason(display) {
-            parts.append(display == .iPhone ? String(localized: "required \(reason)") : String(localized: "required: \(reason)"))
-        } else if display.upcomingRequirement != nil {
-            parts.append(String(localized: "required from April 2027 for apps built with the iOS 27.1 SDK"))
+            let isRule = display == .iPhone || display == .iPhoneDuo
+            parts.append(isRule ? String(localized: "required \(reason)") : String(localized: "required: \(reason)"))
         }
         var detail = parts.joined(separator: " · ")
         if display != .iPhone, !plan.displayTypes.contains(display), requiredReason(display) != nil {

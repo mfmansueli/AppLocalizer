@@ -30,8 +30,11 @@ macOS app (SwiftUI, macOS 27+) for localizing apps faster through the App Store 
   (`APP_IPHONE_DUO`, not in Apple's published API spec yet). Its cells stay empty, and nothing is pushed, until it has
   captures. App Store Connect's iPhone Duo set takes both displays' sizes (2007 × 2853 and 1398 × 2034, either way
   up), so either display's captures go in; full bleed, an outer-display capture is flagged as scaled too much, and
-  Autopilot asks for the inner display's. Autopilot offers it
-  off, and plans it once the project reports the iOS 27.1 SDK or the app has iPhone Duo captures or screenshots.
+  Autopilot asks for the inner display's. AppLocalizer treats it as required already: the Sets menu lists it with the
+  sizes Apple requires, and every Autopilot plan has it (turned off, it's left to upload by hand). Before capturing,
+  the assistant sets Apple's 9:41 status bar on Wi-Fi with no carrier, light appearance, grants the app's permissions
+  (`xcrun simctl privacy grant all`) and answers any other prompt, so no alert lands in a capture; each language
+  launches in iOS's own language code and its App Store country's formats (`-AppleLanguages (nb) -AppleLocale nb_NO`).
 - **App Information:** general information, the age rating, accessibility declarations and an App Privacy worksheet.
 - **AI assistants (optional):** a local MCP server lets Claude Code, Claude Desktop, Cursor or Codex read the
   listing and propose text, prices, privacy answers and screenshots. Proposals wait for review like any other change;

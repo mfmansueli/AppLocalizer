@@ -127,8 +127,13 @@ struct AutopilotPlanStageView: View {
         )
         AutopilotOptionRow(
             title: String(localized: "Light appearance, no notifications"),
-            detail: nil,
+            detail: String(localized: "Any prompt is answered before capturing, so no alert lands in a screenshot"),
             isOn: planBinding(\.simulator.lightAppearance)
+        )
+        AutopilotOptionRow(
+            title: String(localized: "Permissions granted before capturing"),
+            detail: "xcrun simctl privacy grant all",
+            isOn: planBinding(\.simulator.grantsPermissions)
         )
         ForEach(run.plan.simulator.extraCommands, id: \.self) { command in
             AutopilotOptionRow(title: String(localized: "Added by a fix"), detail: command, isOn: .constant(true), isLocked: true)

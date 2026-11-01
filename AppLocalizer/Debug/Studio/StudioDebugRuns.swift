@@ -99,6 +99,9 @@ enum StudioDebugRuns {
             designKind: design ? .claudeDesign : .none, designName: design ? "Northpier Brand" : nil,
             client: stage == .plan ? nil : client, uploadToken: "debug-token", createdAt: date(day: 31, month: 10, hour: 14)
         )
+        // A new plan has iPhone Duo, as Autopilot plans it now; the runs
+        // past it stay iPhone and iPad, like the sample data.
+        if stage == .plan { run.plan.setPlans(.iPhoneDuo, true) }
         if stage != .plan { run.startedAt = date(day: 31, month: 10, hour: 14) }
         if stage.number > AutopilotStage.capture.number || stage == .capture {
             run.environment = everyDevice

@@ -22,7 +22,7 @@ struct AutopilotPlannerTests {
         )
         #expect(plan.localeCodes == ["en-US", "de-DE", "ja"])
         #expect(plan.primaryLocale == "en-US")
-        #expect(plan.displayTypes == [.iPhone, .iPad])
+        #expect(plan.displayTypes == [.iPhone, .iPhoneDuo, .iPad])
         #expect(plan.screens.map(\.id) == ["today-1", "week-2", "search-3", "photos-4", "privacy-5"])
         #expect(plan.screens.map(\.name) == ScreenshotsSampleData.slotNames)
         #expect(plan.screens.map(\.steps) == Array(repeating: "", count: 5), "The assistant writes the steps")
@@ -74,44 +74,35 @@ struct AutopilotPlannerTests {
         #expect(!AutopilotPlanner.hasIPad(document: nil, live: phoneSets))
     }
 
-    @Test func iPhoneDuoIsPlannedOnceTheAppHasItsScreenshotsOrTheProjectReportsIt() {
-        let live = ScreenshotsDebugDocuments.live
-        #expect(!AutopilotPlanner.hasDuo(document: standard, live: live))
-        #expect(!AutopilotPlanner.devices(document: standard, live: live, support: .none).contains(.iPhoneDuo))
+    /// Apple requires iPhone Duo screenshots from April 2027: every plan
+    /// has it, whatever the app shows or the project reports.
+    @Test func iPhoneDuoIsPlannedForEveryApp() {
+        #expect(AutopilotPlanner.devices(document: nil, live: LiveScreenshots(), support: .none) == [.iPhone, .iPhoneDuo, .iPad])
+        #expect(AutopilotPlanner.devices(document: standard, live: ScreenshotsDebugDocuments.live, support: .none)
+            == [.iPhone, .iPhoneDuo, .iPad])
 
-        var withDuo = standard
-        withDuo.captures.add(ScreenshotsSampleData.capture(locale: "en-US", display: .iPhoneDuo, slot: 0))
-        #expect(AutopilotPlanner.hasDuo(document: withDuo, live: LiveScreenshots()))
-        #expect(AutopilotPlanner.devices(document: withDuo, live: LiveScreenshots(), support: .none) == [.iPhone, .iPhoneDuo, .iPad])
-
-        let shot = LiveScreenshot(id: "duo-1", fileName: "", checksum: "duo-1")
-        let duoSet = LiveScreenshotSet(id: "set|en-US|duo", locale: "en-US", displayType: .iPhoneDuo, screenshots: [shot])
-        #expect(AutopilotPlanner.hasDuo(document: nil, live: LiveScreenshots(screenshotSets: [duoSet])))
-        let emptySet = LiveScreenshotSet(id: "set|en-US|duo", locale: "en-US", displayType: .iPhoneDuo, screenshots: [])
-        #expect(!AutopilotPlanner.hasDuo(document: nil, live: LiveScreenshots(screenshotSets: [emptySet])))
-
-        let reported = AutopilotSupport(devices: [.iPhoneDuo])
-        #expect(AutopilotPlanner.devices(document: standard, live: live, support: reported) == [.iPhone, .iPhoneDuo, .iPad])
+        var phoneOnly = ScreenshotsDocument.empty(primary: "en-US")
+        phoneOnly.captures.add(ScreenshotsSampleData.capture(locale: "en-US", display: .iPhone, slot: 0))
+        #expect(AutopilotPlanner.devices(document: phoneOnly, live: LiveScreenshots(), support: .none) == [.iPhone, .iPhoneDuo])
     }
 
-    @Test func aReportedIPhoneDuoJoinsTheLastPlanUnlessItWasTurnedOff() {
-        let previous = StudioDebugRuns.run(.ready)
-        #expect(!previous.plan.displayTypes.contains(.iPhoneDuo))
-        let reported = AutopilotSupport(devices: [.iPhoneDuo])
+    @Test func iPhoneDuoJoinsALastPlanFromBeforeTheRuleUnlessItWasTurnedOff() {
+        var previous = StudioDebugRuns.run(.ready)
+        previous.plan.displayTypes = [.iPhone, .iPad]
         let plan = AutopilotPlanner.plan(
             document: standard, live: ScreenshotsDebugDocuments.live, primaryLocale: .englishUS,
-            localeCodes: ["en-US"], previous: previous, support: reported
+            localeCodes: ["en-US"], previous: previous
         )
         #expect(plan.displayTypes == [.iPhone, .iPhoneDuo, .iPad])
 
         var turnedOff = previous
-        turnedOff.plan.setPlans(.iPhoneDuo, true)
         turnedOff.plan.setPlans(.iPhoneDuo, false)
         let again = AutopilotPlanner.plan(
             document: standard, live: ScreenshotsDebugDocuments.live, primaryLocale: .englishUS,
-            localeCodes: ["en-US"], previous: turnedOff, support: reported
+            localeCodes: ["en-US"], previous: turnedOff
         )
         #expect(!again.displayTypes.contains(.iPhoneDuo))
+        #expect(again.leftOutDevices == [.iPhoneDuo])
     }
 
     // MARK: - Estimate

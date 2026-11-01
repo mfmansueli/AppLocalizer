@@ -8,7 +8,8 @@ import Foundation
 /// The plan Run Autopilot… opens with: the last run's when there is one,
 /// else the screens the app's captures and captions name, every language
 /// of the version plus the ones the app supports that aren't on the App
-/// Store yet, iPhone and every other device the app runs on.
+/// Store yet, iPhone, iPhone Duo (Apple's rule from April 2027) and every
+/// other device the app runs on.
 enum AutopilotPlanner {
     /// Apple Vision Pro windows a new plan starts with, from the first
     /// iPhone screens.
@@ -41,12 +42,12 @@ enum AutopilotPlanner {
             return plan
         }
         let includedNew = previous?.plan.newLocaleCodes == nil || plan.includesNewLanguages
-        // A device the app gained since the last run joins, unless the
-        // person turned it off: iPhone Duo once the project builds with
-        // the SDK that requires it.
+        // iPhone Duo, which plans from before its rule left out, and a
+        // device the app gained since the last run join, unless the person
+        // turned them off.
         let leftOut = plan.leftOutDevices ?? []
         for display in [ScreenshotDisplayType.iPhoneDuo] + ScreenshotDisplayType.ownScreens
-            where support.devices.contains(display) && !plan.displayTypes.contains(display) && !leftOut.contains(display)
+            where (display == .iPhoneDuo || support.devices.contains(display)) && !plan.displayTypes.contains(display) && !leftOut.contains(display)
         {
             plan.setPlans(display, true)
         }
@@ -60,14 +61,13 @@ enum AutopilotPlanner {
         return plan
     }
 
-    /// iPhone, then iPhone Duo once the app has its screenshots or
-    /// captures (Apple doesn't require it yet), iPad, Apple Watch and
-    /// Apple Vision Pro when the app runs there.
+    /// iPhone and iPhone Duo (every iPhone app needs its screenshots from
+    /// April 2027), then iPad, Apple Watch and Apple Vision Pro when the
+    /// app runs there.
     static func devices(document: ScreenshotsDocument?, live: LiveScreenshots, support: AutopilotSupport) -> [ScreenshotDisplayType] {
         ScreenshotDisplayType.studio.filter { display in
             switch display {
-            case .iPhone: true
-            case .iPhoneDuo: support.devices.contains(.iPhoneDuo) || hasDuo(document: document, live: live)
+            case .iPhone, .iPhoneDuo: true
             case .iPad: support.devices.contains(.iPad) || hasIPad(document: document, live: live)
             default: support.devices.contains(display)
             }
@@ -90,12 +90,6 @@ enum AutopilotPlanner {
             let caption = document.captions.caption(locale: primary, slot: slot)?.headline ?? ""
             return AutopilotScreen(id: AutopilotScreen.identifier(for: name) + "-\(slot + 1)", name: name, caption: caption)
         }
-    }
-
-    /// The app shows iPhone Duo screenshots or has iPhone Duo captures.
-    static func hasDuo(document: ScreenshotsDocument?, live: LiveScreenshots) -> Bool {
-        live.screenshotSets.contains { $0.displayType == .iPhoneDuo && !$0.screenshots.isEmpty }
-            || document?.captures.captures.contains { $0.displayType == .iPhoneDuo } == true
     }
 
     /// The app shows iPad screenshots or has iPad captures. With nothing to

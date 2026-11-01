@@ -6,8 +6,9 @@
 import Foundation
 
 extension AutopilotRun {
-    /// `get_capture_plan`'s result.
-    func mcpPlan(appName: String, port: UInt16) -> JSONValue {
+    /// `get_capture_plan`'s result. `bundleID` is the app's, for granting
+    /// its permissions.
+    func mcpPlan(appName: String, bundleID: String, port: UInt16) -> JSONValue {
         let upload = MCPEndpoint.autopilotUploadURL(port: port, token: uploadToken)
         let screens: [JSONValue] = plan.screens.enumerated().map { index, screen in
             [
@@ -34,21 +35,22 @@ extension AutopilotRun {
             if let how = Self.howToCapture(display) { device["how"] = .string(how) }
             return .object(device)
         }
-        // The whole code: `zh-Hant` and `pt-PT` aren't `zh` and `pt`, and
-        // `de-DE` still finds `de.lproj`.
+        // Each locale's own language (`zh-Hant` and `pt-PT` aren't `zh`
+        // and `pt`) and its App Store country's formats.
         let newCodes = Set(plan.addedLocaleCodes)
         let locales: [JSONValue] = plan.capturedLocales.map { code in
             var locale: [String: JSONValue] = [
                 "locale": .string(code),
-                "launchArguments": .string("-AppleLanguages (\(code)) -AppleLocale \(code.replacingOccurrences(of: "-", with: "_"))"),
+                "launchArguments": .string(StoreLocale.simulatorLaunchArguments(for: code)),
             ]
             if newCodes.contains(code) { locale["notOnAppStoreYet"] = true }
             return .object(locale)
         }
         var simulator: [String: JSONValue] = [
             "lightAppearance": .bool(plan.simulator.lightAppearance),
-            "commands": .array(simulatorCommands.map(JSONValue.string)),
+            "commands": .array(simulatorCommands(bundleID: bundleID).map(JSONValue.string)),
         ]
+        if plan.simulator.lightAppearance { simulator["alerts"] = .string(AutopilotSimulatorSetup.alertsNote) }
         if plan.simulator.usesSampleData {
             simulator["sampleData"] = .string(
                 plan.simulator.sampleDataSteps.isEmpty
@@ -116,11 +118,15 @@ extension AutopilotRun {
         }
     }
 
-    /// The status bar, appearance and fix commands to run before capturing.
-    var simulatorCommands: [String] {
+    /// The status bar, appearance, permissions and fix commands to run
+    /// before capturing.
+    func simulatorCommands(bundleID: String) -> [String] {
         var commands: [String] = []
         if plan.simulator.overridesStatusBar { commands.append(AutopilotSimulatorSetup.statusBarCommand) }
         if plan.simulator.lightAppearance { commands.append("xcrun simctl ui booted appearance light") }
+        if plan.simulator.grantsPermissions, !bundleID.isEmpty {
+            commands.append(AutopilotSimulatorSetup.permissionsCommand(bundleID: bundleID))
+        }
         return commands + plan.simulator.extraCommands
     }
 }

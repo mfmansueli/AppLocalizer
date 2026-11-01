@@ -124,20 +124,23 @@ final class ScreenshotStudioUITests: XCTestCase {
         XCTAssertFalse(text(of: prompt).contains("decide which screens"))
     }
 
-    func testThePlanCanDropTheIPad() {
+    /// iPhone Duo is Apple's rule from April 2027, so a plan has it.
+    func testThePlanHasIPhoneDuoAndCanDropTheIPad() {
         launch(scene: "st-plan")
         let iPad = element("autopilot.plan.iPad")
         XCTAssertTrue(iPad.waitForExistence(timeout: 15))
+        XCTAssertEqual(element("autopilot.plan.iphone_duo").value as? Int, 1)
         let scope = element("autopilot.scope")
-        // "Lumen Journal 1.4 · iPhone and iPad · 12 languages · 5 screens"
-        XCTAssertTrue(text(of: scope).contains("iPhone and iPad"))
+        // "Lumen Journal 1.4 · iPhone, iPhone Duo, and iPad · 12 languages · 5 screens"
+        XCTAssertTrue(text(of: scope).contains("iPhone Duo"), text(of: scope))
+        XCTAssertTrue(text(of: scope).contains("iPad"), text(of: scope))
         iPad.click()
         let deadline = Date.now.addingTimeInterval(5)
         while Date.now < deadline, text(of: scope).contains("iPad") {
             RunLoop.current.run(until: .now.addingTimeInterval(0.2))
         }
         XCTAssertFalse(text(of: scope).contains("iPad"))
-        XCTAssertTrue(text(of: scope).contains("iPhone"))
+        XCTAssertTrue(text(of: scope).contains("iPhone and iPhone Duo"), text(of: scope))
     }
 
     func testRetryingWithTheFixClearsTheProblem() {

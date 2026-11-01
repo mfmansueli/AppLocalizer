@@ -19,7 +19,8 @@ struct GetCapturePlanTool: MCPTool {
         URL for captures. Build the app, boot the simulators, run the setup, launch the app in each locale and \
         capture each screen (XCUIScreen or xcrun simctl io booted screenshot). Upload each PNG with curl to the \
         upload URL and call report_capture. When chooseScreens is true, first decide from the project which \
-        screens show the app best and send them with update_capture_plan replace: true; otherwise, if the \
+        screens show the app best and send them with update_capture_plan replace: true, the strongest first: \
+        the first three are the ones App Store search results show. Otherwise, if the \
         screens have no steps, write them from the project's UI tests, deep links or launch arguments and send \
         them with update_capture_plan first. Pass xcode and simulators so the person sees what you use.
         """,
@@ -40,7 +41,7 @@ struct GetCapturePlanTool: MCPTool {
         let environment = try Self.environment(arguments)
         session.center.pickUp(appID: session.app.id, client: context.clientName, environment: environment)
         session.refresh()
-        return .read(session.run.mcpPlan(appName: session.app.name, port: context.port), target: session.target)
+        return .read(session.run.mcpPlan(appName: session.app.name, bundleID: session.app.bundleID, port: context.port), target: session.target)
     }
 
     static func environment(_ arguments: MCPToolArguments) throws -> AutopilotEnvironment? {

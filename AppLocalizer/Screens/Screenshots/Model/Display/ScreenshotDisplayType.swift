@@ -46,8 +46,9 @@ enum ScreenshotDisplayType: String, Codable, Hashable, Sendable, CaseIterable, I
     /// captures themselves: the watch screen is too small for one.
     var hasCaptions: Bool { self != .watch }
 
-    /// When Apple starts requiring it, for a device it doesn't require
-    /// yet: "Required from April 2027 for apps built with the iOS 27.1 SDK".
+    /// When Apple's rule for it starts, for a device whose rule is still
+    /// ahead: "Required from April 2027 for apps built with the iOS 27.1
+    /// SDK". Autopilot and the Sets menu treat it as required already.
     var upcomingRequirement: String? {
         self == .iPhoneDuo ? String(localized: "Required from April 2027 for apps built with the iOS 27.1 SDK") : nil
     }

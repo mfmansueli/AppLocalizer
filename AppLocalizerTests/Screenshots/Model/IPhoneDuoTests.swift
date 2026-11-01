@@ -61,6 +61,12 @@ struct IPhoneDuoTests {
         #expect(ScreenshotDisplayType.allCases.filter { $0.upcomingRequirement != nil } == [.iPhoneDuo])
     }
 
+    /// The Sets menu lists it with the sizes Apple requires, saying when.
+    @Test func theDisplayMenuSaysWhenItsRequired() {
+        #expect(DisplayTypeMenu.subtitle(.iPhoneDuo, size: ScreenshotDisplayType.iPhoneDuo.portraitPixelSize) == "2007 × 2853 px · from April 2027")
+        #expect(DisplayTypeMenu.subtitle(.iPhone, size: ScreenshotDisplayType.iPhone.portraitPixelSize) == "1320 × 2868 px")
+    }
+
     @Test func itsThumbnailIsWiderThanAnIPhonesAtTheSameHeight() {
         // 2007 / 2853 against 1320 / 2868: about 1.53 times as wide.
         #expect(ScreenshotDisplayType.iPhoneDuo.thumbnailWidth(phone: 100, tablet: 150) == 153)

@@ -122,9 +122,9 @@ final class ScreenshotsUITests: XCTestCase {
         XCTAssertTrue(element("screenshots.sets").waitForExistence(timeout: 15))
     }
 
-    /// iPhone Duo is listed under Coming soon; picking it shows its row,
-    /// which has nothing to push until it has captures.
-    func testIPhoneDuoIsComingSoonInTheDisplayMenu() {
+    /// iPhone Duo is listed with the sizes Apple requires; picking it shows
+    /// its row, which has nothing to push until it has captures.
+    func testIPhoneDuoIsRequiredInTheDisplayMenu() {
         launch(scene: "sets")
         let menu = element("screenshots.displayType")
         XCTAssertTrue(menu.waitForExistence(timeout: 15))

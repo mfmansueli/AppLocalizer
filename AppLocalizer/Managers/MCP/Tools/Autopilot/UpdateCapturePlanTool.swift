@@ -21,7 +21,7 @@ struct UpdateCapturePlanTool: MCPTool {
         and caption it shows. Match existing screens by id or name; new screens can be added only before the \
         first capture. When the plan says chooseScreens, decide which screens show the app best and send them \
         with replace: true: on each device you send screens for, they become the plan's screens in that order \
-        (strongest first, each with a caption), and the others there are dropped. Also takes the file the steps \
+        (strongest first, each with a caption: App Store search results show the first three), and the others there are dropped. Also takes the file the steps \
         came from (writtenFrom, e.g. LumenUITests/ScreenshotTests.swift) and the app's sample-data switch.
         """,
         inputSchema: MCPToolDefinition.schema(
@@ -95,7 +95,7 @@ struct UpdateCapturePlanTool: MCPTool {
             run.appendLog(log, kind: .event, at: session.center.now())
         }
         session.refresh()
-        var result = session.run.mcpPlan(appName: session.app.name, port: context.port).objectValue ?? [:]
+        var result = session.run.mcpPlan(appName: session.app.name, bundleID: session.app.bundleID, port: context.port).objectValue ?? [:]
         result["status"] = refused.isEmpty ? "updated" : "partial"
         if !refused.isEmpty { result["refused"] = .array(refused) }
         return MCPToolOutcome(result: .object(result), isError: false, logLines: [.init(target: session.target, outcome: .proposed)])

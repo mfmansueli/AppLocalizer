@@ -72,7 +72,7 @@ struct AutopilotSupportTests {
             document: ScreenshotsDebugDocuments.standard, live: ScreenshotsDebugDocuments.live, primaryLocale: .englishUS,
             localeCodes: ["en-US", "de-DE"], previous: nil, support: support
         )
-        #expect(plan.displayTypes == [.iPhone, .iPad, .watch, .visionPro])
+        #expect(plan.displayTypes == [.iPhone, .iPhoneDuo, .iPad, .watch, .visionPro])
         #expect(plan.localeCodes == ["en-US", "de-DE", "pl", "he"])
         #expect(plan.addedLocaleCodes == ["pl", "he"])
         #expect(plan.newLocaleCodes == ["pl", "he"])
@@ -89,7 +89,7 @@ struct AutopilotSupportTests {
             document: ScreenshotsDebugDocuments.standard, live: ScreenshotsDebugDocuments.live, primaryLocale: .englishUS,
             localeCodes: ["en-US", "fr-FR"], previous: previous, support: support
         )
-        #expect(plan.displayTypes == [.iPhone, .iPad, .visionPro])
+        #expect(plan.displayTypes == [.iPhone, .iPhoneDuo, .iPad, .visionPro])
         #expect(plan.screens(on: .visionPro).count == AutopilotPlanner.visionScreenCount)
         #expect(plan.localeCodes == ["en-US", "fr-FR"], "Left out last time, so left out again")
         #expect(plan.newLocaleCodes == ["pl"])
@@ -108,9 +108,9 @@ struct AutopilotSupportTests {
         var phoneOnly = ScreenshotsDocument.empty(primary: "en-US")
         phoneOnly.captures.add(ScreenshotsSampleData.capture(locale: "en-US", display: .iPhone, slot: 0))
         let without = AutopilotPlanner.devices(document: phoneOnly, live: LiveScreenshots(), support: .none)
-        #expect(without == [.iPhone])
+        #expect(without == [.iPhone, .iPhoneDuo])
         let with = AutopilotPlanner.devices(document: phoneOnly, live: LiveScreenshots(), support: AutopilotSupport(devices: [.iPad]))
-        #expect(with == [.iPhone, .iPad])
+        #expect(with == [.iPhone, .iPhoneDuo, .iPad])
     }
 }
 #endif

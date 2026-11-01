@@ -56,7 +56,7 @@ struct ScreenshotStudioWatchAppTests {
         previous.plan.setScreens([AutopilotScreen(id: "vision-today", name: "Today", sourceScreenID: "today")], on: .visionPro)
         previous.plan.setPlans(.visionPro, true)
         let plan = Self.plan(previous: previous, support: AutopilotSupport(devices: [.watch, .visionPro]))
-        #expect(plan.displayTypes == [.iPhone, .iPad, .watch, .visionPro])
+        #expect(plan.displayTypes == [.iPhone, .iPhoneDuo, .iPad, .watch, .visionPro])
         #expect(plan.screens(on: .visionPro).map(\.id) == ["vision-today"], "The person's windows are kept")
     }
 
@@ -66,7 +66,7 @@ struct ScreenshotStudioWatchAppTests {
         previous.plan.setPlans(.watch, false)
         #expect(previous.plan.leftOutDevices == [.watch])
         let plan = Self.plan(previous: previous, support: AutopilotSupport(devices: [.watch]))
-        #expect(plan.displayTypes == [.iPhone, .iPad])
+        #expect(plan.displayTypes == [.iPhone, .iPhoneDuo, .iPad])
 
         previous.plan.setPlans(.watch, true)
         #expect(previous.plan.leftOutDevices == nil)

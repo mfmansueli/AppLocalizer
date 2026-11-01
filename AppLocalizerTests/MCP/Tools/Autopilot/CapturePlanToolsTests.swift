@@ -41,13 +41,15 @@ struct CapturePlanToolsTests {
             ["displayType": "ipad", "simulator": "iPad Pro 13-inch (M5)", "pixelSize": "2752 × 2064", "orientation": "landscape"],
         ])
         let german = plan["locales"]?.arrayValue?.first { $0["locale"] == "de-DE" }
-        #expect(german?["launchArguments"] == "-AppleLanguages (de-DE) -AppleLocale de_DE")
+        #expect(german?["launchArguments"] == "-AppleLanguages (de) -AppleLocale de_DE")
         #expect(plan["simulatorSetup"] == [
             "lightAppearance": true,
             "commands": [
                 .string(AutopilotSimulatorSetup.statusBarCommand), "xcrun simctl ui booted appearance light",
+                "xcrun simctl privacy booted grant all com.northpier.lumen",
                 "xcrun simctl privacy booted grant photos dev.northpier.lumen",
             ],
+            "alerts": .string(AutopilotSimulatorSetup.alertsNote),
             "sampleData": "Settings → Debug → Add Sample Week",
         ])
         #expect(plan["upload"]?["url"] == "http://127.0.0.1:4000/autopilot/debug-token")
@@ -63,6 +65,7 @@ struct CapturePlanToolsTests {
     @Test func thePlanSaysToFindTheSampleDataSwitchAndLeavesOutWhatsOff() async throws {
         var waiting = AutopilotTestFixtures.run(.waiting)
         waiting.plan.simulator.overridesStatusBar = false
+        waiting.plan.simulator.grantsPermissions = false
         let found = try await MCPAutopilotFixtures(waiting).call(GetCapturePlanTool()).result
         #expect(found["simulatorSetup"]?["commands"] == ["xcrun simctl ui booted appearance light"])
         #expect(found["simulatorSetup"]?["sampleData"]?.stringValue?.hasPrefix("Find the app's sample-data switch") == true)
@@ -78,17 +81,34 @@ struct CapturePlanToolsTests {
 
     /// Simplified and Traditional Chinese, or Brazilian and European
     /// Portuguese, are different captures: each launches in its own
-    /// language, not in the bare `zh` or `pt` they share.
-    @Test func eachLocaleLaunchesInItsOwnLanguage() async throws {
+    /// language, not in the bare `zh` or `pt` they share, with its App
+    /// Store country's formats.
+    @Test func eachLocaleLaunchesInItsOwnLanguageAndCountry() async throws {
         var waiting = AutopilotTestFixtures.run(.waiting)
         waiting.plan.localeCodes = ["en-US", "zh-Hans", "zh-Hant", "pt-BR", "pt-PT", "es-MX", "it"]
         let plan = try await MCPAutopilotFixtures(waiting).call(GetCapturePlanTool()).result
         let arguments = try #require(plan["locales"]?.arrayValue).compactMap { $0["launchArguments"]?.stringValue }
         #expect(arguments == [
-            "-AppleLanguages (en-US) -AppleLocale en_US", "-AppleLanguages (zh-Hans) -AppleLocale zh_Hans",
-            "-AppleLanguages (zh-Hant) -AppleLocale zh_Hant", "-AppleLanguages (pt-BR) -AppleLocale pt_BR",
-            "-AppleLanguages (pt-PT) -AppleLocale pt_PT", "-AppleLanguages (es-MX) -AppleLocale es_MX", "-AppleLanguages (it) -AppleLocale it",
+            "-AppleLanguages (en-US) -AppleLocale en_US", "-AppleLanguages (zh-Hans) -AppleLocale zh-Hans_CN",
+            "-AppleLanguages (zh-Hant) -AppleLocale zh-Hant_HK", "-AppleLanguages (pt-BR) -AppleLocale pt_BR",
+            "-AppleLanguages (pt-PT) -AppleLocale pt_PT", "-AppleLanguages (es-MX) -AppleLocale es_MX", "-AppleLanguages (it) -AppleLocale it_IT",
         ])
+    }
+
+    /// The plan run before capturing: Apple's status bar on Wi-Fi without
+    /// a carrier, light appearance and the app's permissions granted.
+    @Test func theSimulatorCommandsGrantTheAppsPermissions() {
+        var run = AutopilotTestFixtures.run(.waiting)
+        #expect(run.simulatorCommands(bundleID: "dev.northpier.lumen") == [
+            AutopilotSimulatorSetup.statusBarCommand, "xcrun simctl ui booted appearance light",
+            "xcrun simctl privacy booted grant all dev.northpier.lumen",
+        ])
+        #expect(AutopilotSimulatorSetup.statusBarCommand.contains("--dataNetwork wifi"))
+        #expect(AutopilotSimulatorSetup.statusBarCommand.hasSuffix("--operatorName ''"))
+        #expect(!run.simulatorCommands(bundleID: "").contains { $0.contains("privacy") }, "No bundle ID, nothing to grant")
+
+        run.plan.simulator.grantsPermissions = false
+        #expect(!run.simulatorCommands(bundleID: "dev.northpier.lumen").contains { $0.contains("privacy") })
     }
 
     // MARK: - Which run

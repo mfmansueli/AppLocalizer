@@ -35,8 +35,9 @@ struct ScreenshotStudioPlanSupportTests {
 
     @Test func eachDeviceSaysWhyItsRequired() async {
         let model = await Self.model(StudioDebugRuns.run(.plan, everyDevice: true))
-        let plan = StudioDebugRuns.everyDevicePlan
         let studio = model.studio
+        let plan = studio.run?.plan ?? StudioDebugRuns.everyDevicePlan
+        #expect(plan.displayTypes.contains(.iPhoneDuo))
         #expect(studio.planDevices(plan) == [.iPhone, .iPhoneDuo, .iPad, .watch, .visionPro])
         #expect(studio.planDeviceDetail(.iPhone, plan: plan) == "1320 × 2868 · required for every iPhone app")
         #expect(studio.planDeviceDetail(.iPad, plan: plan) == "2752 × 2064 · required: Lumen runs on iPad")
@@ -46,22 +47,24 @@ struct ScreenshotStudioPlanSupportTests {
             == "2007 × 2853 · inner display · required from April 2027 for apps built with the iOS 27.1 SDK")
     }
 
-    @Test func iPhoneDuoCanBeTurnedOnAndIsntLeftToUploadByHand() async {
+    /// iPhone Duo is Apple's rule from April 2027: planned from the start,
+    /// and turned off it's left to upload by hand like any required device.
+    @Test func iPhoneDuoIsPlannedAndTurnedOffIsLeftToUploadByHand() async {
         let model = await Self.model(StudioDebugRuns.run(.plan))
-        model.studio.setPlans(.iPhoneDuo, true)
-        let plan = model.studio.run?.plan ?? StudioDebugRuns.plan
-        #expect(plan.displayTypes == [.iPhone, .iPhoneDuo, .iPad])
+        #expect(model.studio.run?.plan.displayTypes == [.iPhone, .iPhoneDuo, .iPad])
+        #expect(model.studio.requiredReason(.iPhoneDuo) == "from April 2027 for apps built with the iOS 27.1 SDK")
         model.studio.setPlans(.iPhoneDuo, false)
         let off = model.studio.run?.plan ?? StudioDebugRuns.plan
         #expect(!off.displayTypes.contains(.iPhoneDuo))
-        #expect(!model.studio.planDeviceDetail(.iPhoneDuo, plan: off).contains("upload these by hand"))
+        #expect(model.studio.planDeviceDetail(.iPhoneDuo, plan: off) == "2007 × 2853 · inner display · "
+            + "required from April 2027 for apps built with the iOS 27.1 SDK. You’ll need to upload these by hand before submitting.")
     }
 
     @Test func turningOffARequiredDeviceLeavesItToBeUploadedByHand() async {
         let model = await Self.model(StudioDebugRuns.run(.plan, everyDevice: true))
         model.studio.setPlans(.watch, false)
         let plan = model.studio.run?.plan ?? StudioDebugRuns.everyDevicePlan
-        #expect(plan.displayTypes == [.iPhone, .iPad, .visionPro])
+        #expect(plan.displayTypes == [.iPhone, .iPhoneDuo, .iPad, .visionPro])
         #expect(model.studio.planDeviceDetail(.watch, plan: plan)
             == "422 × 514 · Ultra 3 · required: Lumen has a watch app, LumenWatch. You’ll need to upload these by hand before submitting.")
     }
@@ -79,7 +82,7 @@ struct ScreenshotStudioPlanSupportTests {
         let model = await Self.model(StudioDebugRuns.run(.plan))
         model.studio.setPlans(.visionPro, true)
         let plan = model.studio.run?.plan
-        #expect(plan?.displayTypes == [.iPhone, .iPad, .visionPro])
+        #expect(plan?.displayTypes == [.iPhone, .iPhoneDuo, .iPad, .visionPro])
         #expect(plan?.screens(on: .visionPro).map(\.sourceScreenID) == ["today", "week", "search"])
     }
 
@@ -102,7 +105,7 @@ struct ScreenshotStudioPlanSupportTests {
         let model = await Self.model(nil)
         model.studio.runAutopilot()
         let plan = try #require(model.studio.run?.plan)
-        #expect(plan.displayTypes == [.iPhone, .iPad, .watch, .visionPro])
+        #expect(plan.displayTypes == [.iPhone, .iPhoneDuo, .iPad, .watch, .visionPro])
         #expect(plan.addedLocaleCodes == ["pl", "tr", "he"])
         #expect(plan.screens(on: .visionPro).count == AutopilotPlanner.visionScreenCount)
 
