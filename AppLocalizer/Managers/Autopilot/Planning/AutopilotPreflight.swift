@@ -27,6 +27,10 @@ enum AutopilotPreflight {
         front of the command.
         """,
         "Nothing waits on a permission alert, the keyboard or the network: grant permissions with simctl and use local sample data.",
+        """
+        Every planned device has a simulator this Mac runs (xcrun simctl list devicetypes runtimes): iPhone Duo needs an iOS 27.1 \
+        runtime or later. One that's missing is reported once with affectsDevice: true; don't download runtimes yourself.
+        """,
     ]
 
     /// What to do when a check fails.

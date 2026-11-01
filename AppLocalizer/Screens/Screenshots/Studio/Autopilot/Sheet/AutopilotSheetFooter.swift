@@ -11,6 +11,7 @@ struct AutopilotSheetFooter: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
     let onReview: () -> Void
+    @Environment(ClaudeCodeLauncher.self) private var launcher: ClaudeCodeLauncher?
 
     var body: some View {
         HStack(spacing: Spacing.small) {
@@ -31,7 +32,11 @@ struct AutopilotSheetFooter: View {
     private var text: String {
         switch run.stage {
         case .plan:
-            AutopilotEstimate.summary(for: run.plan, design: studio.designProject?.kind ?? .none, kept: run.keptCaptureCount)
+            if let missing = launcher?.simulators.missing(in: run.plan.displayTypes), !missing.isEmpty {
+                String(localized: "This Mac can’t capture \(missing.map(\.title).formatted(.list(type: .and))) yet: install the simulator, or turn it off.")
+            } else {
+                AutopilotEstimate.summary(for: run.plan, design: studio.designProject?.kind ?? .none, kept: run.keptCaptureCount)
+            }
         case .waiting where studio.launchedRun != nil:
             String(localized: "Claude Code asks AppLocalizer what to do from there; the stages move on as captures arrive.")
         case .waiting:

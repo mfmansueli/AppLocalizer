@@ -19,6 +19,7 @@ extension ScreenshotStudioModel {
     /// saved; otherwise the prompt goes on the clipboard for the assistant.
     func start() {
         autopilot?.start(appID: app.id)
+        reportMissingSimulators()
         viewedStep = nil
         launchedRunID = nil
         guard let launcher, launcher.canStart else {

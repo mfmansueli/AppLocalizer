@@ -36,6 +36,8 @@ final class ClaudeCodeLauncher {
     var shownRunID: ClaudeCodeRun.ID?
 
     @ObservationIgnored let assistants: MCPServerController
+    /// This Mac's simulators, asked through the same helper.
+    @ObservationIgnored let simulators: MacSimulators
     @ObservationIgnored private let runner: any UnixScriptRunning
     @ObservationIgnored let helperURL: URL?
     @ObservationIgnored private let defaults: UserDefaults?
@@ -58,11 +60,13 @@ final class ClaudeCodeLauncher {
         helperURL: URL? = ClaudeCodeHelperInstaller.helperURL,
         defaults: UserDefaults? = nil,
         now: @escaping () -> Date = Date.init,
-        folderChooser: @escaping @MainActor (String, String?) -> String? = ClaudeCodeFolderPicker.choose
+        folderChooser: @escaping @MainActor (String, String?) -> String? = ClaudeCodeFolderPicker.choose,
+        simulatorRunner: (any UnixScriptRunning)? = nil
     ) {
         self.assistants = assistants
         self.runner = runner
         self.helperURL = helperURL
+        simulators = MacSimulators(runner: simulatorRunner ?? runner, helperURL: helperURL)
         self.defaults = defaults
         self.now = now
         self.folderChooser = folderChooser

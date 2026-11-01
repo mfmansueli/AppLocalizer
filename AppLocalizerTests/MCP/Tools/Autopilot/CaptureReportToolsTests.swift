@@ -211,6 +211,23 @@ struct CaptureReportToolsTests {
         #expect(definition.inputSchema["properties"]?["changesProject"]?["type"] == "boolean")
     }
 
+    @Test func aDeviceWithoutASimulatorIsReportedOnceForTheDevice() async throws {
+        var plan = AutopilotTestFixtures.smallPlan
+        plan.setPlans(.iPhoneDuo, true)
+        let fixtures = MCPAutopilotFixtures(AutopilotTestFixtures.run(.capture, plan: plan))
+        let outcome = try await fixtures.call(ReportCaptureProblemTool(), [
+            "run": "run-1", "screen": "today", "displayType": "iphone_duo", "locale": "en-US",
+            "what": "There's no iPhone Duo simulator on this Mac.", "proposedFix": "Install the iOS 27.1 simulator runtime.",
+            "affectsDevice": true,
+        ])
+        let problem = try #require(fixtures.run?.openProblems.first)
+        #expect(problem.isDeviceWide)
+        #expect(outcome.result["say"]?.stringValue?.contains("go on with the other devices") == true)
+        #expect(ReportCaptureProblemTool().definition.inputSchema["properties"]?["affectsDevice"]?["type"] == "boolean")
+        #expect(ReportCaptureProblemTool().definition.description.contains("don't download"))
+        #expect(AutopilotPreflight.checks.contains { $0.contains("affectsDevice: true") && $0.contains("iOS 27.1") })
+    }
+
     @Test func aProblemAfterCapturingIsRefused() async throws {
         let fixtures = MCPAutopilotFixtures(AutopilotTestFixtures.run(.design))
         let outcome = try await fixtures.call(ReportCaptureProblemTool(), [

@@ -19,7 +19,11 @@ struct ReportCaptureProblemTool: MCPTool {
         change in the project so it isn't needed (e.g. a scheme that sets the environment variable). When the fix \
         is a change to the project (a test, a scheme, sample data) rather than a command, pass changesProject: \
         true, with the file and line in proposedFix, and report it once: AppLocalizer holds the same screen on \
-        that device in the other languages, and the person answers for all of them. Don't stop: capture the \
+        that device in the other languages, and the person answers for all of them. When the fix is a step for the \
+        person that isn't a command (install something, sign in), pass changesProject: false. When no screen on \
+        the device can be captured in any language (this Mac has no simulator for it, e.g. iPhone Duo without an \
+        iOS 27.1 runtime), report it once with affectsDevice: true and go on with the other devices; don't download \
+        simulator runtimes yourself: AppLocalizer offers the person to install them. Don't stop: capture the \
         other screens. The person retries with the fix (next_step then lists it under retryWithFix), reuses the \
         primary language's capture, or uploads one by hand.
         """,
@@ -35,7 +39,11 @@ struct ReportCaptureProblemTool: MCPTool {
                 "refusedCommand": MCPToolDefinition.string("The command that wasn't allowed, when that's what stopped you."),
                 "changesProject": [
                     "type": "boolean",
-                    "description": "True when the fix is a change to the project (code, a test, a scheme, sample data), false when it's a command to run.",
+                    "description": "True when the fix is a change to the project (code, a test, a scheme, sample data), false when it isn't.",
+                ],
+                "affectsDevice": [
+                    "type": "boolean",
+                    "description": "True when no screen on this device can be captured in any language, e.g. this Mac has no simulator for it.",
                 ],
             ],
             required: ["appId", "run", "screen", "displayType", "locale", "what"]
@@ -49,20 +57,28 @@ struct ReportCaptureProblemTool: MCPTool {
         do {
             let problem = try session.center.reportProblem(
                 appID: session.app.id, target: target, what: arguments.string("what"), proposedFix: arguments.optionalString("proposedFix"),
-                refusedCommand: arguments.optionalString("refusedCommand"), changesProject: arguments.optionalBool("changesProject")
+                refusedCommand: arguments.optionalString("refusedCommand"), changesProject: arguments.optionalBool("changesProject"),
+                affectsDevice: arguments.optionalBool("affectsDevice")
             )
             let result: JSONValue = [
                 "status": "reported",
                 "problem": .string(problem.id),
-                "say": .string(
-                    problem.needsProjectChange
-                        ? "The person decides in AppLocalizer. This screen waits on this device in the other languages; go on with the other screens."
-                        : "The person decides in AppLocalizer. Go on with the other screens; next_step lists the retries."
-                ),
+                "say": .string(Self.say(problem)),
             ]
             return MCPToolOutcome(result: result, isError: false, logLines: [.init(target: session.target(target), outcome: .proposed)])
         } catch {
             return .refused(error.localizedDescription, target: session.target(target))
         }
+    }
+
+    /// What waits now, and what to go on with.
+    static func say(_ problem: AutopilotProblem) -> String {
+        if problem.isDeviceWide {
+            return "The person decides in AppLocalizer. Every screen on this device waits, in every language; go on with the other devices."
+        }
+        if problem.needsProjectChange {
+            return "The person decides in AppLocalizer. This screen waits on this device in the other languages; go on with the other screens."
+        }
+        return "The person decides in AppLocalizer. Go on with the other screens; next_step lists the retries."
     }
 }

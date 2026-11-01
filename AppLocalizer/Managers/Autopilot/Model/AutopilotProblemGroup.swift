@@ -30,6 +30,14 @@ struct AutopilotProblemGroup: Hashable, Sendable, Identifiable {
 
     var needsProjectChange: Bool { problems.contains(where: \.needsProjectChange) }
 
+    /// No screen on its device can be captured.
+    var isDeviceWide: Bool { first.isDeviceWide }
+
+    var displayType: ScreenshotDisplayType { first.target.displayType }
+
+    /// Every fix is a command, so retrying adds it to the plan.
+    var fixIsCommand: Bool { proposedFix != nil && problems.allSatisfy { $0.proposedFix?.isEmpty != false || $0.fixIsCommand } }
+
     var wasRefused: Bool { problems.contains(where: \.wasRefused) }
 
     /// The first refused command.
@@ -58,9 +66,10 @@ struct AutopilotProblemGroup: Hashable, Sendable, Identifiable {
         return groups
     }
 
-    /// The screen, and the change to the project, the fix or (with
-    /// neither) what happened.
+    /// The device, for a device-wide problem; else the screen, and the
+    /// change to the project, the fix or (with neither) what happened.
     private static func key(of problem: AutopilotProblem) -> String {
+        if problem.isDeviceWide { return "device\u{1F}" + problem.target.displayType.rawValue }
         let cause = if problem.needsProjectChange {
             "project"
         } else if let fix = problem.proposedFix?.trimmingCharacters(in: .whitespacesAndNewlines), !fix.isEmpty {

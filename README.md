@@ -124,7 +124,10 @@ App Store Connect or the Keychain, and the MCP server in a scene never opens a p
   On every device and with the project's new languages: `st-plan-all`, `st-cap-watch`, `st-cap-vision`,
   `st-pick-all`, `st-choose-all`, `st-loc-all`, `st-ready-sheet-all`, `st-live-watch`, `st-live-vision`,
   `st-ready-watch` and `st-ready-vision`. With no project report but a build with a watch app, `st-asc-watch`. A
-  Claude Design link nobody has read yet, a long assistant name and a long screen name, `st-plan-link`.
+  Claude Design link nobody has read yet, a long assistant name and a long screen name, `st-plan-link`. Problems: a
+  refused command, `st-refused`; one cause on one screen in several languages, `st-group`; and iPhone Duo on a Mac
+  without its simulator, `st-device` (a pretend Mac with iOS 26.5 and 27.0, `DebugSimulators`, so Install the iOS
+  Simulator downloads nothing).
   The Sets matrix, `sets*`, `viewer*` and `scope`; the Template editor, `tpl*` and `starter`; the template gallery,
   `gallery` and `gallery-elegant`, and a few of its templates rendered, `tpl-cinema`, `tpl-highlight-ar`,
   `tpl-market-de`, `tpl-poster-ja` and `tpl-swoosh-deco`; Captions, `cap*`
@@ -253,7 +256,10 @@ call.
     device in those two first (`phase: rehearsal`), then the rest. An open problem holds the same screen on the same
     device in the other languages, so one cause is reported once; problems with one cause share a card
     (`AutopilotProblemGroup`), and reusing the primary capture for a change to the project covers the screen's other
-    languages (`primaryCaptureTargets`). `next_step` says what to do next (capture, wait, design, revise, write captions, done). `get_design_brief`,
+    languages (`primaryCaptureTargets`). A device this Mac can't run is reported once with `affectsDevice: true`: it
+    holds every screen on that device, the other devices keep going, and its card installs the simulator or leaves
+    the device out (`AutopilotCenter.leaveOut`, never iPhone); the assistant never downloads a runtime itself.
+    `next_step` says what to do next (capture, wait, design, revise, write captions, done). `get_design_brief`,
     `report_design_source`, `propose_direction` and `revise_direction` carry the design stage, and
     `propose_captions` with the run's id shortens captions while localizing. The person plans, picks, chooses and
     pushes in the app; the assistant never pushes. The plan lists each device's screens and how to capture them
@@ -290,7 +296,15 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
   `applocalizer-helper-exit <status>` when it ends. Claude Code writes through pipes of its own that `cat` passes on:
   Node leaves the pipe it writes to non-blocking, which on AppLocalizer's pipe lost a run's last lines and its exit
   line (helper version 1). A line on stdin, or stdin closing, ends Claude Code with SIGTERM (a script's background job
-  ignores SIGINT); the session stays resumable. A helper older than `version` asks to be saved again.
+  ignores SIGINT); the session stays resumable. A helper older than `version` asks to be saved again. Version 3
+  adds Autopilot's simulator modes, each a fixed command with checked arguments: `simulators` (`xcrun simctl list
+  -j runtimes devicetypes devices`), `install-platform <iOS|watchOS|visionOS|tvOS>` (`xcodebuild -downloadPlatform`)
+  and `create-simulator <name> <type> <runtime>` (`xcrun simctl create`, only `SimDeviceType`/`SimRuntime` ids).
+- **This Mac's simulators** (`Managers/Simulators/`): Autopilot's plan checks, through the helper, that each planned
+  device has a simulator (`SimulatorInventory`, `SimulatorStatus`): ready, one to make, a runtime to install (iPhone
+  Duo needs iOS 27.1 or later; Xcode 27.2 may come with only iOS 27.0), or a newer Xcode. "Install the iOS
+  Simulator" downloads the platform, then makes the simulator (`MacSimulators`). Starting with a device still
+  missing reports it as one problem for the device (`ScreenshotStudioModel.reportMissingSimulators`).
 - **Each run** (`ClaudeCodeInvocation`) is `claude -p --output-format stream-json --verbose --restricted
   --strict-mcp-config --mcp-config … --settings … --permission-mode dontAsk --tools …`. It knows only AppLocalizer's
   server, with a token made for that run that acts as the paired Claude Code and stops working when the run ends
@@ -328,6 +342,8 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
     and direction pills, brand folders, the MCP tools and the upload endpoint, and the App Store preview and its
     Live/New set summaries; Apple Watch and Apple Vision Pro (their screens, layouts, checks, previews and pushes to
     the visionOS version), iPhone Duo (its sizes, checks, canvas, row and plan) and the project's new languages;
+    this Mac's simulators (reading `simctl`'s list, what each device needs, installing and making one, a device-wide
+    problem, leaving a device out);
   - Claude Code started by AppLocalizer: the helper's answers and exit line, each run's arguments and permissions,
     reading the stream, failures, the Terminal link, runs through a pretend helper (folders, run tokens, Stop, Try
     Again, login and server problems), and setup's test run.

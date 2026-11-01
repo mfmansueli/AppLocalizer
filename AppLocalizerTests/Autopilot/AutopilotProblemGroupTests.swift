@@ -40,6 +40,33 @@ struct AutopilotProblemGroupTests {
         #expect(problem("week", .iPhone, "ja", id: "3", changesProject: false, refused: "LUMEN=1 xcodebuild test").needsProjectChange)
     }
 
+    @Test func onlyACommandJoinsThePlan() {
+        let command = "xcrun simctl privacy booted grant photos com.northpier.lumen"
+        #expect(problem("week", .iPhone, "ja", id: "1", fix: command).fixIsCommand)
+        #expect(!problem("week", .iPhone, "ja", id: "2").fixIsCommand, "A change to the project")
+        let step = problem("week", .iPhoneDuo, "ko", id: "3", fix: "Install the iOS 27.1 simulator runtime, then retry.", changesProject: false)
+        #expect(!step.needsProjectChange)
+        #expect(!step.fixIsCommand, "A step for the person, though not a change to the project")
+        #expect(!problem("week", .iPhone, "ja", id: "4", fix: nil).fixIsCommand)
+        var device = problem("week", .iPhoneDuo, "ko", id: "5", fix: "xcodebuild -downloadPlatform iOS")
+        device.affectsDevice = true
+        #expect(!device.fixIsCommand, "A device-wide fix is the person's to start: it downloads several GB")
+        #expect(!device.needsProjectChange)
+    }
+
+    @Test func aDeviceWideProblemIsOneGroupForTheDevice() throws {
+        var first = problem("today", .iPhoneDuo, "en-US", id: "pr-1", fix: nil)
+        var second = problem("week", .iPhoneDuo, "ko", id: "pr-2", fix: "Install the iOS simulator.")
+        first.affectsDevice = true
+        second.affectsDevice = true
+        let groups = AutopilotProblemGroup.groups(of: [first, second, problem("week", .iPhone, "ko", id: "pr-3")])
+        #expect(groups.map(\.id) == ["pr-1", "pr-3"])
+        let device = try #require(groups.first)
+        #expect(device.isDeviceWide)
+        #expect(device.displayType == .iPhoneDuo)
+        #expect(!device.fixIsCommand)
+    }
+
     @Test func commandsStartWithAProgramASetupRuns() {
         #expect(AutopilotProblem.looksLikeCommand("xcodebuild test -scheme LumenScreenshots"))
         #expect(AutopilotProblem.looksLikeCommand("defaults write com.northpier.lumen onboarded -bool YES"))

@@ -18,9 +18,14 @@ import Foundation
 /// builds (`ClaudeCodeInvocation`), streaming its output, and prints
 /// `exitMarker` with the status when it ends (Claude Code's own last lines
 /// can still follow it). A line on stdin, or stdin closing, stops it.
+///
+/// Screenshot Autopilot also asks it about the Mac's simulators
+/// (`MacSimulators`): `simulators` lists them, `install-platform` downloads
+/// a platform's simulator, `create-simulator` makes one. Each takes only
+/// fixed values, checked by the script, never a command.
 enum ClaudeCodeHelperScript {
     /// Bumped when the script changes; an older one asks to be saved again.
-    static let version = 2
+    static let version = 3
 
     /// The name the Save panel suggests.
     static let fileName = "Start Claude Code.zsh"
@@ -93,12 +98,20 @@ enum ClaudeCodeHelperScript {
     #   run <folder> -- <arguments…>   runs Claude Code in <folder>; a line on stdin,
     #                                  or stdin closing, stops it
     #
-    # applocalizer-helper 2
+    # For Screenshot Autopilot, when you ask for it in AppLocalizer:
+    #
+    #   simulators                     lists this Mac's simulators (xcrun simctl list)
+    #   install-platform <platform>    downloads the iOS, watchOS or visionOS
+    #                                  simulator (xcodebuild -downloadPlatform)
+    #   create-simulator <name> <device type> <runtime>
+    #                                  makes a simulator (xcrun simctl create)
+    #
+    # applocalizer-helper 3
 
     emulate -L zsh
     setopt no_nomatch
 
-    helper_version=2
+    helper_version=3
 
     # Where Claude Code is: its own installer's folder first, then package
     # managers, then whatever your login shell finds.
@@ -186,9 +199,49 @@ enum ClaudeCodeHelperScript {
       return $code
     }
 
+    list_simulators() {
+      /usr/bin/xcrun simctl list -j runtimes devicetypes devices </dev/null
+    }
+
+    # Only the platforms xcodebuild downloads; its progress goes to stdout.
+    install_platform() {
+      case $1 in
+        iOS|watchOS|visionOS|tvOS) ;;
+        *)
+          print -u2 -r -- "Not a simulator platform: $1"
+          return 64
+          ;;
+      esac
+      /usr/bin/xcodebuild -downloadPlatform $1 </dev/null 2>&1
+    }
+
+    # A name, and CoreSimulator's identifiers for the device type and runtime.
+    create_simulator() {
+      local name=$1 type=$2 runtime=$3
+      if [[ -z $name || $name == -* || $name == *[[:cntrl:]]* ]] \
+        || [[ $type != com.apple.CoreSimulator.SimDeviceType.* || $type == *[^A-Za-z0-9.-]* ]] \
+        || [[ $runtime != com.apple.CoreSimulator.SimRuntime.* || $runtime == *[^A-Za-z0-9.-]* ]]; then
+        print -u2 -r -- "Usage: create-simulator <name> <device type> <runtime>"
+        return 64
+      fi
+      /usr/bin/xcrun simctl create $name $type $runtime </dev/null
+    }
+
     case $1 in
       check)
         check
+        ;;
+      simulators|install-platform|create-simulator)
+        mode=$1
+        shift
+        case $mode in
+          simulators) list_simulators ;;
+          install-platform) install_platform "$@" ;;
+          create-simulator) create_simulator "$@" ;;
+        esac
+        code=$?
+        print -r -- "applocalizer-helper-exit $code"
+        exit $code
         ;;
       run)
         shift
@@ -198,7 +251,8 @@ enum ClaudeCodeHelperScript {
         exit $code
         ;;
       *)
-        print -u2 -r -- "Usage: ${0:t} check | run <folder> -- <claude arguments…>"
+        print -u2 -r -- "Usage: ${0:t} check | run <folder> -- <claude arguments…> | simulators | \#
+    install-platform <platform> | create-simulator <name> <type> <runtime>"
         exit 64
         ;;
     esac

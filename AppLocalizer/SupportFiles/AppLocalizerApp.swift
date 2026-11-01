@@ -34,7 +34,9 @@ struct AppLocalizerApp: App {
         )
         let assistants = MCPServerController(server: Self.httpServer, secrets: Self.secretStore, defaults: Self.defaults, port: Self.mcpPort)
         assistants.keyAssistant = keyAssistant
-        let launcher = ClaudeCodeLauncher(assistants: assistants, runner: Self.scriptRunner, defaults: Self.defaults)
+        let launcher = ClaudeCodeLauncher(
+            assistants: assistants, runner: Self.scriptRunner, defaults: Self.defaults, simulatorRunner: Self.simulatorRunner
+        )
         #if DEBUG
         if let id = DebugScene.requestedID { ClaudeCodeDebugScenes.configure(launcher, for: id) }
         #endif
@@ -131,6 +133,15 @@ struct AppLocalizerApp: App {
         if let id = DebugScene.requestedID { return ClaudeCodeDebugScenes.scriptRunner(for: id) }
         #endif
         return LiveUnixScriptRunner()
+    }
+
+    /// DEBUG scenes read a pretend Mac's simulators; nil uses the helper's
+    /// runner.
+    private static var simulatorRunner: (any UnixScriptRunning)? {
+        #if DEBUG
+        if let id = DebugScene.requestedID, !ClaudeCodeDebugScenes.isLive(id) { return DebugUnixScriptRunner.simulators }
+        #endif
+        return nil
     }
 
     /// DEBUG scenes check keys with canned answers, never with Apple.

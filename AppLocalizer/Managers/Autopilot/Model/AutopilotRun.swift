@@ -91,11 +91,17 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
 
     /// What an open problem holds back: its own target, and the same
     /// screen on the same device in the other languages, which would fail
-    /// the same way. A retry holds them until its capture arrives. A
-    /// problem in another language doesn't hold the primary language's.
+    /// the same way (every screen on it, for a device-wide problem). A
+    /// retry holds them until its capture arrives. A problem in another
+    /// language doesn't hold the primary language's.
     var heldTargets: Set<AutopilotCaptureTarget> {
         var held = Set(openProblems.map(\.target))
         for problem in problems where problem.isOpen || isPendingRetry(problem) {
+            if problem.isDeviceWide {
+                // Every screen in every language, but a retry's own.
+                held.formUnion(plan.targets.filter { $0.displayType == problem.target.displayType && $0 != problem.target })
+                continue
+            }
             let fromPrimary = problem.target.locale == plan.primaryLocale
             for locale in plan.capturedLocales where locale != problem.target.locale && (fromPrimary || locale != plan.primaryLocale) {
                 held.insert(AutopilotCaptureTarget(screenID: problem.target.screenID, displayType: problem.target.displayType, locale: locale))
@@ -117,7 +123,8 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     }
 
     private func isPendingRetry(_ problem: AutopilotProblem) -> Bool {
-        problem.resolution == .retryWithFix && !captures.contains { $0.target == problem.target }
+        problem.resolution == .retryWithFix && plan.displayTypes.contains(problem.target.displayType)
+            && !captures.contains { $0.target == problem.target }
             && !problems.contains { $0.isOpen && $0.target == problem.target }
     }
 

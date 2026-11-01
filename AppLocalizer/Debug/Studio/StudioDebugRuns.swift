@@ -202,6 +202,23 @@ enum StudioDebugRuns {
         return run
     }
 
+    /// Capturing with iPhone Duo planned on a Mac without its simulator:
+    /// one problem for the whole device, which offers to install it.
+    static var noDuoSimulator: AutopilotRun {
+        var run = run(.capture)
+        run.plan.setPlans(.iPhoneDuo, true)
+        // After the base run's last log line, so the log reads in order.
+        let reported = date(day: 31, month: 10, hour: 14, minute: 6, second: 40)
+        let target = AutopilotCaptureTarget(screenID: run.plan.screens[0].id, displayType: .iPhoneDuo, locale: run.plan.primaryLocale)
+        run.problems = [AutopilotProblem(
+            id: "pr-duo", target: target,
+            what: "This Mac can’t run the iPhone Duo simulator. Needs the iOS 27.1 simulator or later. This Mac has iOS 26.5 and iOS 27.0.",
+            proposedFix: "Install the iOS simulator (xcodebuild -downloadPlatform iOS).", affectsDevice: true, reportedAt: reported
+        )]
+        run.appendLog("iPhone Duo: no simulator for it on this Mac", kind: .problem, at: reported)
+        return run
+    }
+
     /// Choosing, after Ask for changes revised Quiet Indigo.
     static var revised: AutopilotRun {
         var run = run(.choose)

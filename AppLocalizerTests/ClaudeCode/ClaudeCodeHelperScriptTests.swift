@@ -54,7 +54,16 @@ struct ClaudeCodeHelperScriptTests {
         // Claude Code gets pipes of its own, so AppLocalizer's never turns
         // non-blocking and the exit line always gets through.
         #expect(script.contains(#"$claude "$@" </dev/null > >(cat) 2> >(cat >&2) &"#))
-        #expect(ClaudeCodeHelperScript.version >= 2)
+        #expect(ClaudeCodeHelperScript.version >= 3)
+        // Autopilot's simulator check and fix: fixed commands, checked
+        // arguments.
+        #expect(script.contains("/usr/bin/xcrun simctl list -j runtimes devicetypes devices"))
+        #expect(script.contains("iOS|watchOS|visionOS|tvOS) ;;"))
+        #expect(script.contains("/usr/bin/xcodebuild -downloadPlatform $1"))
+        #expect(script.contains("$type != com.apple.CoreSimulator.SimDeviceType.*"))
+        #expect(script.contains("/usr/bin/xcrun simctl create $name $type $runtime"))
+        // An older helper is told apart by its usage line, which stays one line.
+        #expect(script.contains("| simulators | install-platform <platform> | create-simulator <name> <type> <runtime>\"\n"))
         #expect(ClaudeCodeHelperScript.fileName.hasSuffix(".zsh"))
     }
 }

@@ -72,23 +72,28 @@ extension AutopilotCenter {
     }
 
     /// A screen couldn't be reached; the others keep going, but the same
-    /// screen on the same device waits in the other languages.
+    /// screen on the same device waits in the other languages (every
+    /// screen on it, when the whole device can't be captured).
     func reportProblem(
         appID: StoreApp.ID, target: AutopilotCaptureTarget, what: String, proposedFix: String?, refusedCommand: String? = nil,
-        changesProject: Bool? = nil
+        changesProject: Bool? = nil, affectsDevice: Bool? = nil
     ) throws -> AutopilotProblem {
         guard let run = runs[appID], run.stage == .capture || run.stage == .waiting else {
             throw AutopilotError(String(localized: "The run isn’t capturing now. Call next_step to see what AppLocalizer wants."))
         }
         let problem = AutopilotProblem(
             id: "pr-" + makeID().prefix(8), target: target, what: what, proposedFix: proposedFix,
-            refusedCommand: refusedCommand.flatMap { $0.isEmpty ? nil : $0 }, changesProject: changesProject, reportedAt: now()
+            refusedCommand: refusedCommand.flatMap { $0.isEmpty ? nil : $0 }, changesProject: changesProject,
+            affectsDevice: affectsDevice == true ? true : nil, reportedAt: now()
         )
         let name = run.plan.screen(id: target.screenID)?.name ?? target.screenID
         update(appID) { run in
-            run.problems.removeAll { $0.target == target && $0.isOpen }
+            run.problems.removeAll { open in
+                open.isOpen && (open.target == target || (problem.isDeviceWide && open.isDeviceWide && open.target.displayType == target.displayType))
+            }
             run.problems.append(problem)
-            run.appendLog("\(name) (\(target.locale)): \(what)", kind: .problem, at: now())
+            let place = problem.isDeviceWide ? target.displayType.title : "\(name) (\(target.locale))"
+            run.appendLog("\(place): \(what)", kind: .problem, at: now())
         }
         return problem
     }
@@ -111,7 +116,7 @@ extension AutopilotCenter {
                 run.problems[index].resolution = resolution
                 let problem = run.problems[index]
                 switch resolution {
-                case .retryWithFix where !problem.needsProjectChange:
+                case .retryWithFix where problem.fixIsCommand:
                     let fix = problem.proposedFix?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                     if !fix.isEmpty, !run.plan.simulator.extraCommands.contains(fix) { run.plan.simulator.extraCommands.append(fix) }
                 case .usePrimaryCapture where problem.needsProjectChange:
@@ -120,6 +125,21 @@ extension AutopilotCenter {
                     break
                 }
             }
+        }
+        await advance(appID, context: context)
+    }
+
+    /// Leave a device out of this run (not iPhone): its screens stop being
+    /// captured, its problems close, and the run goes on without it. The
+    /// next plan has it off too, until the person turns it back on.
+    func leaveOut(_ display: ScreenshotDisplayType, appID: StoreApp.ID, context: AutopilotContext) async {
+        guard display != .iPhone, let run = runs[appID], run.stage == .capture || run.stage == .waiting else { return }
+        update(appID) { run in
+            run.plan.setPlans(display, false)
+            for index in run.problems.indices where run.problems[index].isOpen && run.problems[index].target.displayType == display {
+                run.problems[index].resolution = .leftOut
+            }
+            run.appendLog(String(localized: "\(display.title) left out of this run"), kind: .event, at: now())
         }
         await advance(appID, context: context)
     }

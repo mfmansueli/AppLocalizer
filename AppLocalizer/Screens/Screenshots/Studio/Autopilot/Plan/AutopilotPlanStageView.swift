@@ -14,6 +14,7 @@ struct AutopilotPlanStageView: View {
     /// The connected assistant that can run Xcode.
     let assistant: String?
     let isEditable: Bool
+    @Environment(ClaudeCodeLauncher.self) private var launcher: ClaudeCodeLauncher?
 
     var body: some View {
         ScrollView {
@@ -37,6 +38,10 @@ struct AutopilotPlanStageView: View {
                 .padding(.horizontal, Spacing.medium)
                 .padding(.vertical, Spacing.small)
                 .background(Palette.accentTint, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
+                // A device this Mac can't capture comes first, before Start.
+                if let simulators = macSimulators, !simulators.missing(in: run.plan.displayTypes).isEmpty {
+                    AutopilotMacCheckView(studio: studio, plan: run.plan, simulators: simulators)
+                }
                 HStack(alignment: .firstTextBaseline) {
                     Text("Plan").font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
                     Spacer()
@@ -50,6 +55,9 @@ struct AutopilotPlanStageView: View {
                 .disabled(!isEditable)
                 .accessibilityIdentifier("autopilot.plan.choosesScreens")
                 AutopilotPlanTable(studio: studio, plan: run.plan, client: client, isEditable: isEditable)
+                if let simulators = macSimulators, simulators.missing(in: run.plan.displayTypes).isEmpty {
+                    AutopilotMacCheckView(studio: studio, plan: run.plan, simulators: simulators)
+                }
                 Grid(alignment: .topLeading, horizontalSpacing: Spacing.medium, verticalSpacing: Spacing.medium) {
                     GridRow {
                         AutopilotOptionGroup(title: String(localized: "Devices")) { devices }
@@ -68,6 +76,9 @@ struct AutopilotPlanStageView: View {
     }
 
     private var client: String { run.clientName(assistant: assistant) }
+
+    /// This Mac's simulators, checked while the plan can change.
+    private var macSimulators: MacSimulators? { isEditable ? launcher?.simulators : nil }
 
     private var source: String {
         if let file = run.plan.writtenFrom {

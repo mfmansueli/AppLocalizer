@@ -22,7 +22,13 @@ final class FakeUnixScriptRunner: UnixScriptRunning, @unchecked Sendable {
     var errorOutput = ""
     /// What `NSUserUnixTask` would report, e.g. that the script couldn't run.
     var taskError: String?
+    /// The simulator modes' answers (`simulators`, `install-platform`,
+    /// `create-simulator`): each call takes the next lines, the last ones
+    /// repeat; each ends with the exit line and `statuses`' status (0).
+    var answers: [String: [[String]]] = [:]
+    var statuses: [String: Int32] = [:]
     private let calls = Mutex<[[String]]>([])
+    private let answered = Mutex<[String: Int]>([:])
 
     /// Under the real home, so it shows as "~/.local/bin/claude".
     static let claudePath = ProjectFolderPath.home + "/.local/bin/claude"
@@ -49,6 +55,16 @@ final class FakeUnixScriptRunner: UnixScriptRunning, @unchecked Sendable {
 
     func run(_: URL, arguments: [String], onLine: @escaping @Sendable (String) -> Void) async -> UnixScriptExit {
         calls.withLock { $0.append(arguments) }
+        if let mode = arguments.first, let modeAnswers = answers[mode], !modeAnswers.isEmpty {
+            let index = answered.withLock { counts in
+                defer { counts[mode, default: 0] += 1 }
+                return min(counts[mode, default: 0], modeAnswers.count - 1)
+            }
+            modeAnswers[index].forEach(onLine)
+            let status = statuses[mode] ?? 0
+            onLine("\(ClaudeCodeHelperScript.exitMarker) \(status)")
+            return UnixScriptExit(errorOutput: errorOutput, taskError: status == 0 ? nil : "The script exited with status \(status).")
+        }
         if arguments.first == "check" {
             checkLines.forEach(onLine)
             return UnixScriptExit(errorOutput: errorOutput, taskError: taskError)

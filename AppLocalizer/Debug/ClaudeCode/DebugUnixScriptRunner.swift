@@ -8,7 +8,8 @@ import Foundation
 
 /// DEBUG scenes' pretend helper: `check` answers with canned lines, and a
 /// run prints a canned Claude Code stream, then either ends with the
-/// helper's status or keeps going until it's stopped. Nothing runs.
+/// helper's status or keeps going until it's stopped. The simulator modes
+/// answer for a pretend Mac (`DebugSimulators`). Nothing runs.
 struct DebugUnixScriptRunner: UnixScriptRunning {
     /// One line of a pretend run, after `delay`.
     struct Line: Sendable {
@@ -41,7 +42,13 @@ struct DebugUnixScriptRunner: UnixScriptRunning {
         helperExists
     }
 
+    /// Answers only about the pretend Mac's simulators (`DebugSimulators`).
+    static let simulators = DebugUnixScriptRunner()
+
     func run(_: URL, arguments: [String], onLine: @escaping @Sendable (String) -> Void) async -> UnixScriptExit {
+        if let mode = arguments.first, DebugSimulators.modes.contains(mode) {
+            return await DebugSimulators.answer(arguments, onLine: onLine)
+        }
         if arguments.first == "check" {
             checkLines.forEach(onLine)
             return UnixScriptExit()

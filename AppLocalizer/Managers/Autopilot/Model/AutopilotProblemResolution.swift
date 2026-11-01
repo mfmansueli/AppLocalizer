@@ -15,4 +15,6 @@ enum AutopilotProblemResolution: String, Codable, Hashable, Sendable {
     case uploadedByHand
     /// A later capture arrived for the screen.
     case captured
+    /// The person left the device out of this run.
+    case leftOut
 }
