@@ -13,7 +13,7 @@ extension AppStoreConnectClient {
         var next: URL? = url("/v1/appStoreVersionLocalizations/\(localizationID)/appScreenshotSets", query: [
             URLQueryItem(name: "include", value: "appScreenshots"),
             URLQueryItem(name: "fields[appScreenshotSets]", value: "screenshotDisplayType,appScreenshots"),
-            URLQueryItem(name: "fields[appScreenshots]", value: "fileName,fileSize,sourceFileChecksum,imageAsset"),
+            URLQueryItem(name: "fields[appScreenshots]", value: "fileName,fileSize,sourceFileChecksum,imageAsset,assetDeliveryState"),
             URLQueryItem(name: "limit", value: "50"),
             URLQueryItem(name: "limit[appScreenshots]", value: "10"),
         ])
@@ -61,7 +61,8 @@ extension AppStoreConnectClient {
         let size = asset.flatMap { asset in asset.width.flatMap { width in asset.height.map { PixelSize(width: width, height: $0) } } }
         return LiveScreenshot(
             id: resource.id, fileName: resource.attributes?.fileName ?? "",
-            checksum: resource.attributes?.sourceFileChecksum, pixelSize: size, imageURLTemplate: asset?.templateUrl
+            checksum: resource.attributes?.sourceFileChecksum, pixelSize: size, imageURLTemplate: asset?.templateUrl,
+            deliveryState: resource.attributes?.assetDeliveryState
         )
     }
 }

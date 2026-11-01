@@ -65,6 +65,7 @@ struct LocaleEditorView: View {
                 requestsAsk: $viewModel.requestsAsk,
                 prompt: viewModel.suggestionPrompt,
                 generator: viewModel,
+                appName: viewModel.app.name,
                 onDismissAll: { viewModel.dismissAllSuggestions(in: locale) },
                 onAcceptAll: { viewModel.acceptAllSuggestions(in: locale) },
                 onAcceptEverywhere: { viewModel.acceptSuggestionsEverywhere() },

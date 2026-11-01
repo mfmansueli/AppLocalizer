@@ -51,9 +51,9 @@ extension ScreenshotsViewModel {
     }
 
     /// The viewer's render width in points: 262 for iPhone, 600 for iPad
-    /// landscape.
+    /// landscape, iPhone Duo's at the iPhone's height.
     var viewerImageWidth: CGFloat {
-        displayType.isTablet ? 600 : 262
+        displayType.thumbnailWidth(phone: 262, tablet: 600)
     }
 
     /// Rendered at twice the viewer's width.

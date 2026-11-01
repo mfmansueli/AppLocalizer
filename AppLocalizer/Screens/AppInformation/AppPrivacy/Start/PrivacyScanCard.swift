@@ -5,12 +5,14 @@
 
 import SwiftUI
 
-/// "Scan with an assistant": what the assistant reads, whether one is
-/// connected, how to connect Claude Code when none is, and the prompt to
-/// paste. AppLocalizer can't start the assistant itself.
+/// "Scan with an assistant": what the assistant reads, and Start Scan,
+/// which starts Claude Code once its helper is saved. Without it: whether
+/// an assistant is connected, how to connect Claude Code when none is, and
+/// the prompt to paste.
 struct PrivacyScanCard: View {
     let viewModel: AppPrivacyViewModel
     @Environment(MCPServerController.self) private var assistants
+    @Environment(ClaudeCodeLauncher.self) private var launcher
 
     var body: some View {
         let session = assistants.sessions.first
@@ -22,6 +24,8 @@ struct PrivacyScanCard: View {
                 Spacer(minLength: Spacing.small)
                 if let session {
                     AssistantChip(name: session.displayName)
+                } else if launches {
+                    AssistantChip(name: MCPClientKind.claudeCode.title, monogram: "CC")
                 } else {
                     AssistantChip(name: String(localized: "Not connected"), monogram: "CC")
                 }
@@ -30,6 +34,66 @@ struct PrivacyScanCard: View {
                 .font(.callout)
                 .foregroundStyle(Palette.label2)
                 .fixedSize(horizontal: false, vertical: true)
+            if launches {
+                launch
+            } else {
+                pasted(session)
+            }
+        }
+        .padding(Spacing.large)
+        .background(Palette.raised, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.separator, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("appInformation.appPrivacy.scanCard")
+    }
+
+    // MARK: - Started by AppLocalizer
+
+    /// AppLocalizer can start Claude Code, or did.
+    private var launches: Bool { launcher.canStart || launched != nil }
+
+    private var launched: ClaudeCodeRun? {
+        launcher.latestRun(appID: viewModel.app.id, purpose: .privacyScan)
+    }
+
+    private var launch: some View {
+        VStack(alignment: .leading, spacing: Spacing.medium) {
+            if let launched, launched.isActive || launched.failure != nil || !launched.denials.isEmpty {
+                ClaudeCodeRunStatusView(run: launched)
+            }
+            HStack(spacing: Spacing.small) {
+                Button("Start Scan", action: startScan)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(launched?.isActive == true || !launcher.canStart)
+                    .accessibilityIdentifier("appInformation.appPrivacy.startScan")
+                Button("Copy Prompt") { viewModel.copyPrompt() }
+                    .accessibilityIdentifier("appInformation.appPrivacy.copyPrompt")
+                Spacer(minLength: 0)
+            }
+            Text(launchNote)
+                .font(.caption)
+                .foregroundStyle(Palette.label2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var launchNote: String {
+        guard let folder = launcher.projectFolder(for: viewModel.app.id) else {
+            return String(localized: "AppLocalizer starts Claude Code in \(viewModel.appShortName)’s project folder, which it asks for once.")
+        }
+        return String(localized: "AppLocalizer starts Claude Code in \(ProjectFolderPath.abbreviated(folder)). Its answers arrive here as it proposes them.")
+    }
+
+    private func startScan() {
+        let prompt = viewModel.scanPrompt
+        let app = viewModel.app
+        Task { await launcher.start(.privacyScan, appID: app.id, appName: app.name, prompt: prompt) }
+    }
+
+    // MARK: - Pasted
+
+    private func pasted(_ session: MCPClientSession?) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.medium) {
             PrivacyAssistantStatusLine(session: session, isEnabled: assistants.isEnabled, appName: viewModel.appShortName)
             if session == nil {
                 step(String(localized: "1 · Connect Claude Code, in \(viewModel.appShortName)’s folder"))
@@ -53,12 +117,8 @@ struct PrivacyScanCard: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("appInformation.appPrivacy.waiting")
             }
+            ClaudeCodeLaunchHint(client: session?.displayName ?? MCPClientKind.claudeCode.title)
         }
-        .padding(Spacing.large)
-        .background(Palette.raised, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.separator, lineWidth: 1))
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("appInformation.appPrivacy.scanCard")
     }
 
     private func step(_ title: String) -> some View {

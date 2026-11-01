@@ -26,7 +26,7 @@ struct MeasureCaptionTool: MCPTool {
                 "slot": ["type": "integer", "description": "The slot, from 1."],
                 "headline": MCPToolDefinition.string("The headline to measure."),
                 "subhead": MCPToolDefinition.string("A subhead, for slots that show one."),
-                "displayType": MCPToolDefinition.string("iphone or ipad."),
+                "displayType": MCPToolDefinition.string("iphone, iphone_duo or ipad."),
                 "templatePatch": ["description": .string(Self.patchDescription)],
             ],
             required: ["appId", "locale", "slot", "headline"]

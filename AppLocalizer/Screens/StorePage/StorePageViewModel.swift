@@ -131,6 +131,7 @@ final class StorePageViewModel {
             content = loaded
             errorMessage = nil
             rebuild()
+            replaceStaleCreations()
             refreshSummaryIfNeeded()
             if mode == .inAppTexts { await inAppTexts.load(listing: listing, force: true) }
             performPendingIntent()
@@ -182,6 +183,15 @@ final class StorePageViewModel {
         if let locale = editorLocale, !rebuilt.contains(locale), !isPendingLanguage(locale) { editorLocale = defaultEditorLocale }
         saveTags()
         refreshSuggestions()
+    }
+
+    /// A queued new locale App Store Connect has by now goes back to review
+    /// as edits of the localization that's there, so pushing it isn't
+    /// refused as a duplicate and review shows what the texts replace.
+    private func replaceStaleCreations() {
+        guard let builder = changeBuilder, let listing,
+              !builder.replaceStaleCreations(in: queue, listing: listing).isEmpty else { return }
+        rebuild()
     }
 
     /// Shows an edited listing and brings the queue in line with it: new and

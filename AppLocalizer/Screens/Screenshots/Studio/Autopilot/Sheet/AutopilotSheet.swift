@@ -14,6 +14,7 @@ struct AutopilotSheet: View {
     /// The connected assistant that can run Xcode.
     let assistant: String?
     @Environment(WorkspaceNavigator.self) private var navigator: WorkspaceNavigator?
+    @Environment(ClaudeCodeLauncher.self) private var launcher: ClaudeCodeLauncher?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -52,6 +53,7 @@ struct AutopilotSheet: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("autopilot.sheet")
+        .onAppear { studio.launcher = launcher }
     }
 
     @ViewBuilder

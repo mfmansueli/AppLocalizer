@@ -23,10 +23,11 @@ struct StudioSetSummaryBuilderTests {
         #expect(summary.title == "Live set")
         #expect(summary.pill == "Live")
         #expect(summary.pillStyle == .neutral)
-        #expect(summary.lines.map(\.label) == ["Made", "Languages", "iPad", "Screenshots"])
+        #expect(summary.lines.map(\.label) == ["Made", "Languages", "iPad", "iPhone Duo", "Screenshots"])
         let missing = ["Arabic", "Dutch"].formatted(.list(type: .and))
         #expect(Self.value(summary, "Languages") == "9 of 11; \(missing) show English")
         #expect(Self.value(summary, "iPad") == "Own screenshots in 9 of 11 languages")
+        #expect(Self.value(summary, "iPhone Duo") == "None yet: required from April 2027")
         #expect(Self.value(summary, "Screenshots") == "5 on iPhone in English")
         // English (U.K.)'s set was uploaded by hand.
         #expect(Self.value(summary, "Made") == "By hand, in App Store Connect")

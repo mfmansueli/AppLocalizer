@@ -23,7 +23,7 @@ struct ReportCaptureProblemTool: MCPTool {
                 "appId": MCPToolDefinition.string("The app's Apple ID, bundle ID, SKU or name, from list_apps."),
                 "run": MCPToolDefinition.string("The run's ID from get_capture_plan."),
                 "screen": MCPToolDefinition.string("The screen's id from the plan."),
-                "displayType": MCPToolDefinition.string("iphone or ipad."),
+                "displayType": MCPToolDefinition.string("The plan's device: iphone, iphone_duo, ipad, watch or vision."),
                 "locale": MCPToolDefinition.string("The locale, e.g. de-DE."),
                 "what": MCPToolDefinition.string("What happened, in a sentence."),
                 "proposedFix": MCPToolDefinition.string("A command or step that would fix it."),

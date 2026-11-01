@@ -63,6 +63,13 @@ enum AppStoreConnectError: LocalizedError, Equatable {
         }
     }
 
+    /// 409 `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE`: what a `POST` would
+    /// create is there already, e.g. a localization for that locale.
+    var isDuplicate: Bool {
+        guard case let .rejected(_, code, _) = self else { return false }
+        return code == "ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE"
+    }
+
     /// Apple's code and detail as the push progress list shows them:
     /// "ENTITY_ERROR.RELATIONSHIP.INVALID — The price point is not available…".
     var pushFailureText: String {

@@ -80,6 +80,7 @@ struct StudioPreviewBuilderDevicesTests {
     @Test(arguments: [
         (ScreenshotDisplayType.watch, 0),
         (.visionPro, 1),
+        (.iPhoneDuo, 2),
         (.iPhone, 3),
     ])
     func searchShowsFewerScreenshotsOnBiggerScreens(display: ScreenshotDisplayType, shots: Int) {
@@ -92,12 +93,12 @@ struct StudioPreviewBuilderDevicesTests {
         let summary = StudioSetSummaryBuilder(
             preview: Self.builder(.iPhone), templateVersion: 4, captureCount: 30, devices: ScreenshotDisplayType.studio
         ).summary()
-        #expect(summary.lines.map(\.label) == ["Made", "Languages", "iPad", "Apple Watch", "Apple Vision Pro", "Screenshots"])
+        #expect(summary.lines.map(\.label) == ["Made", "Languages", "iPad", "iPhone Duo", "Apple Watch", "Apple Vision Pro", "Screenshots"])
         #expect(summary.lines.first { $0.label == "Apple Watch" }?.value == "2 English captures")
         #expect(summary.lines.first { $0.label == "Apple Vision Pro" }?.value == "None yet")
 
         let phoneOnly = StudioSetSummaryBuilder(preview: Self.builder(.iPhone), templateVersion: 4, captureCount: 30).summary()
-        #expect(phoneOnly.lines.map(\.label) == ["Made", "Languages", "iPad", "Screenshots"])
+        #expect(phoneOnly.lines.map(\.label) == ["Made", "Languages", "iPad", "iPhone Duo", "Screenshots"])
     }
 
     @Test func theNewCardNamesEveryDeviceInTheSet() throws {

@@ -19,7 +19,7 @@ struct ListCapturesTool: MCPTool {
         inputSchema: MCPToolDefinition.schema(
             [
                 "appId": MCPToolDefinition.string("The app's Apple ID, bundle ID, SKU or name, from list_apps."),
-                "displayType": MCPToolDefinition.string("iphone or ipad. Leave it out for both."),
+                "displayType": MCPToolDefinition.string("iphone, iphone_duo or ipad. Leave it out for all three."),
                 "locale": MCPToolDefinition.string("A locale code such as de-DE. Leave it out for every locale in scope."),
             ],
             required: ["appId"]

@@ -46,6 +46,11 @@ final class ScreenshotStudioModel {
     var uploadingProblem: AutopilotProblem?
     /// Copy Again's confirmation on Capture's waiting step.
     var didCopyPrompt = false
+    /// The Claude Code run AppLocalizer started for this Autopilot run.
+    var launchedRunID: ClaudeCodeRun.ID?
+    /// Starts Claude Code when its helper is saved; the Autopilot sheet
+    /// sets it.
+    @ObservationIgnored weak var launcher: ClaudeCodeLauncher?
     let renderQueue: ScreenshotRenderQueue
     /// Directions' layouts by direction and version, for their thumbnails.
     @ObservationIgnored var directionLayouts: [String: [ScreenshotLayout]] = [:]
@@ -139,6 +144,7 @@ final class ScreenshotStudioModel {
     static func pixelWidth(for display: ScreenshotDisplayType) -> Int {
         switch display {
         case .iPad, .visionPro: 640
+        case .iPhoneDuo: 490
         case .watch: 300
         default: 320
         }

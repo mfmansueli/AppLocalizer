@@ -16,7 +16,7 @@ struct AppStoreConnectCredentials: Codable, Hashable, Sendable {
     var keyID: String
     /// The `.p8` file's contents: a PKCS#8 PEM P-256 private key.
     var privateKeyPEM: String
-    /// What the account switcher calls this team. The API doesn't expose the
-    /// team's name, so it's whatever the person typed; nil uses a default.
+    /// What the person calls this team. Nil shows the name App Store Connect
+    /// gives it (`AppSession.teamNames`), or a default.
     var teamName: String?
 }

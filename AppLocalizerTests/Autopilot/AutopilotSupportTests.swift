@@ -53,6 +53,17 @@ struct AutopilotSupportTests {
         #expect(none == .none)
     }
 
+    @Test func liveIPhoneDuoScreenshotsMakeItADevice() {
+        let duoSet = LiveScreenshotSet(
+            id: "set|duo", locale: "en-US", displayType: .iPhoneDuo,
+            screenshots: [LiveScreenshot(id: "d1", fileName: "", checksum: "d1")]
+        )
+        let support = AutopilotSupport.make(
+            profile: nil, declined: [], storeLocales: [], hasVisionVersion: false, live: LiveScreenshots(screenshotSets: [duoSet])
+        )
+        #expect(support.devices == [.iPhoneDuo])
+    }
+
     // MARK: - Planner
 
     @Test func aFirstPlanCoversEveryDeviceAndTheNewLanguages() {

@@ -35,6 +35,7 @@ struct AssistantToolbarIndicator: View {
     var onSetUp: () -> Void = {}
     @Environment(WorkspaceNavigator.self) private var navigator
     @Environment(KeyAssistantController.self) private var keyAssistant
+    @Environment(ClaudeCodeLauncher.self) private var launcher
     @State private var isShowingPopover = false
 
     var body: some View {
@@ -42,7 +43,7 @@ struct AssistantToolbarIndicator: View {
             isShowingPopover.toggle()
         } label: {
             HStack(spacing: Spacing.xSmall) {
-                if activity.isWorking || isSuggestingEverything {
+                if activity.isWorking || isSuggestingEverything || !launcher.activeRuns.isEmpty {
                     ProgressView()
                         .controlSize(.mini)
                 } else {

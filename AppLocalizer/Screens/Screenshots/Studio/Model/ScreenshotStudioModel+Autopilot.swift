@@ -15,11 +15,36 @@ extension ScreenshotStudioModel {
         autopilot?.updatePlan(for: app.id, change)
     }
 
-    /// Start Autopilot: the prompt goes on the clipboard for the assistant.
+    /// Start Autopilot: AppLocalizer starts Claude Code when its helper is
+    /// saved; otherwise the prompt goes on the clipboard for the assistant.
     func start() {
         autopilot?.start(appID: app.id)
-        copyPrompt()
         viewedStep = nil
+        launchedRunID = nil
+        guard let launcher, launcher.canStart else {
+            copyPrompt()
+            return
+        }
+        let prompt = prompt
+        Task { await launch(prompt, with: launcher) }
+    }
+
+    /// With no folder chosen nothing starts, so it's back to the plan; if
+    /// the helper went away, it's the paste after all.
+    private func launch(_ prompt: String, with launcher: ClaudeCodeLauncher) async {
+        if let id = await launcher.start(.autopilot, appID: app.id, appName: app.name, prompt: prompt) {
+            launchedRunID = id
+        } else if launcher.canStart {
+            stop()
+        } else {
+            copyPrompt()
+        }
+    }
+
+    /// The run AppLocalizer started, while this Autopilot run lasts.
+    var launchedRun: ClaudeCodeRun? {
+        guard run != nil else { return nil }
+        return launcher?.run(launchedRunID)
     }
 
     /// Cancel on the plan: the sheet closes and the last run comes back.
@@ -28,10 +53,11 @@ extension ScreenshotStudioModel {
         isAutopilotPresented = false
     }
 
-    /// Cancel Run and Stop: back to the plan.
+    /// Cancel Run and Stop: back to the plan, and Claude Code stops too.
     func stop() {
         autopilot?.stop(appID: app.id)
         viewedStep = nil
+        if let run = launchedRun, run.isActive { launcher?.stop(run.id) }
     }
 
     // MARK: - Prompt

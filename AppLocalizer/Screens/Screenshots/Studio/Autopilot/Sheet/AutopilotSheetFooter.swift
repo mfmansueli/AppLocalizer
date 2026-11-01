@@ -32,6 +32,8 @@ struct AutopilotSheetFooter: View {
         switch run.stage {
         case .plan:
             AutopilotEstimate.summary(for: run.plan, design: studio.designProject?.kind ?? .none, kept: run.keptCaptureCount)
+        case .waiting where studio.launchedRun != nil:
+            String(localized: "Claude Code asks AppLocalizer what to do from there; the stages move on as captures arrive.")
         case .waiting:
             String(localized: "Paste the prompt into \(run.clientName(assistant: nil)). It asks AppLocalizer what to do from there.")
         case .capture:

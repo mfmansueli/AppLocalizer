@@ -23,7 +23,7 @@ struct RenderPreviewTool: MCPTool {
                 "appId": MCPToolDefinition.string("The app's Apple ID, bundle ID, SKU or name, from list_apps."),
                 "locale": MCPToolDefinition.string("A locale code such as ar-SA."),
                 "slot": ["type": "integer", "description": "The slot, from 1."],
-                "displayType": MCPToolDefinition.string("iphone or ipad."),
+                "displayType": MCPToolDefinition.string("iphone, iphone_duo or ipad."),
                 "templatePatch": ["description": .string(MeasureCaptionTool.patchDescription)],
             ],
             required: ["appId", "locale", "slot", "displayType"]

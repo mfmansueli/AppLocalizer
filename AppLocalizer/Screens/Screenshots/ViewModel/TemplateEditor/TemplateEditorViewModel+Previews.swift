@@ -67,8 +67,9 @@ extension TemplateEditorViewModel {
 
     // MARK: - Capture images
 
-    /// Twice the canvas's width: 500 px for iPhone, 940 for iPad.
-    var captureImageWidth: Int { displayType.isTablet ? 940 : 500 }
+    /// Twice the canvas's width: 500 px for iPhone, 940 for iPad, iPhone
+    /// Duo's at the iPhone's height.
+    var captureImageWidth: Int { Int(displayType.thumbnailWidth(phone: 500, tablet: 940)) }
 
     /// The capture image a preview draws, once loaded.
     func captureImage(for preview: SlotPreview) -> CGImage? {

@@ -14,6 +14,10 @@ import Observation
 /// Without Testing" keeps the token, and the Assistant button waits for
 /// the first call; "Finish Setup…" comes back to the test. With a key, the
 /// steps are `KeyAssistantSetupViewModel`'s.
+///
+/// For Claude Code, step 3 also offers to let AppLocalizer start it
+/// (`ClaudeCodeLauncher`): install the helper once and choose the project
+/// folder instead of pasting a command, and step 4 runs the test itself.
 @MainActor
 @Observable
 final class AssistantSetupViewModel {
@@ -29,6 +33,19 @@ final class AssistantSetupViewModel {
     private(set) var waitingClientID: MCPPairedClient.ID?
     /// Why the key couldn't be saved, in the footer.
     private(set) var saveError: String?
+    /// Step 3's choice for Claude Code: AppLocalizer starts it, rather than
+    /// a command run in Terminal.
+    private(set) var startsClaudeCode = true
+    /// The test run AppLocalizer started.
+    private(set) var testRunID: ClaudeCodeRun.ID?
+    /// The pending client was paired for the test run, so Cancel unpairs
+    /// it while it never connected.
+    private var pairedForTest = false
+
+    let launcher: ClaudeCodeLauncher?
+    /// The app whose project folder Claude Code starts in.
+    let appID: StoreApp.ID?
+    let appName: String
 
     /// The prompt step 4 asks to send.
     static let testPrompt = "List my apps in AppLocalizer"
@@ -37,10 +54,15 @@ final class AssistantSetupViewModel {
         assistants: MCPServerController,
         keyAssistant: KeyAssistantController,
         appName: String,
+        appID: StoreApp.ID? = nil,
+        launcher: ClaudeCodeLauncher? = nil,
         method: AssistantSetupMethod? = nil,
         step: AssistantSetupStep? = nil
     ) {
         self.assistants = assistants
+        self.launcher = launcher
+        self.appID = appID
+        self.appName = appName
         key = KeyAssistantSetupViewModel(controller: keyAssistant, appName: appName)
         editsDrafts = assistants.editsDrafts
         self.method = method ?? .assistant
@@ -74,7 +96,28 @@ final class AssistantSetupViewModel {
         return client
     }
 
-    var isConnected: Bool { connectedClient != nil }
+    var isConnected: Bool {
+        if connectedClient != nil { return true }
+        // A scene or a server that didn't note the call: the run itself
+        // says it reached AppLocalizer.
+        guard launches, let run = testRun else { return false }
+        return run.phase == .finished && run.appLocalizerCalls > 0
+    }
+
+    /// Step 3 can offer AppLocalizer starting Claude Code.
+    var offersLaunch: Bool { launcher != nil && appID != nil && kind == .claudeCode && !usesKey }
+
+    /// AppLocalizer starts Claude Code: step 3 installs the helper, step 4
+    /// runs the test.
+    var launches: Bool { offersLaunch && startsClaudeCode }
+
+    var testRun: ClaudeCodeRun? { launcher?.run(testRunID) }
+
+    /// The folder step 3 shows: the one chosen, else a suggestion.
+    var projectFolder: String? {
+        guard let launcher, let appID else { return nil }
+        return launcher.projectFolder(for: appID) ?? launcher.suggestedFolder(for: appID)
+    }
 
     /// e.g. "Claude Code".
     var clientName: String { connectedClient?.name ?? kind.title }
@@ -96,6 +139,7 @@ final class AssistantSetupViewModel {
     var canContinue: Bool {
         switch (method, step) {
         case (.assistant, .server): isServerOn
+        case (.assistant, .snippet): !launches || launcher?.canStart == true
         case (.apiKey, .server): key.keyState.isWorking
         case (.apiKey, .test): key.testState != .sending
         default: true
@@ -126,7 +170,9 @@ final class AssistantSetupViewModel {
         return switch step {
         case .assistant: String(localized: "You can change this later in Settings → AI Assistants.")
         case .server: String(localized: "Nothing is shared until an assistant connects with its token.")
+        case .snippet where launches: launcher?.canStart == true ? String(localized: "Next, AppLocalizer runs a test.") : ""
         case .snippet: hasCopiedSnippet ? String(localized: "Copied. Paste it, then continue.") : ""
+        case .test where launches: ""
         case .test: isConnected ? "" : String(localized: "Keep this open while you ask.")
         }
     }
@@ -151,6 +197,35 @@ final class AssistantSetupViewModel {
         self.kind = kind
         hasCopiedSnippet = false
         if assistants.pendingPairing != nil { assistants.choosePairingKind(kind) }
+    }
+
+    /// Step 3: AppLocalizer starts Claude Code, or a command in Terminal.
+    func chooseLaunch(_ starts: Bool) {
+        guard step == .snippet else { return }
+        startsClaudeCode = starts
+    }
+
+    /// Change…: the project folder's Open panel.
+    func chooseProjectFolder() {
+        guard let launcher, let appID else { return }
+        launcher.chooseProjectFolder(for: appID, appName: appName)
+    }
+
+    /// Step 4 with AppLocalizer starting Claude Code: the pending client is
+    /// paired, so the run acts as it, and the test prompt runs.
+    func startTest() async {
+        guard launches, let launcher, let appID, testRun?.isActive != true else { return }
+        if let pairing = assistants.pendingPairing, !pairing.isConnected {
+            assistants.finishPairingWithoutTesting()
+            waitingClientID = pairing.clientID
+            pairedForTest = true
+        }
+        testRunID = await launcher.start(.test, appID: appID, appName: appName, prompt: Self.testPrompt)
+    }
+
+    /// Try Again started a new test run.
+    func useTestRun(_ id: ClaudeCodeRun.ID) {
+        testRunID = id
     }
 
     func setServerOn(_ isOn: Bool) {
@@ -183,6 +258,12 @@ final class AssistantSetupViewModel {
             }
             step = .snippet
         case .snippet:
+            if launches, let launcher, let appID, launcher.projectFolder(for: appID) == nil,
+               let suggested = launcher.suggestedFolder(for: appID)
+            {
+                launcher.setProjectFolder(suggested, for: appID)
+            }
+            // The sheet starts the test run as step 4 opens.
             step = .test
         case .test:
             finish()
@@ -203,6 +284,11 @@ final class AssistantSetupViewModel {
     /// saved.
     func cancel() {
         guard !usesKey else { return }
+        if let run = testRun, run.isActive { launcher?.stop(run.id) }
+        if pairedForTest, !isConnected, let waitingClientID {
+            assistants.revoke(waitingClientID)
+            return
+        }
         if assistants.pendingPairing?.isConnected == true {
             assistants.finishPairing()
         } else {

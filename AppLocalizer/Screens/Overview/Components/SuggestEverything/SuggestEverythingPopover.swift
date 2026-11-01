@@ -5,11 +5,13 @@
 
 import SwiftUI
 
-/// After Suggest Everything…: the prompt is on the clipboard to paste into
-/// the assistant (or its MCP shortcut), what it covers page by page, and
-/// "Waiting for Claude Code to start…" with Cancel. Says so when a
-/// per-page Ask is still sending, since the run skips what that covers. It
-/// closes on its own when the assistant announces its plan.
+/// After Suggest Everything…: with the helper saved, AppLocalizer started
+/// Claude Code, and the popover shows what it's doing; otherwise the prompt
+/// is on the clipboard to paste into the assistant (or its MCP shortcut),
+/// with "Waiting for Claude Code to start…" and Cancel. Either way, what it
+/// covers page by page. Says so when a per-page Ask is still sending, since
+/// the run skips what that covers. It closes on its own when the assistant
+/// announces its plan.
 struct SuggestEverythingPopover: View {
     let run: SuggestionRun
     let scope: SuggestEverythingScope
@@ -17,6 +19,14 @@ struct SuggestEverythingPopover: View {
     var busyRequest: AssistantSuggestionRequest?
     let onCopyAgain: () -> Void
     let onCancel: () -> Void
+
+    @Environment(ClaudeCodeLauncher.self) private var launcher
+    @Environment(\.dismiss) private var dismiss
+
+    /// The Claude Code run AppLocalizer started for it.
+    private var launched: ClaudeCodeRun? {
+        launcher.latestRun(appID: run.appID, purpose: .suggestEverything, since: run.startedAt)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -32,6 +42,37 @@ struct SuggestEverythingPopover: View {
                     .background(Palette.warningTint, in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous))
                     .accessibilityIdentifier("everything.busy")
             }
+            if let launched {
+                ClaudeCodeRunStatusView(run: launched, onShowOutput: {
+                    dismiss()
+                    launcher.shownRunID = launched.id
+                }, onDismiss: onCancel)
+            } else {
+                copied
+            }
+            if !scope.rows.isEmpty {
+                coverage
+            }
+            Text("""
+            Fields you’ve changed are left alone, and suggestions you haven’t reviewed stay. Built-in suggestions don’t \
+            need the assistant and are already here.
+            """)
+            .font(.caption2)
+            .foregroundStyle(Palette.label2)
+            .fixedSize(horizontal: false, vertical: true)
+            if launched == nil {
+                waiting
+            }
+        }
+        .padding(Spacing.large)
+        .frame(width: 480)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("everything.popover")
+    }
+
+    /// The prompt to paste, copied.
+    private var copied: some View {
+        VStack(alignment: .leading, spacing: 10) {
             Text("\(run.client) reads the project and suggests the fields below. Paste this prompt into it; suggestions show up here as they arrive, and nothing changes until you accept them.")
                 .font(.callout)
                 .foregroundStyle(Palette.label2)
@@ -59,35 +100,25 @@ struct SuggestEverythingPopover: View {
                     .controlSize(.small)
                     .accessibilityIdentifier("everything.copyAgain")
             }
-            if !scope.rows.isEmpty {
-                coverage
-            }
-            Text("""
-            Fields you’ve changed are left alone, and suggestions you haven’t reviewed stay. Built-in suggestions don’t \
-            need the assistant and are already here.
-            """)
-            .font(.caption2)
-            .foregroundStyle(Palette.label2)
-            .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: Spacing.small) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Waiting for \(run.client) to start…")
-                    .font(.caption)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Button("Cancel", action: onCancel)
-                    .controlSize(.small)
-                    .accessibilityIdentifier("everything.cancel")
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, Spacing.small)
-            .background(Palette.fill1, in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous))
-            .accessibilityElement(children: .contain)
+            ClaudeCodeLaunchHint(client: run.client)
         }
-        .padding(Spacing.large)
-        .frame(width: 480)
+    }
+
+    private var waiting: some View {
+        HStack(spacing: Spacing.small) {
+            ProgressView()
+                .controlSize(.small)
+            Text("Waiting for \(run.client) to start…")
+                .font(.caption)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button("Cancel", action: onCancel)
+                .controlSize(.small)
+                .accessibilityIdentifier("everything.cancel")
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, Spacing.small)
+        .background(Palette.fill1, in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous))
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("everything.popover")
     }
 
     private var coverage: some View {
@@ -137,6 +168,7 @@ struct SuggestEverythingPopover: View {
     }
 }
 
+#if DEBUG
 #Preview {
     SuggestEverythingPopover(
         run: SuggestionRun(
@@ -152,4 +184,9 @@ struct SuggestEverythingPopover: View {
         onCopyAgain: {},
         onCancel: {}
     )
+    .environment(ClaudeCodeLauncher(
+        assistants: MCPServerController(server: DebugHTTPServer(), secrets: InMemorySecretStore()),
+        runner: DebugUnixScriptRunner(helperExists: false)
+    ))
 }
+#endif

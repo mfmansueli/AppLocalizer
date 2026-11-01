@@ -66,8 +66,9 @@ extension CaptionsViewModel {
         return String(localized: "\(lines) of \(fit.maxLines) · \(size) u (template \(Int(fit.fullSize.rounded())), smallest \(Int(fit.minimumSize.rounded())))")
     }
 
-    /// The preview's width: 150 pt for iPhone, 270 for iPad.
-    var previewWidth: CGFloat { screenshots.displayType.isTablet ? 270 : 150 }
+    /// The preview's width: 150 pt for iPhone, 230 for iPhone Duo, 270 for
+    /// iPad.
+    var previewWidth: CGFloat { screenshots.displayType.thumbnailWidth(phone: 150, tablet: 270) }
 
     var previewPixelWidth: Int { Int(previewWidth * 2) }
 

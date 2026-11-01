@@ -8,7 +8,9 @@ macOS app (SwiftUI, macOS 27+) for localizing apps faster through the App Store 
   Translation, an AI provider (Anthropic or OpenAI, with your own API key) or your assistant.
 - **Screenshots (⌘4):** an App Store preview of the live set or the new one, per device, language and appearance;
   one template, captions per locale, imported captures, and renders checked for fit before they're pushed. Review &
-  Push uploads them, keeps the screenshots they replace on this Mac, and Activity puts those back. **Screenshot
+  Push uploads them, keeps the screenshots they replace on this Mac, and Activity puts those back. A live screenshot
+  with no image in App Store Connect (its upload never finished, or Apple couldn't process it) has nothing to keep and
+  is replaced anyway; one still processing is left for a later push. **Screenshot
   Autopilot** plans the screens, has a connected assistant (Claude Code, Cursor or Codex) capture them in Simulator in
   every language, lets you pick the best captures, gets three design directions (from Claude Design, a Figma file, a
   brand folder or AppLocalizer's starters), then localizes and checks every caption; the new set waits in Review &
@@ -16,11 +18,19 @@ macOS app (SwiftUI, macOS 27+) for localizing apps faster through the App Store 
   with a watch app, from the build's icons; a visionOS version), the plan covers every device the app runs on, iPhone, iPad, Apple Watch (the watch app's own screens, no captions) and Apple Vision Pro (windows of the
   same moments as iPhone, under their captions, pushed to the visionOS version), and every language its string
   catalogs have, including the ones the App Store page doesn't have yet. Unless you keep your own screens, the
-  assistant reads the project and picks the screens that show the app best before capturing.
+  assistant reads the project and picks the screens that show the app best before capturing. **iPhone Duo** (the
+  foldable; Apple requires its screenshots from April 2027 for apps built with the iOS 27.1 SDK) is a third set the
+  template renders, beside iPhone and iPad, with the same slots and captions, at its inner display's 2007 × 2853
+  (`APP_IPHONE_DUO`, not in Apple's published API spec yet). Its cells stay empty, and nothing is pushed, until it has
+  captures. App Store Connect's iPhone Duo set takes both displays' sizes (2007 × 2853 and 1398 × 2034, either way
+  up), so either display's captures go in; full bleed, an outer-display capture is flagged as scaled too much, and
+  Autopilot asks for the inner display's. Autopilot offers it
+  off, and plans it once the project reports the iOS 27.1 SDK or the app has iPhone Duo captures or screenshots.
 - **App Information:** general information, the age rating, accessibility declarations and an App Privacy worksheet.
 - **AI assistants (optional):** a local MCP server lets Claude Code, Claude Desktop, Cursor or Codex read the
   listing and propose text, prices, privacy answers and screenshots. Proposals wait for review like any other change;
-  assistants can't push.
+  assistants can't push. With a small helper saved once, AppLocalizer starts the person's own Claude Code itself, so
+  nothing needs pasting.
 
 It works with a team API key. The design brief for the full feature set is in `DESIGN_PROMPT.md`.
 
@@ -31,6 +41,8 @@ It works with a team API key. The design brief for the full feature set is in `D
 3. In the app, enter the **Issuer ID** and **Key ID**, then drop in the downloaded `AuthKey_<KEYID>.p8`. The Key ID fills itself in from the file name.
 
 "Connect" signs one `GET /v1/apps?limit=1` before saving anything. The key is stored as one generic-password item in the login Keychain (`KeychainCredentialsStore`). Every request carries a freshly signed ES256 JWT (`AppStoreConnectJWT`), so the `.p8` itself never leaves the Mac. Remove the key in Settings → Account.
+
+The sidebar names the team the way its certificates do: the API has no endpoint for a team's name, but every certificate's subject carries it as the organization (`GET /v1/certificates`). A key whose role can't read certificates shows "App Store Connect team"; renaming the key in Settings → Account always wins. Each app's icon is the one App Store Connect took from its latest build (`iconAssetToken` on `GET /v1/builds`); an app with no processed build keeps its letter. A Mac build's icon comes inside the transparent margin of the Mac's icon grid, which is trimmed (`AppIconMargin`) so every icon fills its tile.
 
 ## Architecture
 
@@ -55,7 +67,7 @@ It follows Bruma's patterns (`~/Projects/ios/Bruma`).
 ### DEBUG scenes
 
 In a Debug build, launch with `-AppLocalizerDebugScene <id>` to open one state with canned data. A scene never contacts
-App Store Connect or the Keychain, and the MCP server in a scene never opens a port. Each area keeps its ids in its own
+App Store Connect or the Keychain, and the MCP server in a scene never opens a port (except `cc-live`, below). Each area keeps its ids in its own
 `*DebugScenes` type, and `Debug/DebugSceneView.swift` routes them:
 
 - **Library and overview:** `apps`, `apps-empty`, `apps-error`, `lib-loading`, `overview`, `overview-keep`.
@@ -102,6 +114,14 @@ App Store Connect or the Keychain, and the MCP server in a scene never opens a p
   (`ScreenshotsDebugScenes`). Captures, `capt*`, and assistants' proposals, `prop-*`
   (`ScreenshotsProposalsDebugScenes`). Pushing them, `shots-review`, `shots-push`, `shots-push-partial`, and
   restoring them from Activity, `shots-act` and `shots-act-restore` (`ScreenshotsPushDebugScenes`).
+- **Claude Code started by AppLocalizer:** through a pretend helper (`DebugUnixScriptRunner`), so nothing runs:
+  setup's step 3 before and after the helper is saved, `cc-setup` and `cc-setup-installed`, and its test run
+  connecting, `cc-setup-test`; Ask working, `cc-ask`; Suggest Everything working, `cc-everything`; Show Output,
+  `cc-output`; not logged in, `cc-login`; refused steps, `cc-denied`; Settings, `cc-settings`; the Assistant button
+  with two runs, `cc-toolbar`; and Ask without the helper, `cc-hint` (`ClaudeCodeDebugScenes`). `cc-live` is the
+  exception: setup's test through the helper really saved in the scripts folder, with your own Claude Code and login,
+  and the MCP server on port 47399, away from the real app's. `CC_LIVE_FOLDER` picks the folder and
+  `CC_LIVE_STOP_AFTER=<seconds>` stops the run.
 
 The UI tests run through these scenes.
 
@@ -137,9 +157,10 @@ and Accept, and accepting queues an unpushed change tagged with who suggested it
   Keychain apart from Settings → Translation's, which can use it too.
 - **The bar** above each language or page counts them, filters by source, and offers Ask (copying the prompt, since
   AppLocalizer can't start the assistant), Dismiss All, Accept All and Accept All in Every Language. Accept All asks
-  nothing first; its toast, and Edit → Undo, put everything back.
-- **Suggest Everything** (Overview's assistant and Suggestions cards, and the Assistant button) copies one prompt for
-  every field the connected assistant can suggest, listing what it covers page by page: the Store Page's fields
+  nothing first; its toast, and Edit → Undo, put everything back. With Claude Code's helper saved, Ask starts Claude
+  Code instead of copying (see [Starting Claude Code](#starting-claude-code-from-applocalizer)).
+- **Suggest Everything** (Overview's assistant and Suggestions cards, and the Assistant button) copies one prompt (or,
+  with Claude Code's helper saved, starts Claude Code with it) for every field the connected assistant can suggest, listing what it covers page by page: the Store Page's fields
   that can change, General, Age Rating, Accessibility and App Review. While the version is in review only what can
   still change is asked, and App Review says it's locked. The assistant announces its plan with
   `begin_suggestions`, and Overview then shows a card with the run's total, each page's progress and Review, and
@@ -157,6 +178,9 @@ and Accept, and accepting queues an unpushed change tagged with who suggested it
   suggesting it; Create Page, or accepting or editing one of its fields, adds it. An added language says its page is
   created when you push, with Don’t Add. Review & Push shows "Create the Polish page" under "Store Page · Polish
   (new)", with its fields under it, checked and discarded together; the page is created even before it has text.
+  When App Store Connect has the language by the time it's pushed (added there, or created along with the other
+  level), the texts go onto that localization if they overwrite nothing (`ExistingLocalizationUpdate`); otherwise,
+  and whenever the Store Page or an assistant reads it again, the queued page becomes edits of what's there.
   Overview's Suggestions card names them under New languages (their drafts aren't counted under Store Page), and the
   Store page card says "10 · 3 more in the app" or "10 · 2 new to push". Suggest Everything asks for them too.
 - Suggestions and decisions are kept on this Mac (`FileFieldSuggestionPersistence`), and DEBUG scenes keep them in
@@ -227,6 +251,34 @@ call.
     `AppLocalizer.app/Contents/MacOS/applocalizer-mcp --token <token>`. It forwards stdio to the HTTP endpoint and
     starts a new session on its own when the app relaunches.
 
+### Starting Claude Code from AppLocalizer
+
+The app is sandboxed for the Mac App Store, so it can't start other programs. Instead, the person saves a small helper
+once, from a Save panel already in `~/Library/Application Scripts/com.lima.applocalizer/` (setup's step 3, Settings →
+AI Assistants, or the "Skip the paste" hints). macOS runs scripts there outside the sandbox with `NSUserUnixTask`, so
+no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
+
+- **The helper** (`ClaudeCodeHelperScript`): `check` prints its version and where `claude` is; `run <folder> --
+  <arguments…>` runs Claude Code in the app's project folder, streams its output and prints
+  `applocalizer-helper-exit <status>` last. A line on stdin, or stdin closing, ends Claude Code with SIGTERM (a
+  script's background job ignores SIGINT); the session stays resumable. A helper older than `version` asks to be saved
+  again.
+- **Each run** (`ClaudeCodeInvocation`) is `claude -p --output-format stream-json --verbose --restricted
+  --strict-mcp-config --mcp-config … --settings … --permission-mode dontAsk --tools …`. It knows only AppLocalizer's
+  server, with a token made for that run that acts as the paired Claude Code and stops working when the run ends
+  (`MCPServerController+Launch`). The person's own settings and allow rules are ignored, and anything not allowed is
+  refused and listed. `ClaudeCodePermissions`: setup's test uses only AppLocalizer's tools; suggestions, translations
+  and the privacy scan also read the project and run read-only git; Autopilot also runs `xcodebuild`, `xcrun simctl`
+  and uploads to AppLocalizer.
+- **Where:** Ask on every suggestion bar, Suggest Everything, Screenshot Autopilot, Translate Missing, Translate
+  Captions, App Privacy's scan, and setup's test. Each app's project folder is asked for once, and Settings lists
+  them. Without the helper, every screen copies its prompt as before.
+- **Seeing it:** a status strip where it started, the Assistant button's popover, and Show Output with each step, the
+  result, refused steps and Copy Resume Command (`ClaudeCodeRun`). A failure says why (not logged in, no Claude Code,
+  folder moved, AppLocalizer unreachable) with the way through: Open in Terminal (Claude Code's `claude-cli://open`
+  link), Try Again or Choose Folder…, and Copy Prompt.
+- Claude Code uses the person's own login and plan.
+
 ## Tests
 
 - **Unit tests:** `AppLocalizerTests`, written with Swift Testing. They cover:
@@ -246,7 +298,10 @@ call.
   - Screenshot Autopilot: the run's stages, captures, problems and picks, the planner and estimate, caption checks
     and direction pills, brand folders, the MCP tools and the upload endpoint, and the App Store preview and its
     Live/New set summaries; Apple Watch and Apple Vision Pro (their screens, layouts, checks, previews and pushes to
-    the visionOS version) and the project's new languages.
+    the visionOS version), iPhone Duo (its sizes, checks, canvas, row and plan) and the project's new languages;
+  - Claude Code started by AppLocalizer: the helper's answers and exit line, each run's arguments and permissions,
+    reading the stream, failures, the Terminal link, runs through a pretend helper (folders, run tokens, Stop, Try
+    Again, login and server problems), and setup's test run.
 - **UI tests:** `AppLocalizerUITests`, written with XCUITest, run against the DEBUG scenes.
 
 Run everything with `xcodebuild -scheme AppLocalizer -destination 'platform=macOS' test`.

@@ -70,6 +70,49 @@ struct AppSessionTests {
         #expect(session.account?.keyID == TestKeys.keyID)
     }
 
+    // MARK: - The team's name from App Store Connect
+
+    @Test func anUnnamedKeyShowsTheTeamsNameFromAppStoreConnect() {
+        let unnamed = TestKeys.credentials()
+        let store = FakeCredentialsStore(stored: [unnamed])
+        let session = AppSession(store: store)
+        session.recordTeamName(" Lima Apps ", for: unnamed.keyID)
+        #expect(session.account?.name == "Lima Apps")
+        #expect(session.teamNames == [unnamed.keyID: "Lima Apps"])
+        // It isn't the person's name for the key.
+        #expect(store.stored.first?.teamName == nil)
+    }
+
+    @Test func thePersonsNameForAKeyWins() throws {
+        let session = AppSession(store: FakeCredentialsStore(stored: [northpier]))
+        session.recordTeamName("Northpier Studio Ltd", for: northpier.keyID)
+        #expect(session.account?.name == "Northpier Studio")
+        try session.rename(keyID: northpier.keyID, to: "")
+        #expect(session.account?.name == "Northpier Studio Ltd")
+    }
+
+    @Test func onlySavedKeysAndRealNamesAreRecorded() {
+        let unnamed = TestKeys.credentials()
+        let session = AppSession(store: FakeCredentialsStore(stored: [unnamed]))
+        session.recordTeamName("Lima Apps", for: "NOTSAVED00")
+        session.recordTeamName("  ", for: unnamed.keyID)
+        #expect(session.teamNames.isEmpty)
+        #expect(session.account?.name == "App Store Connect team")
+    }
+
+    @Test func theTeamsNameIsRememberedAndForgottenWithItsKey() throws {
+        let defaults = defaults()
+        let unnamed = TestKeys.credentials()
+        let store = FakeCredentialsStore(stored: [unnamed, brightline])
+        AppSession(store: store, defaults: defaults).recordTeamName("Lima Apps", for: unnamed.keyID)
+
+        let relaunched = AppSession(store: store, defaults: defaults)
+        #expect(relaunched.account?.name == "Lima Apps")
+        try relaunched.remove(keyID: unnamed.keyID)
+        #expect(relaunched.teamNames.isEmpty)
+        #expect(AppSession(store: store, defaults: defaults).teamNames.isEmpty)
+    }
+
     // MARK: - Connecting
 
     @Test func connectSavesSwitchesAndStartsTheFirstSync() throws {

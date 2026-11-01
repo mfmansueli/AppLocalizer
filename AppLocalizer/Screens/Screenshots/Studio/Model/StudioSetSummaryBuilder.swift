@@ -6,8 +6,8 @@
 import Foundation
 
 /// The Live set / New set card under the preview: how the set was made,
-/// which languages have their own, iPad, Apple Watch and Apple Vision Pro
-/// when the app runs there, and its checks.
+/// which languages have their own, iPad, iPhone Duo (required soon), Apple
+/// Watch and Apple Vision Pro when the app runs there, and its checks.
 struct StudioSetSummaryBuilder {
     var preview: StudioPreviewBuilder
     var templateVersion: Int?
@@ -38,11 +38,16 @@ struct StudioSetSummaryBuilder {
         let iPad = iPadSets.isEmpty
             ? String(localized: "None: the App Store shows the iPhone set")
             : String(localized: "Own screenshots in \(Set(iPadSets.map(\.locale)).count) of \(locales.count) languages")
+        let duoSets = live.screenshotSets.filter { $0.displayType == .iPhoneDuo && !$0.screenshots.isEmpty }
+        let duo = duoSets.isEmpty
+            ? String(localized: "None yet: required from April 2027")
+            : String(localized: "Own screenshots in \(Set(duoSets.map(\.locale)).count) of \(locales.count) languages")
         let phoneCount = live.set(locale: primary.code, displayType: .iPhone)?.screenshots.count ?? 0
         var lines: [StudioSetSummary.Line] = [
             .init(label: String(localized: "Made"), value: madeValue()),
             .init(label: String(localized: "Languages"), value: own.isEmpty ? String(localized: "None yet") : languages),
             .init(label: String(localized: "iPad"), value: iPad),
+            .init(label: String(localized: "iPhone Duo"), value: duo),
         ]
         for display in ScreenshotDisplayType.ownScreens where devices.contains(display) {
             lines.append(.init(label: display.shortTitle, value: ownLiveValue(display, locales: locales)))

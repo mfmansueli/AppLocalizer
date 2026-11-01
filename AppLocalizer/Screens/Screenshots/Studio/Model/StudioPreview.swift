@@ -26,11 +26,11 @@ struct StudioPreview: Hashable, Sendable {
     /// Pro screenshots yet…".
     var emptyText: String?
 
-    /// The first three (two on iPad, one large on Apple Vision Pro, none
-    /// for Apple Watch), as search results show them.
+    /// The first three (two on iPad and iPhone Duo, one large on Apple
+    /// Vision Pro, none for Apple Watch), as search results show them.
     var searchShots: [StudioShot] {
         switch displayType {
-        case .iPad: Array(shots.prefix(2))
+        case .iPad, .iPhoneDuo: Array(shots.prefix(2))
         case .visionPro: Array(shots.prefix(1))
         case .watch: []
         default: Array(shots.prefix(3))

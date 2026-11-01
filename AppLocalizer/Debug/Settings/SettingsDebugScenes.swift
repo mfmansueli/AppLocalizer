@@ -14,12 +14,15 @@ import SwiftUI
 /// `set-translation-rejected` saves an Anthropic key the vendor refuses. The
 /// `set-ai-*` scenes open AI Assistants with the server off, pairing,
 /// paired (`set-ai-on`, also `set-ai-connected`), a client disconnected, or
-/// the activity log; `set-ai-waiting` is the pairing sheet waiting. The
-/// main window closes, so the Settings window is the only one.
+/// the activity log; `set-ai-waiting` is the pairing sheet waiting.
+/// `cc-settings` is AI Assistants with Claude Code's helper saved
+/// (`ClaudeCodeDebugScenes`). The main window closes, so the Settings
+/// window is the only one.
 enum SettingsDebugScenes {
     static let ids = [
         "set-account", "set-pricing", "set-translation", "set-translation-rejected", "set-general",
         "set-ai-off", "set-ai-pair", "set-ai-waiting", "set-ai-on", "set-ai-connected", "set-ai-disc", "set-ai-log",
+        "cc-settings",
     ]
 
     static let brightlineIssuerID = "5e1f0a42-8d7b-4c19-9f6e-27b3d0c8e915"
@@ -41,7 +44,7 @@ enum SettingsDebugScenes {
         case "set-ai-off": .off
         // Both designs draw the sheet after Copy, waiting for the client.
         case "set-ai-pair", "set-ai-waiting": .pairing
-        case "set-ai-on", "set-ai-connected": .paired
+        case "set-ai-on", "set-ai-connected", "cc-settings": .paired
         case "set-ai-disc": .disconnected
         case "set-ai-log": .log
         default: nil

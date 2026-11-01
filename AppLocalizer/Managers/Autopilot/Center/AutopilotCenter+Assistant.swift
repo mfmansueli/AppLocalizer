@@ -180,7 +180,8 @@ extension AutopilotCenter {
 
     /// The size a capture of `display` must have, either way up. Apple
     /// Watch takes an Ultra's screen; an Apple Vision Pro capture is the
-    /// app's window, any shape at least 600 px on its short side.
+    /// app's window, any shape at least 600 px on its short side; iPhone
+    /// Duo's is its inner display's, the size the template renders at.
     static func checkSize(_ size: PixelSize, for display: ScreenshotDisplayType) throws {
         switch display {
         case .watch:
@@ -189,6 +190,11 @@ extension AutopilotCenter {
         case .visionPro:
             guard min(size.width, size.height) < 600 else { return }
             throw AutopilotError(String(localized: "A \(size.title) capture is too small for Apple Vision Pro. Capture the app’s window at its default size."))
+        case .iPhoneDuo where CaptureSizeRules.isDuoOuterDisplay(size):
+            throw AutopilotError(String(localized: """
+            A \(size.title) capture is iPhone Duo’s outer display. The template renders at the inner display’s \
+            \(display.portraitPixelSize.title): capture the inner one, unfolded (xcrun simctl io booted screenshot --display=<its ID>).
+            """))
         default:
             break
         }

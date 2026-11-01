@@ -42,9 +42,10 @@ enum AutopilotPlanner {
         }
         let includedNew = previous?.plan.newLocaleCodes == nil || plan.includesNewLanguages
         // A device the app gained since the last run joins, unless the
-        // person turned it off.
+        // person turned it off: iPhone Duo once the project builds with
+        // the SDK that requires it.
         let leftOut = plan.leftOutDevices ?? []
-        for display in ScreenshotDisplayType.ownScreens
+        for display in [ScreenshotDisplayType.iPhoneDuo] + ScreenshotDisplayType.ownScreens
             where support.devices.contains(display) && !plan.displayTypes.contains(display) && !leftOut.contains(display)
         {
             plan.setPlans(display, true)
@@ -59,12 +60,14 @@ enum AutopilotPlanner {
         return plan
     }
 
-    /// iPhone, then iPad, Apple Watch and Apple Vision Pro when the app
-    /// runs there.
+    /// iPhone, then iPhone Duo once the app has its screenshots or
+    /// captures (Apple doesn't require it yet), iPad, Apple Watch and
+    /// Apple Vision Pro when the app runs there.
     static func devices(document: ScreenshotsDocument?, live: LiveScreenshots, support: AutopilotSupport) -> [ScreenshotDisplayType] {
         ScreenshotDisplayType.studio.filter { display in
             switch display {
             case .iPhone: true
+            case .iPhoneDuo: support.devices.contains(.iPhoneDuo) || hasDuo(document: document, live: live)
             case .iPad: support.devices.contains(.iPad) || hasIPad(document: document, live: live)
             default: support.devices.contains(display)
             }
@@ -87,6 +90,12 @@ enum AutopilotPlanner {
             let caption = document.captions.caption(locale: primary, slot: slot)?.headline ?? ""
             return AutopilotScreen(id: AutopilotScreen.identifier(for: name) + "-\(slot + 1)", name: name, caption: caption)
         }
+    }
+
+    /// The app shows iPhone Duo screenshots or has iPhone Duo captures.
+    static func hasDuo(document: ScreenshotsDocument?, live: LiveScreenshots) -> Bool {
+        live.screenshotSets.contains { $0.displayType == .iPhoneDuo && !$0.screenshots.isEmpty }
+            || document?.captures.captures.contains { $0.displayType == .iPhoneDuo } == true
     }
 
     /// The app shows iPad screenshots or has iPad captures. With nothing to

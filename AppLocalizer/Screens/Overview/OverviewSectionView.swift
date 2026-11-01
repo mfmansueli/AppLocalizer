@@ -9,9 +9,10 @@ import SwiftUI
 /// The landing page for the selected app (⌘1): a header with quick actions
 /// and summary cards for subscriptions, territory prices, the pricing mode,
 /// the store page, App Information, pending changes and the last push. It
-/// runs Suggest Everything: Suggest Everything… copies the prompt and waits
-/// in a popover, and once the assistant announces its plan the progress
-/// card takes the assistant card's place until Done.
+/// runs Suggest Everything: Suggest Everything… starts Claude Code when its
+/// helper is saved (else copies the prompt) and waits in a popover, and
+/// once the assistant announces its plan the progress card takes the
+/// assistant card's place until Done, with the run's strip under it.
 struct OverviewSectionView: View {
     let app: StoreApp
 
@@ -23,6 +24,7 @@ struct OverviewSectionView: View {
     @Environment(AppPreferences.self) private var preferences
     @Environment(MCPServerController.self) private var assistants
     @Environment(FieldSuggestionStore.self) private var suggestions
+    @Environment(ClaudeCodeLauncher.self) private var launcher
     /// What Suggest Everything covers, read once an assistant is connected.
     @State private var scope: SuggestEverythingScope?
     @State private var showsEverythingPopover = false
@@ -68,6 +70,7 @@ struct OverviewSectionView: View {
         .onChange(of: suggestions.run?.phase) {
             if suggestions.run?.phase != .waiting { showsEverythingPopover = false }
         }
+        .onChange(of: launched?.phase) { launchedRunChanged() }
         #if DEBUG
         .task {
             if Self.debugRequestsSuggestEverything {
@@ -94,11 +97,17 @@ struct OverviewSectionView: View {
                 run: run,
                 toReviewCount: suggestions.toReview(in: run).count,
                 onReview: review,
-                onStop: { suggestions.stopRun() },
+                onStop: {
+                    suggestions.stopRun()
+                    if let launched, launched.isActive { launcher.stop(launched.id) }
+                },
                 onDone: { suggestions.dismissRun() },
                 onAcceptAll: { acceptAll(run) }
             )
-        } else if status.isConnected, let client = assistants.leadingClient {
+            if let launched, launched.isActive || launched.failure != nil || !launched.denials.isEmpty {
+                ClaudeCodeRunStatusView(run: launched)
+            }
+        } else if status.isConnected, let client = assistants.assistantClient {
             AssistantConnectedCard(
                 client: client,
                 editsDrafts: assistants.editsDrafts,
@@ -115,6 +124,7 @@ struct OverviewSectionView: View {
                             onCancel: {
                                 showsEverythingPopover = false
                                 suggestions.dismissRun()
+                                if let launched, launched.isActive { launcher.stop(launched.id) }
                             }
                         )
                     }
@@ -263,14 +273,57 @@ struct OverviewSectionView: View {
             return
         }
         if let run, run.phase == .waiting, run.client == client {
-            Self.copy(run.prompt)
+            // Started already: the popover shows that run.
+            if launched == nil { Self.copy(run.prompt) }
         } else {
             let prompt = currentScope.prompt
-            Self.copy(prompt)
             suggestions.beginRun(appID: app.id, client: client, prompt: prompt)
+            if launcher.canStart {
+                Task { await launch(prompt) }
+            } else {
+                Self.copy(prompt)
+            }
         }
         showsEverythingPopover = true
         Task { await loadScope() }
+    }
+
+    /// The Claude Code run started for the current Suggest Everything.
+    private var launched: ClaudeCodeRun? {
+        guard let run = suggestions.run, run.appID == app.id else { return nil }
+        return launcher.latestRun(appID: app.id, purpose: .suggestEverything, since: run.startedAt)
+    }
+
+    /// Starts Claude Code with `prompt`. With no folder chosen nothing was
+    /// asked; if the helper went away, it's the paste after all.
+    private func launch(_ prompt: String) async {
+        guard await launcher.start(.suggestEverything, appID: app.id, appName: app.name, prompt: prompt) == nil else { return }
+        if launcher.canStart {
+            showsEverythingPopover = false
+            suggestions.dismissRun()
+        } else {
+            Self.copy(prompt)
+        }
+    }
+
+    /// The run ended: one that never announced a plan goes away (a failure
+    /// or refused steps stay for the popover to explain); one that did is
+    /// over with what arrived.
+    private func launchedRunChanged() {
+        guard let run = suggestions.run, run.appID == app.id, let launched else { return }
+        switch (launched.phase, run.phase) {
+        case (.finished, .waiting) where launched.denials.isEmpty:
+            suggestions.dismissRun()
+            navigator.toast = WorkspaceToast(message: ToastMessage(text: String(localized: "\(run.client) finished without sending suggestions.")))
+        case (.stopped, .waiting):
+            suggestions.dismissRun()
+        case (.finished, .running):
+            suggestions.endRun(id: run.id)
+        case (.stopped, .running):
+            suggestions.stopRun()
+        default:
+            break
+        }
     }
 
     /// Review on a row of the progress card: the first language, page or

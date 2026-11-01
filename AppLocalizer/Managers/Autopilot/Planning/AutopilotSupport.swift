@@ -29,7 +29,7 @@ struct AutopilotSupport: Hashable, Sendable {
         if hasVisionVersion { devices.insert(.visionPro) }
         if hasWatchApp { devices.insert(.watch) }
         let liveDevices = Set(live.screenshotSets.filter { !$0.screenshots.isEmpty }.map(\.displayType))
-        for display in [ScreenshotDisplayType.watch, .visionPro] where liveDevices.contains(display) {
+        for display in [ScreenshotDisplayType.iPhoneDuo, .watch, .visionPro] where liveDevices.contains(display) {
             devices.insert(display)
         }
         let new = (profile?.languagesMissing(from: storeLocales) ?? []).compactMap(\.storeLocale?.code).filter { !declined.contains($0) }

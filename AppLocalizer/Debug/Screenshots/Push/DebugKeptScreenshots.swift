@@ -41,7 +41,7 @@ final class DebugKeptScreenshots: ScreenshotBackupStore {
         isFilled = true
         let data = ScreenshotsPushDebugData.self
         for locale in data.keptLocales {
-            for display in ScreenshotDisplayType.rendered {
+            for display in ScreenshotsSampleData.liveDisplays {
                 for slot in ScreenshotsSampleData.slotNames.indices {
                     let width = display.isTablet ? 480 : 300
                     guard let (image, size) = images.legacyImage(locale: locale, displayType: display, slot: slot, pixelWidth: width),

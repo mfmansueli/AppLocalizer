@@ -13,6 +13,8 @@ struct AppScreenshotAttributes: Decodable, Sendable {
     /// MD5 of the uploaded file.
     var sourceFileChecksum: String?
     var imageAsset: ImageAsset?
+    /// Where the upload is: still processing, failed, or done.
+    var assetDeliveryState: ScreenshotDeliveryState?
 
     /// The processed image: a URL template and its pixel size.
     struct ImageAsset: Decodable, Sendable {

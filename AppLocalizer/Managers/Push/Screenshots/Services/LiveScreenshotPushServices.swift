@@ -25,8 +25,9 @@ struct LiveScreenshotPushServices: ScreenshotPushServices {
     }
 
     func liveImageData(_ screenshot: LiveScreenshot) async throws -> Data {
+        if let missing = screenshot.missingImage { throw missing }
         let width = screenshot.pixelSize?.width ?? ScreenshotDisplayType.iPhone.portraitPixelSize.width
-        guard let url = screenshot.imageURL(width: width) else { throw AppStoreConnectError.unexpectedPayload }
+        guard let url = screenshot.imageURL(width: width) else { throw LiveScreenshotImageError.noImage }
         return try await client.download(url)
     }
 }

@@ -16,7 +16,7 @@ struct ScreenshotRestoreStage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.medium) {
             Picker("Display type", selection: $displayType) {
-                ForEach(ScreenshotDisplayType.studio.filter { $0.isRendered || !choice.images(on: $0).isEmpty }) { display in
+                ForEach(ScreenshotDisplayType.studio.filter { ($0.isRendered && $0.upcomingRequirement == nil) || !choice.images(on: $0).isEmpty }) { display in
                     Text(display.title).tag(display)
                 }
             }
@@ -67,7 +67,7 @@ struct ScreenshotRestoreStage: View {
         .accessibilityIdentifier("restore.stage")
     }
 
-    private var width: CGFloat { displayType.isTablet ? 120 : 70 }
+    private var width: CGFloat { displayType.thumbnailWidth(phone: 70, tablet: 120) }
 
     private func aspect(_ image: ScreenshotBackupImage) -> CGFloat {
         let size = image.pixelSize ?? image.displayType.portraitPixelSize

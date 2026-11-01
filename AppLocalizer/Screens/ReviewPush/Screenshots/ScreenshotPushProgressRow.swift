@@ -17,8 +17,12 @@ struct ScreenshotPushProgressRow: View {
         HStack(spacing: 10) {
             statusIcon
                 .frame(width: 18)
-            ScreenshotThumbnail(image: image, width: item.plan.cell.displayType.isTablet ? 24 : 18, aspect: ScreenshotThumbnail.aspect(of: item.plan))
-                .frame(width: 24)
+            ScreenshotThumbnail(
+                image: image,
+                width: min(24, item.plan.cell.displayType.thumbnailWidth(phone: 18, tablet: 24)),
+                aspect: ScreenshotThumbnail.aspect(of: item.plan)
+            )
+            .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
                     .lineLimit(1)

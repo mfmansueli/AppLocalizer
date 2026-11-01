@@ -24,7 +24,7 @@ struct DeviceScreensRenderingTests {
 
     @Test func theDocumentNamesEachDevicesScreens() {
         let document = Self.document
-        #expect(document.displays == [.iPhone, .iPad, .watch, .visionPro])
+        #expect(document.displays == [.iPhone, .iPhoneDuo, .iPad, .watch, .visionPro])
         #expect(document.slotCount(on: .watch) == 4)
         #expect(document.slotName(3, on: .watch) == "Watch face")
         #expect(document.captionSlot(3, on: .watch) == nil)
@@ -37,14 +37,14 @@ struct DeviceScreensRenderingTests {
         cleared.setScreens([], on: .watch)
         cleared.setScreens([], on: .visionPro)
         #expect(cleared.deviceScreens == nil)
-        #expect(cleared.displays == [.iPhone, .iPad])
+        #expect(cleared.displays == [.iPhone, .iPhoneDuo, .iPad])
     }
 
     // MARK: - Matrix
 
     @Test func eachDeviceHasARowOfItsOwnSlots() throws {
         let matrix = Self.matrix
-        #expect(matrix.displays == [.iPhone, .iPad, .watch, .visionPro])
+        #expect(matrix.displays == [.iPhone, .iPhoneDuo, .iPad, .watch, .visionPro])
         #expect(matrix.slotCount(on: .watch) == 4)
         #expect(matrix.row(locale: "de-DE", displayType: .watch).count == 4)
         #expect(matrix.row(locale: "de-DE", displayType: .visionPro).count == 3)

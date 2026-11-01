@@ -45,6 +45,7 @@ extension TemplateSchema {
         "name": String(localized: "Name"),
         "canvas.iphone": String(localized: "iPhone orientation"),
         "canvas.ipad": String(localized: "iPad orientation"),
+        "canvas.duo": String(localized: "iPhone Duo orientation"),
         "bg.kind": String(localized: "Background"),
         "bg.angle": String(localized: "Gradient angle"),
         "bg.stops": String(localized: "Background colors"),

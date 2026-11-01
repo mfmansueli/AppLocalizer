@@ -51,6 +51,9 @@ final class MCPServerController {
     /// An API key set up for suggestions: with no assistant connected, the
     /// status is Ready and the suggestion bars offer Generate Suggestions….
     var keyAssistant: KeyAssistantController?
+    /// Starts Claude Code from AppLocalizer once its helper is installed;
+    /// Claude Code then counts as connected, since it's a click away.
+    weak var launcher: ClaudeCodeLauncher?
 
     let port: UInt16
     static let logLimit = 200
@@ -69,6 +72,10 @@ final class MCPServerController {
     let bridgePath: String
     /// Each paired client's token, read from the Keychain once.
     var tokens: [MCPPairedClient.ID: String] = [:]
+    /// Tokens for the runs AppLocalizer started itself, token → the client
+    /// they act as; in memory only, each dropped when its run ends
+    /// (`MCPServerController+Launch`).
+    var runTokens: [String: MCPPairedClient.ID] = [:]
     /// Clients that connected since AppLocalizer opened, so a quiet one reads
     /// "Disconnected" rather than "not connected since".
     var seenThisLaunch: Set<MCPPairedClient.ID> = []

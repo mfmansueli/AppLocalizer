@@ -34,8 +34,8 @@ extension ScreenshotStudioModel {
         return parts.isEmpty ? nil : parts.joined(separator: String(localized: ", and "))
     }
 
-    /// iPhone and iPad, then Apple Watch and Apple Vision Pro when the app
-    /// runs there or the plan has them.
+    /// iPhone, iPhone Duo and iPad, then Apple Watch and Apple Vision Pro
+    /// when the app runs there or the plan has them.
     func planDevices(_ plan: AutopilotPlan) -> [ScreenshotDisplayType] {
         ScreenshotDisplayType.studio.filter { $0.isRendered || devices.contains($0) || plan.displayTypes.contains($0) }
     }
@@ -55,7 +55,8 @@ extension ScreenshotStudioModel {
         return nil
     }
 
-    /// "2752 × 2064 · required: Lumen runs on iPad", and when it's off and
+    /// "2752 × 2064 · required: Lumen runs on iPad", iPhone Duo's inner
+    /// display and when Apple starts requiring it, and when it's off and
     /// required, that its screenshots have to be uploaded by hand.
     func planDeviceDetail(_ display: ScreenshotDisplayType, plan: AutopilotPlan) -> String {
         // Autopilot captures iPad on its side.
@@ -63,6 +64,8 @@ extension ScreenshotStudioModel {
         switch display {
         case .iPad where requiredReason(.iPad) == nil:
             parts.append(String(localized: "landscape"))
+        case .iPhoneDuo:
+            parts.append(String(localized: "inner display"))
         case .watch:
             parts.append(String(localized: "Ultra 3"))
         default:
@@ -70,6 +73,8 @@ extension ScreenshotStudioModel {
         }
         if let reason = requiredReason(display) {
             parts.append(display == .iPhone ? String(localized: "required \(reason)") : String(localized: "required: \(reason)"))
+        } else if display.upcomingRequirement != nil {
+            parts.append(String(localized: "required from April 2027 for apps built with the iOS 27.1 SDK"))
         }
         var detail = parts.joined(separator: " · ")
         if display != .iPhone, !plan.displayTypes.contains(display), requiredReason(display) != nil {

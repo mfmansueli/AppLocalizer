@@ -9,14 +9,17 @@ import SwiftUI
 /// "Translate missing captions": the provider, Settings' tone and terms
 /// not to translate (read-only here), and the locales with how many empty
 /// captions each. Translate closes the sheet and runs the batch in the
-/// progress banner. With the assistant as provider, it hands over a prompt
-/// and waits for proposals instead.
+/// progress banner. With the assistant as provider, AppLocalizer starts
+/// Claude Code when its helper is saved, and otherwise hands over a prompt
+/// and waits for proposals.
 struct TranslateCaptionsSheet: View {
     let viewModel: ScreenshotsViewModel
     let translation: CaptionTranslationViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(MCPServerController.self) private var assistants
     @Environment(TranslationPreferences.self) private var preferences
+    @Environment(ClaudeCodeLauncher.self) private var launcher
+    @State private var launchedRunID: ClaudeCodeRun.ID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -90,7 +93,19 @@ struct TranslateCaptionsSheet: View {
     /// The assistant's prompt, or what the provider needs first.
     @ViewBuilder
     private var setup: some View {
-        if translation.provider == .assistant, assistants.isRunning {
+        if translation.provider == .assistant, launcher.canStart || launched != nil {
+            ClaudeCodeLaunchPanel(
+                run: launched,
+                appID: viewModel.app.id,
+                appName: viewModel.app.name,
+                explanation: String(localized: """
+                Claude Code translates the empty captions. They appear in the table as proposals, tagged with who proposed \
+                them, and wait for you in Review & Push.
+                """),
+                onRetried: { launchedRunID = $0 },
+                identifierPrefix: "screenshots.captions.translate"
+            )
+        } else if translation.provider == .assistant, assistants.isRunning {
             AssistantTranslatePanel(
                 slashCommand: assistantPrompt.slashCommand,
                 request: assistantPrompt.text,
@@ -141,7 +156,20 @@ struct TranslateCaptionsSheet: View {
             Spacer()
             Button("Cancel", role: .cancel) { dismiss() }
                 .keyboardShortcut(.cancelAction)
-            if translation.provider == .assistant {
+            if translation.provider == .assistant, launcher.canStart || launched != nil {
+                Button("Copy Prompt", action: copyAssistantPrompt)
+                    .accessibilityIdentifier("screenshots.captions.translate.copyPrompt")
+                if launched?.isActive == true {
+                    Button("Done") { dismiss() }
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                } else {
+                    Button("Start Claude Code", action: startClaudeCode)
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                        .accessibilityIdentifier("screenshots.captions.translate.startClaudeCode")
+                }
+            } else if translation.provider == .assistant {
                 Button(translation.isAssistantPromptCopied ? "Waiting for \(assistantName)…" : "Copy Prompt", action: copyAssistantPrompt)
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
@@ -177,6 +205,17 @@ struct TranslateCaptionsSheet: View {
 
     private var assistantName: String {
         assistantClient?.name ?? String(localized: "your assistant")
+    }
+
+    /// The run AppLocalizer started from this sheet.
+    private var launched: ClaudeCodeRun? { launcher.run(launchedRunID) }
+
+    /// Start Claude Code: the request in words, in the app's project folder.
+    private func startClaudeCode() {
+        let prompt = assistantPrompt.text
+        Task {
+            launchedRunID = await launcher.start(.captions, appID: viewModel.app.id, appName: viewModel.app.name, prompt: prompt)
+        }
     }
 
     /// Claude Code takes the slash command; other clients the request in

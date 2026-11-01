@@ -9,9 +9,10 @@ import SwiftUI
 /// What sits above the fields of a Store Page language or an App
 /// Information page: the suggestion bar, the banner while an assistant
 /// sends suggestions, the card offering to set one up, and "No suggestions
-/// for …". It runs "Ask Claude Code…" (copying the prompt, since
-/// AppLocalizer can't start the assistant) and ends the request with a
-/// toast once the suggestions stop coming. With an API key it runs
+/// for …". It runs "Ask Claude Code…": AppLocalizer starts Claude Code
+/// itself once its helper is saved (`ClaudeCodeLauncher`), and otherwise
+/// copies the prompt to paste. It ends the request with a toast once the
+/// suggestions stop coming, or the run ends. With an API key it runs
 /// Generate Suggestions… where there's a `generator`, and says what only an
 /// assistant that reads the code can answer. While Suggest Everything
 /// receives, its banner shows how much arrived here and Ask is hidden.
@@ -39,6 +40,8 @@ struct SuggestionsPanel: View {
     /// With an API key: how many answers here only an assistant that reads
     /// `appName`'s code can suggest.
     var codeOnlyCount = 0
+    /// Names the run when AppLocalizer starts Claude Code, and its project
+    /// folder's Open panel.
     var appName = ""
     var onDismissAll: () -> Void = {}
     var onAcceptAll: () -> Void = {}
@@ -51,6 +54,7 @@ struct SuggestionsPanel: View {
     @Environment(FieldSuggestionStore.self) private var suggestions
     @Environment(WorkspaceNavigator.self) private var navigator
     @Environment(KeyAssistantController.self) private var keyAssistant
+    @Environment(ClaudeCodeLauncher.self) private var launcher
     @State private var showsAskPopover = false
     @State private var generate: GenerateSuggestionsModel?
     @State private var generation: Task<Void, Never>?
@@ -108,6 +112,7 @@ struct SuggestionsPanel: View {
         .onChange(of: assistants.isWorking) {
             if !assistants.isWorking, streamingRequest != nil { finishRequest() }
         }
+        .onChange(of: askRun?.phase) { runChanged() }
         .task(id: requestsAsk) {
             guard requestsAsk else { return }
             requestsAsk = false
@@ -151,11 +156,49 @@ struct SuggestionsPanel: View {
         request?.isReceiving == true ? request : nil
     }
 
+    private var askPurpose: ClaudeCodeRunPurpose { .ask(area: area.title) }
+
+    /// The run AppLocalizer started for the open request.
+    private var askRun: ClaudeCodeRun? {
+        guard let request else { return nil }
+        return launcher.latestRun(appID: appID, purpose: askPurpose, since: request.startedAt)
+    }
+
+    /// Starts Claude Code when the helper is saved, else copies the prompt.
     private func ask() {
         guard case let .connected(client) = assistants.assistantStatus else { return }
+        // Already asked and still going: the popover shows that run.
+        if askRun?.isActive == true { return }
         let text = prompt()
-        Self.copy(text)
         suggestions.beginRequest(appID: appID, area: area, client: client, prompt: text)
+        guard launcher.canStart else {
+            Self.copy(text)
+            return
+        }
+        Task {
+            guard await launcher.start(askPurpose, appID: appID, appName: appName, prompt: text) == nil else { return }
+            // No folder chosen, so nothing was asked; or the helper went
+            // away, so it's the paste after all.
+            if launcher.canStart { suggestions.cancelRequest() } else { Self.copy(text) }
+        }
+    }
+
+    /// The run ended: what it sent ends the request with the toast; a
+    /// failure, or refused steps with nothing sent, stays for the popover
+    /// to explain.
+    private func runChanged() {
+        guard let request, let run = askRun else { return }
+        switch run.phase {
+        case .finished where request.isReceiving, .stopped where request.isReceiving:
+            finishRequest()
+        case .finished where run.denials.isEmpty:
+            suggestions.cancelRequest()
+            onRequestFinished(String(localized: "\(request.client) finished without sending suggestions."))
+        case .stopped:
+            suggestions.cancelRequest()
+        case .starting, .working, .failed, .finished:
+            break
+        }
     }
 
     /// Opens Generate Suggestions… on what will be sent; one already

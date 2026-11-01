@@ -11,6 +11,8 @@ import SwiftUI
 /// - `apps`, `apps-empty`, `apps-error`, `lib-loading`: the main window with
 ///   the sample apps (Lumen Journal selected), none, a failed load, or the
 ///   first sync still running.
+/// - `apps-unnamed`: the sample apps under a key the person hasn't named;
+///   App Store Connect calls its team Northpier Studio.
 /// - `overview`, `overview-keep`: Lumen Journal's overview, or Tempo
 ///   Metronome's with Keep my prices.
 ///
@@ -20,7 +22,7 @@ import SwiftUI
 /// `ScreenshotsDebugScenes`, `ScreenshotsPushDebugScenes`,
 /// `ScreenshotsProposalsDebugScenes`, `AssistantDebugScenes`,
 /// `SuggestionsDebugScenes`, `AssistDebugScenes`, `EverythingDebugScenes`,
-/// `StudioDebugScenes`).
+/// `NewLanguagesDebugScenes`, `StudioDebugScenes`, `ClaudeCodeDebugScenes`).
 struct DebugSceneView: View {
     let id: String
 
@@ -36,6 +38,8 @@ struct DebugSceneView: View {
             DebugMainScene(services: services { $0.appList = DebugAppListServices(error: .unauthorized) }, selectedAppID: nil)
         case "lib-loading":
             DebugMainScene(services: services { $0.appList = DebugAppListServices(delay: .seconds(3600)) })
+        case "apps-unnamed":
+            DebugMainScene(services: services { $0.appList = DebugAppListServices(teamName: DebugFixtures.northpier.name) }, unnamedKey: true)
         default:
             if let scene = Self.scene(for: id) {
                 scene
@@ -63,6 +67,7 @@ struct DebugSceneView: View {
             EverythingDebugScenes.view(for:),
             NewLanguagesDebugScenes.view(for:),
             StudioDebugScenes.view(for:),
+            ClaudeCodeDebugScenes.view(for:),
         ]
         return areas.lazy.compactMap { $0(id) }.first
     }

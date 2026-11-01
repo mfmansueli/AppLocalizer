@@ -67,6 +67,7 @@ extension MCPServerController {
             try? secrets.setSecret(nil, named: client.secretName)
         }
         tokens[clientID] = nil
+        runTokens = runTokens.filter { $0.value != clientID }
         seenThisLaunch.remove(clientID)
         pairedClients.removeAll { $0.id == clientID }
         savePairedClients()
@@ -90,6 +91,11 @@ extension MCPServerController {
         guard let credential = MCPAccessToken.bearer(in: header) else { return nil }
         if let match = tokens.first(where: { MCPAccessToken.matches(credential, token: $0.value) }) {
             return match.key
+        }
+        if let match = runTokens.first(where: { MCPAccessToken.matches(credential, token: $0.key) }),
+           pairedClients.contains(where: { $0.id == match.value })
+        {
+            return match.value
         }
         guard let pairing = pendingPairing, !pairing.isConnected, MCPAccessToken.matches(credential, token: pairing.token) else {
             return nil

@@ -74,6 +74,46 @@ struct AutopilotPlannerTests {
         #expect(!AutopilotPlanner.hasIPad(document: nil, live: phoneSets))
     }
 
+    @Test func iPhoneDuoIsPlannedOnceTheAppHasItsScreenshotsOrTheProjectReportsIt() {
+        let live = ScreenshotsDebugDocuments.live
+        #expect(!AutopilotPlanner.hasDuo(document: standard, live: live))
+        #expect(!AutopilotPlanner.devices(document: standard, live: live, support: .none).contains(.iPhoneDuo))
+
+        var withDuo = standard
+        withDuo.captures.add(ScreenshotsSampleData.capture(locale: "en-US", display: .iPhoneDuo, slot: 0))
+        #expect(AutopilotPlanner.hasDuo(document: withDuo, live: LiveScreenshots()))
+        #expect(AutopilotPlanner.devices(document: withDuo, live: LiveScreenshots(), support: .none) == [.iPhone, .iPhoneDuo, .iPad])
+
+        let shot = LiveScreenshot(id: "duo-1", fileName: "", checksum: "duo-1")
+        let duoSet = LiveScreenshotSet(id: "set|en-US|duo", locale: "en-US", displayType: .iPhoneDuo, screenshots: [shot])
+        #expect(AutopilotPlanner.hasDuo(document: nil, live: LiveScreenshots(screenshotSets: [duoSet])))
+        let emptySet = LiveScreenshotSet(id: "set|en-US|duo", locale: "en-US", displayType: .iPhoneDuo, screenshots: [])
+        #expect(!AutopilotPlanner.hasDuo(document: nil, live: LiveScreenshots(screenshotSets: [emptySet])))
+
+        let reported = AutopilotSupport(devices: [.iPhoneDuo])
+        #expect(AutopilotPlanner.devices(document: standard, live: live, support: reported) == [.iPhone, .iPhoneDuo, .iPad])
+    }
+
+    @Test func aReportedIPhoneDuoJoinsTheLastPlanUnlessItWasTurnedOff() {
+        let previous = StudioDebugRuns.run(.ready)
+        #expect(!previous.plan.displayTypes.contains(.iPhoneDuo))
+        let reported = AutopilotSupport(devices: [.iPhoneDuo])
+        let plan = AutopilotPlanner.plan(
+            document: standard, live: ScreenshotsDebugDocuments.live, primaryLocale: .englishUS,
+            localeCodes: ["en-US"], previous: previous, support: reported
+        )
+        #expect(plan.displayTypes == [.iPhone, .iPhoneDuo, .iPad])
+
+        var turnedOff = previous
+        turnedOff.plan.setPlans(.iPhoneDuo, true)
+        turnedOff.plan.setPlans(.iPhoneDuo, false)
+        let again = AutopilotPlanner.plan(
+            document: standard, live: ScreenshotsDebugDocuments.live, primaryLocale: .englishUS,
+            localeCodes: ["en-US"], previous: turnedOff, support: reported
+        )
+        #expect(!again.displayTypes.contains(.iPhoneDuo))
+    }
+
     // MARK: - Estimate
 
     @Test(arguments: [(0, 1), (1, 1), (8, 1), (40, 5), (120, 15)])

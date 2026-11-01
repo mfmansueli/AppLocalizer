@@ -8,7 +8,8 @@ import SwiftUI
 /// Settings → AI Assistants: the local MCP server's switch and status, what
 /// a paired assistant can and can't do, the paired assistants with Revoke
 /// and "Pair Assistant…", what they may propose, the prompts they offer,
-/// and the activity log with the reason for every refused call; then the
+/// and the activity log with the reason for every refused call; Claude
+/// Code started by AppLocalizer (its helper and project folders); then the
 /// API key, which can be set up as well as an assistant.
 struct AssistantsSettingsTab: View {
     @Environment(MCPServerController.self) private var server
@@ -42,6 +43,8 @@ struct AssistantsSettingsTab: View {
                     permissionsSection
                     promptsSection
                 }
+                ClaudeCodeLauncherSection()
+                    .id(Self.launcherID)
                 KeyAssistantSettingsSection()
                 if server.isEnabled {
                     logSection
@@ -50,6 +53,9 @@ struct AssistantsSettingsTab: View {
             .formStyle(.grouped)
             .task {
                 if scrollsToLog { proxy.scrollTo(Self.logID, anchor: .top) }
+                #if DEBUG
+                if Self.debugScrollsToLauncher { proxy.scrollTo(Self.launcherID, anchor: .top) }
+                #endif
             }
         }
         .sheet(isPresented: $isPairing, onDismiss: server.cancelPairing) {
@@ -64,6 +70,12 @@ struct AssistantsSettingsTab: View {
     }
 
     private static let logID = "settings.ai.log"
+    private static let launcherID = "settings.ai.launcher"
+
+    #if DEBUG
+    /// `cc-settings` opens on Claude Code's helper and folders.
+    static var debugScrollsToLauncher = false
+    #endif
 
     private var serverSection: some View {
         Section {

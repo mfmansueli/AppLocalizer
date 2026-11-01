@@ -122,6 +122,26 @@ final class ScreenshotsUITests: XCTestCase {
         XCTAssertTrue(element("screenshots.sets").waitForExistence(timeout: 15))
     }
 
+    /// iPhone Duo is listed under Coming soon; picking it shows its row,
+    /// which has nothing to push until it has captures.
+    func testIPhoneDuoIsComingSoonInTheDisplayMenu() {
+        launch(scene: "sets")
+        let menu = element("screenshots.displayType")
+        XCTAssertTrue(menu.waitForExistence(timeout: 15))
+        menu.click()
+        let duo = app.menuItems.matching(
+            NSPredicate(format: "identifier == %@ OR title BEGINSWITH %@", "screenshots.display.iPhone Duo", "iPhone Duo")
+        ).firstMatch
+        XCTAssertTrue(duo.waitForExistence(timeout: 5))
+        duo.click()
+        let picked = NSPredicate(format: "label CONTAINS %@ OR title CONTAINS %@", "iPhone Duo", "iPhone Duo")
+        let switched = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: picked, object: menu)], timeout: 10) == .completed
+        XCTAssertTrue(switched, menu.debugDescription)
+        let cell = element("screenshots.cell.en-US.0")
+        XCTAssertTrue(cell.waitForExistence(timeout: 10))
+        XCTAssertTrue(cell.label.contains("No capture"), cell.label)
+    }
+
     func testALiveVersionShowsTheNoVersionBanner() {
         launch(scene: "sets-noversion")
         XCTAssertTrue(element("screenshots.banner.noVersion").waitForExistence(timeout: 15))

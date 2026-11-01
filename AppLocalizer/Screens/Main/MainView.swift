@@ -8,7 +8,8 @@ import SwiftUI
 /// The main window once an API key is connected: the app library in the
 /// sidebar, the selected app's workspace in the detail column, and the
 /// Review & Push and Activity sheets. Right after a key is connected it
-/// shows "Loading your apps…" until the first sync is done.
+/// shows "Loading your apps…" until the first sync is done. It asks App
+/// Store Connect for the team's name once, for the account switcher.
 struct MainView: View {
     @State private var viewModel: AppListViewModel
     @State private var summaries: AppSummaryStore
@@ -21,6 +22,7 @@ struct MainView: View {
     private let onSelectAccount: (TeamAccount) -> Void
     private let onAddKey: () -> Void
     private let onFirstSyncFinished: () -> Void
+    private let onTeamNameFound: (String) -> Void
 
     @Environment(ChangeQueue.self) private var changes
     @Environment(PushController.self) private var push
@@ -30,6 +32,7 @@ struct MainView: View {
     @Environment(KeyAssistantController.self) private var keyAssistant
     @Environment(TranslationPreferences.self) private var translation
     @Environment(FieldSuggestionStore.self) private var suggestions
+    @Environment(ClaudeCodeLauncher.self) private var launcher
 
     init(
         credentials: AppStoreConnectCredentials,
@@ -37,7 +40,8 @@ struct MainView: View {
         isFirstSync: Bool = false,
         onSelectAccount: @escaping (TeamAccount) -> Void = { _ in },
         onAddKey: @escaping () -> Void = {},
-        onFirstSyncFinished: @escaping () -> Void = {}
+        onFirstSyncFinished: @escaping () -> Void = {},
+        onTeamNameFound: @escaping (String) -> Void = { _ in }
     ) {
         self.init(
             services: .live(client: AppStoreConnectClient(credentials: credentials)),
@@ -46,7 +50,8 @@ struct MainView: View {
             isFirstSync: isFirstSync,
             onSelectAccount: onSelectAccount,
             onAddKey: onAddKey,
-            onFirstSyncFinished: onFirstSyncFinished
+            onFirstSyncFinished: onFirstSyncFinished,
+            onTeamNameFound: onTeamNameFound
         )
     }
 
@@ -61,7 +66,8 @@ struct MainView: View {
         isFirstSync: Bool = false,
         onSelectAccount: @escaping (TeamAccount) -> Void = { _ in },
         onAddKey: @escaping () -> Void = {},
-        onFirstSyncFinished: @escaping () -> Void = {}
+        onFirstSyncFinished: @escaping () -> Void = {},
+        onTeamNameFound: @escaping (String) -> Void = { _ in }
     ) {
         self.services = services
         self.accounts = accounts
@@ -69,6 +75,7 @@ struct MainView: View {
         self.onSelectAccount = onSelectAccount
         self.onAddKey = onAddKey
         self.onFirstSyncFinished = onFirstSyncFinished
+        self.onTeamNameFound = onTeamNameFound
         _isSyncing = State(initialValue: isFirstSync)
         _viewModel = State(initialValue: AppListViewModel(services: services.appList, selectedAppID: selectedAppID))
         _summaries = State(initialValue: AppSummaryStore(services: services))
@@ -96,14 +103,23 @@ struct MainView: View {
                     assistants: assistants,
                     keyAssistant: keyAssistant,
                     appName: viewModel.selectedApp?.name ?? String(localized: "your app"),
+                    appID: viewModel.selectedApp?.id,
+                    launcher: launcher,
                     method: navigator.assistantSetupMethod,
                     reason: navigator.setupStartsSuggestEverything ? AssistantSetupSheet.suggestEverythingReason : nil
                 )
             })
+            // Show Output, for runs AppLocalizer started from any screen.
+            .sheet(item: shownRun) { run in
+                ClaudeCodeRunOutputSheet(runID: run.id)
+            }
             .task { configurePush() }
             .task { attachAssistants() }
             .onDisappear { assistants.workspace = nil }
             .task { await loadLibrary() }
+            .task {
+                if let name = await viewModel.findTeamName() { onTeamNameFound(name) }
+            }
             .onChange(of: navigator.hidesSidebar) {
                 columnVisibility = navigator.hidesSidebar ? .detailOnly : .all
             }
@@ -244,12 +260,26 @@ struct MainView: View {
         }
     }
 
+    /// The run Show Output shows, as the sheet's item.
+    private var shownRun: Binding<ShownRun?> {
+        Binding { launcher.shownRunID.map(ShownRun.init) } set: { launcher.shownRunID = $0?.id }
+    }
+
+    private struct ShownRun: Identifiable {
+        let id: ClaudeCodeRun.ID
+    }
+
+    /// The apps, then their summaries and, alongside, their icons: one
+    /// request per app that doesn't hold up the first sync.
     private func loadLibrary() async {
+        let viewModel = viewModel
         await viewModel.load()
+        async let icons: Void = viewModel.loadIcons()
         await summaries.prefetch(viewModel.apps)
         if isSyncing, !Task.isCancelled {
             isSyncing = false
             onFirstSyncFinished()
         }
+        await icons
     }
 }

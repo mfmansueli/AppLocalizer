@@ -6,8 +6,9 @@
 import XCTest
 
 /// The main window's app library, toolbar and overview, driven through the
-/// DEBUG scenes `apps`, `overview-keep`, `apps-empty`, `apps-error` and
-/// `lib-loading` (the sample Northpier Studio account from `DebugFixtures`).
+/// DEBUG scenes `apps`, `overview-keep`, `apps-empty`, `apps-error`,
+/// `lib-loading` and `apps-unnamed` (the sample Northpier Studio account
+/// from `DebugFixtures`).
 @MainActor
 final class AppLibraryUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -46,6 +47,18 @@ final class AppLibraryUITests: XCTestCase {
         let switcher = app.menuButtons["sidebar.accountSwitcher"]
         XCTAssertTrue(switcher.waitForExistence(timeout: 10))
         XCTAssertTrue("\(switcher.title) \(switcher.label)".contains("Northpier Studio"))
+    }
+
+    /// A key the person hasn't named shows the team's name App Store
+    /// Connect gives, not "App Store Connect team".
+    func testAnUnnamedKeyShowsTheTeamsNameFromAppStoreConnect() {
+        launch(scene: "apps-unnamed")
+        let switcher = app.menuButtons["sidebar.accountSwitcher"]
+        XCTAssertTrue(switcher.waitForExistence(timeout: 10))
+        let named = NSPredicate(format: "label CONTAINS %@ OR title CONTAINS %@", "Northpier Studio", "Northpier Studio")
+        let shown = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: named, object: switcher)], timeout: 10) == .completed
+        XCTAssertTrue(shown, "\(switcher.title) \(switcher.label)")
+        XCTAssertFalse(switcher.label.contains("App Store Connect team"))
     }
 
     func testSearchFiltersBySKUOrBundleID() {

@@ -101,10 +101,16 @@ extension ScreenshotPushRun {
         }
     }
 
-    /// Keeps a screenshot a restore removes past the end of its set.
+    /// Keeps a screenshot a restore removes past the end of its set; one
+    /// with no image in App Store Connect has nothing to keep.
     private func keepExtra(_ screenshot: LiveScreenshot, position: Int, groupID: String) async throws {
         guard let group = sets[groupID]?.group else { return }
-        let data = try await environment.liveData(screenshot)
+        let data: Data
+        do {
+            data = try await environment.liveData(screenshot)
+        } catch LiveScreenshotImageError.noImage {
+            return
+        }
         let image = ScreenshotBackupImage(
             backupID: backupID, locale: group.locale.code, displayType: group.displayType, position: position, liveID: screenshot.id,
             fileName: screenshot.fileName, checksum: screenshot.checksum, pixelSize: screenshot.pixelSize, origin: .uploadedByHand

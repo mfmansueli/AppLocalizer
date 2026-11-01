@@ -40,7 +40,7 @@ struct CaptureCoverageView: View {
         .accessibilityIdentifier("captures.coverage")
     }
 
-    private var thumbnailWidth: CGFloat { viewModel.displayType.isTablet ? 74 : 40 }
+    private var thumbnailWidth: CGFloat { viewModel.displayType.thumbnailWidth(phone: 40, tablet: 74) }
 
     private var columnWidth: CGFloat { thumbnailWidth + 24 }
 

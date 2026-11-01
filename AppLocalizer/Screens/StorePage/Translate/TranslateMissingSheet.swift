@@ -9,13 +9,16 @@ import SwiftUI
 /// "Translate missing fields": the provider, tone, terms not to translate,
 /// which fields, and the locales with how many fields each. Translate
 /// closes the sheet and runs the batch in the progress banner. With the
-/// assistant as provider, it hands over a prompt and waits instead.
+/// assistant as provider, AppLocalizer starts Claude Code when its helper
+/// is saved, and otherwise hands over a prompt and waits.
 struct TranslateMissingSheet: View {
     let viewModel: StorePageViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(MCPServerController.self) private var assistants
     @Environment(TranslationPreferences.self) private var preferences
+    @Environment(ClaudeCodeLauncher.self) private var launcher
     @State private var newTerm = ""
+    @State private var launchedRunID: ClaudeCodeRun.ID?
 
     private var translation: TranslateMissingViewModel { viewModel.translation }
 
@@ -35,7 +38,19 @@ struct TranslateMissingSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.medium) {
                     providers
-                    if translation.provider == .assistant, assistants.isRunning {
+                    if translation.provider == .assistant, launcher.canStart || launched != nil {
+                        ClaudeCodeLaunchPanel(
+                            run: launched,
+                            appID: viewModel.app.id,
+                            appName: viewModel.app.name,
+                            explanation: String(localized: """
+                            Claude Code translates the missing fields and proposes them. They appear in the coverage grid as they \
+                            arrive, tagged with who proposed them, and wait for you in Review & Push.
+                            """),
+                            onRetried: { launchedRunID = $0 },
+                            identifierPrefix: "storePage.translate"
+                        )
+                    } else if translation.provider == .assistant, assistants.isRunning {
                         AssistantTranslatePanel(
                             prompt: assistantPrompt,
                             clientName: assistantName,
@@ -68,7 +83,20 @@ struct TranslateMissingSheet: View {
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                if translation.provider == .assistant {
+                if translation.provider == .assistant, launcher.canStart || launched != nil {
+                    Button("Copy Prompt", action: copyAssistantPrompt)
+                        .accessibilityIdentifier("storePage.translate.copyPrompt")
+                    if launched?.isActive == true {
+                        Button("Done") { dismiss() }
+                            .buttonStyle(.borderedProminent)
+                            .keyboardShortcut(.defaultAction)
+                    } else {
+                        Button("Start Claude Code", action: startClaudeCode)
+                            .buttonStyle(.borderedProminent)
+                            .keyboardShortcut(.defaultAction)
+                            .accessibilityIdentifier("storePage.translate.startClaudeCode")
+                    }
+                } else if translation.provider == .assistant {
                     Button(translation.isAssistantPromptCopied ? "Waiting for \(assistantName)…" : "Copy Prompt", action: copyAssistantPrompt)
                         .buttonStyle(.borderedProminent)
                         .keyboardShortcut(.defaultAction)
@@ -253,6 +281,17 @@ struct TranslateMissingSheet: View {
 
     private var assistantName: String {
         assistantClient?.name ?? String(localized: "your assistant")
+    }
+
+    /// The run AppLocalizer started from this sheet.
+    private var launched: ClaudeCodeRun? { launcher.run(launchedRunID) }
+
+    /// Start Claude Code: the request in words, in the app's project folder.
+    private func startClaudeCode() {
+        let prompt = assistantPrompt.text
+        Task {
+            launchedRunID = await launcher.start(.translation, appID: viewModel.app.id, appName: viewModel.app.name, prompt: prompt)
+        }
     }
 
     /// Claude Code takes the slash command; other clients the request in

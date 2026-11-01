@@ -15,6 +15,17 @@ struct LiveScreenshot: Codable, Hashable, Sendable, Identifiable {
     var pixelSize: PixelSize?
     /// The image URL with `{w}`, `{h}` and `{f}` placeholders.
     var imageURLTemplate: String?
+    /// `assetDeliveryState`: still processing, failed or done; nil when
+    /// App Store Connect didn't say.
+    var deliveryState: ScreenshotDeliveryState?
+
+    /// Why there's no image to read, when there isn't one: it's still
+    /// processing, or there's none at all (its upload never finished or
+    /// Apple couldn't process it).
+    var missingImage: LiveScreenshotImageError? {
+        guard imageURL(width: pixelSize?.width ?? 1) == nil else { return nil }
+        return deliveryState?.state == "UPLOAD_COMPLETE" ? .stillProcessing : .noImage
+    }
 
     /// The image at `width` pixels wide as PNG, when App Store Connect
     /// gave a URL template.

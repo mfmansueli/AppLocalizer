@@ -69,6 +69,16 @@ struct StorePageViewModelTests {
         #expect(model.canEdit(.subtitle))
     }
 
+    @Test func loadingTurnsANewLocaleThatIsThereNowIntoEdits() async {
+        let queue = ChangeQueue(changes: ListingChangeBuilderStaleCreationTests.queuedFrenchPage)
+        let services = FakeStorePageServices(contents: [ListingChangeBuilderStaleCreationTests.contentWithFrench])
+        let model = await makeModel(services: services, queue: queue)
+
+        #expect(!queue.changes.contains { $0.id.hasSuffix(".new") })
+        #expect(queue.change(id: StorePageContentFixtures.changeID(.french, .description))?.oldValue == "Un ancien texte.")
+        #expect(model.value(.description, in: .french) == "Un journal privé.")
+    }
+
     // MARK: - Editing and the queue
 
     @Test func anEditBecomesAPatchWithRestoreAndConflictCheck() async throws {

@@ -5,9 +5,10 @@
 
 import SwiftUI
 
-/// An app's icon: the image App Store Connect serves when there is one, a
-/// symbol on a gradient for sample apps, otherwise the name's first letter
-/// on a rounded tile.
+/// An app's icon: the image App Store Connect serves when there is one
+/// (trimmed to fill the tile, as a Mac build's icon has a margin), a symbol
+/// on a gradient for sample apps, otherwise the name's first letter on a
+/// rounded tile.
 struct AppIconTile: View {
     let name: String
     var icon: AppIcon?
@@ -17,9 +18,7 @@ struct AppIconTile: View {
         Group {
             switch icon {
             case let .remote(url):
-                AsyncImage(url: url) { image in
-                    image.resizable().interpolation(.high)
-                } placeholder: {
+                RemoteAppIconImage(url: url) {
                     letterTile
                 }
             case let .symbol(symbol, top, bottom):

@@ -15,6 +15,9 @@ enum ScreenshotPushFailure: Error, Hashable, Sendable {
     /// The live screenshot couldn't be downloaded to keep, so it wasn't
     /// replaced.
     case keepingCopy(detail: String)
+    /// The live screenshot is still being processed in App Store Connect,
+    /// so there's no image to keep yet and it wasn't replaced.
+    case liveStillProcessing
     /// The PNG couldn't be made.
     case image
     /// The set already holds ten screenshots and none of them is this
@@ -38,6 +41,8 @@ enum ScreenshotPushFailure: Error, Hashable, Sendable {
             return String(localized: "Apple couldn’t process the image (\(code)). \(outcome)")
         case let .keepingCopy(detail):
             return String(localized: "Couldn’t keep a copy of the live screenshot (\(detail)), so it wasn’t replaced.")
+        case .liveStillProcessing:
+            return String(localized: "The live screenshot is still processing in App Store Connect, so it wasn’t replaced. Try again in a few minutes.")
         case .image:
             return String(localized: "The image couldn’t be made. \(stays)")
         case .setFull:

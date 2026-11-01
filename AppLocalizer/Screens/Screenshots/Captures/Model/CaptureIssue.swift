@@ -45,9 +45,13 @@ enum CaptureIssue: Hashable, Sendable {
         }
     }
 
-    /// "6.9″", "13″".
+    /// "6.9″", "13″", "iPhone Duo".
     private static func setName(_ display: ScreenshotDisplayType) -> String {
-        display.isTablet ? String(localized: "13″") : String(localized: "6.9″")
+        switch display {
+        case .iPad: String(localized: "13″")
+        case .iPhoneDuo: String(localized: "iPhone Duo")
+        default: String(localized: "6.9″")
+        }
     }
 
     /// The set's size in the capture's orientation.

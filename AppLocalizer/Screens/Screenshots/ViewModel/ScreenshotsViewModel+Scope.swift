@@ -41,7 +41,10 @@ extension ScreenshotsViewModel {
     var scopeEstimate: String {
         guard let draft = scopeDraft, let document else { return "" }
         let slots = document.slotCount
-        let displays = ScreenshotDisplayType.rendered.count
+        // iPhone Duo only counts once it has captures: until then its
+        // cells have nothing to push.
+        let hasDuo = document.captures.captures.contains { $0.displayType == .iPhoneDuo }
+        let displays = ScreenshotDisplayType.rendered.count { $0 != .iPhoneDuo || hasDuo }
         let liveImages = live.screenshotSets.filter { draft.contains($0.locale) }.reduce(0) { $0 + $1.screenshots.count }
         let estimate = PushCostEstimate.scope(localeCount: draft.count, slotCount: slots, displayTypeCount: displays, liveImages: liveImages)
         return String(localized: "\(draft.count) locales × \(slots) slots × \(displays) display types = \(estimate.images) images · \(estimate.requestsSummary)")

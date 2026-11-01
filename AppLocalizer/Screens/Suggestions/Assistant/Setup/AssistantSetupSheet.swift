@@ -3,14 +3,14 @@
 //  AppLocalizer
 //
 
-import AppKit
 import SwiftUI
 
 /// "Set Up Your AI Assistant", from the Assistant button, the overview and
 /// the suggestion bars: how (an assistant over MCP, or an API key), then
 /// that method's steps, with the step bars on top and Cancel, a note, Back
 /// and Continue at the bottom. Opened from Suggest Everything…, it says
-/// why on its first step.
+/// why on its first step. Step 4 starts the test run itself when
+/// AppLocalizer starts Claude Code.
 struct AssistantSetupSheet: View {
     /// Why it opened, e.g. "Suggest Everything needs an assistant…".
     var reason: String?
@@ -27,6 +27,8 @@ struct AssistantSetupSheet: View {
         assistants: MCPServerController,
         keyAssistant: KeyAssistantController,
         appName: String,
+        appID: StoreApp.ID? = nil,
+        launcher: ClaudeCodeLauncher? = nil,
         method: AssistantSetupMethod? = nil,
         step: AssistantSetupStep? = nil,
         reason: String? = nil
@@ -41,6 +43,8 @@ struct AssistantSetupSheet: View {
             assistants: assistants,
             keyAssistant: keyAssistant,
             appName: appName,
+            appID: appID,
+            launcher: launcher,
             method: method,
             step: step
         ))
@@ -68,6 +72,9 @@ struct AssistantSetupSheet: View {
         .frame(width: 680)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("assistantSetup.sheet")
+        .task(id: viewModel.step) {
+            if viewModel.step == .test, viewModel.launches, viewModel.testRunID == nil { await viewModel.startTest() }
+        }
         #if DEBUG
         .task {
             guard let key = Self.debugKey else { return }
@@ -160,8 +167,8 @@ struct AssistantSetupSheet: View {
         switch (viewModel.method, viewModel.step) {
         case (_, .assistant): AssistantSetupMethodStep(viewModel: viewModel)
         case (.assistant, .server): serverStep
-        case (.assistant, .snippet): snippetStep
-        case (.assistant, .test): testStep
+        case (.assistant, .snippet): AssistantSetupSnippetStep(viewModel: viewModel)
+        case (.assistant, .test): AssistantSetupTestStep(viewModel: viewModel)
         case (.apiKey, .server): KeyAssistantSetupKeyStep(viewModel: viewModel.key)
         case (.apiKey, .snippet): KeyAssistantSetupContextStep(viewModel: viewModel.key)
         case (.apiKey, .test): KeyAssistantSetupTestStep(viewModel: viewModel.key)
@@ -232,139 +239,5 @@ struct AssistantSetupSheet: View {
             Image(systemName: systemImage)
                 .foregroundStyle(Palette.label2)
         }
-    }
-
-    private var snippetStep: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(viewModel.kind.setupIntro)
-                .font(.callout)
-                .fixedSize(horizontal: false, vertical: true)
-            Text(viewModel.snippet ?? "")
-                .font(.callout.monospaced())
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(Spacing.medium)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Palette.fill1, in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous))
-                .accessibilityIdentifier("assistantSetup.snippet")
-            HStack(spacing: Spacing.small) {
-                Button {
-                    if let snippet = viewModel.copySnippet() { Self.copy(snippet) }
-                } label: {
-                    Label(viewModel.hasCopiedSnippet ? String(localized: "Copied") : viewModel.kind.copyTitle, systemImage: "doc.on.doc")
-                }
-                .accessibilityIdentifier("assistantSetup.copy")
-                Text("Includes a new token just for \(viewModel.kind.title).")
-                    .font(.caption)
-                    .foregroundStyle(Palette.label2)
-            }
-            .controlSize(.small)
-            InlineMessage(text: viewModel.kind.setupNote, systemImage: "info.circle", tint: Palette.label2)
-                .font(.caption)
-        }
-    }
-
-    private var testStep: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Now ask \(viewModel.clientName) something that uses AppLocalizer:")
-                .font(.callout)
-            HStack(spacing: Spacing.small) {
-                Text(AssistantSetupViewModel.testPrompt)
-                    .font(.callout.monospaced())
-                    .textSelection(.enabled)
-                    .padding(Spacing.small)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Palette.fill1, in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous))
-                Button("Copy") { Self.copy(AssistantSetupViewModel.testPrompt) }
-                    .controlSize(.small)
-            }
-            if viewModel.isConnected {
-                connectedBox
-                Text("Things to ask next")
-                    .font(.headline)
-                    .padding(.top, Spacing.xxSmall)
-                VStack(spacing: 0) {
-                    ForEach(Array(Self.thingsToAsk.enumerated()), id: \.offset) { index, item in
-                        if index > 0 { Divider() }
-                        HStack(spacing: Spacing.small) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(item.prompt)
-                                    .font(.callout)
-                                Text(item.detail)
-                                    .font(.caption2)
-                                    .foregroundStyle(Palette.label2)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            Button("Copy") { Self.copy(item.prompt) }
-                                .controlSize(.small)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, Spacing.xSmall)
-                    }
-                }
-                .background(Palette.raised, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Radius.banner, style: .continuous).strokeBorder(Palette.separator2, lineWidth: 0.5))
-            } else {
-                HStack(spacing: 10) {
-                    ProgressView()
-                        .controlSize(.small)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Waiting for \(viewModel.clientName)’s first call…")
-                            .font(.callout)
-                        Text("If \(viewModel.clientName) was already open, restart it so it loads the new server.")
-                            .font(.caption)
-                            .foregroundStyle(Palette.label2)
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, Spacing.medium)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Palette.raised, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Radius.banner, style: .continuous).strokeBorder(Palette.separator2, lineWidth: 0.5))
-                .accessibilityElement(children: .combine)
-                .accessibilityIdentifier("assistantSetup.waiting")
-            }
-        }
-    }
-
-    private var connectedBox: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.title3)
-                .foregroundStyle(Palette.positive)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Connected")
-                    .font(.callout.weight(.semibold))
-                Text(viewModel.connectedText)
-                    .font(.caption)
-                    .foregroundStyle(Palette.label2)
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, Spacing.medium)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.raised, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Radius.banner, style: .continuous).strokeBorder(Palette.separator2, lineWidth: 0.5))
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("assistantSetup.connected")
-    }
-
-    private static let thingsToAsk: [(prompt: String, detail: String)] = [
-        (
-            String(localized: "Write What’s New for my next version from the commits since the last release"),
-            String(localized: "Store Page · from git history")
-        ),
-        (String(localized: "Fill in App Review notes for my next version"), String(localized: "App Information · from the code")),
-        (
-            String(localized: "Scan this project for App Privacy and send the answers to AppLocalizer"),
-            String(localized: "App Privacy · from SDKs and privacy manifests")
-        ),
-        (String(localized: "Suggest German keywords for my app"), String(localized: "Store Page · German")),
-    ]
-
-    private static func copy(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
     }
 }

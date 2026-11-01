@@ -51,6 +51,43 @@ struct ScreenshotPushRunTests {
         #expect(run.subtitle == "Old screenshots were kept on this Mac. Restore them from Activity.")
     }
 
+    @Test func aLiveScreenshotWithNoImageIsReplacedWithoutACopy() async throws {
+        let transport = FakeScreenshotUploadTransport()
+        let backups = InMemoryScreenshotBackupStore()
+        let live = Fixtures.liveSet(.german, count: 2)
+        let plan = Fixtures.plan([Fixtures.group(.german, live: live, slots: [0, 1])])
+        let environment = Fixtures.environment(transport, backups: backups, liveData: { shot in
+            if shot.id == "live-de-DE-0" { throw LiveScreenshotImageError.noImage }
+            return Data("file of \(shot.id)".utf8)
+        })
+        let run = await Fixtures.push([plan], environment: environment)
+
+        #expect(run.doneCount == 2)
+        #expect(transport.log.contains("delete live-de-DE-0"))
+        #expect(run.items.first?.note == "The live screenshot had no image in App Store Connect (its upload never finished or Apple "
+            + "couldn’t process it), so there was nothing to keep.")
+        #expect(run.items.last?.note == nil)
+        let backup = try #require(backups.backup(id: run.backupID, appID: Fixtures.app.id))
+        #expect(backup.images.map(\.liveID) == ["live-de-DE-1"])
+    }
+
+    @Test func aLiveScreenshotStillProcessingIsLeftAlone() async throws {
+        let transport = FakeScreenshotUploadTransport()
+        let live = Fixtures.liveSet(.german, count: 2)
+        let plan = Fixtures.plan([Fixtures.group(.german, live: live, slots: [0, 1])])
+        let environment = Fixtures.environment(transport, liveData: { shot in
+            if shot.id == "live-de-DE-1" { throw LiveScreenshotImageError.stillProcessing }
+            return Data("file of \(shot.id)".utf8)
+        })
+        let run = await Fixtures.push([plan], environment: environment)
+
+        #expect(run.doneCount == 1)
+        let failed = try #require(run.items.first { $0.status.isFailure })
+        #expect(failed.status.failureText == "The live screenshot is still processing in App Store Connect, so it wasn’t replaced. Try again in a few minutes.")
+        #expect(!transport.log.contains("reserve de-DE_iPhone_2_Week.png set-de-DE"))
+        #expect(!transport.log.contains("delete live-de-DE-1"))
+    }
+
     @Test func aNewSetIsCreatedForTheLocalization() async {
         let transport = FakeScreenshotUploadTransport()
         let plan = Fixtures.plan([Fixtures.group(.arabic, live: nil, slots: [0, 1])])

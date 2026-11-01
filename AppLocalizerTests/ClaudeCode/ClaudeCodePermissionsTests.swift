@@ -1,0 +1,70 @@
+//
+//  ClaudeCodePermissionsTests.swift
+//  AppLocalizerTests
+//
+
+import Testing
+@testable import AppLocalizer
+
+/// What each kind of run may do: AppLocalizer's tools always, reading the
+/// project for suggestions, and building and simulators for Autopilot only.
+@Suite("Claude Code permissions")
+struct ClaudeCodePermissionsTests {
+    private let port: UInt16 = 47321
+
+    @Test func eachPurposePicksItsPermissions() {
+        #expect(ClaudeCodeRunPurpose.test.permissions == .appLocalizerOnly)
+        #expect(ClaudeCodeRunPurpose.autopilot.permissions == .autopilot)
+        let reading: [ClaudeCodeRunPurpose] = [.ask(area: "Store Page"), .suggestEverything, .translation, .captions, .privacyScan]
+        for purpose in reading {
+            #expect(purpose.permissions == .readProject, "\(purpose.title)")
+        }
+        #expect(ClaudeCodeRunPurpose.ask(area: "Store Page").title == "Ask · Store Page")
+    }
+
+    @Test func theSetupTestOnlyUsesAppLocalizer() {
+        #expect(ClaudeCodePermissions.appLocalizerOnly.tools.isEmpty)
+        #expect(ClaudeCodePermissions.appLocalizerOnly.allowRules(port: port) == ["mcp__applocalizer"])
+    }
+
+    @Test func readingTheProjectAllowsOnlyReadOnlyGit() {
+        let rules = ClaudeCodePermissions.readProject.allowRules(port: port)
+        #expect(rules.contains("mcp__applocalizer"))
+        #expect(rules.contains("Read"))
+        #expect(rules.contains("Bash(git log:*)"))
+        let commands = rules.filter { $0.hasPrefix("Bash(") }
+        #expect(commands.allSatisfy { $0.hasPrefix("Bash(git ") }, "\(commands)")
+        for writing in ["push", "commit", "reset", "checkout", "config"] {
+            #expect(!rules.contains("Bash(git \(writing):*)"))
+        }
+    }
+
+    @Test func autopilotAlsoBuildsAndUploadsOnlyToAppLocalizer() {
+        let rules = ClaudeCodePermissions.autopilot.allowRules(port: port)
+        #expect(rules.contains("Bash(xcodebuild:*)"))
+        #expect(rules.contains("Bash(xcrun simctl:*)"))
+        let uploads = rules.filter { $0.contains("curl") }
+        #expect(uploads == ["Bash(curl * http://127.0.0.1:47321/autopilot/*)"])
+        #expect(ClaudeCodePermissions.autopilot.systemPrompt.contains("curl -s --data-binary"))
+    }
+
+    @Test func noRunMayEditFilesOrUseTheWeb() {
+        for permissions in ClaudeCodePermissions.allCases {
+            let everything = permissions.tools + permissions.allowRules(port: port)
+            for tool in ["Edit", "Write", "NotebookEdit", "WebFetch", "WebSearch"] {
+                #expect(!everything.contains(tool), "\(permissions.title) allows \(tool)")
+            }
+            // Bash is available to some, but only for the commands allowed.
+            #expect(!permissions.allowRules(port: port).contains("Bash"), "\(permissions.title) allows every command")
+        }
+    }
+
+    @Test func theSystemPromptSaysNobodyIsWatching() {
+        for permissions in ClaudeCodePermissions.allCases {
+            let prompt = permissions.systemPrompt
+            #expect(prompt.contains("don't ask questions"))
+            #expect(prompt.contains("Never push"))
+        }
+        #expect(!ClaudeCodePermissions.readProject.systemPrompt.contains("xcodebuild"))
+    }
+}

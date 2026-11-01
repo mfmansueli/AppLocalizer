@@ -51,6 +51,9 @@ struct MCPListingDraft {
         let tags = MachineTranslationScope.tags(in: services.machineTranslations, appID: app.id, ids: content.ids)
         var listing = content.listing(machineTranslated: tags)
         builder.apply(workspace.changes.changes(for: app.id, section: .storePage), to: &listing, machineTranslated: tags)
+        // A queued new locale App Store Connect has by now becomes edits of
+        // what's there; the texts laid on the listing stay the same.
+        builder.replaceStaleCreations(in: workspace.changes, listing: listing)
         var draft = MCPListingDraft(app: app, content: content, builder: builder, listing: listing)
         draft.missingLanguages = missing
         if let support, listing.version.isEditable {

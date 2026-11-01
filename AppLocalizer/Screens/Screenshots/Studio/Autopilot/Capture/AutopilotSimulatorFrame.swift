@@ -76,6 +76,7 @@ struct AutopilotSimulatorFrame: View {
     private var symbol: String {
         switch display {
         case .iPad: "ipad.landscape"
+        case .iPhoneDuo: display.symbolName
         case .watch: "applewatch"
         case .visionPro: "visionpro"
         default: "iphone"
@@ -92,8 +93,8 @@ struct AutopilotSimulatorFrame: View {
     }
 
     /// The screen's width, the bezel around it and the corner radii: a
-    /// phone 152 pt wide, an iPad on its side 246 pt, a watch 134 pt with
-    /// a thick bezel and round corners.
+    /// phone 152 pt wide, iPhone Duo unfolded 200 pt, an iPad on its side
+    /// 246 pt, a watch 134 pt with a thick bezel and round corners.
     static func shape(for display: ScreenshotDisplayType, pixelSize: PixelSize) -> Shape {
         switch display {
         case .watch:
@@ -102,6 +103,8 @@ struct AutopilotSimulatorFrame: View {
             Shape(inner: 246, bezel: 7, outerRadius: 18, innerRadius: 12)
         case .iPad:
             Shape(inner: 152, bezel: 7, outerRadius: 18, innerRadius: 12)
+        case .iPhoneDuo:
+            Shape(inner: 200, bezel: 7, outerRadius: 20, innerRadius: 14)
         default:
             Shape(inner: 152, bezel: 7, outerRadius: 26, innerRadius: 20)
         }

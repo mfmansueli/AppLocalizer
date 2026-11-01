@@ -16,6 +16,7 @@ struct AppLocalizerApp: App {
     @State private var translation: TranslationPreferences
     @State private var assistants: MCPServerController
     @State private var keyAssistant: KeyAssistantController
+    @State private var launcher: ClaudeCodeLauncher
     @State private var suggestions = FieldSuggestionStore(persistence: Self.suggestionPersistence)
 
     init() {
@@ -31,11 +32,16 @@ struct AppLocalizerApp: App {
             defaults: Self.defaults,
             translation: translation
         )
-        let assistants = MCPServerController(server: Self.httpServer, secrets: Self.secretStore, defaults: Self.defaults)
+        let assistants = MCPServerController(server: Self.httpServer, secrets: Self.secretStore, defaults: Self.defaults, port: Self.mcpPort)
         assistants.keyAssistant = keyAssistant
+        let launcher = ClaudeCodeLauncher(assistants: assistants, runner: Self.scriptRunner, defaults: Self.defaults)
+        #if DEBUG
+        if let id = DebugScene.requestedID { ClaudeCodeDebugScenes.configure(launcher, for: id) }
+        #endif
         _translation = State(initialValue: translation)
         _keyAssistant = State(initialValue: keyAssistant)
         _assistants = State(initialValue: assistants)
+        _launcher = State(initialValue: launcher)
     }
 
     var body: some Scene {
@@ -52,12 +58,15 @@ struct AppLocalizerApp: App {
                 .environment(translation)
                 .environment(assistants)
                 .environment(keyAssistant)
+                .environment(launcher)
                 .environment(suggestions)
                 .environment(\.keyChecker, Self.keyChecker)
                 .frame(minWidth: Metrics.minimumWindowWidth, minHeight: Metrics.minimumWindowHeight)
                 // The local MCP server runs while AppLocalizer is open, if
                 // the person turned it on.
                 .task { assistants.startIfEnabled() }
+                // Whether the helper is there to start Claude Code.
+                .task { await launcher.refreshHelper() }
         }
         .defaultSize(width: 1200, height: 780)
         .commands {
@@ -77,6 +86,7 @@ struct AppLocalizerApp: App {
             .environment(translation)
             .environment(assistants)
             .environment(keyAssistant)
+            .environment(launcher)
             .environment(\.keyChecker, Self.keyChecker)
             .environment(\.aiProviderKeyChecker, Self.aiProviderKeyChecker)
         }
@@ -98,12 +108,29 @@ struct AppLocalizerApp: App {
         return KeychainSecretStore()
     }
 
-    /// DEBUG scenes never open a port for the MCP server.
+    /// DEBUG scenes never open a port for the MCP server, except
+    /// `cc-live`, which runs the real Claude Code on a port of its own.
     private static var httpServer: any LocalHTTPServing {
         #if DEBUG
-        if DebugScene.requestedID != nil { return DebugHTTPServer() }
+        if let id = DebugScene.requestedID, !ClaudeCodeDebugScenes.isLive(id) { return DebugHTTPServer() }
         #endif
         return LocalHTTPServer()
+    }
+
+    private static var mcpPort: UInt16 {
+        #if DEBUG
+        if let id = DebugScene.requestedID, ClaudeCodeDebugScenes.isLive(id) { return ClaudeCodeDebugScenes.livePort }
+        #endif
+        return MCPEndpoint.defaultPort
+    }
+
+    /// DEBUG scenes start a pretend Claude Code that answers from canned
+    /// lines, never the real one.
+    private static var scriptRunner: any UnixScriptRunning {
+        #if DEBUG
+        if let id = DebugScene.requestedID { return ClaudeCodeDebugScenes.scriptRunner(for: id) }
+        #endif
+        return LiveUnixScriptRunner()
     }
 
     /// DEBUG scenes check keys with canned answers, never with Apple.

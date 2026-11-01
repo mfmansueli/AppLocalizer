@@ -35,7 +35,13 @@ final class AccountSettingsViewModel {
     func failure(for keyID: String) -> KeyCheckFailure? { failures[keyID] }
 
     func account(for credentials: AppStoreConnectCredentials) -> TeamAccount {
-        AppSession.account(for: credentials)
+        session.account(for: credentials)
+    }
+
+    /// The team's name as App Store Connect gives it, which an empty name
+    /// goes back to.
+    func teamNameFromAppStoreConnect(for keyID: String) -> String? {
+        session.teamNames[keyID]
     }
 
     /// Signs one request with the key, as Connect did, and records what it

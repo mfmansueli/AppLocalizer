@@ -40,7 +40,8 @@ struct RootView: View {
                 isFirstSync: session.firstSyncKeyID == credentials.keyID,
                 onSelectAccount: { session.select(keyID: $0.keyID) },
                 onAddKey: { session.isAddingKey = true },
-                onFirstSyncFinished: session.finishFirstSync
+                onFirstSyncFinished: session.finishFirstSync,
+                onTeamNameFound: { session.recordTeamName($0, for: credentials.keyID) }
             )
             // A different key is a different account: start over.
             .id(credentials)

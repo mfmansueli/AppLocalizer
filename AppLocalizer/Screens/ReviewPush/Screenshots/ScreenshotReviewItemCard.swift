@@ -68,7 +68,7 @@ struct ScreenshotReviewItemCard: View {
         .accessibilityIdentifier("review.shots.item.\(Self.identifier(item))")
     }
 
-    private var width: CGFloat { group.displayType.isTablet ? 64 : 34 }
+    private var width: CGFloat { group.displayType.thumbnailWidth(phone: 34, tablet: 64) }
     private var aspect: CGFloat { ScreenshotThumbnail.aspect(of: item) }
 
     /// What the old side says when nothing's live in this slot.

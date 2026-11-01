@@ -51,7 +51,9 @@ extension ScreenshotPushRun {
     }
 
     /// Downloads the live screenshot this image replaces and keeps it in
-    /// the push's backup, once.
+    /// the push's backup, once. One with no image in App Store Connect has
+    /// nothing to keep, so it's replaced without a copy; one still
+    /// processing isn't replaced yet.
     private func keepCopy(_ index: Int) async throws {
         let item = items[index]
         guard let old = item.plan.old, item.backup == nil, let group = sets[item.groupID]?.group else { return }
@@ -59,6 +61,16 @@ extension ScreenshotPushRun {
         let data: Data
         do {
             data = try await environment.liveData(old)
+        } catch LiveScreenshotImageError.noImage {
+            items[index].note = String(
+                localized: """
+                The live screenshot had no image in App Store Connect (its upload never finished or Apple couldn’t \
+                process it), so there was nothing to keep.
+                """
+            )
+            return
+        } catch LiveScreenshotImageError.stillProcessing {
+            throw ScreenshotPushFailure.liveStillProcessing
         } catch {
             throw ScreenshotPushFailure.keepingCopy(detail: Self.describe(error))
         }

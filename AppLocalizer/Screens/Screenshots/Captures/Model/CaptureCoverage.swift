@@ -105,8 +105,7 @@ struct CaptureCoverage: Hashable {
 
     /// The other device class's capture, or one too small for the set.
     static func fits(_ capture: ScreenshotCapture, display: ScreenshotDisplayType) -> Bool {
-        let isTabletCapture = capture.pixelSize.aspectRatio < CaptureSizeRules.tabletAspectLimit
-        return isTabletCapture == display.isTablet && CaptureSizeRules.fits(capture.pixelSize, in: display)
+        CaptureSizeRules.isSameDevice(capture.pixelSize, as: display) && CaptureSizeRules.fits(capture.pixelSize, in: display)
     }
 
     private static func summary(_ inputs: Inputs, capturedCount: Int) -> String {

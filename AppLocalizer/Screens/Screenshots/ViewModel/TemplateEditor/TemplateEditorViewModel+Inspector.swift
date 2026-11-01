@@ -15,7 +15,7 @@ extension TemplateEditorViewModel {
     }
 
     func setOrientation(_ orientation: ScreenshotOrientation) {
-        set(displayType.isTablet ? "canvas.ipad" : "canvas.iphone", to: .string(orientation.rawValue))
+        set(TemplateCanvas.path(for: displayType), to: .string(orientation.rawValue))
     }
 
     /// "1320 × 2868 px · PNG · APP_IPHONE_67".
@@ -55,9 +55,13 @@ extension TemplateEditorViewModel {
         ("#141416", String(localized: "Black")), ("#C9CBD1", String(localized: "Silver")), ("#F4F4F6", String(localized: "White")),
     ]
 
-    /// "iPhone 17 Pro Max", "iPad Pro 13″ · landscape".
+    /// "iPhone 17 Pro Max", "iPad Pro 13″ · landscape", "iPhone Duo · inner display".
     var frameName: String {
-        let name = displayType.isTablet ? String(localized: "iPad Pro 13″") : displayType.deviceName
+        let name = switch displayType {
+        case .iPad: String(localized: "iPad Pro 13″")
+        case .iPhoneDuo: String(localized: "iPhone Duo · inner display")
+        default: displayType.deviceName
+        }
         return orientation == .landscape ? String(localized: "\(name) · landscape") : name
     }
 

@@ -88,13 +88,14 @@ enum ScreenshotPushTestFixtures {
         clock: ScreenshotPushTestClock = ScreenshotPushTestClock(),
         rate: RequestRateTracker? = nil,
         concurrentSets: Int = 1,
-        imageData: (@MainActor (ScreenshotPlanItem) async throws -> Data)? = nil
+        imageData: (@MainActor (ScreenshotPlanItem) async throws -> Data)? = nil,
+        liveData: (@MainActor (LiveScreenshot) async throws -> Data)? = nil
     ) -> ScreenshotPushEnvironment {
         ScreenshotPushEnvironment(
             transport: transport,
             backups: backups,
             imageData: imageData ?? { _ in png },
-            liveData: { Data("file of \($0.id)".utf8) },
+            liveData: liveData ?? { Data("file of \($0.id)".utf8) },
             rate: rate ?? RequestRateTracker(now: { clock.now }),
             now: { clock.now },
             sleep: { clock.advance(by: $0) },

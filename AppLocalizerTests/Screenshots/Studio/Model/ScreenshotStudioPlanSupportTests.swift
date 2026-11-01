@@ -37,11 +37,24 @@ struct ScreenshotStudioPlanSupportTests {
         let model = await Self.model(StudioDebugRuns.run(.plan, everyDevice: true))
         let plan = StudioDebugRuns.everyDevicePlan
         let studio = model.studio
-        #expect(studio.planDevices(plan) == [.iPhone, .iPad, .watch, .visionPro])
+        #expect(studio.planDevices(plan) == [.iPhone, .iPhoneDuo, .iPad, .watch, .visionPro])
         #expect(studio.planDeviceDetail(.iPhone, plan: plan) == "1320 × 2868 · required for every iPhone app")
         #expect(studio.planDeviceDetail(.iPad, plan: plan) == "2752 × 2064 · required: Lumen runs on iPad")
         #expect(studio.planDeviceDetail(.watch, plan: plan) == "422 × 514 · Ultra 3 · required: Lumen has a watch app, LumenWatch")
         #expect(studio.planDeviceDetail(.visionPro, plan: plan) == "3840 × 2160 · required: 1.4 adds visionOS")
+        #expect(studio.planDeviceDetail(.iPhoneDuo, plan: plan)
+            == "2007 × 2853 · inner display · required from April 2027 for apps built with the iOS 27.1 SDK")
+    }
+
+    @Test func iPhoneDuoCanBeTurnedOnAndIsntLeftToUploadByHand() async {
+        let model = await Self.model(StudioDebugRuns.run(.plan))
+        model.studio.setPlans(.iPhoneDuo, true)
+        let plan = model.studio.run?.plan ?? StudioDebugRuns.plan
+        #expect(plan.displayTypes == [.iPhone, .iPhoneDuo, .iPad])
+        model.studio.setPlans(.iPhoneDuo, false)
+        let off = model.studio.run?.plan ?? StudioDebugRuns.plan
+        #expect(!off.displayTypes.contains(.iPhoneDuo))
+        #expect(!model.studio.planDeviceDetail(.iPhoneDuo, plan: off).contains("upload these by hand"))
     }
 
     @Test func turningOffARequiredDeviceLeavesItToBeUploadedByHand() async {
@@ -56,7 +69,7 @@ struct ScreenshotStudioPlanSupportTests {
     @Test func withoutAReportIPadIsLandscapeAndVisionFollowsAppStoreConnect() async {
         let model = await StudioTestFixtures.screenshots(center: StudioTestFixtures.center(StudioDebugRuns.run(.plan)), hasVisionVersion: true)
         let plan = StudioDebugRuns.plan
-        #expect(model.studio.planDevices(plan) == [.iPhone, .iPad, .visionPro])
+        #expect(model.studio.planDevices(plan) == [.iPhone, .iPhoneDuo, .iPad, .visionPro])
         #expect(model.studio.planDeviceDetail(.iPad, plan: plan) == "2752 × 2064 · landscape")
         #expect(model.studio.planDeviceDetail(.visionPro, plan: plan)
             == "3840 × 2160 · required: 1.4 has a visionOS version. You’ll need to upload these by hand before submitting.")
@@ -100,11 +113,11 @@ struct ScreenshotStudioPlanSupportTests {
 
     @Test func theDevicesShownFollowTheProjectAndTheSet() async {
         let reported = await Self.model(nil)
-        #expect(reported.studio.devices == [.iPhone, .iPad, .watch, .visionPro])
+        #expect(reported.studio.devices == [.iPhone, .iPhoneDuo, .iPad, .watch, .visionPro])
         let plain = await Self.model(nil, support: nil)
-        #expect(plain.studio.devices == [.iPhone, .iPad])
+        #expect(plain.studio.devices == [.iPhone, .iPhoneDuo, .iPad])
         let everyDevice = await StudioTestFixtures.screenshots(center: nil, document: DebugEveryDevice.document)
-        #expect(everyDevice.studio.devices == [.iPhone, .iPad, .watch, .visionPro])
+        #expect(everyDevice.studio.devices == [.iPhone, .iPhoneDuo, .iPad, .watch, .visionPro])
     }
 }
 #endif

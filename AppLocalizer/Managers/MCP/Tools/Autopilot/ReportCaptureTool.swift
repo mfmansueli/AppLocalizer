@@ -12,10 +12,11 @@ struct ReportCaptureTool: MCPTool {
         name: "report_capture",
         title: "Report a screenshot capture",
         description: """
-        Records a capture for the Autopilot run: the screen (id from the plan), displayType (iphone or ipad), \
-        locale, and the upload ID the upload URL returned for its PNG (or, if AppLocalizer can read it, a file \
-        path). Give the attempt (1–3) and a score from 0 to 1 with notes saying why (e.g. "Keyboard covers the \
-        prompt"); the best one is picked. The PNG must be the device's full size, e.g. 1320 × 2868 on iPhone. \
+        Records a capture for the Autopilot run: the screen (id from the plan), displayType (the plan's: iphone, \
+        iphone_duo, ipad, watch or vision), locale, and the upload ID the upload URL returned for its PNG (or, if \
+        AppLocalizer can read it, a file path). Give the attempt (1–3) and a score from 0 to 1 with notes saying why \
+        (e.g. "Keyboard covers the prompt"); the best one is picked. The PNG must be the device's full size, e.g. \
+        1320 × 2868 on iPhone, 2007 × 2853 on iPhone Duo's inner display. \
         The result says how many are left.
         """,
         inputSchema: MCPToolDefinition.schema(
@@ -23,7 +24,7 @@ struct ReportCaptureTool: MCPTool {
                 "appId": MCPToolDefinition.string("The app's Apple ID, bundle ID, SKU or name, from list_apps."),
                 "run": MCPToolDefinition.string("The run's ID from get_capture_plan."),
                 "screen": MCPToolDefinition.string("The screen's id from the plan."),
-                "displayType": MCPToolDefinition.string("iphone or ipad."),
+                "displayType": MCPToolDefinition.string("The plan's device: iphone, iphone_duo, ipad, watch or vision."),
                 "locale": MCPToolDefinition.string("The locale the app ran in, e.g. de-DE."),
                 "upload": MCPToolDefinition.string("The upload ID the upload URL returned."),
                 "file": MCPToolDefinition.string("A PNG path, when AppLocalizer can read it (prefer upload)."),

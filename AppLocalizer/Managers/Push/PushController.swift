@@ -19,7 +19,9 @@ import Observation
 /// answers) go out together as one `PATCH`, since App Store Connect only
 /// takes that resource whole. Placeholders are filled in just before each request goes: a
 /// `{createdID}` with the ID an earlier `POST` of the same change returned,
-/// a `{secret:…}` from `secrets`.
+/// a `{secret:…}` from `secrets`. A new Store Page locale App Store Connect
+/// refuses as a duplicate goes onto the localization that's there instead
+/// (`ExistingLocalizationUpdate`).
 @MainActor
 @Observable
 final class PushController {
@@ -350,13 +352,37 @@ final class PushController {
         }
         for request in change.pushRequests.dropFirst(items[index].sentRequestCount) {
             let resolved = try request.resolved(createdID: items[index].createdID) { try secrets.secret(named: $0) }
-            let response = try await transport.send(resolved)
-            noteRequest(response.rateLimit)
-            items[index].sentRequestCount += 1
-            if request.method == .post, let id = Self.createdID(in: response.data) {
-                items[index].createdID = id
+            do {
+                let response = try await transport.send(resolved)
+                noteRequest(response.rateLimit)
+                if request.method == .post, let id = Self.createdID(in: response.data) {
+                    items[index].createdID = id
+                }
+            } catch let error as AppStoreConnectError where error.isDuplicate {
+                guard let update = ExistingLocalizationUpdate(resolved) else { throw error }
+                items[index].createdID = try await updateExisting(update, refusal: error, transport: transport)
             }
+            items[index].sentRequestCount += 1
         }
+    }
+
+    /// A new locale's `POST` refused because the locale is there by now:
+    /// the same texts go onto that localization when that overwrites
+    /// nothing. Returns its ID; throws `refusal` when it can't be found.
+    private func updateExisting(
+        _ update: ExistingLocalizationUpdate,
+        refusal: AppStoreConnectError,
+        transport: any PushTransport
+    ) async throws -> String {
+        let found = try await transport.fetch(update.lookupPath)
+        noteRequest(found.rateLimit)
+        guard let existing = update.existing(in: found.data) else { throw refusal }
+        guard existing.overwritten.isEmpty else { throw update.otherText(in: existing.overwritten) }
+        if let request = update.update(id: existing.id) {
+            let response = try await transport.send(request)
+            noteRequest(response.rateLimit)
+        }
+        return existing.id
     }
 
     private func noteRequest(_ rateLimit: AppStoreConnectRateLimit?) {

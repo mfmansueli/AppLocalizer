@@ -24,7 +24,7 @@ struct ScreenshotReadToolsTests {
         #expect(result["primaryLocale"] == "en-US")
         #expect(result["templateVersion"] == 4)
         #expect(result["hasCaptures"] == true)
-        #expect(result["displayTypes"]?.arrayValue?.compactMap { $0["displayType"]?.stringValue } == ["iphone", "ipad"])
+        #expect(result["displayTypes"]?.arrayValue?.compactMap { $0["displayType"]?.stringValue } == ["iphone", "iphone_duo", "ipad"])
         #expect(result["displayTypes"]?.arrayValue?.first?["portraitPixelSize"] == ["width": 1320, "height": 2868])
         let slots = try #require(result["slots"]?.arrayValue)
         #expect(slots.count == 5)
@@ -61,7 +61,7 @@ struct ScreenshotReadToolsTests {
     }
 
     @Test func aBadDisplayTypeOrLocaleIsAnInvalidArgument() async {
-        await #expect(throws: MCPToolError.invalidArgument(name: "displayType", expected: "“iphone” or “ipad”")) {
+        await #expect(throws: MCPToolError.invalidArgument(name: "displayType", expected: "“iphone”, “iphone_duo” or “ipad”")) {
             try await call(ListCapturesTool(), ["displayType": "watch"])
         }
         await #expect(throws: MCPToolError.self) { try await call(ListCapturesTool(), ["locale": "xx-YY"]) }

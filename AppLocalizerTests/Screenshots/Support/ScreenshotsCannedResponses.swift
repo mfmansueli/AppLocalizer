@@ -25,6 +25,12 @@ enum ScreenshotsCannedResponses {
             + #""imageAsset":{"templateUrl":"https://example.invalid/\#(id)/{w}x{h}bb.{f}","width":1320,"height":2868}}}"#
     }
 
+    /// A screenshot App Store Connect has no image for yet: its delivery
+    /// state but no `imageAsset`.
+    static func screenshot(_ id: String, deliveryState: String) -> String {
+        #"{"type":"appScreenshots","id":"\#(id)","attributes":{"fileName":"\#(id).png","assetDeliveryState":{"state":"\#(deliveryState)"}}}"#
+    }
+
     static func previewSet(_ id: String, previewType: String, previews: [String]) -> String {
         let data = previews.map { #"{"type":"appPreviews","id":"\#($0)"}"# }.joined(separator: ",")
         return #"{"type":"appPreviewSets","id":"\#(id)","attributes":{"previewType":"\#(previewType)"},"#

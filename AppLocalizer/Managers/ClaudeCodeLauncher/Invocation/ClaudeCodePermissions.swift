@@ -1,0 +1,98 @@
+//
+//  ClaudeCodePermissions.swift
+//  AppLocalizer
+//
+
+import Foundation
+
+/// What a run AppLocalizer starts may do. Runs are unattended, so they're
+/// started in Claude Code's restricted mode: the person's own settings
+/// files (and their allow rules) are ignored, file tools stay inside the
+/// project folder, only the tools named here are available, and anything
+/// these rules don't allow is refused instead of asked.
+enum ClaudeCodePermissions: Hashable, Sendable, CaseIterable {
+    /// The setup test: AppLocalizer's tools only.
+    case appLocalizerOnly
+    /// Suggestions, translations and the privacy scan: read the project and
+    /// its git history.
+    case readProject
+    /// Screenshot Autopilot: also build the app, drive the simulators and
+    /// upload captures to AppLocalizer.
+    case autopilot
+
+    /// `--tools`: the built-in tools available at all.
+    var tools: [String] {
+        switch self {
+        case .appLocalizerOnly: []
+        case .readProject, .autopilot: ["Read", "Grep", "Glob", "Bash"]
+        }
+    }
+
+    /// The `permissions.allow` rules passed with `--settings`.
+    func allowRules(port: UInt16) -> [String] {
+        let appLocalizer = ["mcp__\(MCPEndpoint.serverName)"]
+        let reading = ["Read", "Grep", "Glob"] + Self.gitCommands.map { "Bash(git \($0):*)" }
+        switch self {
+        case .appLocalizerOnly:
+            return appLocalizer
+        case .readProject:
+            return appLocalizer + reading
+        case .autopilot:
+            let building = [
+                "Bash(xcodebuild:*)",
+                "Bash(xcrun simctl:*)",
+                "Bash(xcrun xcresulttool:*)",
+                "Bash(open -a Simulator:*)",
+                "Bash(mkdir:*)",
+                "Bash(ls:*)",
+                "Bash(sleep:*)",
+                "Bash(echo:*)",
+                // Captures go to AppLocalizer's upload endpoint, and nowhere else.
+                "Bash(curl * http://127.0.0.1:\(port)/autopilot/*)",
+            ]
+            return appLocalizer + reading + building
+        }
+    }
+
+    /// Read-only git subcommands.
+    static let gitCommands = ["log", "show", "diff", "tag", "describe", "rev-parse", "ls-files", "status", "branch"]
+
+    /// What Claude is told about running unattended, after Claude Code's own
+    /// system prompt.
+    var systemPrompt: String {
+        var lines = [
+            "AppLocalizer, a Mac app, started this Claude Code session for the person, without a terminal.",
+            "Nobody is watching it live: don't ask questions, and don't wait for an answer.",
+            "Permission prompts are refused automatically, so stay within the allowed tools: AppLocalizer's MCP tools"
+                + (self == .appLocalizerOnly ? "." : ", reading files in this project and read-only git commands."),
+            "Never push or change App Store Connect directly; everything goes through AppLocalizer's tools, and the person reviews it there.",
+            "If something you need is refused or missing, say so in one sentence in your last message and finish.",
+        ]
+        if self == .autopilot {
+            lines.append(
+                "For screenshots you may also run xcodebuild, xcrun simctl, xcrun xcresulttool, open -a Simulator, mkdir, ls, sleep and echo. "
+                    + "Upload each capture with exactly: curl -s --data-binary @<file> -H 'Content-Type: image/png' <upload URL from get_capture_plan>. "
+                    + "Run each command on its own, without chaining other commands."
+            )
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// For Settings: "Suggestions, translations, privacy".
+    var title: String {
+        switch self {
+        case .appLocalizerOnly: String(localized: "Setup test")
+        case .readProject: String(localized: "Suggestions, translations, privacy")
+        case .autopilot: String(localized: "Screenshot Autopilot")
+        }
+    }
+
+    /// For Settings: what it may do, in words.
+    var detail: String {
+        switch self {
+        case .appLocalizerOnly: String(localized: "AppLocalizer’s tools only")
+        case .readProject: String(localized: "AppLocalizer’s tools, reading the project, read-only git")
+        case .autopilot: String(localized: "Also xcodebuild, xcrun simctl and uploads to AppLocalizer")
+        }
+    }
+}

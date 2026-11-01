@@ -21,6 +21,9 @@ final class AppSession {
     private(set) var loadErrorMessage: String?
     /// The last check of each key (Connect or "Test Connection"), by key ID.
     private(set) var checks: [String: KeyAccessCheck] = [:]
+    /// The team's name as App Store Connect's certificates give it, by key
+    /// ID: what the account switcher shows until the person names the key.
+    private(set) var teamNames: [String: String] = [:]
     /// A key that was just connected: the main window shows "Loading your
     /// apps…" until its library and summaries have loaded once.
     private(set) var firstSyncKeyID: String?
@@ -46,6 +49,9 @@ final class AppSession {
         {
             checks = saved.filter { id, _ in keys.contains { $0.keyID == id } }
         }
+        if let saved = defaults?.dictionary(forKey: Key.teamNames) as? [String: String] {
+            teamNames = saved.filter { id, _ in keys.contains { $0.keyID == id } }
+        }
         let savedID = defaults?.string(forKey: Key.currentKeyID)
         currentKeyID = keys.contains { $0.keyID == savedID } ? savedID : keys.first?.keyID
     }
@@ -58,15 +64,17 @@ final class AppSession {
     }
 
     /// The key in use as the account switcher shows it.
-    var account: TeamAccount? { credentials.map(Self.account(for:)) }
+    var account: TeamAccount? { credentials.map(account(for:)) }
 
     /// Every saved key, for the account switcher.
-    var accounts: [TeamAccount] { keys.map(Self.account(for:)) }
+    var accounts: [TeamAccount] { keys.map(account(for:)) }
 
-    static func account(for credentials: AppStoreConnectCredentials) -> TeamAccount {
+    /// A key named the way the person named it, else the way App Store
+    /// Connect names its team, else "App Store Connect team".
+    func account(for credentials: AppStoreConnectCredentials) -> TeamAccount {
         TeamAccount(
             id: credentials.keyID,
-            name: credentials.teamName ?? String(localized: "App Store Connect team"),
+            name: credentials.teamName ?? teamNames[credentials.keyID] ?? String(localized: "App Store Connect team"),
             role: String(localized: "Team key")
         )
     }
@@ -106,12 +114,13 @@ final class AppSession {
         keys.removeAll { $0.keyID == keyID }
         checks[keyID] = nil
         saveChecks()
+        if teamNames.removeValue(forKey: keyID) != nil { saveTeamNames() }
         if firstSyncKeyID == keyID { firstSyncKeyID = nil }
         if currentKeyID == keyID { setCurrentKeyID(keys.first?.keyID) }
     }
 
-    /// The API doesn't expose a team's name, so the person names each key.
-    /// An empty name goes back to the default.
+    /// The person's name for a key wins over App Store Connect's. An empty
+    /// name goes back to that one, or to the default without it.
     func rename(keyID: String, to name: String) throws {
         guard let index = keys.firstIndex(where: { $0.keyID == keyID }) else { return }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -119,6 +128,14 @@ final class AppSession {
         credentials.teamName = name.isEmpty ? nil : name
         try store.save(credentials)
         keys[index] = credentials
+    }
+
+    /// Remembers the team's name App Store Connect gave for a saved key.
+    func recordTeamName(_ name: String, for keyID: String) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, teamNames[keyID] != name, keys.contains(where: { $0.keyID == keyID }) else { return }
+        teamNames[keyID] = name
+        saveTeamNames()
     }
 
     func record(_ check: KeyAccessCheck, for keyID: String) {
@@ -141,8 +158,13 @@ final class AppSession {
         defaults.set(data, forKey: Key.checks)
     }
 
+    private func saveTeamNames() {
+        defaults?.set(teamNames, forKey: Key.teamNames)
+    }
+
     private enum Key {
         static let currentKeyID = "currentKeyID"
         static let checks = "keyAccessChecks"
+        static let teamNames = "teamNamesFromAppStoreConnect"
     }
 }

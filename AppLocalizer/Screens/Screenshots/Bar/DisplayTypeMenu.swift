@@ -6,17 +6,27 @@
 import SwiftUI
 
 /// The display type the Sets matrix shows: the two sizes Apple requires,
-/// then the ones this app has no template for, with why.
+/// iPhone Duo (required soon), then the ones this app has no template for,
+/// with why.
 struct DisplayTypeMenu: View {
     @Bindable var viewModel: ScreenshotsViewModel
 
     var body: some View {
         Menu {
             Section(String(localized: "Required by Apple")) {
-                ForEach(ScreenshotDisplayType.rendered) { type in
+                ForEach(ScreenshotDisplayType.rendered.filter { $0.upcomingRequirement == nil }) { type in
                     Toggle(isOn: selection(type)) {
                         Text(type.title)
                         Text(verbatim: "\(viewModel.pixelSize(for: type).title) px")
+                    }
+                    .accessibilityIdentifier("screenshots.display.\(type.shortTitle)")
+                }
+            }
+            Section(String(localized: "Coming soon")) {
+                ForEach(ScreenshotDisplayType.rendered.filter { $0.upcomingRequirement != nil }) { type in
+                    Toggle(isOn: selection(type)) {
+                        Text(type.title)
+                        Text(verbatim: "\(viewModel.pixelSize(for: type).title) px · \(type.upcomingRequirement ?? "")")
                     }
                     .accessibilityIdentifier("screenshots.display.\(type.shortTitle)")
                 }
@@ -34,7 +44,7 @@ struct DisplayTypeMenu: View {
                 }
             }
         } label: {
-            Label(viewModel.displayType.title, systemImage: viewModel.displayType.isTablet ? "ipad" : "iphone")
+            Label(viewModel.displayType.title, systemImage: viewModel.displayType.symbolName)
         }
         .menuStyle(.button)
         .buttonStyle(.bordered)

@@ -69,6 +69,27 @@ struct LiveScreenshotsServicesTests {
         #expect(query.contains(URLQueryItem(name: "include", value: "appScreenshots")))
     }
 
+    @Test func eachScreenshotSaysWhereItsUploadIs() async throws {
+        let transport = FakeHTTPTransport([
+            Canned.page(
+                [Canned.screenshotSet("en-iphone", displayType: "APP_IPHONE_67", screenshots: ["e1", "e2", "e3"])],
+                included: [
+                    Canned.screenshot("e1", fileName: "one.png", checksum: "c1"),
+                    Canned.screenshot("e2", deliveryState: "UPLOAD_COMPLETE"),
+                    Canned.screenshot("e3", deliveryState: "FAILED"),
+                ]
+            ),
+            Canned.page([]),
+        ])
+        let live = try await services(transport).liveScreenshots(for: app, localizations: [.englishUS: "vl-en"])
+
+        let query = transport.requests.first?.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems } ?? []
+        #expect(query.first { $0.name == "fields[appScreenshots]" }?.value?.contains("assetDeliveryState") == true)
+        let shots = try #require(live.set(locale: "en-US", displayType: .iPhone)?.screenshots)
+        #expect(shots.map(\.missingImage) == [nil, .stillProcessing, .noImage])
+        #expect(shots[2].deliveryState?.isFailed == true)
+    }
+
     @Test func pagesAreFollowed() async throws {
         let transport = FakeHTTPTransport([
             Canned.page(

@@ -43,11 +43,11 @@ struct AccountSettingsTab: View {
             Text("Its apps leave the library; their pending changes stay until you push or discard them. The key itself stays valid in App Store Connect.")
         }
         .alert("Rename Key", isPresented: isRenaming, presenting: renaming) { credentials in
-            TextField("Team name", text: $draftName)
+            TextField(viewModel.teamNameFromAppStoreConnect(for: credentials.keyID) ?? String(localized: "Team name"), text: $draftName)
             Button("Rename") { viewModel.rename(keyID: credentials.keyID, to: draftName) }
             Button("Cancel", role: .cancel) {}
-        } message: { _ in
-            Text("App Store Connect doesn’t share your team’s name, so give this key the name you know it by.")
+        } message: { credentials in
+            Text(renameMessage(for: credentials.keyID))
         }
         .sheet(isPresented: $isAddingKey) {
             AddKeySheet()
@@ -100,6 +100,13 @@ struct AccountSettingsTab: View {
 
     private var footnote: Text {
         Text("Keys live in this Mac’s Keychain. Removing a key removes its apps from the library; their pending changes stay until you push or discard them.")
+    }
+
+    private func renameMessage(for keyID: String) -> String {
+        guard let name = viewModel.teamNameFromAppStoreConnect(for: keyID) else {
+            return String(localized: "App Store Connect didn’t give this team’s name, so give this key the name you know it by.")
+        }
+        return String(localized: "Leave it empty to use “\(name)”, the team’s name in App Store Connect.")
     }
 
     private var removalTitle: String {

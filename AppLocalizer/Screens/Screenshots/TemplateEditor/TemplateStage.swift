@@ -21,7 +21,7 @@ struct TemplateStage: View {
                 } else {
                     HStack(alignment: .top, spacing: 28) {
                         canvas
-                        StressStripView(model: model, cardWidth: model.displayType.isTablet ? 140 : 112)
+                        StressStripView(model: model, cardWidth: min(140, model.displayType.thumbnailWidth(phone: 112, tablet: 140)))
                     }
                 }
             }
@@ -36,13 +36,16 @@ struct TemplateStage: View {
         TemplateCanvasView(model: model, width: canvasWidth)
     }
 
-    /// 250 pt for an iPhone portrait canvas, 470 for iPad landscape.
+    /// 250 pt for an iPhone portrait canvas, 470 for iPad landscape, 360
+    /// for iPhone Duo's inner display in portrait.
     private var canvasWidth: CGFloat {
-        switch (model.displayType.isTablet, model.orientation) {
-        case (false, .portrait): 250
-        case (false, .landscape): 520
-        case (true, .portrait): 330
-        case (true, .landscape): 470
+        switch (model.displayType, model.orientation) {
+        case (.iPad, .portrait): 330
+        case (.iPad, .landscape): 470
+        case (.iPhoneDuo, .portrait): 360
+        case (.iPhoneDuo, .landscape): 500
+        case (_, .portrait): 250
+        case (_, .landscape): 520
         }
     }
 }

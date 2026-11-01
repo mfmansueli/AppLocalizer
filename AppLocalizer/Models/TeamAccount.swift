@@ -10,8 +10,8 @@ import Foundation
 struct TeamAccount: Identifiable, Hashable, Sendable {
     /// The key ID, unique per saved key.
     var id: String
-    /// The team's name. The API doesn't expose it, so it's what the person
-    /// typed, or a default naming the key.
+    /// The team's name: what the person typed, else the name on the team's
+    /// certificates in App Store Connect, else a default.
     var name: String
     /// e.g. "Admin" or "App Manager", or what the role check found.
     var role: String

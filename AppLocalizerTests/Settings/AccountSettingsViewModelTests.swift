@@ -26,6 +26,15 @@ struct AccountSettingsViewModelTests {
         #expect(vm.account(for: brightline).name == "Brightline Apps")
     }
 
+    @Test func renamingOffersTheTeamsNameFromAppStoreConnect() {
+        let unnamed = TestKeys.credentials()
+        let vm = model(FakeCredentialsStore(stored: [unnamed]))
+        #expect(vm.teamNameFromAppStoreConnect(for: unnamed.keyID) == nil)
+        vm.session.recordTeamName("Lima Apps", for: unnamed.keyID)
+        #expect(vm.teamNameFromAppStoreConnect(for: unnamed.keyID) == "Lima Apps")
+        #expect(vm.account(for: unnamed).name == "Lima Apps")
+    }
+
     @Test func connectionTestRecordsWhatTheKeyCanDo() async {
         let vm = model()
         checker.result.salesAccess = .notAllowed

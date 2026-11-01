@@ -23,8 +23,8 @@ struct ScreenshotUploadItem: Identifiable, Hashable, Sendable {
     /// Committed and accepted for processing: the old one can go.
     var isCommitted = false
     var isOldDeleted = false
-    /// Something that went wrong after the image itself went through, e.g.
-    /// the old screenshot couldn't be deleted.
+    /// Something worth knowing beside how the image went, e.g. the old
+    /// screenshot couldn't be deleted, or had no image to keep.
     var note: String?
 
     var id: String { plan.id }

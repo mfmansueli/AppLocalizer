@@ -79,11 +79,12 @@ extension AutopilotRun {
         ]
     }
 
-    /// "1320 × 2868"; Apple Watch takes an Ultra's screen; Apple Vision Pro
-    /// the app's window as it is.
+    /// "1320 × 2868"; iPhone Duo its inner display's; Apple Watch takes an
+    /// Ultra's screen; Apple Vision Pro the app's window as it is.
     static func capturePixelSize(_ display: ScreenshotDisplayType) -> String {
         switch display {
         case .iPad: display.portraitPixelSize.rotated.title
+        case .iPhoneDuo: String(localized: "\(display.portraitPixelSize.title) (the inner display, unfolded)")
         case .watch: "422 × 514 (or 410 × 502)"
         case .visionPro: String(localized: "the app’s window, at least 600 px on its short side")
         default: display.portraitPixelSize.title
@@ -97,6 +98,13 @@ extension AutopilotRun {
             """
             Pair the watch simulator with the iPhone one (xcrun simctl pair), launch the watch app in each locale and capture each of the \
             watch screens below. No captions: the capture is the screenshot.
+            """
+        case .iPhoneDuo:
+            """
+            Use the iPhone Duo simulator (Xcode 27.1 or later), unfolded, so the app runs on the inner display. It has two displays: \
+            list them with xcrun simctl io booted enumerate and capture the inner one with xcrun simctl io booted screenshot \
+            --display=<its ID> (the IDs change each time the simulator boots). App Store Connect also takes the outer display's \
+            1398 × 2034, but the template renders at the inner display's size, so capture the inner one.
             """
         case .visionPro:
             """

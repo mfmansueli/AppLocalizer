@@ -78,7 +78,7 @@ enum ScreenshotsDebugDocuments {
     static var live: LiveScreenshots {
         let data = ScreenshotsSampleData.self
         var sets: [LiveScreenshotSet] = []
-        for display in ScreenshotDisplayType.rendered {
+        for display in ScreenshotsSampleData.liveDisplays {
             for locale in data.liveLocales {
                 let shots = data.slotNames.indices.map { slot in
                     LiveScreenshot(id: "live|\(locale)|\(display.rawValue)|\(slot)", fileName: "", checksum: checksum(locale, display, slot))
@@ -102,7 +102,7 @@ enum ScreenshotsDebugDocuments {
         let template = data.template
         let captures = data.captures
         var pushed: [PushedRender] = []
-        for display in ScreenshotDisplayType.rendered {
+        for display in ScreenshotsSampleData.liveDisplays {
             for locale in data.liveLocales {
                 for slot in data.slotNames.indices {
                     var caption = data.caption(locale: locale, slot: slot, source: data.provenance)

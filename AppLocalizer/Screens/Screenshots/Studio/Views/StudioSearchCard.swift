@@ -40,6 +40,7 @@ struct StudioSearchCard: View {
     private var width: CGFloat {
         switch preview.displayType {
         case .iPad: 150
+        case .iPhoneDuo: 125
         case .visionPro: 200
         default: 82
         }

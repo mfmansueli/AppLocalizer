@@ -79,9 +79,13 @@ enum ScreenshotChecker {
         let size = capture.pixelSize
         // A visionOS window takes the capture's own shape.
         if display == .visionPro { return nil }
-        let isTabletCapture = size.aspectRatio < 1.7
-        if display.isRendered, isTabletCapture != display.isTablet {
-            let kind = isTabletCapture ? String(localized: "an iPad screenshot") : String(localized: "an iPhone screenshot")
+        let captured = CaptureSizeRules.deviceClass(of: size)
+        if display.isRendered, captured != display {
+            let kind = switch captured {
+            case .iPad: String(localized: "an iPad screenshot")
+            case .iPhoneDuo: String(localized: "an iPhone Duo screenshot")
+            default: String(localized: "an iPhone screenshot")
+            }
             let text = String(localized: "Wrong size: the capture is \(size.title), \(kind). Retake it on an \(display.deviceName) simulator.")
             return RenderCheck(kind: .captureSize, status: .failed, text: text, shortReason: wrongSize)
         }

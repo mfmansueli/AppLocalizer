@@ -244,9 +244,9 @@ struct ScreenshotLayoutEngine {
             layout.screenHasShadow = true
             return
         }
-        let isTablet = canvas.display.isTablet
+        let shape = Self.deviceShape(for: canvas.display)
         let screenAspect = height / width
-        let bezelRatio: CGFloat = isTablet ? 0.028 : 0.034
+        let bezelRatio = shape.bezel
         var deviceWidth = template.device.width * width * (context.isHero ? 0.96 : 1)
         var deviceHeight = deviceWidth * (1 - 2 * bezelRatio) * screenAspect + 2 * bezelRatio * deviceWidth
         let maximumHeight = height * (1 + template.device.bleed) - top
@@ -259,16 +259,37 @@ struct ScreenshotLayoutEngine {
         let bezel = bezelRatio * deviceWidth
         let frame = CGRect(x: (width - deviceWidth) / 2 + offset, y: top, width: deviceWidth, height: deviceHeight)
         let screen = frame.insetBy(dx: bezel, dy: bezel)
-        let island = isTablet ? nil : CGRect(
+        let island = shape.hasIsland ? CGRect(
             x: screen.midX - screen.width * 0.15, y: screen.minY + screen.width * 0.03,
             width: screen.width * 0.3, height: screen.width * 0.085
-        )
+        ) : nil
         layout.device = LayoutDevice(
-            frame: frame, cornerRadius: deviceWidth * (isTablet ? 0.05 : 0.15), bezel: bezel,
+            frame: frame, cornerRadius: deviceWidth * shape.corner, bezel: bezel,
             color: TemplateColor(template.device.color) ?? .black, island: island,
             shadowOffset: height * 0.012, shadowRadius: height * 0.04
         )
         layout.screen = screen
-        layout.screenCornerRadius = deviceWidth * (isTablet ? 0.035 : 0.125)
+        layout.screenCornerRadius = deviceWidth * shape.screenCorner
+    }
+
+    /// The frame drawn around the capture, as fractions of the device's
+    /// width: an iPhone's thin bezel, round corners and Dynamic Island; an
+    /// iPad's squarer corners; iPhone Duo unfolded between the two, with
+    /// no island on its inner display.
+    static func deviceShape(for display: ScreenshotDisplayType) -> DeviceShape {
+        switch display {
+        case .iPad: DeviceShape(bezel: 0.028, corner: 0.05, screenCorner: 0.035, hasIsland: false)
+        case .iPhoneDuo: DeviceShape(bezel: 0.03, corner: 0.075, screenCorner: 0.055, hasIsland: false)
+        default: DeviceShape(bezel: 0.034, corner: 0.15, screenCorner: 0.125, hasIsland: true)
+        }
+    }
+
+    /// A device frame's bezel and corner radii, as fractions of its width,
+    /// and whether its screen has a Dynamic Island.
+    struct DeviceShape: Equatable {
+        let bezel: CGFloat
+        let corner: CGFloat
+        let screenCorner: CGFloat
+        let hasIsland: Bool
     }
 }

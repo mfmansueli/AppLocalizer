@@ -11,7 +11,9 @@ import SwiftUI
 /// assistant could do; the proposals waiting for review; what it can
 /// suggest here; and Settings…, Suggest Everything… (Show Progress while it
 /// runs) with Ask About This Page… on the Store Page and App Information,
-/// Generate Suggestions… with a key, or Set Up Assistant….
+/// Generate Suggestions… with a key, or Set Up Assistant…. Runs
+/// AppLocalizer started keep going with it closed, so they're listed with
+/// Stop.
 struct AssistantPopoverContent: View {
     let status: AssistantStatus
     let activity: AssistantActivity
@@ -40,6 +42,7 @@ struct AssistantPopoverContent: View {
             header
             if status.isConnected {
                 clientBox
+                AssistantLaunchedRunsList()
             } else if status.isReady, let key {
                 keyBox(key)
             } else {

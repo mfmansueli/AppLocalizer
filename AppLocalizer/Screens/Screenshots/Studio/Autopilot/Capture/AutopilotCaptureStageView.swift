@@ -27,6 +27,9 @@ struct AutopilotCaptureStageView: View {
                 HStack(alignment: .top, spacing: Spacing.large) {
                     latest
                     VStack(alignment: .leading, spacing: Spacing.medium) {
+                        if let launched = studio.launchedRun, launched.isActive || launched.failure != nil || !launched.denials.isEmpty {
+                            AutopilotLaunchStatus(studio: studio, run: launched)
+                        }
                         ForEach(run.openProblems) { problem in
                             AutopilotProblemCard(studio: studio, run: run, problem: problem)
                         }

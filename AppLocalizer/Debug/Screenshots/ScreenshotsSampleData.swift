@@ -21,6 +21,9 @@ enum ScreenshotsSampleData {
         .iPhone: ["en-US", "de-DE", "fr-FR", "es-ES", "it", "pt-BR", "ja", "ko", "zh-Hans", "ar-SA"],
         .iPad: ["en-US", "de-DE", "fr-FR", "ja"],
     ]
+    /// The display types Lumen has live and kept sets on: iPhone and iPad.
+    /// It has no iPhone Duo screenshots yet.
+    static let liveDisplays: [ScreenshotDisplayType] = [.iPhone, .iPad]
     /// Live from template v4 on both display types.
     static let liveLocales = ["en-US", "de-DE", "fr-FR", "es-ES", "it", "pt-BR", "ja", "ko"]
     /// German slot 3 went live with a shorter caption than it has now.

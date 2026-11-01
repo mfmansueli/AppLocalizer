@@ -31,9 +31,11 @@ enum ThumbnailSize: String, CaseIterable, Identifiable, Hashable, Sendable {
     }
 
     /// The thumbnail width in points: 44 / 64 / 92 for iPhone and Apple
-    /// Watch, 84 / 116 / 164 for iPad and Apple Vision Pro.
+    /// Watch, 84 / 116 / 164 for iPad and Apple Vision Pro, iPhone Duo's at
+    /// the iPhone's height.
     func width(for display: ScreenshotDisplayType) -> CGFloat {
-        switch (self, display.isTablet || display == .visionPro) {
+        if display == .iPhoneDuo { return display.thumbnailWidth(phone: width(for: .iPhone), tablet: 0) }
+        return switch (self, display.isTablet || display == .visionPro) {
         case (.small, false): 44
         case (.medium, false): 64
         case (.large, false): 92

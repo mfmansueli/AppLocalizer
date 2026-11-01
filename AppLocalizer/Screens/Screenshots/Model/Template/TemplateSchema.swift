@@ -14,6 +14,7 @@ enum TemplateSchema {
             "name": .text,
             "canvas.iphone": .choice(ScreenshotOrientation.allCases.map(\.rawValue)),
             "canvas.ipad": .choice(ScreenshotOrientation.allCases.map(\.rawValue)),
+            "canvas.duo": .choice(ScreenshotOrientation.allCases.map(\.rawValue)),
             "bg.kind": .choice(TemplateBackground.Kind.allCases.map(\.rawValue)),
             "bg.angle": .number(0...360, unit: "°"),
             "bg.stops": .colors(1...6),

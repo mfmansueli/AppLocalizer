@@ -21,16 +21,16 @@ struct ScreenshotStudioWatchAppTests {
     @Test func theStudioShowsAppleWatch() async {
         // The Studio holds its view model unowned: keep each one alive.
         let withWatch = await Self.model()
-        #expect(withWatch.studio.devices == [.iPhone, .iPad, .watch])
+        #expect(withWatch.studio.devices == [.iPhone, .iPhoneDuo, .iPad, .watch])
         let without = await Self.model(hasWatchApp: false)
-        #expect(without.studio.devices == [.iPhone, .iPad])
+        #expect(without.studio.devices == [.iPhone, .iPhoneDuo, .iPad])
     }
 
     @Test func thePlanSaysWhereItFoundTheWatchApp() async {
         let model = await Self.model(StudioDebugRuns.run(.plan))
         let plan = StudioDebugRuns.plan
         #expect(model.studio.planFoundText == "Found in Lumen Journal 1.4 on App Store Connect: its build has an Apple Watch app.")
-        #expect(model.studio.planDevices(plan) == [.iPhone, .iPad, .watch])
+        #expect(model.studio.planDevices(plan) == [.iPhone, .iPhoneDuo, .iPad, .watch])
         #expect(model.studio.planDeviceDetail(.watch, plan: plan)
             == "422 × 514 · Ultra 3 · required: the 1.4 build has an Apple Watch app. You’ll need to upload these by hand before submitting.")
     }

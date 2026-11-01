@@ -35,6 +35,10 @@ struct AppWorkspaceView: View {
             }
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // The app's name and bundle ID sit in the toolbar without a
+                // glass background of their own: the hard edge keeps them
+                // readable over whatever scrolls under the toolbar.
+                .scrollEdgeEffectStyle(.hard, for: .top)
         }
         .onGeometryChange(for: CGFloat.self, of: \.size.width) { toolbarLayout.detailWidth = $0 }
         .overlay(alignment: .bottom) {
@@ -94,7 +98,7 @@ struct AppWorkspaceView: View {
                 AssistantToolbarIndicator(
                     activity: assistantActivity,
                     status: assistants.assistantStatus,
-                    client: assistants.leadingClient,
+                    client: assistants.assistantClient,
                     editsDrafts: assistants.editsDrafts,
                     recentCalls: assistants.leadingClient.map { assistants.recentCalls(of: $0.name) } ?? [],
                     center: screenshotDocuments,
