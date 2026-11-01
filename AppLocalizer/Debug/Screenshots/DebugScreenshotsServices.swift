@@ -30,6 +30,9 @@ final class DebugScreenshotsServices: ScreenshotsServices {
     /// Scenes report to the shared center, which the toolbar reads; tests
     /// keep theirs apart.
     let documentCenter: ScreenshotsDocumentCenter?
+    /// What reading each capture's text finds, by capture ID; the mock
+    /// captures have no real text.
+    var textReadings: [String: CaptureTextReading] = [:]
     private let store = InMemoryScreenshotsDocumentStore()
     private let captures = MockLumenCaptureRenderer()
 
@@ -62,6 +65,10 @@ final class DebugScreenshotsServices: ScreenshotsServices {
 
     func captureImage(_ capture: ScreenshotCapture, for _: StoreApp, pixelWidth: Int) async -> CGImage? {
         captures.image(for: capture, pixelWidth: pixelWidth)
+    }
+
+    func readText(of capture: ScreenshotCapture, for _: StoreApp, locale _: StoreLocale, primary _: StoreLocale) async -> CaptureTextReading? {
+        textReadings[capture.id]
     }
 
     /// Only English (U.K.)'s hand-uploaded set is shown from App Store

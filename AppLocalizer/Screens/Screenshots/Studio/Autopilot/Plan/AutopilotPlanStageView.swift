@@ -126,6 +126,13 @@ struct AutopilotPlanStageView: View {
             isOn: planBinding(\.simulator.usesSampleData)
         )
         AutopilotOptionRow(
+            title: String(localized: "Sample data in each language"),
+            detail: String(localized: "Entries, names and places in the capture’s language, not just the interface"),
+            isOn: planBinding(\.simulator.sampleDataInEachLanguage),
+            isLocked: !run.plan.simulator.usesSampleData || !run.plan.capturesEachLanguage
+        )
+        .accessibilityIdentifier("autopilot.plan.sampleDataLanguage")
+        AutopilotOptionRow(
             title: String(localized: "Light appearance, no notifications"),
             detail: String(localized: "Any prompt is answered before capturing, so no alert lands in a screenshot"),
             isOn: planBinding(\.simulator.lightAppearance)

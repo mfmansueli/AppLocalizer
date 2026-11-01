@@ -21,6 +21,9 @@ struct AutopilotCapture: Codable, Hashable, Sendable, Identifiable {
     var captureID: String
     var pixelSize: PixelSize
     var receivedAt: Date
+    /// What AppLocalizer read in it; nil before it was read, or when it
+    /// couldn't be.
+    var text: CaptureTextFacts?
 
     /// The capture as the screenshot document keeps it, to load its image.
     func screenshotCapture(slot: Int) -> ScreenshotCapture {

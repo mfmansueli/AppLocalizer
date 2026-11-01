@@ -16,9 +16,10 @@ struct GetCapturePlanTool: MCPTool {
         Reads the Screenshot Autopilot run the person started in AppLocalizer and picks it up: the screens \
         (id, name, the steps to reach each and the caption it goes with), the devices with their simulator \
         and pixel size, the locales with their launch arguments, the simulator setup commands, and the upload \
-        URL for captures. Build the app, boot the simulators, run the setup, launch the app in each locale and \
-        capture each screen (XCUIScreen or xcrun simctl io booted screenshot). Upload each PNG with curl to the \
-        upload URL and call report_capture. When chooseScreens is true, first decide from the project which \
+        URL for captures. Build the app, boot the simulators, run the setup, launch the app in each locale (with \
+        its sample data in that language when simulatorSetup has sampleDataLanguage) and capture each screen \
+        (XCUIScreen or xcrun simctl io booted screenshot). Upload each PNG with curl to the upload URL and call \
+        report_capture; act on any check it returns. When chooseScreens is true, first decide from the project which \
         screens show the app best and send them with update_capture_plan replace: true, the strongest first: \
         the first three are the ones App Store search results show. Otherwise, if the \
         screens have no steps, write them from the project's UI tests, deep links or launch arguments and send \

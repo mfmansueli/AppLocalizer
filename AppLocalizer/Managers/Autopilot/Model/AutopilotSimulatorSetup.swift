@@ -15,6 +15,9 @@ struct AutopilotSimulatorSetup: Codable, Hashable, Sendable {
     /// Week"; empty when the assistant should find it.
     var usesSampleData = true
     var sampleDataSteps = ""
+    /// Whether the sample data is in each capture's language; nil (runs
+    /// from before) counts as yes. Use `sampleDataInEachLanguage`.
+    var localizesSampleData: Bool?
     /// Light appearance and no notifications: notification prompts are
     /// answered before capturing.
     var lightAppearance = true
@@ -32,6 +35,21 @@ struct AutopilotSimulatorSetup: Codable, Hashable, Sendable {
         get { grantsPermissionsUpFront ?? true }
         set { grantsPermissionsUpFront = newValue }
     }
+
+    /// Entries, names and places in the capture's language: a Japanese
+    /// screen with English sample entries looks unfinished.
+    var sampleDataInEachLanguage: Bool {
+        get { localizesSampleData ?? true }
+        set { localizesSampleData = newValue }
+    }
+
+    /// How the assistant gets sample data in each language.
+    static let sampleDataLanguageNote = """
+    Use sample data in each capture's language: the entries, names, places and other content the app shows should read naturally \
+    there, not in the primary language. Seed it after launching with the locale's launchArguments, so the seed can read \
+    Locale.preferredLanguages. If the sample-data switch makes only one language's content, add the plan's other languages to the \
+    app's debug or UI-test sample data (never to code that ships) and say so in report_capture's notes.
+    """
 
     /// The status bar override, as `get_capture_plan` gives it: Apple's
     /// 9:41, full battery, full bars on Wi-Fi and no carrier name.

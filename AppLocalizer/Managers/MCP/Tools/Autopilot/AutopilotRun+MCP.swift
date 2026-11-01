@@ -57,6 +57,9 @@ extension AutopilotRun {
                     ? "Find the app's sample-data switch (a debug menu, launch argument or UI test helper) and use it."
                     : plan.simulator.sampleDataSteps
             )
+            if plan.capturesEachLanguage, plan.simulator.sampleDataInEachLanguage {
+                simulator["sampleDataLanguage"] = .string(AutopilotSimulatorSetup.sampleDataLanguageNote)
+            }
         }
         return [
             "run": .string(id),

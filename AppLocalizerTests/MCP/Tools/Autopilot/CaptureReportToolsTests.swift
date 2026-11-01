@@ -43,6 +43,26 @@ struct CaptureReportToolsTests {
         #expect(capture.notes == "A full week, entries every day")
     }
 
+    /// AppLocalizer reads the capture's text and says what to fix before
+    /// the next attempt; a clean attempt then ranks first.
+    @Test func aCaptureInTheWrongLanguageComesBackWithACheck() async throws {
+        let fixtures = MCPAutopilotFixtures(StudioDebugRuns.run(.capture))
+        let english = ["This week", "Five entries, mostly calm", "A long walk by the river with friends", "Dinner with Ana and her family"]
+        fixtures.services.textReadings["9f2c"] = CaptureTextReading(
+            lines: english.enumerated().map { RecognizedTextLine(text: $1, confidence: 0.9, top: 0.2 + Double($0) * 0.1) }, readsLanguage: true
+        )
+        let id = try upload(AutopilotTestFixtures.file(.iPad, landscape: true, id: "9f2c"), in: fixtures)
+        var arguments = Self.spanishWeek
+        arguments["upload"] = .string(id)
+        let outcome = try await fixtures.call(ReportCaptureTool(), arguments)
+
+        let issue = CaptureTextIssue.otherLanguage(found: "English", expected: "Spanish (Spain)")
+        #expect(outcome.result["check"] == [["issue": .string(issue.message), "fix": .string(issue.fix)]])
+        #expect(outcome.result["next"] == "Fix it and capture this screen again as attempt 2.")
+        #expect(outcome.result["status"] == "received")
+        #expect(fixtures.run?.captures.last?.text == CaptureTextFacts(language: "en"))
+    }
+
     @Test func screensAreNamedByIDNameOrSlotAndLocalesByAnyCase() async throws {
         let fixtures = MCPAutopilotFixtures(AutopilotTestFixtures.run(.capture))
         for (screen, locale) in [("today", "en-US"), ("Week", "de-de"), ("2", "EN-us")] {

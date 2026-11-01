@@ -81,4 +81,8 @@ protocol ScreenshotsServices {
     /// Keeps a PNG the assistant captured with the app's captures, named by
     /// its checksum. By default it keeps nothing and only reads the size.
     func storeCapture(_ data: Data, for app: StoreApp) async throws -> CaptureFile
+
+    /// The text in a capture, read in `locale`'s language and the ones an
+    /// app falls back to (`primary`, English). By default nothing is read.
+    func readText(of capture: ScreenshotCapture, for app: StoreApp, locale: StoreLocale, primary: StoreLocale) async -> CaptureTextReading?
 }

@@ -51,6 +51,12 @@ struct LiveScreenshotsServices: ScreenshotsServices {
         return await Task.detached { Self.thumbnail(at: url, pixelWidth: pixelWidth) }.value
     }
 
+    /// Reads a capture's text with Vision, at up to 2000 pixels wide.
+    func readText(of capture: ScreenshotCapture, for app: StoreApp, locale: StoreLocale, primary: StoreLocale) async -> CaptureTextReading? {
+        guard let image = await captureImage(capture, for: app, pixelWidth: 2000) else { return nil }
+        return await CaptureTextReader.reading(of: image, language: locale.languageIdentifier, primary: primary.languageIdentifier)
+    }
+
     /// Writes an Autopilot capture into the app's `Captures` folder, named
     /// by its checksum like an imported one.
     func storeCapture(_ data: Data, for app: StoreApp) async throws -> CaptureFile {

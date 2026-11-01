@@ -34,7 +34,13 @@ macOS app (SwiftUI, macOS 27+) for localizing apps faster through the App Store 
   sizes Apple requires, and every Autopilot plan has it (turned off, it's left to upload by hand). Before capturing,
   the assistant sets Apple's 9:41 status bar on Wi-Fi with no carrier, light appearance, grants the app's permissions
   (`xcrun simctl privacy grant all`) and answers any other prompt, so no alert lands in a capture; each language
-  launches in iOS's own language code and its App Store country's formats (`-AppleLanguages (nb) -AppleLocale nb_NO`).
+  launches in iOS's own language code and its App Store country's formats (`-AppleLanguages (nb) -AppleLocale nb_NO`),
+  with its sample data (entries, names, places) in that language too. AppLocalizer reads the text in every capture as it
+  arrives (Vision, then Natural Language for the language): one that reads as English or the primary language instead
+  of its own, labels cut off with an ellipsis beyond the primary language's, or the app's name in quotes (a permission
+  prompt) comes back to the assistant in `report_capture` with what to fix, and a clean attempt ranks above it. The
+  ones the set still uses are listed at Pick and Ready as captures to check. The design AI still designs once, from the
+  primary language's picks and every language's captions; AppLocalizer renders each language with its own captures.
 - **App Information:** general information, the age rating, accessibility declarations and an App Privacy worksheet.
 - **AI assistants (optional):** a local MCP server lets Claude Code, Claude Desktop, Cursor or Codex read the
   listing and propose text, prices, privacy answers and screenshots. Proposals wait for review like any other change;

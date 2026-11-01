@@ -17,7 +17,9 @@ struct ReportCaptureTool: MCPTool {
         AppLocalizer can read it, a file path). Give the attempt (1–3) and a score from 0 to 1 with notes saying why \
         (e.g. "Keyboard covers the prompt"); the best one is picked. The PNG must be the device's full size, e.g. \
         1320 × 2868 on iPhone, 2007 × 2853 on iPhone Duo's inner display. \
-        The result says how many are left.
+        AppLocalizer reads the text in it: when the result has a check (text in another language, cut-off labels \
+        or a system prompt), fix what it says and capture it again as the next attempt; a clean attempt is used \
+        over one with a check. The result says how many are left.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -42,23 +44,31 @@ struct ReportCaptureTool: MCPTool {
         let target = try session.captureTarget(arguments)
         let file = try await file(arguments, session: session)
         let score = arguments.values["score"]?.doubleValue ?? 0.5
+        let capture: AutopilotCapture
         do {
             let report = try AutopilotCaptureReport(
                 target: target, attempt: arguments.optionalInt("attempt") ?? 1, score: score, notes: arguments.optionalString("notes") ?? ""
             )
-            _ = try await session.center.receiveCapture(appID: session.app.id, file: file, report: report, context: session.context)
+            capture = try await session.center.receiveCapture(appID: session.app.id, file: file, report: report, context: session.context)
         } catch {
             return .refused(error.localizedDescription, target: session.target(target))
         }
         if let id = try arguments.optionalString("upload") { session.center.uploads[id] = nil }
         session.refresh()
-        let result: JSONValue = [
+        var result: [String: JSONValue] = [
             "status": "received",
             "captured": .int(session.run.capturedCount),
             "total": .int(session.run.totalCaptures),
             "stage": .string(session.run.stage.rawValue),
         ]
-        return MCPToolOutcome(result: result, isError: false, logLines: [.init(target: session.target(target), outcome: .proposed)])
+        let issues = session.run.textIssues(of: capture)
+        if !issues.isEmpty {
+            result["check"] = .array(issues.map { ["issue": .string($0.message), "fix": .string($0.fix)] })
+            result["next"] = capture.attempt < 3
+                ? .string("Fix it and capture this screen again as attempt \(capture.attempt + 1).")
+                : "No attempts left: say what's wrong with report_capture_problem if it can't be fixed."
+        }
+        return MCPToolOutcome(result: .object(result), isError: false, logLines: [.init(target: session.target(target), outcome: .proposed)])
     }
 
     private func file(_ arguments: MCPToolArguments, session: MCPAutopilotSession) async throws -> CaptureFile {

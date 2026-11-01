@@ -152,6 +152,29 @@ final class ScreenshotStudioUITests: XCTestCase {
         XCTAssertTrue(problem.waitForNonExistence(timeout: 5))
     }
 
+    /// AppLocalizer read every capture's text: the Japanese Week screen came
+    /// back in English and a German label is cut off.
+    func testThePickStepListsTheCapturesToCheck() {
+        launch(scene: "st-pick")
+        let card = element("autopilot.pick.toCheck")
+        XCTAssertTrue(card.waitForExistence(timeout: 15))
+        let japanese = element("autopilot.pick.toCheck.ja.week")
+        XCTAssertTrue(japanese.exists)
+        XCTAssertTrue(text(of: japanese).contains("English, not Japanese"), text(of: japanese))
+        XCTAssertTrue(element("autopilot.pick.toCheck.de-DE.search").exists)
+    }
+
+    func testThePlanUsesSampleDataInEachLanguage() {
+        launch(scene: "st-plan")
+        let sampleData = element("autopilot.plan.sampleDataLanguage")
+        XCTAssertTrue(sampleData.waitForExistence(timeout: 15))
+        XCTAssertEqual(sampleData.value as? Int, 1)
+        XCTAssertTrue(sampleData.isEnabled)
+        element("autopilot.plan.eachLanguage").click()
+        let locked = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isEnabled == false"), object: sampleData)
+        XCTAssertEqual(XCTWaiter().wait(for: [locked], timeout: 5), .completed, "English captures are reused: one language's data")
+    }
+
     func testPickingAnotherCaptureThenUsingThePicksStartsDesign() {
         launch(scene: "st-pick")
         let picked = element("autopilot.pick.picked.0")
@@ -183,6 +206,7 @@ final class ScreenshotStudioUITests: XCTestCase {
         launch(scene: "st-ready-sheet")
         XCTAssertTrue(element("autopilot.ready").waitForExistence(timeout: 15))
         XCTAssertTrue(element("autopilot.ready.caption.de-DE.2").exists)
+        XCTAssertTrue(element("autopilot.ready.toCheck").exists)
         app.buttons["autopilot.seePreview"].click()
         XCTAssertTrue(element("autopilot.sheet").waitForNonExistence(timeout: 5))
         XCTAssertEqual(text(of: element("studio.setCard.title")), "New set")

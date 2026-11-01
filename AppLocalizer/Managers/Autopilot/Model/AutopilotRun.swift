@@ -83,8 +83,17 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
         !plan.targets.isEmpty && plan.targets.allSatisfy(isSettled) && openProblems.isEmpty
     }
 
+    /// A target's captures, best first: clean text before an issue, then
+    /// by score.
     func captures(for target: AutopilotCaptureTarget) -> [AutopilotCapture] {
-        captures.filter { $0.target == target }.sorted { $0.score > $1.score || ($0.score == $1.score && $0.attempt < $1.attempt) }
+        captures.filter { $0.target == target }
+            .map { (capture: $0, isClean: textIssues(of: $0).isEmpty) }
+            .sorted { first, second in
+                if first.isClean != second.isClean { return first.isClean }
+                let (one, other) = (first.capture, second.capture)
+                return one.score > other.score || (one.score == other.score && one.attempt < other.attempt)
+            }
+            .map(\.capture)
     }
 
     var latestCapture: AutopilotCapture? {
@@ -111,12 +120,14 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     }
 
     /// The capture a target uses in the set: the picked attempt when that
-    /// language and device has it, else its best. An Apple Vision Pro
-    /// window follows its iPhone screen's pick.
+    /// language and device has it and its text is clean, else its best. An
+    /// Apple Vision Pro window follows its iPhone screen's pick.
     func finalCapture(for target: AutopilotCaptureTarget) -> AutopilotCapture? {
         let own = captures(for: target)
         let attempt = pickedCapture(for: plan.pickScreenID(for: target.screenID))?.attempt
-        return own.first { $0.attempt == attempt } ?? own.first
+        let same = own.first { $0.attempt == attempt }
+        if let same, textIssues(of: same).isEmpty { return same }
+        return own.first { textIssues(of: $0).isEmpty } ?? same ?? own.first
     }
 
     /// The assistant's ranking: the best capture of every screen.

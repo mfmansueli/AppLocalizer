@@ -41,12 +41,13 @@ extension AutopilotCenter {
             throw AutopilotError(String(localized: "The run isn’t capturing now. Call next_step to see what AppLocalizer wants."))
         }
         try Self.checkSize(file.pixelSize, for: target.displayType)
-        let capture = AutopilotCapture(
+        var capture = AutopilotCapture(
             id: makeID(), target: target, attempt: max(1, report.attempt), score: min(max(report.score, 0), 1), notes: report.notes,
             captureID: file.id, pixelSize: file.pixelSize, receivedAt: now()
         )
         let name = run.plan.screen(id: target.screenID)?.name ?? target.screenID
         let slot = (run.plan.slot(of: target.screenID) ?? 0) + 1
+        capture.text = await readText(of: capture, slot: slot - 1, context: context)
         update(appID) { run in
             run.captures.removeAll { $0.target == target && $0.attempt == capture.attempt }
             run.captures.append(capture)
@@ -58,6 +59,16 @@ extension AutopilotCenter {
         }
         await advance(appID, context: context)
         return capture
+    }
+
+    /// What the capture's text says: its language, cut-off labels and
+    /// system prompts. Apple Watch's are read too; nil when nothing could be.
+    private func readText(of capture: AutopilotCapture, slot: Int, context: AutopilotContext) async -> CaptureTextFacts? {
+        guard let locale = StoreLocaleCatalog.locale(code: capture.target.locale) else { return nil }
+        let reading = await context.services.readText(
+            of: capture.screenshotCapture(slot: slot), for: context.app, locale: locale, primary: context.primaryLocale
+        )
+        return reading.map { CaptureTextAnalyzer.facts(of: $0, appName: context.app.name) }
     }
 
     /// A screen couldn't be reached; the others keep going.

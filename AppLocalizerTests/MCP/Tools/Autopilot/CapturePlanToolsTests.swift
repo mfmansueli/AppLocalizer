@@ -51,6 +51,7 @@ struct CapturePlanToolsTests {
             ],
             "alerts": .string(AutopilotSimulatorSetup.alertsNote),
             "sampleData": "Settings → Debug → Add Sample Week",
+            "sampleDataLanguage": .string(AutopilotSimulatorSetup.sampleDataLanguageNote),
         ])
         #expect(plan["upload"]?["url"] == "http://127.0.0.1:4000/autopilot/debug-token")
         #expect(plan["upload"]?["how"] == "curl -s --data-binary @capture.png -H 'Content-Type: image/png' http://127.0.0.1:4000/autopilot/debug-token")
@@ -69,6 +70,16 @@ struct CapturePlanToolsTests {
         let found = try await MCPAutopilotFixtures(waiting).call(GetCapturePlanTool()).result
         #expect(found["simulatorSetup"]?["commands"] == ["xcrun simctl ui booted appearance light"])
         #expect(found["simulatorSetup"]?["sampleData"]?.stringValue?.hasPrefix("Find the app's sample-data switch") == true)
+        #expect(found["simulatorSetup"]?["sampleDataLanguage"] != nil)
+
+        var oneLanguageData = waiting
+        oneLanguageData.plan.simulator.sampleDataInEachLanguage = false
+        let oneLanguage = try await MCPAutopilotFixtures(oneLanguageData).call(GetCapturePlanTool()).result
+        #expect(oneLanguage["simulatorSetup"]?["sampleDataLanguage"] == nil)
+        var primaryOnly = waiting
+        primaryOnly.plan.capturesEachLanguage = false
+        let reused = try await MCPAutopilotFixtures(primaryOnly).call(GetCapturePlanTool()).result
+        #expect(reused["simulatorSetup"]?["sampleDataLanguage"] == nil, "English captures are reused: one language's data")
 
         waiting.plan.simulator.usesSampleData = false
         waiting.plan.simulator.lightAppearance = false

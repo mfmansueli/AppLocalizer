@@ -202,11 +202,25 @@ enum StudioDebugRuns {
                     target: target, attempt: attempt, score: [0.94, 0.61, 0.42][attempt - 1],
                     notes: note[attempt - 1],
                     captureID: "autopilot-\(target.locale)-\(target.displayType.rawValue)-\(slot)-\(attempt)",
-                    pixelSize: size, receivedAt: date(day: 31, month: 10, hour: 14, minute: 3, second: index * 3 + attempt)
+                    pixelSize: size, receivedAt: date(day: 31, month: 10, hour: 14, minute: 3, second: index * 3 + attempt),
+                    text: text(of: target, slot: slot, attempt: attempt)
                 ))
             }
         }
         return captures
+    }
+
+    /// What reading the text found: the Japanese Week screen with English
+    /// sample entries, a German search label cut off, and the
+    /// notifications prompt on the Week screen's third attempt.
+    private static func text(of target: AutopilotCaptureTarget, slot: Int, attempt: Int) -> CaptureTextFacts? {
+        guard target.displayType == .iPhone else { return nil }
+        switch (target.locale, slot, attempt) {
+        case ("ja", 1, 1): return CaptureTextFacts(language: "en")
+        case ("de-DE", 2, 1): return CaptureTextFacts(language: "de", truncatedLines: ["Einträge durchsu…"])
+        case ("en-US", 1, 3): return CaptureTextFacts(language: "en", promptLine: "“Lumen” Would Like to Send You Notifications")
+        default: return nil
+        }
     }
 
     private static var captureLog: [AutopilotLogEntry] {

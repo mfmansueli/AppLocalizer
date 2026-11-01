@@ -53,7 +53,22 @@ struct AutopilotReadyStageView: View {
     }
 
     private var notes: [AutopilotReadyNote] {
-        var notes: [AutopilotReadyNote] = run.shortenings.map { item in
+        var notes: [AutopilotReadyNote] = []
+        let toCheck = run.capturesToCheck
+        if let first = toCheck.first {
+            let more = toCheck.count - 1
+            let firstNote = "\(AutopilotCapturesToCheck.place(of: first, in: run)): \(first.issues[0].message)"
+            notes.append(AutopilotReadyNote(
+                title: AutopilotCapturesToCheck.title(count: toCheck.count),
+                detail: more == 0 ? firstNote : String(localized: "\(firstNote) And \(more) more."),
+                button: String(localized: "Open Captures"),
+                identifier: "autopilot.ready.toCheck"
+            ) {
+                studio.isAutopilotPresented = false
+                studio.screenshots.tab = .captures
+            })
+        }
+        notes += run.shortenings.map { item in
             let language = StoreLocaleCatalog.locale(code: item.locale)?.shortName ?? item.locale
             return AutopilotReadyNote(
                 title: String(localized: "\(language) slot \(item.slot + 1) was shortened"),

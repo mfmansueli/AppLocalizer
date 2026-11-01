@@ -17,6 +17,10 @@ extension ScreenshotsServices {
         try Self.captureFile(for: data)
     }
 
+    func readText(of _: ScreenshotCapture, for _: StoreApp, locale _: StoreLocale, primary _: StoreLocale) async -> CaptureTextReading? {
+        nil
+    }
+
     /// The checksum and size of a PNG, or why it isn't one.
     static func captureFile(for data: Data) throws -> CaptureFile {
         guard let image = ScreenshotPNG.image(data) else {

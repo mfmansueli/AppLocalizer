@@ -36,6 +36,7 @@ struct AutopilotSimulatorLaunchTests {
         var setup = try JSONDecoder().decode(AutopilotSimulatorSetup.self, from: old)
         #expect(setup.grantsPermissionsUpFront == nil)
         #expect(setup.grantsPermissions)
+        #expect(setup.sampleDataInEachLanguage, "Sample data in each language unless turned off")
         setup.grantsPermissions = false
         let decoded = try JSONDecoder().decode(AutopilotSimulatorSetup.self, from: JSONEncoder().encode(setup))
         #expect(!decoded.grantsPermissions)

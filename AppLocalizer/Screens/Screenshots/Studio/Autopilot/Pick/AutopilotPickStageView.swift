@@ -24,6 +24,7 @@ struct AutopilotPickStageView: View {
                         .font(.callout)
                         .foregroundStyle(Palette.label2)
                 }
+                AutopilotCapturesToCheck(run: run)
                 ScrollView(.horizontal) {
                     HStack(alignment: .top, spacing: Spacing.large) {
                         ForEach(Array(run.plan.screens.enumerated()), id: \.element.id) { index, screen in
