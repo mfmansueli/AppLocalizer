@@ -199,6 +199,22 @@ struct ClaudeCodeLauncherRunTests {
         #expect(try await finishedRun(start()).failure == .exited(status: 1, message: "node: bad option"))
     }
 
+    @Test func aRunThatStartedButLostItsEndDidStart() async throws {
+        let writeError = "Start Claude Code.zsh:111: write error: resource temporarily unavailable"
+        runner.lines = [Lines.initLine(), Lines.saidLine("Capturing the Week screen.")]
+        runner.losesExitLine = true
+        runner.errorOutput = writeError
+        runner.taskError = "The script exited with status 1."
+        let run = try await finishedRun(start())
+        #expect(run.failure == .exited(status: nil, message: writeError))
+        #expect(run.failure?.title == "Claude Code ended early")
+        #expect(run.failure?.suggestsTerminal == true)
+
+        // Nothing from Claude Code at all: the helper itself didn't run.
+        runner.lines = []
+        #expect(try await finishedRun(start()).failure == .couldNotStart("The script exited with status 1."))
+    }
+
     @Test func latestRunFindsTheOneForThisRequest() async throws {
         let first = try await finishedRun(start())
         clock.advance(by: 60)

@@ -32,7 +32,14 @@ final class AutopilotCenter {
     init(persistence: (any AutopilotPersistence)? = nil, runs: [StoreApp.ID: AutopilotRun] = [:], designProjects: [StoreApp.ID: DesignProject] = [:]) {
         self.persistence = persistence
         let archive = persistence?.load() ?? AutopilotArchive()
-        self.runs = archive.runs.merging(runs) { $1 }
+        // A plan left open follows the rules made since it was saved.
+        let saved = archive.runs.mapValues { run in
+            guard run.stage == .plan else { return run }
+            var run = run
+            run.plan = AutopilotPlanner.applyingRules(to: run.plan)
+            return run
+        }
+        self.runs = saved.merging(runs) { $1 }
         self.designProjects = archive.designProjects.merging(designProjects) { $1 }
     }
 
@@ -71,10 +78,19 @@ final class AutopilotCenter {
     // MARK: - Planning
 
     /// Run Autopilot…: a new run at Plan, keeping the last run's captures
-    /// that still fit. An open plan, or a run in progress, is kept.
+    /// that still fit. A run in progress is kept, and so is an open plan,
+    /// with the rules made since (iPhone Duo).
     @discardableResult
     func prepare(appID: StoreApp.ID, versionString: String, plan: AutopilotPlan) -> AutopilotRun {
-        if let current = runs[appID], current.stage != .ready { return current }
+        if var current = runs[appID], current.stage != .ready {
+            guard current.stage == .plan else { return current }
+            current.plan = AutopilotPlanner.applyingRules(to: current.plan)
+            let targets = Set(current.plan.targets)
+            current.keptCaptureCount = Set(current.captures.map(\.target).filter(targets.contains)).count
+            runs[appID] = current
+            scheduleSave()
+            return current
+        }
         let previous = runs[appID]
         let project = designProjects[appID]
         var run = AutopilotRun(

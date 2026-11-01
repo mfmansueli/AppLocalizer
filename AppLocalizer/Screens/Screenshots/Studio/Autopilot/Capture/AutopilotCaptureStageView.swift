@@ -5,8 +5,9 @@
 
 import SwiftUI
 
-/// Capture: progress, the latest capture in a device frame, a problem the
-/// person has to answer, the assistant's log and the captures so far.
+/// Capture: progress, the latest capture in a device frame, the problems
+/// the person has to answer (one card per cause), the assistant's log and
+/// the captures so far.
 struct AutopilotCaptureStageView: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -30,8 +31,8 @@ struct AutopilotCaptureStageView: View {
                         if let launched = studio.launchedRun, launched.isActive || launched.failure != nil || !launched.denials.isEmpty {
                             AutopilotLaunchStatus(studio: studio, run: launched)
                         }
-                        ForEach(run.openProblems) { problem in
-                            AutopilotProblemCard(studio: studio, run: run, problem: problem)
+                        ForEach(run.problemGroups) { group in
+                            AutopilotProblemCard(studio: studio, run: run, group: group)
                         }
                         AutopilotLogView(entries: Array(run.log.suffix(8)))
                         thumbnails

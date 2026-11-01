@@ -94,7 +94,7 @@ struct AutopilotStripContent: Hashable, Sendable {
                 run.totalScreenshots > 0 ? Double(run.checkedScreenshots) / Double(run.totalScreenshots) : 0
             )
         }
-        let problems = run.openProblems.count
+        let problems = run.problemGroups.count
         return AutopilotStripContent(
             kind: .running,
             title: String(localized: "Autopilot is running"),

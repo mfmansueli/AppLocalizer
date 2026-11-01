@@ -7,8 +7,8 @@ import Foundation
 
 /// How a script run ended: what it wrote to stderr, and the error
 /// `NSUserUnixTask` reported, if any (the script couldn't start, or it ended
-/// with a non-zero status). The helper prints its own status as its last
-/// line (`ClaudeCodeHelperScript.exitMarker`), which is what counts.
+/// with a non-zero status). The helper prints its own status on a line of
+/// its own (`ClaudeCodeHelperScript.exitMarker`), which is what counts.
 struct UnixScriptExit: Hashable, Sendable {
     /// The last part of stderr, trimmed.
     var errorOutput: String = ""

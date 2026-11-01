@@ -72,7 +72,15 @@ enum ClaudeCodePermissions: Hashable, Sendable, CaseIterable {
             lines.append(
                 "For screenshots you may also run xcodebuild, xcrun simctl, xcrun xcresulttool, open -a Simulator, mkdir, ls, sleep and echo. "
                     + "Upload each capture with exactly: curl -s --data-binary @<file> -H 'Content-Type: image/png' <upload URL from get_capture_plan>. "
-                    + "Run each command on its own, without chaining other commands."
+                    + "Run each command on its own, without chaining other commands. "
+                    + "Each command must start with one of those programs: VAR=value in front of it, cd or a pipe is refused. "
+                    + "UI tests get their language and region from the locale's testArguments (-testLanguage, -testRegion) "
+                    + "and anything else from their scheme or test plan. "
+                    + "If a command is refused, don't try it in another form: report_capture_problem with refusedCommand, "
+                    + "with what to change in the project as proposedFix, and go on with the other screens. "
+                    + "You can't edit the project here, so a fix that changes it (a test, a scheme, sample data) is reported once, "
+                    + "with changesProject: true and the file and line in proposedFix. "
+                    + "Before capturing, check: " + AutopilotPreflight.checks.joined(separator: " ")
             )
         }
         return lines.joined(separator: "\n")

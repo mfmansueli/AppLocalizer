@@ -19,17 +19,23 @@ struct NextStepToolTests {
     )
     private static let missing = AutopilotOverflow(locale: "th", slot: 0, displayType: .iPhone, headline: "", maxLines: 2, fill: 0)
 
-    @Test func aWaitingRunIsPickedUpAndAsksForTheFirstFortyTargets() async throws {
+    @Test func aWaitingRunIsPickedUpAndRehearsesFirst() async throws {
         let fixtures = MCPAutopilotFixtures(StudioDebugRuns.run(.waiting))
         let outcome = try await fixtures.call(NextStepTool(), ["run": "run-debug"])
+        let rehearsal = try #require(StudioDebugRuns.plan.rehearsalLocale)
+        #expect(AutopilotPlan.script(of: rehearsal) != "Latn")
 
         let result = outcome.result
         #expect(result["action"] == "capture")
         #expect(result["run"] == "run-debug")
         #expect(result["stage"] == "capture")
         #expect(result["remaining"] == 120)
-        #expect(result["targets"]?.arrayValue?.count == 40)
-        #expect(result["targets"]?.arrayValue?.first == ["screen": "today", "name": "Today", "displayType": "iphone", "locale": "en-US"])
+        #expect(result["phase"] == "rehearsal")
+        #expect(result["rehearsal"]?.stringValue?.contains("in en-US and \(rehearsal)") == true)
+        let targets = try #require(result["targets"]?.arrayValue)
+        #expect(targets.count == 20, "Five screens on two devices in two languages")
+        #expect(Set(targets.compactMap { $0["locale"]?.stringValue }) == ["en-US", rehearsal])
+        #expect(targets.first == ["screen": "today", "name": "Today", "displayType": "iphone", "locale": "en-US"])
         #expect(result["retryWithFix"] == [])
         #expect(result["how"]?.stringValue?.contains("report_capture_problem") == true)
         #expect(outcome.logLines == [.init(target: "Lumen Journal · Autopilot", outcome: .read)])
@@ -66,6 +72,41 @@ struct NextStepToolTests {
         #expect(result["retryWithFix"] == [[
             "screen": "week", "displayType": "ipad", "locale": "de-DE", "fix": "xcrun simctl privacy booted grant photos com.northpier.lumen",
         ]])
+    }
+
+    @Test func afterTheRehearsalTheOtherLanguagesFollow() async throws {
+        var run = StudioDebugRuns.run(.capture)
+        run.captures = []
+        let rehearsal = run.plan.rehearsalFirstTargets.filter(run.plan.isRehearsal)
+        AutopilotTestFixtures.captureAll(&run, except: Set(run.plan.targets).subtracting(rehearsal))
+        let result = try await MCPAutopilotFixtures(run).call(NextStepTool()).result
+
+        #expect(result["phase"] == "capture")
+        #expect(result["rehearsal"] == nil)
+        #expect(result["remaining"] == 100)
+        #expect(result["targets"]?.arrayValue?.count == 40)
+        #expect(result["how"]?.stringValue?.contains("changesProject: true") == true)
+    }
+
+    @Test func oneLanguageHasNoPhase() async throws {
+        let result = try await MCPAutopilotFixtures(AutopilotTestFixtures.run(.capture, plan: AutopilotTestFixtures.singlePlan())).call(NextStepTool()).result
+        #expect(result["action"] == "capture")
+        #expect(result["phase"] == nil)
+    }
+
+    @Test func aRetryAfterARefusalSaysNotToRunTheCommandAgain() async throws {
+        var run = AutopilotTestFixtures.run(.capture)
+        let target = AutopilotTestFixtures.target("week", .iPad, "de-DE")
+        AutopilotTestFixtures.captureAll(&run, except: [target])
+        run.problems = [AutopilotTestFixtures.problem(
+            target, fix: "Add a scheme that sets LUMEN_SCREENSHOTS=1.", refused: "TEST_RUNNER_LUMEN_SCREENSHOTS=1 xcodebuild test",
+            resolution: .retryWithFix
+        )]
+        let result = try await MCPAutopilotFixtures(run).call(NextStepTool()).result
+        let retry = try #require(result["retryWithFix"]?.arrayValue?.first)
+        #expect(retry["fix"] == "Add a scheme that sets LUMEN_SCREENSHOTS=1.")
+        #expect(retry["refused"] == "TEST_RUNNER_LUMEN_SCREENSHOTS=1 xcodebuild test")
+        #expect(retry["note"]?.stringValue?.contains("don't run the refused command") == true)
     }
 
     // MARK: - JSON

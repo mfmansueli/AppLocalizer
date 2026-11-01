@@ -51,6 +51,10 @@ struct ClaudeCodeHelperScriptTests {
         #expect(script.contains("return \(ClaudeCodeRunFailure.folderMissingStatus)"))
         // Stop is a terminate: a background job ignores interrupts.
         #expect(script.contains("kill -TERM $pid"))
+        // Claude Code gets pipes of its own, so AppLocalizer's never turns
+        // non-blocking and the exit line always gets through.
+        #expect(script.contains(#"$claude "$@" </dev/null > >(cat) 2> >(cat >&2) &"#))
+        #expect(ClaudeCodeHelperScript.version >= 2)
         #expect(ClaudeCodeHelperScript.fileName.hasSuffix(".zsh"))
     }
 }

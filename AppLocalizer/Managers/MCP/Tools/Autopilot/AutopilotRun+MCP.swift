@@ -42,6 +42,7 @@ extension AutopilotRun {
             var locale: [String: JSONValue] = [
                 "locale": .string(code),
                 "launchArguments": .string(StoreLocale.simulatorLaunchArguments(for: code)),
+                "testArguments": .string(StoreLocale.xcodebuildTestArguments(for: code)),
             ]
             if newCodes.contains(code) { locale["notOnAppStoreYet"] = true }
             return .object(locale)
@@ -61,7 +62,7 @@ extension AutopilotRun {
                 simulator["sampleDataLanguage"] = .string(AutopilotSimulatorSetup.sampleDataLanguageNote)
             }
         }
-        return [
+        var json: [String: JSONValue] = [
             "run": .string(id),
             "app": .string(appName),
             "version": .string(versionString),
@@ -81,7 +82,10 @@ extension AutopilotRun {
                 "how": .string("curl -s --data-binary @capture.png -H 'Content-Type: image/png' \(upload)"),
                 "then": "report_capture with the returned upload ID",
             ],
+            "preflight": AutopilotPreflight.json,
         ]
+        if let rehearsal = AutopilotPreflight.rehearsalJSON(for: plan) { json["rehearsal"] = rehearsal }
+        return .object(json)
     }
 
     /// "1320 × 2868"; iPhone Duo its inner display's; Apple Watch takes an

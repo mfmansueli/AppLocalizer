@@ -229,6 +229,37 @@ struct AutopilotCenterCaptureTests {
         #expect(run.openProblems.isEmpty)
     }
 
+    @Test func retryingAfterARefusedCommandAddsNothingToThePlan() async throws {
+        let target = AutopilotTestFixtures.target("week", .iPhone, "de-DE")
+        center.install(AutopilotTestFixtures.run(.capture))
+        let problem = try center.reportProblem(
+            appID: appID, target: target, what: "xcodebuild with a variable in front was refused.",
+            proposedFix: "Add a scheme that sets LUMEN_SCREENSHOTS=1.", refusedCommand: "TEST_RUNNER_LUMEN_SCREENSHOTS=1 xcodebuild test"
+        )
+        #expect(problem.wasRefused)
+        #expect(problem.refusedCommand == "TEST_RUNNER_LUMEN_SCREENSHOTS=1 xcodebuild test")
+        await center.resolveProblem(appID: appID, problemID: problem.id, with: .retryWithFix, context: context)
+
+        let run = try #require(run)
+        #expect(run.plan.simulator.extraCommands.isEmpty, "The fix is a change to the project, not a command")
+        #expect(run.retries.map(\.id) == [problem.id])
+        #expect(run.remainingTargets.contains(target))
+
+        // An empty command is no refusal.
+        let other = try center.reportProblem(appID: appID, target: target, what: "Blank", proposedFix: nil, refusedCommand: "")
+        #expect(other.refusedCommand == nil)
+        #expect(!other.wasRefused)
+    }
+
+    @Test func aProblemFromBeforeRefusalsWereNotedStillReads() throws {
+        let old = Data(
+            #"{"id":"pr-1","target":{"screenID":"week","displayType":"APP_IPHONE_67","locale":"de-DE"},"what":"Blank","reportedAt":0}"#.utf8
+        )
+        let problem = try JSONDecoder().decode(AutopilotProblem.self, from: old)
+        #expect(problem.refusedCommand == nil)
+        #expect(!problem.wasRefused)
+    }
+
     @Test func reusingThePrimaryCaptureSettlesTheLastScreen() async throws {
         let blocked = AutopilotTestFixtures.target("week", .iPad, "de-DE")
         var start = AutopilotTestFixtures.run(.capture)

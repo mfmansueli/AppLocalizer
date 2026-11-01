@@ -18,8 +18,12 @@ struct GetCapturePlanTool: MCPTool {
         and pixel size, the locales with their launch arguments, the simulator setup commands, and the upload \
         URL for captures. Build the app, boot the simulators, run the setup, launch the app in each locale (with \
         its sample data in that language when simulatorSetup has sampleDataLanguage) and capture each screen \
-        (XCUIScreen or xcrun simctl io booted screenshot). Upload each PNG with curl to the upload URL and call \
-        report_capture; act on any check it returns. When chooseScreens is true, first decide from the project which \
+        (XCUIScreen or xcrun simctl io booted screenshot). UI tests that capture take the locale's testArguments \
+        (xcodebuild test … -testLanguage de -testRegion DE), and any switch they need from their scheme or test \
+        plan, never from VAR=value in front of xcodebuild. Upload each PNG with curl to the upload URL and call \
+        report_capture; act on any check it returns. Before capturing, go through preflight's checks in the project; \
+        next_step gives the rehearsal first (every screen in the primary language and rehearsal.locale), so what \
+        breaks in other languages breaks once. When chooseScreens is true, first decide from the project which \
         screens show the app best and send them with update_capture_plan replace: true, the strongest first: \
         the first three are the ones App Store search results show. Otherwise, if the \
         screens have no steps, write them from the project's UI tests, deep links or launch arguments and send \

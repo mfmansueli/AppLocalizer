@@ -46,7 +46,8 @@ struct AutopilotStageList: View {
     private var client: String { run.clientName(assistant: assistant) }
 
     private var problemText: String {
-        run.openProblems.count == 1 ? String(localized: "1 problem needs you") : String(localized: "\(run.openProblems.count) problems need you")
+        let count = run.problemGroups.count
+        return count == 1 ? String(localized: "1 problem needs you") : String(localized: "\(count) problems need you")
     }
 
     /// At Plan, the design project Start will use; then the run's.

@@ -35,6 +35,18 @@ struct AutopilotPersistenceTests {
         #expect(persistence.load() == AutopilotArchive())
     }
 
+    /// A plan left open before iPhone Duo became a rule gets it when the
+    /// app opens; a run under way stays as it started.
+    @Test func anOpenPlanFromTheArchiveFollowsTodaysRules() {
+        let open = AutopilotTestFixtures.run(.plan)
+        var capturing = AutopilotTestFixtures.run(.capture)
+        capturing.appID = "other-app"
+        persistence.save(AutopilotArchive(runs: [open.appID: open, capturing.appID: capturing]))
+        let center = AutopilotCenter(persistence: persistence)
+        #expect(center.run(for: open.appID)?.plan.displayTypes == [.iPhone, .iPhoneDuo, .iPad])
+        #expect(center.run(for: "other-app")?.plan.displayTypes == [.iPhone, .iPad])
+    }
+
     @Test func aCenterStartsFromTheArchiveAndSavesItsRuns() {
         let saved = StudioDebugRuns.run(.pick)
         persistence.save(AutopilotArchive(runs: [saved.appID: saved], designProjects: [saved.appID: StudioDebugRuns.northpier]))

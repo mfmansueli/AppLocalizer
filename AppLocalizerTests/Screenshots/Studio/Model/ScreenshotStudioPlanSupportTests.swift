@@ -60,6 +60,34 @@ struct ScreenshotStudioPlanSupportTests {
             + "required from April 2027 for apps built with the iOS 27.1 SDK. You’ll need to upload these by hand before submitting.")
     }
 
+    /// The plan says what it captures, iPhone Duo by name.
+    @Test func thePlanSaysWhatItCapturesWithIPhoneDuo() async throws {
+        let model = await Self.model(StudioDebugRuns.run(.plan))
+        var plan = try #require(model.studio.run?.plan)
+        #expect(model.studio.planCaptureText(plan) == "Autopilot captures iPhone, iPhone Duo, and iPad in 12 languages. "
+            + "iPhone Duo is in every plan: Apple requires its screenshots from April 2027, at its inner display’s 2007 × 2853.")
+        plan.setPlans(.iPhoneDuo, false)
+        plan.capturesEachLanguage = false
+        let primary = model.studio.primaryLocale.shortName
+        #expect(model.studio.planCaptureText(plan) == "Autopilot captures iPhone and iPad in \(primary), and uses those captures under every "
+            + "language’s captions. iPhone Duo is off, so its screenshots are left to upload by hand: Apple requires them from April 2027.")
+        plan.localeCodes = ["en-US"]
+        plan.capturesEachLanguage = true
+        #expect(model.studio.planCaptureText(plan).hasPrefix("Autopilot captures iPhone and iPad in 1 language. "))
+    }
+
+    @Test func thePlanSaysWhichLanguagesItTriesFirst() async throws {
+        let model = await Self.model(StudioDebugRuns.run(.plan))
+        var plan = try #require(model.studio.run?.plan)
+        let rehearsal = try #require(plan.rehearsalLocale)
+        let primary = try #require(StoreLocaleCatalog.locale(code: "en-US")?.shortName)
+        let other = try #require(StoreLocaleCatalog.locale(code: rehearsal)?.shortName)
+        #expect(model.studio.planRehearsalText(plan)
+            == "It tries every screen in \(primary) and \(other) first, so what breaks in other languages shows up once, not in each.")
+        plan.capturesEachLanguage = false
+        #expect(model.studio.planRehearsalText(plan) == nil)
+    }
+
     @Test func turningOffARequiredDeviceLeavesItToBeUploadedByHand() async {
         let model = await Self.model(StudioDebugRuns.run(.plan, everyDevice: true))
         model.studio.setPlans(.watch, false)

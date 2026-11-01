@@ -18,15 +18,25 @@ struct AutopilotPlanStageView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.medium) {
-                if let found = studio.planFoundText {
-                    Text(found)
-                        .font(.callout)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, Spacing.medium)
-                        .padding(.vertical, Spacing.small)
-                        .background(Palette.accentTint, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
-                        .accessibilityIdentifier("autopilot.plan.found")
+                VStack(alignment: .leading, spacing: Spacing.xSmall) {
+                    if let found = studio.planFoundText {
+                        Text(found)
+                            .accessibilityIdentifier("autopilot.plan.found")
+                    }
+                    Text(studio.planCaptureText(run.plan))
+                        .fontWeight(.medium)
+                        .accessibilityIdentifier("autopilot.plan.captures")
+                    if let rehearsal = studio.planRehearsalText(run.plan) {
+                        Text(rehearsal)
+                            .accessibilityIdentifier("autopilot.plan.rehearsal")
+                    }
                 }
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.medium)
+                .padding(.vertical, Spacing.small)
+                .background(Palette.accentTint, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
                 HStack(alignment: .firstTextBaseline) {
                     Text("Plan").font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
                     Spacer()

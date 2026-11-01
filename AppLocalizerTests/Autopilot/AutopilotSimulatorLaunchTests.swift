@@ -31,6 +31,24 @@ struct AutopilotSimulatorLaunchTests {
         #expect(StoreLocale.simulatorLaunchArguments(for: "xx-YY") == "-AppleLanguages (xx-YY) -AppleLocale xx_YY")
     }
 
+    /// The same language and country for UI tests, as xcodebuild flags:
+    /// nothing goes in front of xcodebuild, so AppLocalizer's own Claude
+    /// Code may run them.
+    @Test(arguments: [
+        ("de-DE", "-testLanguage de -testRegion DE"),
+        ("ja", "-testLanguage ja -testRegion JP"),
+        ("no", "-testLanguage nb -testRegion NO"),
+        ("zh-Hans", "-testLanguage zh-Hans -testRegion CN"),
+        ("pt-BR", "-testLanguage pt-BR -testRegion BR"),
+        ("pt-PT", "-testLanguage pt-PT -testRegion PT"),
+        ("en-GB", "-testLanguage en-GB -testRegion GB"),
+        ("xx-YY", "-testLanguage xx-YY -testRegion YY"),
+        ("xx", "-testLanguage xx"),
+    ])
+    func uiTestsGetTheLanguageAndCountryFromXcodebuild(code: String, arguments: String) {
+        #expect(StoreLocale.xcodebuildTestArguments(for: code) == arguments)
+    }
+
     @Test func aSetupFromBeforeThePermissionsOptionGrantsThem() throws {
         let old = Data(#"{"overridesStatusBar":true,"usesSampleData":true,"sampleDataSteps":"","lightAppearance":true,"extraCommands":[]}"#.utf8)
         var setup = try JSONDecoder().decode(AutopilotSimulatorSetup.self, from: old)

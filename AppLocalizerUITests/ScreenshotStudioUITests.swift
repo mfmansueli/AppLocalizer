@@ -130,10 +130,16 @@ final class ScreenshotStudioUITests: XCTestCase {
         let iPad = element("autopilot.plan.iPad")
         XCTAssertTrue(iPad.waitForExistence(timeout: 15))
         XCTAssertEqual(element("autopilot.plan.iphone_duo").value as? Int, 1)
+        let captures = element("autopilot.plan.captures")
+        XCTAssertTrue(text(of: captures).contains("iPhone Duo is in every plan"), text(of: captures))
+        let rehearsal = element("autopilot.plan.rehearsal")
+        XCTAssertTrue(text(of: rehearsal).contains("shows up once"), text(of: rehearsal))
         let scope = element("autopilot.scope")
         // "Lumen Journal 1.4 · iPhone, iPhone Duo, and iPad · 12 languages · 5 screens"
         XCTAssertTrue(text(of: scope).contains("iPhone Duo"), text(of: scope))
         XCTAssertTrue(text(of: scope).contains("iPad"), text(of: scope))
+        // The devices sit under the screens table.
+        element("autopilot.plan").scroll(byDeltaX: 0, deltaY: -600)
         iPad.click()
         let deadline = Date.now.addingTimeInterval(5)
         while Date.now < deadline, text(of: scope).contains("iPad") {
@@ -149,6 +155,41 @@ final class ScreenshotStudioUITests: XCTestCase {
         XCTAssertTrue(problem.waitForExistence(timeout: 15))
         XCTAssertTrue(element("autopilot.log").exists)
         app.buttons["autopilot.problem.retry"].click()
+        XCTAssertTrue(problem.waitForNonExistence(timeout: 5))
+    }
+
+    /// A refused command shows what to change in the project, and retrying
+    /// doesn't offer it as a fix to run.
+    func testARefusedCommandSaysWhatToChange() {
+        launch(scene: "st-refused")
+        let problem = element("autopilot.problem")
+        XCTAssertTrue(problem.waitForExistence(timeout: 15))
+        let allowed = "a command wasn’t allowed"
+        let headline = problem.staticTexts.matching(NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@", allowed, allowed))
+        XCTAssertTrue(headline.firstMatch.exists)
+        XCTAssertTrue(text(of: element("autopilot.problem.refused")).hasPrefix("TEST_RUNNER_LUMEN_SCREENSHOTS=1 xcodebuild"))
+        XCTAssertTrue(element("autopilot.problem.refusedNote").exists)
+        let retry = app.buttons["autopilot.problem.retry"]
+        XCTAssertEqual(retry.title.isEmpty ? retry.label : retry.title, "Retry")
+        retry.click()
+        XCTAssertTrue(problem.waitForNonExistence(timeout: 5))
+    }
+
+    /// One change to the project stopped Week in two languages on iPhone
+    /// and iPad: one card, saying what to change, answered for all three.
+    func testOneCauseInSeveralLanguagesIsOneCard() {
+        launch(scene: "st-group")
+        let problem = element("autopilot.problem")
+        XCTAssertTrue(problem.waitForExistence(timeout: 15))
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "autopilot.problem").count, 1)
+        let place = "on iPhone and iPad: couldn’t reach the screen"
+        XCTAssertTrue(problem.staticTexts.matching(NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@", place, place)).firstMatch.exists)
+        XCTAssertTrue(text(of: element("autopilot.problem.fix")).hasPrefix("In LumenUITests/ScreenshotTests.swift:64"))
+        XCTAssertTrue(element("autopilot.problem.note").exists)
+        XCTAssertFalse(app.buttons["autopilot.problem.upload"].exists, "Uploading by hand is one screen at a time")
+        let retry = app.buttons["autopilot.problem.retry"]
+        XCTAssertEqual(retry.title.isEmpty ? retry.label : retry.title, "Retry")
+        app.buttons["autopilot.problem.usePrimary"].click()
         XCTAssertTrue(problem.waitForNonExistence(timeout: 5))
     }
 

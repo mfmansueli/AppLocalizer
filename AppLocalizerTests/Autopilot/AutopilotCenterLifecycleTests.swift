@@ -48,7 +48,19 @@ struct AutopilotCenterLifecycleTests {
         #expect(run.id == "run-1")
         #expect(run.stage == stage)
         #expect(run.versionString == "1.4")
-        #expect(run.plan == AutopilotTestFixtures.smallPlan)
+        // An open plan also takes the rules made since: iPhone Duo.
+        let plan = stage == .plan ? AutopilotPlanner.applyingRules(to: AutopilotTestFixtures.smallPlan) : AutopilotTestFixtures.smallPlan
+        #expect(run.plan == plan)
+        #expect(run.plan.displayTypes.contains(.iPhoneDuo) == (stage == .plan))
+    }
+
+    @Test func anOpenPlanKeepsIPhoneDuoOffWhenThePersonTurnedItOff() {
+        var open = AutopilotTestFixtures.run(.plan)
+        open.plan.setPlans(.iPhoneDuo, false)
+        center.install(open)
+        let run = center.prepare(appID: appID, versionString: "1.5", plan: AutopilotTestFixtures.singlePlan())
+        #expect(run.plan.displayTypes == [.iPhone, .iPad])
+        #expect(run.plan.leftOutDevices == [.iPhoneDuo])
     }
 
     @Test func aNewRunKeepsTheLastRunsCapturesThatStillFit() {

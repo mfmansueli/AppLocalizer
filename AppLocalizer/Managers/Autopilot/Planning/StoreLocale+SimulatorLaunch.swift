@@ -30,4 +30,21 @@ extension StoreLocale {
         StoreLocaleCatalog.locale(code: code)?.simulatorLaunchArguments
             ?? "-AppleLanguages (\(code)) -AppleLocale \(code.replacingOccurrences(of: "-", with: "_"))"
     }
+
+    /// The same language and country for UI tests that xcodebuild runs:
+    /// `-testLanguage de -testRegion DE`. They reach the app the tests
+    /// launch, and nothing goes in front of xcodebuild, which is the only
+    /// way AppLocalizer's own Claude Code may run it.
+    var xcodebuildTestArguments: String {
+        "-testLanguage \(languageIdentifier) -testRegion \(regionCode)"
+    }
+
+    /// The test arguments for an App Store Connect locale code; a code the
+    /// catalog doesn't know goes as it is, with its region if it has one.
+    static func xcodebuildTestArguments(for code: String) -> String {
+        if let locale = StoreLocaleCatalog.locale(code: code) { return locale.xcodebuildTestArguments }
+        let parts = code.split(separator: "-")
+        guard parts.count > 1, let region = parts.last else { return "-testLanguage \(code)" }
+        return "-testLanguage \(code) -testRegion \(region)"
+    }
 }

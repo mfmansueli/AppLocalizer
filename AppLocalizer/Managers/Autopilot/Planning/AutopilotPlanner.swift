@@ -42,12 +42,12 @@ enum AutopilotPlanner {
             return plan
         }
         let includedNew = previous?.plan.newLocaleCodes == nil || plan.includesNewLanguages
-        // iPhone Duo, which plans from before its rule left out, and a
-        // device the app gained since the last run join, unless the person
-        // turned them off.
+        // A device the app gained since the last run joins, unless the
+        // person turned it off.
+        plan = applyingRules(to: plan)
         let leftOut = plan.leftOutDevices ?? []
-        for display in [ScreenshotDisplayType.iPhoneDuo] + ScreenshotDisplayType.ownScreens
-            where (display == .iPhoneDuo || support.devices.contains(display)) && !plan.displayTypes.contains(display) && !leftOut.contains(display)
+        for display in ScreenshotDisplayType.ownScreens
+            where support.devices.contains(display) && !plan.displayTypes.contains(display) && !leftOut.contains(display)
         {
             plan.setPlans(display, true)
         }
@@ -58,6 +58,16 @@ enum AutopilotPlanner {
         plan.newLocaleCodes = new
         plan.setIncludesNewLanguages(includedNew)
         plan.primaryLocale = primary
+        return plan
+    }
+
+    /// The rules every plan follows, made before them or not: iPhone Duo,
+    /// unless the person turned it off.
+    static func applyingRules(to plan: AutopilotPlan) -> AutopilotPlan {
+        var plan = plan
+        if !plan.displayTypes.contains(.iPhoneDuo), plan.leftOutDevices?.contains(.iPhoneDuo) != true {
+            plan.setPlans(.iPhoneDuo, true)
+        }
         return plan
     }
 

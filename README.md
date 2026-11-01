@@ -243,7 +243,17 @@ call.
     `update_capture_plan` writes the screens and steps; captures are sent as raw PNG bodies to
     `POST /autopilot/<token>` on the MCP server (the app is sandboxed, so it can't read the assistant's files), which
     returns an upload id for `report_capture`; `report_capture_problem` reports a screen that can't be reached.
-    `next_step` says what to do next (capture, wait, design, revise, write captions, done). `get_design_brief`,
+    Each locale carries `launchArguments` for the simulator and `testArguments` (`-testLanguage de -testRegion DE`)
+    for UI tests, so `xcodebuild test` needs nothing in front of it. A command the session wasn't allowed to run comes
+    as `refusedCommand`: its fix is a change to the project, so retrying doesn't add it to the plan's commands.
+    So does a fix the assistant marks `changesProject: true`, or one that doesn't read as a command
+    (`AutopilotProblem.needsProjectChange`). The plan carries `preflight` checks (`AutopilotPreflight`: identifiers
+    rather than visible titles, sample data in each language, no forced `-AppleLanguages`, no `VAR=value`) and a
+    `rehearsal` language (another script than the primary's, else German): `next_step` gives every screen on every
+    device in those two first (`phase: rehearsal`), then the rest. An open problem holds the same screen on the same
+    device in the other languages, so one cause is reported once; problems with one cause share a card
+    (`AutopilotProblemGroup`), and reusing the primary capture for a change to the project covers the screen's other
+    languages (`primaryCaptureTargets`). `next_step` says what to do next (capture, wait, design, revise, write captions, done). `get_design_brief`,
     `report_design_source`, `propose_direction` and `revise_direction` carry the design stage, and
     `propose_captions` with the run's id shortens captions while localizing. The person plans, picks, chooses and
     pushes in the app; the assistant never pushes. The plan lists each device's screens and how to capture them
@@ -277,16 +287,18 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
 
 - **The helper** (`ClaudeCodeHelperScript`): `check` prints its version and where `claude` is; `run <folder> --
   <arguments…>` runs Claude Code in the app's project folder, streams its output and prints
-  `applocalizer-helper-exit <status>` last. A line on stdin, or stdin closing, ends Claude Code with SIGTERM (a
-  script's background job ignores SIGINT); the session stays resumable. A helper older than `version` asks to be saved
-  again.
+  `applocalizer-helper-exit <status>` when it ends. Claude Code writes through pipes of its own that `cat` passes on:
+  Node leaves the pipe it writes to non-blocking, which on AppLocalizer's pipe lost a run's last lines and its exit
+  line (helper version 1). A line on stdin, or stdin closing, ends Claude Code with SIGTERM (a script's background job
+  ignores SIGINT); the session stays resumable. A helper older than `version` asks to be saved again.
 - **Each run** (`ClaudeCodeInvocation`) is `claude -p --output-format stream-json --verbose --restricted
   --strict-mcp-config --mcp-config … --settings … --permission-mode dontAsk --tools …`. It knows only AppLocalizer's
   server, with a token made for that run that acts as the paired Claude Code and stops working when the run ends
   (`MCPServerController+Launch`). The person's own settings and allow rules are ignored, and anything not allowed is
   refused and listed. `ClaudeCodePermissions`: setup's test uses only AppLocalizer's tools; suggestions, translations
   and the privacy scan also read the project and run read-only git; Autopilot also runs `xcodebuild`, `xcrun simctl`
-  and uploads to AppLocalizer.
+  and uploads to AppLocalizer. Each command must start with an allowed program, so `VAR=value xcodebuild …` is
+  refused; Autopilot is told so.
 - **Where:** Ask on every suggestion bar, Suggest Everything, Screenshot Autopilot, Translate Missing, Translate
   Captions, App Privacy's scan, and setup's test. Each app's project folder is asked for once, and Settings lists
   them. Without the helper, every screen copies its prompt as before.

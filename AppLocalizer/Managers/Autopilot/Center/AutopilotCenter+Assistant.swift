@@ -71,12 +71,19 @@ extension AutopilotCenter {
         return reading.map { CaptureTextAnalyzer.facts(of: $0, appName: context.app.name) }
     }
 
-    /// A screen couldn't be reached; the others keep going.
-    func reportProblem(appID: StoreApp.ID, target: AutopilotCaptureTarget, what: String, proposedFix: String?) throws -> AutopilotProblem {
+    /// A screen couldn't be reached; the others keep going, but the same
+    /// screen on the same device waits in the other languages.
+    func reportProblem(
+        appID: StoreApp.ID, target: AutopilotCaptureTarget, what: String, proposedFix: String?, refusedCommand: String? = nil,
+        changesProject: Bool? = nil
+    ) throws -> AutopilotProblem {
         guard let run = runs[appID], run.stage == .capture || run.stage == .waiting else {
             throw AutopilotError(String(localized: "The run isn’t capturing now. Call next_step to see what AppLocalizer wants."))
         }
-        let problem = AutopilotProblem(id: "pr-" + makeID().prefix(8), target: target, what: what, proposedFix: proposedFix, reportedAt: now())
+        let problem = AutopilotProblem(
+            id: "pr-" + makeID().prefix(8), target: target, what: what, proposedFix: proposedFix,
+            refusedCommand: refusedCommand.flatMap { $0.isEmpty ? nil : $0 }, changesProject: changesProject, reportedAt: now()
+        )
         let name = run.plan.screen(id: target.screenID)?.name ?? target.screenID
         update(appID) { run in
             run.problems.removeAll { $0.target == target && $0.isOpen }
@@ -87,16 +94,31 @@ extension AutopilotCenter {
     }
 
     /// The person's answer to a problem: retry with the fix (which joins
-    /// the plan), reuse the primary language's capture, or a capture they
-    /// uploaded.
+    /// the plan when it's a command, not a change to the project), reuse
+    /// the primary language's capture, or a capture they uploaded.
     func resolveProblem(appID: StoreApp.ID, problemID: String, with resolution: AutopilotProblemResolution, context: AutopilotContext) async {
+        await resolveProblems(appID: appID, problemIDs: [problemID], with: resolution, context: context)
+    }
+
+    /// The person's answer to problems with one cause. Reusing the primary
+    /// language's capture for a change to the project covers the screen on
+    /// that device in every other language too: the project is as it is
+    /// for this run.
+    func resolveProblems(appID: StoreApp.ID, problemIDs: [String], with resolution: AutopilotProblemResolution, context: AutopilotContext) async {
         update(appID) { run in
-            guard let index = run.problems.firstIndex(where: { $0.id == problemID }) else { return }
-            run.problems[index].resolution = resolution
-            if resolution == .retryWithFix, let fix = run.problems[index].proposedFix, !fix.isEmpty,
-               !run.plan.simulator.extraCommands.contains(fix)
-            {
-                run.plan.simulator.extraCommands.append(fix)
+            for problemID in problemIDs {
+                guard let index = run.problems.firstIndex(where: { $0.id == problemID }) else { continue }
+                run.problems[index].resolution = resolution
+                let problem = run.problems[index]
+                switch resolution {
+                case .retryWithFix where !problem.needsProjectChange:
+                    let fix = problem.proposedFix?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    if !fix.isEmpty, !run.plan.simulator.extraCommands.contains(fix) { run.plan.simulator.extraCommands.append(fix) }
+                case .usePrimaryCapture where problem.needsProjectChange:
+                    run.usePrimaryCapture(screenID: problem.target.screenID, on: problem.target.displayType)
+                default:
+                    break
+                }
             }
         }
         await advance(appID, context: context)
@@ -136,8 +158,9 @@ extension AutopilotCenter {
         return .wait(reason: String(localized: "AppLocalizer is rendering and checking every screenshot."), seconds: 5)
     }
 
+    /// The rehearsal first, then the other languages.
     private func captureStep(_ run: AutopilotRun) -> AutopilotNextStep {
-        .capture(targets: run.remainingTargets, retries: run.retries)
+        .capture(targets: run.nextTargets, retries: run.retries)
     }
 
     /// Capturing: what's left, else wait for a problem or the next stage.

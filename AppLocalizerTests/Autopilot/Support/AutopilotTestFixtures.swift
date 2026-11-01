@@ -110,11 +110,11 @@ enum AutopilotTestFixtures {
 
     static func problem(
         _ target: AutopilotCaptureTarget, id: String = "pr-1", fix: String? = "xcrun simctl privacy booted grant photos com.northpier.lumen",
-        resolution: AutopilotProblemResolution? = nil
+        refused: String? = nil, resolution: AutopilotProblemResolution? = nil
     ) -> AutopilotProblem {
         AutopilotProblem(
             id: id, target: target, what: "The photo picker asked for access and covered the entry.", proposedFix: fix,
-            resolution: resolution, reportedAt: now
+            refusedCommand: refused, resolution: resolution, reportedAt: now
         )
     }
 

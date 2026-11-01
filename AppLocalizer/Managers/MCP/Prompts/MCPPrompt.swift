@@ -238,12 +238,16 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         update_capture_plan. List the watch app's screens and the Apple Vision Pro windows there too \
         (device watch or vision) when the plan has those devices. If you haven't told AppLocalizer what the \
         project supports, call report_app_support first (targets, devices, and every language in its string \
-        catalogs). Build the app with xcodebuild, boot each simulator (pair the watch with the iPhone), run the \
+        catalogs). Go through the plan's preflight checks in the project and fix what fails before capturing \
+        (UI tests that find buttons by their English title, sample data in one language). Build the app with \
+        xcodebuild, boot each simulator (pair the watch with the iPhone), run the \
         setup commands, and for each device and locale launch the app with its arguments, reach each screen and \
         capture it (up to 3 times); locales marked notOnAppStoreYet are captured too. \
         Upload each PNG with curl --data-binary to the upload URL and call report_capture with the returned \
         upload ID, the attempt, a score from 0 to 1 and notes saying why. When a screen can't be reached, call \
-        report_capture_problem with what happened and a fix, and go on. After each step call next_step and do \
+        report_capture_problem with what happened and a fix (changesProject: true, once, when the fix is a \
+        change to the project), and go on. next_step gives the rehearsal first: every screen in the primary \
+        language and one other, before the rest. After each step call next_step and do \
         what it says: capture, wait (ask again after retryAfterSeconds), design (get_design_brief, then \
         propose_direction with templates in AppLocalizer's format, designed with the connected design project; \
         report what you find in it with report_design_source), revise_direction, or write_captions (then \

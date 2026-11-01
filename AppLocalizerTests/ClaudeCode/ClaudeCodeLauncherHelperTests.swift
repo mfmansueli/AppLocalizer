@@ -55,6 +55,13 @@ struct ClaudeCodeLauncherHelperTests {
         runner.checkLines = ["helper 0", "claude-missing"]
         await launcher.refreshHelper()
         #expect(launcher.helper == .outdated(installedVersion: 0))
+
+        // Version 1 shared AppLocalizer's pipe with Claude Code, which can
+        // lose a run's end.
+        runner.checkLines = ["helper 1", "claude /usr/local/bin/claude"]
+        await launcher.refreshHelper()
+        #expect(launcher.helper == .outdated(installedVersion: 1))
+        #expect(!launcher.canStart)
     }
 
     @Test func noClaudeCodeOnThisMac() async {

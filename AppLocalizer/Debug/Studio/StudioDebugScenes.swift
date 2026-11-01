@@ -14,6 +14,10 @@ import SwiftUI
 /// - `st-plan`, `st-wait`, `st-cap`, `st-fail`, `st-pick`, `st-des`,
 ///   `st-choose`, `st-choose-rev`, `st-nodesign`, `st-loc`,
 ///   `st-ready-sheet`: the Autopilot sheet at each stage.
+/// - `st-refused`: capturing, with a command the session wasn't allowed
+///   to run.
+/// - `st-group`: capturing, with one change to the project stopping the
+///   same screen in two languages on iPhone and iPad (one card).
 /// - `st-cap-page`, `st-pick-page`: the strip while it runs or waits.
 /// - `st-ready`, `st-ready-de`, `st-ready-ar`, `st-ready-ipad`: the new set
 ///   in the preview (German in Dark, Arabic, iPad).
@@ -28,7 +32,7 @@ import SwiftUI
 ///   yet and a screen name too long for its column.
 enum StudioDebugScenes {
     static let ids: [String] = [
-        "st-home", "st-live-ar", "st-noasst", "st-design", "st-plan", "st-wait", "st-cap", "st-fail", "st-cap-page",
+        "st-home", "st-live-ar", "st-noasst", "st-design", "st-plan", "st-wait", "st-cap", "st-fail", "st-refused", "st-group", "st-cap-page",
         "st-pick", "st-pick-page", "st-des", "st-choose", "st-choose-rev", "st-nodesign", "st-loc", "st-ready-sheet",
         "st-ready", "st-ready-de", "st-ready-ar", "st-ready-ipad", "st-asc-watch", "st-plan-link",
     ] + everyDeviceIDs
@@ -81,6 +85,8 @@ enum StudioDebugScenes {
         if let stage = stages[id] { return StudioDebugRuns.run(stage) }
         switch id {
         case "st-fail": return StudioDebugRuns.failing
+        case "st-refused": return StudioDebugRuns.refused
+        case "st-group": return StudioDebugRuns.grouped
         case "st-choose-rev": return StudioDebugRuns.revised
         case "st-nodesign": return StudioDebugRuns.run(.choose, design: false)
         default: return nil

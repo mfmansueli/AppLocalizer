@@ -54,25 +54,45 @@ extension AutopilotNextStep {
             ]
         }
         let fixes: [JSONValue] = retries.map { problem in
-            [
+            var item: [String: JSONValue] = [
                 "screen": .string(problem.target.screenID),
                 "displayType": .string(problem.target.displayType.mcpValue),
                 "locale": .string(problem.target.locale),
                 "fix": .string(problem.proposedFix ?? ""),
             ]
+            if problem.wasRefused, let command = problem.refusedCommand {
+                item["refused"] = .string(command)
+                item["note"] = .string(
+                    "This command was refused. The person may have changed the project since (see fix): read it again, and don't run the refused command."
+                )
+            }
+            return .object(item)
         }
-        return [
+        var json: [String: JSONValue] = [
             "action": "capture",
-            "remaining": .int(targets.count),
+            "remaining": .int(run?.remainingTargets.count ?? targets.count),
             "targets": .array(items),
             "retryWithFix": .array(fixes),
             "how": """
             Capture each target up to 3 times, upload each PNG to the plan's upload URL and call report_capture \
             with the upload ID, attempt and a score from 0 to 1 (content filled in, no keyboard, alert or \
             spinner, nothing private, matches the caption) with notes saying why. When a screen can't be \
-            reached, call report_capture_problem and go on with the others.
+            reached, call report_capture_problem and go on with the others. When the fix is a change to the \
+            project, report it once with changesProject: true: AppLocalizer holds that screen on that device in \
+            the other languages.
             """,
         ]
+        if let run, let rehearsal = run.plan.rehearsalLocale {
+            let rehearsing = run.isRehearsing
+            json["phase"] = .string(rehearsing ? "rehearsal" : "capture")
+            if rehearsing {
+                json["rehearsal"] = .string("""
+                These are every screen on every device in \(run.plan.primaryLocale) and \(rehearsal), before the other \
+                languages: check that each reaches its screen in \(rehearsal) too, in that language, with nothing cut off.
+                """)
+            }
+        }
+        return .object(json)
     }
 
     private static func writeCaptionsJSON(_ overflows: [AutopilotOverflow]) -> JSONValue {

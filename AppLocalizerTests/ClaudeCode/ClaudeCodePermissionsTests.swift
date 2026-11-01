@@ -48,6 +48,16 @@ struct ClaudeCodePermissionsTests {
         #expect(ClaudeCodePermissions.autopilot.systemPrompt.contains("curl -s --data-binary"))
     }
 
+    /// `VAR=value xcodebuild …` doesn't match `Bash(xcodebuild:*)`, so
+    /// Autopilot is told so, how UI tests get their language instead, and
+    /// how to report a refusal.
+    @Test func autopilotKnowsWhatGetsRefused() {
+        let prompt = ClaudeCodePermissions.autopilot.systemPrompt
+        #expect(prompt.contains("VAR=value in front of it, cd or a pipe is refused"))
+        #expect(prompt.contains("testArguments (-testLanguage, -testRegion)"))
+        #expect(prompt.contains("report_capture_problem with refusedCommand"))
+    }
+
     @Test func noRunMayEditFilesOrUseTheWeb() {
         for permissions in ClaudeCodePermissions.allCases {
             let everything = permissions.tools + permissions.allowRules(port: port)

@@ -42,6 +42,7 @@ struct CapturePlanToolsTests {
         ])
         let german = plan["locales"]?.arrayValue?.first { $0["locale"] == "de-DE" }
         #expect(german?["launchArguments"] == "-AppleLanguages (de) -AppleLocale de_DE")
+        #expect(german?["testArguments"] == "-testLanguage de -testRegion DE")
         #expect(plan["simulatorSetup"] == [
             "lightAppearance": true,
             "commands": [
@@ -108,6 +109,29 @@ struct CapturePlanToolsTests {
 
     /// The plan run before capturing: Apple's status bar on Wi-Fi without
     /// a carrier, light appearance and the app's permissions granted.
+    @Test func thePlanSaysWhatToCheckFirstAndWhichLanguageRehearses() async throws {
+        let plan = try await MCPAutopilotFixtures(AutopilotTestFixtures.run(.waiting)).call(GetCapturePlanTool()).result
+        let checks = (plan["preflight"]?["checks"]?.arrayValue ?? []).compactMap(\.stringValue)
+        #expect(checks == AutopilotPreflight.checks)
+        #expect(checks.contains { $0.contains("accessibility identifier") && $0.contains("app.buttons[\"Styles\"]") })
+        #expect(checks.contains { $0.contains("Sample data") })
+        #expect(plan["preflight"]?["whenACheckFails"]?.stringValue?.contains("changesProject: true") == true)
+        #expect(plan["rehearsal"]?["locale"] == "de-DE")
+        #expect(plan["rehearsal"]?["why"] == "Its long words show labels that don't fit.")
+
+        var japanese = AutopilotTestFixtures.smallPlan
+        japanese.localeCodes = ["en-US", "de-DE", "ja"]
+        let rehearsal = try #require(AutopilotPreflight.rehearsalJSON(for: japanese))
+        #expect(rehearsal["locale"] == "ja")
+        #expect(rehearsal["why"]?.stringValue?.contains("script") == true)
+
+        let single = try await MCPAutopilotFixtures(AutopilotTestFixtures.run(.waiting, plan: AutopilotTestFixtures.singlePlan()))
+            .call(GetCapturePlanTool()).result
+        #expect(single["rehearsal"] == nil)
+        #expect(single["preflight"] != nil)
+        #expect(GetCapturePlanTool().definition.description.contains("preflight"))
+    }
+
     @Test func theSimulatorCommandsGrantTheAppsPermissions() {
         var run = AutopilotTestFixtures.run(.waiting)
         #expect(run.simulatorCommands(bundleID: "dev.northpier.lumen") == [

@@ -11,8 +11,10 @@ import Testing
 struct ClaudeCodeRunFailureTests {
     private let folder = "/Users/sam/Developer/Lumen"
 
-    private func classify(status: Int32?, result: ClaudeCodeResult? = nil, exit: UnixScriptExit = UnixScriptExit()) -> ClaudeCodeRunFailure {
-        ClaudeCodeRunFailure.classify(status: status, result: result, exit: exit, folder: folder)
+    private func classify(
+        status: Int32?, result: ClaudeCodeResult? = nil, exit: UnixScriptExit = UnixScriptExit(), started: Bool = false
+    ) -> ClaudeCodeRunFailure {
+        ClaudeCodeRunFailure.classify(status: status, result: result, exit: exit, folder: folder, started: started)
     }
 
     @Test func anErrorResultSaysWhatClaudeCodeSaid() {
@@ -37,6 +39,17 @@ struct ClaudeCodeRunFailureTests {
         #expect(classify(status: nil, exit: UnixScriptExit(taskError: "The file couldn’t be opened.")) == .couldNotStart("The file couldn’t be opened."))
         #expect(classify(status: nil, exit: UnixScriptExit(errorOutput: "zsh: permission denied")) == .couldNotStart("zsh: permission denied"))
         #expect(classify(status: nil) == .couldNotStart("The helper didn’t run."))
+    }
+
+    @Test func withoutAStatusAfterClaudeCodeStartedItEndedEarly() {
+        let exit = UnixScriptExit(errorOutput: "Start Claude Code.zsh:111: write error: resource temporarily unavailable")
+        let failure = classify(status: nil, exit: exit, started: true)
+        #expect(failure == .exited(status: nil, message: "Start Claude Code.zsh:111: write error: resource temporarily unavailable"))
+        #expect(failure.title == "Claude Code ended early")
+        #expect(failure.detail.hasPrefix("It started, but its result didn’t reach AppLocalizer. It said: Start Claude Code.zsh:111"))
+        #expect(classify(status: nil, started: true).detail == "It started, but its result didn’t reach AppLocalizer. Show Output has what it did.")
+        // A status still wins.
+        #expect(classify(status: 66, started: true) == .folderMissing(folder))
     }
 
     @Test func eachFailureOffersItsWayOut() {

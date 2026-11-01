@@ -161,6 +161,47 @@ enum StudioDebugRuns {
         return run
     }
 
+    /// Capturing with the German Week screen stopped by a command the
+    /// session wasn't allowed to run.
+    static var refused: AutopilotRun {
+        var run = run(.capture)
+        let reported = date(day: 31, month: 10, hour: 14, minute: 8, second: 4)
+        run.problems = [AutopilotProblem(
+            id: "pr-refused", target: AutopilotCaptureTarget(screenID: "week", displayType: .iPhone, locale: "de-DE"),
+            what: "The screenshot UI tests need an environment variable in front of xcodebuild, which this session may not run.",
+            proposedFix: "Add a LumenScreenshots scheme whose Test action sets LUMEN_SCREENSHOTS=1, and take the language from -testLanguage.",
+            refusedCommand: "TEST_RUNNER_LUMEN_SCREENSHOTS=1 xcodebuild test -scheme Lumen -only-testing:LumenUITests/ScreenshotTests",
+            reportedAt: reported
+        )]
+        run.appendLog("Week (de-DE): xcodebuild with an environment variable in front was refused", kind: .problem, at: reported)
+        return run
+    }
+
+    /// Capturing, with the Week screen's UI test failing the same way in the
+    /// rehearsal's language and in German, on iPhone and iPad: it finds a
+    /// segment by its English title. One card for the three.
+    static var grouped: AutopilotRun {
+        var run = run(.capture)
+        let reported = date(day: 31, month: 10, hour: 14, minute: 9, second: 30)
+        let rehearsal = run.plan.rehearsalLocale ?? "ja"
+        let places: [(ScreenshotDisplayType, String)] = [(.iPhone, rehearsal), (.iPad, rehearsal), (.iPhone, "de-DE")]
+        let targets = places.map { AutopilotCaptureTarget(screenID: "week", displayType: $0.0, locale: $0.1) }
+        run.captures.removeAll { $0.target.screenID == "week" && $0.target.locale != run.plan.primaryLocale }
+        run.problems = targets.enumerated().map { index, target in
+            AutopilotProblem(
+                id: "pr-group-\(index + 1)", target: target,
+                what: "testWeek taps app.buttons[\"Week\"], the segment’s English title, so it doesn’t find it in this language.",
+                proposedFix: """
+                In LumenUITests/ScreenshotTests.swift:64, tap app.buttons["journal.week"], and give the Week segment \
+                that accessibilityIdentifier.
+                """,
+                changesProject: true, reportedAt: reported.addingTimeInterval(Double(index))
+            )
+        }
+        run.appendLog("Week (\(rehearsal)): testWeek didn’t find the Week segment", kind: .problem, at: reported)
+        return run
+    }
+
     /// Choosing, after Ask for changes revised Quiet Indigo.
     static var revised: AutopilotRun {
         var run = run(.choose)

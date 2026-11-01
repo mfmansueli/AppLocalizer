@@ -24,6 +24,32 @@ extension ScreenshotStudioModel {
         return String(localized: "Found in \(version) on App Store Connect and in the Xcode project: \(found).")
     }
 
+    /// What the plan makes: "Autopilot captures iPhone, iPhone Duo, iPad,
+    /// and Apple Watch in 8 languages." and where iPhone Duo stands.
+    func planCaptureText(_ plan: AutopilotPlan) -> String {
+        let devices = plan.devicesTitle
+        let count = plan.localeCodes.count
+        var text = plan.capturesEachLanguage
+            ? (count == 1
+                ? String(localized: "Autopilot captures \(devices) in 1 language.")
+                : String(localized: "Autopilot captures \(devices) in \(count) languages."))
+            : String(localized: "Autopilot captures \(devices) in \(primaryLocale.shortName), and uses those captures under every language’s captions.")
+        let duo = ScreenshotDisplayType.iPhoneDuo
+        text += " " + (plan.displayTypes.contains(duo)
+            ? String(localized: "iPhone Duo is in every plan: Apple requires its screenshots from April 2027, at its inner display’s \(duo.portraitPixelSize.title).")
+            : String(localized: "iPhone Duo is off, so its screenshots are left to upload by hand: Apple requires them from April 2027."))
+        return text
+    }
+
+    /// "It tries every screen in English and Japanese first, so what breaks
+    /// in other languages shows up once." Nil with one language captured.
+    func planRehearsalText(_ plan: AutopilotPlan) -> String? {
+        guard let locale = plan.rehearsalLocale else { return nil }
+        let primary = StoreLocaleCatalog.locale(code: plan.primaryLocale)?.shortName ?? plan.primaryLocale
+        let other = StoreLocaleCatalog.locale(code: locale)?.shortName ?? locale
+        return String(localized: "It tries every screen in \(primary) and \(other) first, so what breaks in other languages shows up once, not in each.")
+    }
+
     /// "its build has an Apple Watch app, and it has a visionOS version".
     private var appStoreConnectFound: String? {
         let context = screenshots.context

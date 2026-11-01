@@ -332,7 +332,8 @@ final class ClaudeCodeLauncher {
         } else if didFailToConnect, run.appLocalizerCalls == 0, run.result?.isLoginProblem != true {
             end(id, as: .failed(.serverNotConnected))
         } else {
-            end(id, as: .failed(.classify(status: status, result: run.result, exit: exit, folder: run.workingDirectory)))
+            let started = run.sessionID != nil
+            end(id, as: .failed(.classify(status: status, result: run.result, exit: exit, folder: run.workingDirectory, started: started)))
         }
     }
 

@@ -177,6 +177,40 @@ struct CaptureReportToolsTests {
         #expect(problem.proposedFix == "xcrun simctl privacy booted grant photos com.northpier.lumen")
     }
 
+    @Test func aRefusedCommandIsKeptWithTheProblem() async throws {
+        let fixtures = MCPAutopilotFixtures(AutopilotTestFixtures.run(.capture))
+        _ = try await fixtures.call(ReportCaptureProblemTool(), [
+            "run": "run-1", "screen": "week", "displayType": "iphone", "locale": "de-DE",
+            "what": "xcodebuild with a variable in front was refused.",
+            "proposedFix": "Add a scheme that sets LUMEN_SCREENSHOTS=1.",
+            "refusedCommand": "TEST_RUNNER_LUMEN_SCREENSHOTS=1 xcodebuild test -scheme Lumen",
+        ])
+        let problem = try #require(fixtures.run?.openProblems.first)
+        #expect(problem.refusedCommand == "TEST_RUNNER_LUMEN_SCREENSHOTS=1 xcodebuild test -scheme Lumen")
+        #expect(problem.wasRefused)
+        let description = ReportCaptureProblemTool().definition.description
+        #expect(description.contains("refusedCommand"))
+    }
+
+    @Test func aChangeToTheProjectIsReportedOnceAndHoldsTheOtherLanguages() async throws {
+        var plan = AutopilotTestFixtures.smallPlan
+        plan.localeCodes = ["en-US", "de-DE", "ja"]
+        let fixtures = MCPAutopilotFixtures(AutopilotTestFixtures.run(.capture, plan: plan))
+        let outcome = try await fixtures.call(ReportCaptureProblemTool(), [
+            "run": "run-1", "screen": "week", "displayType": "iphone", "locale": "ja",
+            "what": "testWeek taps app.buttons[\"Week\"], the English title.",
+            "proposedFix": "Give the Week segment an accessibilityIdentifier and tap it by that.", "changesProject": true,
+        ])
+        let problem = try #require(fixtures.run?.openProblems.first)
+        #expect(problem.changesProject == true)
+        #expect(outcome.result["say"]?.stringValue?.contains("waits on this device in the other languages") == true)
+        #expect(fixtures.run?.heldTargets.contains(AutopilotTestFixtures.target("week", .iPhone, "de-DE")) == true)
+
+        let definition = ReportCaptureProblemTool().definition
+        #expect(definition.description.contains("changesProject"))
+        #expect(definition.inputSchema["properties"]?["changesProject"]?["type"] == "boolean")
+    }
+
     @Test func aProblemAfterCapturingIsRefused() async throws {
         let fixtures = MCPAutopilotFixtures(AutopilotTestFixtures.run(.design))
         let outcome = try await fixtures.call(ReportCaptureProblemTool(), [

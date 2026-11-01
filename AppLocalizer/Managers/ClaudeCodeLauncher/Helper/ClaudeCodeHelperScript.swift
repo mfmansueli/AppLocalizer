@@ -16,16 +16,16 @@ import Foundation
 /// `check` says where Claude Code is, and `run <folder> -- <arguments…>`
 /// runs it in the app's project folder with the arguments AppLocalizer
 /// builds (`ClaudeCodeInvocation`), streaming its output, and prints
-/// `exitMarker` with the status last. A line on stdin, or stdin closing,
-/// stops it.
+/// `exitMarker` with the status when it ends (Claude Code's own last lines
+/// can still follow it). A line on stdin, or stdin closing, stops it.
 enum ClaudeCodeHelperScript {
     /// Bumped when the script changes; an older one asks to be saved again.
-    static let version = 1
+    static let version = 2
 
     /// The name the Save panel suggests.
     static let fileName = "Start Claude Code.zsh"
 
-    /// The last line `run` prints: `applocalizer-helper-exit 0`.
+    /// The line `run` prints when Claude Code ends: `applocalizer-helper-exit 0`.
     static let exitMarker = "applocalizer-helper-exit"
 
     /// What `check` answered.
@@ -93,12 +93,12 @@ enum ClaudeCodeHelperScript {
     #   run <folder> -- <arguments…>   runs Claude Code in <folder>; a line on stdin,
     #                                  or stdin closing, stops it
     #
-    # applocalizer-helper 1
+    # applocalizer-helper 2
 
     emulate -L zsh
     setopt no_nomatch
 
-    helper_version=1
+    helper_version=2
 
     # Where Claude Code is: its own installer's folder first, then package
     # managers, then whatever your login shell finds.
@@ -164,7 +164,12 @@ enum ClaudeCodeHelperScript {
       fi
       # A Node-based install finds node beside it.
       path=( ${claude:h} $path )
-      $claude "$@" </dev/null &
+      # Claude Code writes through pipes of its own, with cat passing its lines
+      # on: Node leaves the pipe it writes to non-blocking, and on AppLocalizer's
+      # one that loses the last lines and the exit line below whenever
+      # AppLocalizer is a moment behind ("write error: resource temporarily
+      # unavailable"). $! is still Claude Code's.
+      $claude "$@" </dev/null > >(cat) 2> >(cat >&2) &
       local pid=$!
       # AppLocalizer keeps stdin open while the run goes on. A line, or stdin
       # closing because AppLocalizer quit, stops Claude Code. (A script's

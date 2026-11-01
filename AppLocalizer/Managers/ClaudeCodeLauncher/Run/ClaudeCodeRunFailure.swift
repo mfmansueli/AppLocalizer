@@ -24,7 +24,9 @@ enum ClaudeCodeRunFailure: Hashable, Sendable {
     /// Claude Code ended with an error, with what it said.
     case claudeError(String)
     /// The helper ended without a result, with its status and last error.
-    case exited(status: Int32, message: String?)
+    /// No status: Claude Code started, but its end never reached
+    /// AppLocalizer.
+    case exited(status: Int32?, message: String?)
 
     /// The helper's exit status for each problem it reports itself.
     static let claudeMissingStatus: Int32 = 127
@@ -64,9 +66,12 @@ enum ClaudeCodeRunFailure: Hashable, Sendable {
             String(localized: "macOS said: \(message)")
         case let .claudeError(message):
             message.isEmpty ? String(localized: "Show Output has what it did before it stopped.") : message
-        case let .exited(status, message):
+        case let .exited(status?, message):
             message.map { String(localized: "It said: \($0) (status \(status)).") }
                 ?? String(localized: "It ended with status \(status) before it finished.")
+        case let .exited(nil, message):
+            message.map { String(localized: "It started, but its result didn’t reach AppLocalizer. It said: \($0)") }
+                ?? String(localized: "It started, but its result didn’t reach AppLocalizer. Show Output has what it did.")
         }
     }
 
@@ -85,7 +90,9 @@ enum ClaudeCodeRunFailure: Hashable, Sendable {
     }
 
     /// The failure for a run that ended without a successful result.
-    static func classify(status: Int32?, result: ClaudeCodeResult?, exit: UnixScriptExit, folder: String) -> ClaudeCodeRunFailure {
+    /// `started`: Claude Code's first event arrived, so the helper ran even
+    /// when its status never did.
+    static func classify(status: Int32?, result: ClaudeCodeResult?, exit: UnixScriptExit, folder: String, started: Bool = false) -> ClaudeCodeRunFailure {
         if let result, result.isError {
             if result.isLoginProblem { return .notLoggedIn(result.text) }
             return .claudeError(result.text)
@@ -94,6 +101,7 @@ enum ClaudeCodeRunFailure: Hashable, Sendable {
         case claudeMissingStatus: return .claudeMissing
         case folderMissingStatus: return .folderMissing(folder)
         case let status?: return .exited(status: status, message: exit.lastErrorLine)
+        case nil where started: return .exited(status: nil, message: exit.lastErrorLine)
         case nil: return .couldNotStart(exit.taskError ?? exit.lastErrorLine ?? String(localized: "The helper didn’t run."))
         }
     }

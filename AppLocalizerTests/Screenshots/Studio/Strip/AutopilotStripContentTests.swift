@@ -85,7 +85,7 @@ struct AutopilotStripContentTests {
         if count == 2 {
             var second = run.problems[0]
             second.id = "pr-second"
-            second.target.locale = "fr-FR"
+            second.target.screenID = "week"
             run.problems.append(second)
         }
         let strip = Self.strip(run)
@@ -94,6 +94,15 @@ struct AutopilotStripContentTests {
         // A problem the person answered isn't counted.
         run.problems[0].resolution = .retryWithFix
         #expect(Self.strip(run).pill == (count == 2 ? "1 problem" : nil))
+    }
+
+    @Test func theSameCauseInAnotherLanguageIsOneProblem() {
+        var run = StudioDebugRuns.failing
+        var french = run.problems[0]
+        french.id = "pr-french"
+        french.target.locale = "fr-FR"
+        run.problems.append(french)
+        #expect(Self.strip(run).pill == "1 problem")
     }
 
     @Test(arguments: [(true, "Claude Design"), (false, "AppLocalizer’s starters")])

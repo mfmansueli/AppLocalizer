@@ -26,6 +26,11 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     var uploadToken: String
     var captures: [AutopilotCapture] = []
     var problems: [AutopilotProblem] = []
+    /// Settled with the primary language's capture without a problem of
+    /// their own: a screen's other languages, when the person reused the
+    /// primary capture for a problem that needs a change to the project.
+    /// Nil in runs from before, and when there are none.
+    var primaryCaptureTargets: Set<AutopilotCaptureTarget>?
     var log: [AutopilotLogEntry] = []
     /// Screen ID → the picked capture's ID (on the first device, in the
     /// primary language). The pick's attempt applies to every language and
@@ -57,25 +62,74 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     /// reused, or one uploaded by hand).
     func isSettled(_ target: AutopilotCaptureTarget) -> Bool {
         captures.contains { $0.target == target }
+            || primaryCaptureTargets?.contains(target) == true
             || problems.contains { $0.target == target && ($0.resolution == .usePrimaryCapture || $0.resolution == .uploadedByHand) }
     }
 
     var capturedCount: Int { plan.targets.count(where: isSettled) }
 
-    /// What's left to capture, without the screens waiting on a problem.
+    /// What's left to capture, the rehearsal's first (see
+    /// `AutopilotPlan.rehearsalLocale`), without the ones a problem holds.
     var remainingTargets: [AutopilotCaptureTarget] {
-        let blocked = Set(openProblems.map(\.target))
-        return plan.targets.filter { !isSettled($0) && !blocked.contains($0) }
+        let held = heldTargets
+        return plan.rehearsalFirstTargets.filter { !isSettled($0) && !held.contains($0) }
+    }
+
+    /// What the assistant captures now: the rehearsal while any of it is
+    /// left, then the other languages.
+    var nextTargets: [AutopilotCaptureTarget] {
+        let remaining = remainingTargets
+        let rehearsal = remaining.filter(plan.isRehearsal)
+        return rehearsal.isEmpty ? remaining : rehearsal
+    }
+
+    /// Every screen is still being tried in the primary language and the
+    /// rehearsal's before the other languages.
+    var isRehearsing: Bool {
+        plan.rehearsalLocale != nil && remainingTargets.contains(where: plan.isRehearsal)
+    }
+
+    /// What an open problem holds back: its own target, and the same
+    /// screen on the same device in the other languages, which would fail
+    /// the same way. A retry holds them until its capture arrives. A
+    /// problem in another language doesn't hold the primary language's.
+    var heldTargets: Set<AutopilotCaptureTarget> {
+        var held = Set(openProblems.map(\.target))
+        for problem in problems where problem.isOpen || isPendingRetry(problem) {
+            let fromPrimary = problem.target.locale == plan.primaryLocale
+            for locale in plan.capturedLocales where locale != problem.target.locale && (fromPrimary || locale != plan.primaryLocale) {
+                held.insert(AutopilotCaptureTarget(screenID: problem.target.screenID, displayType: problem.target.displayType, locale: locale))
+            }
+        }
+        return held
     }
 
     var openProblems: [AutopilotProblem] { problems.filter(\.isOpen) }
 
+    /// Open problems with the same cause together: one card for a test
+    /// that fails the same way in every language and on every device.
+    var problemGroups: [AutopilotProblemGroup] { AutopilotProblemGroup.groups(of: openProblems) }
+
     /// Problems the person chose to retry: the assistant captures them again
-    /// with the fix.
+    /// with the fix. One reported again is open instead.
     var retries: [AutopilotProblem] {
-        problems.filter { problem in
-            problem.resolution == .retryWithFix && !captures.contains { $0.target == problem.target }
+        problems.filter(isPendingRetry)
+    }
+
+    private func isPendingRetry(_ problem: AutopilotProblem) -> Bool {
+        problem.resolution == .retryWithFix && !captures.contains { $0.target == problem.target }
+            && !problems.contains { $0.isOpen && $0.target == problem.target }
+    }
+
+    /// Reuse the primary language's capture for a screen on a device in
+    /// every other language not captured yet.
+    mutating func usePrimaryCapture(screenID: String, on display: ScreenshotDisplayType) {
+        var settled = primaryCaptureTargets ?? []
+        for locale in plan.capturedLocales where locale != plan.primaryLocale {
+            let target = AutopilotCaptureTarget(screenID: screenID, displayType: display, locale: locale)
+            if !captures.contains(where: { $0.target == target }) { settled.insert(target) }
         }
+        primaryCaptureTargets = settled.isEmpty ? nil : settled
     }
 
     /// Every target settled and nothing waiting on the person.

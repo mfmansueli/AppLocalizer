@@ -97,10 +97,16 @@ extension ScreenshotStudioModel {
     // MARK: - Capture
 
     func resolve(_ problem: AutopilotProblem, with resolution: AutopilotProblemResolution) {
+        resolve(AutopilotProblemGroup(problems: [problem]), with: resolution)
+    }
+
+    /// The same answer for every problem with one cause.
+    func resolve(_ group: AutopilotProblemGroup, with resolution: AutopilotProblemResolution) {
         guard let autopilot else { return }
         let context = context
         let appID = app.id
-        Task { await autopilot.resolveProblem(appID: appID, problemID: problem.id, with: resolution, context: context) }
+        let ids = group.problems.map(\.id)
+        Task { await autopilot.resolveProblems(appID: appID, problemIDs: ids, with: resolution, context: context) }
     }
 
     /// Upload One by Hand…: the PNG becomes the screen's capture.
