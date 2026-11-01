@@ -11,7 +11,9 @@ import Foundation
 /// to `min` in 2 u steps (only the full size when shrink is off), the first
 /// size where every word fits and the lines don't exceed `maxLines` wins.
 /// Otherwise the block overflows and is set at `min`, with the extra lines
-/// reported. Measured with Core Text and the locale's line breaking.
+/// reported. Measured with Core Text and the locale's line breaking; a
+/// block with an emphasized line is measured with whichever of its two
+/// faces is wider, since the line breaker can't know which line that is.
 struct CaptionFitter {
     var catalog: ScreenshotFontCatalog = .standard
 
@@ -22,6 +24,15 @@ struct CaptionFitter {
         /// ×1.06 for the hero headline; `min` isn't scaled.
         var sizeScale: Double = 1
         var fontName: String
+        /// The emphasized line's face, when it has one.
+        var alternate: Face?
+    }
+
+    /// A font, weight and slant to measure with.
+    struct Face: Hashable {
+        var fontName: String
+        var weight: Int
+        var isItalic: Bool
     }
 
     /// Where it goes.
@@ -72,12 +83,19 @@ struct CaptionFitter {
     }
 
     func font(_ block: Block, pixelSize: CGFloat) -> CTFont {
-        catalog.font(named: block.fontName, weight: block.style.weight, size: pixelSize)
-            ?? NSFont.systemFont(ofSize: pixelSize, weight: ScreenshotFontCatalog.weight(block.style.weight)) as CTFont
+        font(Face(fontName: block.fontName, weight: block.style.weight, isItalic: block.style.isItalic), pixelSize: pixelSize)
+    }
+
+    func font(_ face: Face, pixelSize: CGFloat) -> CTFont {
+        catalog.font(named: face.fontName, weight: face.weight, size: pixelSize, italic: face.isItalic)
+            ?? NSFont.systemFont(ofSize: pixelSize, weight: ScreenshotFontCatalog.weight(face.weight)) as CTFont
     }
 
     private func measurer(_ block: Block, size: Double, unit: CGFloat) -> CaptionMeasurer {
         let pixelSize = CGFloat(size) * unit
-        return CaptionMeasurer(font: font(block, pixelSize: pixelSize), tracking: CGFloat(block.style.tracking ?? 0) * pixelSize)
+        let tracking = CGFloat(block.style.tracking ?? 0) * pixelSize
+        return CaptionMeasurer(
+            font: font(block, pixelSize: pixelSize), alternate: block.alternate.map { font($0, pixelSize: pixelSize) }, tracking: tracking
+        )
     }
 }

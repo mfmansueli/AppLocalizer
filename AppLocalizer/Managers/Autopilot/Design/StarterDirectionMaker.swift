@@ -5,8 +5,8 @@
 
 import Foundation
 
-/// Design without a design project: AppLocalizer's three starters, colored
-/// from the app icon.
+/// Design without a design project: AppLocalizer's three simple starters,
+/// colored from the app icon.
 @MainActor
 struct StarterDirectionMaker {
     let context: AutopilotContext
@@ -14,7 +14,7 @@ struct StarterDirectionMaker {
 
     func directions(for run: AutopilotRun) async -> [AutopilotDirection] {
         let palette = await IconPalette.palette(for: context.app.icon)
-        return TemplateStarter.allCases.map { starter in
+        return TemplateStarter.simple.map { starter in
             var template = ScreenshotTemplate.starter(starter, id: context.app.id, title: context.app.name, slotCount: run.plan.screens.count)
             if let palette { Self.color(&template, as: starter, with: palette) }
             return AutopilotDirection(
@@ -31,10 +31,12 @@ struct StarterDirectionMaker {
         case .above: String(localized: "AppLocalizer’s starter, in the colors of \(app)’s app icon.")
         case .band: String(localized: "AppLocalizer’s starter, with the icon’s darkest color for the band.")
         case .panorama: String(localized: "AppLocalizer’s starter, with a gradient picked from the icon.")
+        default: String(localized: "AppLocalizer’s template, in its own colors.")
         }
     }
 
-    /// Recolors a starter from the icon.
+    /// Recolors a simple starter from the icon; the gallery's other
+    /// templates keep their own colors.
     static func color(_ template: inout ScreenshotTemplate, as starter: TemplateStarter, with palette: IconPalette) {
         switch starter {
         case .above:
@@ -45,6 +47,8 @@ struct StarterDirectionMaker {
         case .panorama:
             template.background.stops = palette.panorama
             template.caption.ink = palette.darkest
+        default:
+            break
         }
     }
 }

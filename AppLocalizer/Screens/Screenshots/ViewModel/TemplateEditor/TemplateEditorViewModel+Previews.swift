@@ -20,12 +20,14 @@ extension TemplateEditorViewModel {
         var locale: String
         var displayType: ScreenshotDisplayType
         var fonts: ScreenshotFontCatalog
+        var ratings: StoreRatings
     }
 
     var previewInputs: PreviewInputs {
         PreviewInputs(
             template: template, captions: screenshots.document?.captions, previewCaptions: previewCaptions, slot: slot,
-            locale: localeCode, displayType: displayType, fonts: screenshots.fonts
+            locale: localeCode, displayType: displayType, fonts: screenshots.fonts,
+            ratings: screenshots.ratings
         )
     }
 
@@ -52,8 +54,10 @@ extension TemplateEditorViewModel {
         strip = StressStripPlanner(engine: engine).entries(inputs)
         canvas = SlotPreview.make(
             SlotPreview.Placement(template: template, locale: locale, displayType: displayType, slot: slot),
-            caption: canvasCaption(inputs), capture: capture(localeCode), engine: engine, primaryLocaleName: primary.name
+            caption: canvasCaption(inputs), capture: capture(localeCode), engine: engine, primaryLocaleName: primary.name,
+            ratings: screenshots.ratings
         )
+        screenshots.lookUpRatings(for: template)
         requestPreviewTranslations()
         loadCaptureImages()
     }

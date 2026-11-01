@@ -11,7 +11,8 @@ import CoreText
 /// The SF families and New York are the system's own fonts, reached through
 /// the system font rather than by name, so they work on every Mac; SF
 /// Arabic and SF Hebrew are the system font's cascade for those scripts.
-/// Any other name must be an installed family.
+/// The gallery's display fonts (Anton, Playfair Display…) ship with the
+/// app. Any other name must be an installed family.
 ///
 /// Coverage is read from the font's cmap with `CTFontGetGlyphsForCharacters`,
 /// per character: Core Text and SwiftUI would silently fall back to another
@@ -31,13 +32,28 @@ struct ScreenshotFontCatalog: Hashable, Sendable {
     static let knownFonts = [
         "SF Pro Display", "SF Pro Text", "New York", "SF Arabic", "Geeza Pro", "SF Hebrew", "Hiragino Sans",
         "PingFang SC", "PingFang TC", "Apple SD Gothic Neo", "Thonburi", "Kohinoor Devanagari",
-    ]
+    ] + BundledFonts.names
 
     private static let systemFamilies: Set = ["SF Pro", "SF Pro Display", "SF Pro Text"]
 
     /// The font for `name` at `weight` (100–900) and `size` pixels, or nil
-    /// when it isn't available on this Mac.
-    func font(named name: String, weight: Int = 400, size: CGFloat) -> CTFont? {
+    /// when it isn't available on this Mac. An italic the family lacks is
+    /// the upright face slanted.
+    func font(named name: String, weight: Int = 400, size: CGFloat, italic: Bool = false) -> CTFont? {
+        if let bundled = BundledFonts.font(named: aliases[name] ?? name, weight: weight, italic: italic, size: size) {
+            return italic && !bundled.isItalic ? Self.slanted(bundled.font, size: size) : bundled.font
+        }
+        guard let upright = uprightFont(named: name, weight: weight, size: size) else { return nil }
+        guard italic else { return upright }
+        if let italicFont = CTFontCreateCopyWithSymbolicTraits(upright, size, nil, .traitItalic, .traitItalic),
+           CTFontGetSymbolicTraits(italicFont).contains(.traitItalic)
+        {
+            return italicFont
+        }
+        return Self.slanted(upright, size: size)
+    }
+
+    private func uprightFont(named name: String, weight: Int, size: CGFloat) -> CTFont? {
         let family = aliases[name] ?? name
         let nsWeight = Self.weight(weight)
         if Self.systemFamilies.contains(family) {
@@ -86,14 +102,26 @@ struct ScreenshotFontCatalog: Hashable, Sendable {
         (Self.knownFonts + uploaded.filter { !Self.knownFonts.contains($0) }).filter { covers($0, script.sampleText) }
     }
 
-    /// The display fonts the headline picker offers: the system's, then
-    /// uploaded ones.
+    /// The display fonts the headline picker offers: the system's, the
+    /// bundled ones, then uploaded ones.
     var displayFonts: [String] {
-        Self.displayFamilies + uploaded.filter { !Self.displayFamilies.contains($0) }
+        let shipped = Self.displayFamilies + BundledFonts.names
+        return shipped + uploaded.filter { !shipped.contains($0) }
     }
 
     func isUploaded(_ name: String) -> Bool {
         uploaded.contains(name)
+    }
+
+    /// Whether `name` is one of the fonts AppLocalizer ships.
+    func isBundled(_ name: String) -> Bool {
+        BundledFonts.isBundled(aliases[name] ?? name)
+    }
+
+    /// A synthetic oblique, about 11°, for families without an italic.
+    private static func slanted(_ font: CTFont, size: CGFloat) -> CTFont {
+        var matrix = CGAffineTransform(a: 1, b: 0, c: 0.2, d: 1, tx: 0, ty: 0)
+        return CTFontCreateCopyWithAttributes(font, size, &matrix, nil)
     }
 
     private static let displayFamilies = ["SF Pro Display", "SF Pro Text", "New York"]

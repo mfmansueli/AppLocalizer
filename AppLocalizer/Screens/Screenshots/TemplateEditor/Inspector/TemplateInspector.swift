@@ -22,6 +22,8 @@ struct TemplateInspector: View {
                     Divider()
                     CaptionInspectorSection(model: model)
                     Divider()
+                    DecorationsInspectorSection(model: model)
+                    Divider()
                     FitInspectorSection(model: model)
                     Divider()
                     FontsInspectorSection(model: model)

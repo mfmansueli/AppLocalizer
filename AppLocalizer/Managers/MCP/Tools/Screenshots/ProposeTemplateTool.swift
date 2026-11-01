@@ -19,7 +19,12 @@ struct ProposeTemplateTool: MCPTool {
         Refused for unknown paths, values out of range, and a fallback font that can't draw its script; the \
         reason names each. When queued, it waits in AppLocalizer's Proposals sheet until the person accepts it \
         as the next version, and the result's stress lists how the stress locales (primary, longest, right to \
-        left, CJK) fit across every slot with it. Check captions with measure_caption first.
+        left, CJK) fit across every slot with it. Check captions with measure_caption first. Besides the \
+        fields get_template shows, a template may set device.tilt {rz, ry, rx} in degrees, device.dx/dy, \
+        caption.placement below, caption.headline.upper/italic/shadow/emph {on: first|last, weight, font, \
+        italic}/mark {color, pad, rot, radius}, caption.subhead.italic and deco (shapes, laurels, badges); a \
+        null value removes one. A slot override may also replace the whole bg. Laurels and badges show a \
+        rating: use the app's real App Store rating, which AppLocalizer checks before every push.
         """,
         inputSchema: MCPToolDefinition.schema(
             [

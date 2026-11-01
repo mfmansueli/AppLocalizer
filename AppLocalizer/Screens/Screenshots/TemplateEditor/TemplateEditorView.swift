@@ -33,7 +33,7 @@ struct TemplateEditorView: View {
             model.refreshPreviews()
         }
         .sheet(isPresented: $model.isStarterSheetPresented) {
-            StarterTemplatesSheet(viewModel: viewModel)
+            TemplateGallerySheet(viewModel: viewModel)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("screenshots.template")

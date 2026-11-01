@@ -27,7 +27,7 @@ struct StarterDirectionMakerTests {
         let palette = IconPalette(light: "#7C86FF", dark: "#3A2FB8")
 
         #expect(directions.map(\.id) == ["starter-above", "starter-band", "starter-panorama"])
-        #expect(directions.map(\.name) == TemplateStarter.allCases.map(\.title))
+        #expect(directions.map(\.name) == TemplateStarter.simple.map(\.title))
         #expect(directions.allSatisfy { $0.source == .none && $0.client == nil && $0.sourceTitle == "Starter" })
         #expect(directions.allSatisfy { $0.template.slots.count == 2 && $0.receivedAt == AutopilotTestFixtures.now })
         #expect(directions[0].rationale == "AppLocalizer’s starter, in the colors of Lumen Journal’s app icon.")

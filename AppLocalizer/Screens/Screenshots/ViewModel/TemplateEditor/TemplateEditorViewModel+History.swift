@@ -61,18 +61,21 @@ extension TemplateEditorViewModel {
         template?.starter == starter ? String(localized: "Start Over from This") : String(localized: "Switch to This")
     }
 
-    /// Switches starters as a new version; captions and captures stay.
+    /// Switches templates as a new version; captions and captures stay.
     func switchStarter(_ starter: TemplateStarter) async {
         discardEdits()
         isStarterSheetPresented = false
         await screenshots.chooseStarter(starter)
     }
 
-    /// The sheet's intro: "Switching keeps Lumen’s captions and captures,
-    /// and starts a new template version you can undo from History."
+    /// The sheet's intro: "Every template renders all of Lumen’s languages
+    /// and devices. Switching keeps captions and captures, and starts a new
+    /// template version you can undo from History."
     var starterSheetNote: String {
         let title = templateTitle
-        return String(localized: "Switching keeps \(title)’s captions and captures, and starts a new template version you can undo from History.")
+        return String(
+            localized: "Every template renders all of \(title)’s languages and devices. Switching keeps captions and captures, and starts a new template version you can undo from History."
+        )
     }
 
     /// "Lumen" from "Lumen · Caption above device".

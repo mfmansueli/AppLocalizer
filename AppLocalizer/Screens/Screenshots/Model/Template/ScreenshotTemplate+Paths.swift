@@ -34,14 +34,16 @@ extension ScreenshotTemplate {
     }
 
     /// The template as slot `index` sees it, with that slot's overrides laid
-    /// on top. An override the template can't take (a path that doesn't
-    /// exist or a value of the wrong type) is ignored.
+    /// on top. An override the template can't take (a path that neither
+    /// exists nor is a field the template may leave out, or a value of the
+    /// wrong type) is ignored.
     func resolved(forSlot index: Int) -> ScreenshotTemplate {
         guard slots.indices.contains(index), !slots[index].over.isEmpty else { return self }
         var tree = json
         for (path, value) in slots[index].over.sorted(by: { $0.key < $1.key }) {
             let components = path.split(separator: ".").map(String.init)
-            guard tree.value(at: components) != nil, components.first != "slots" else { continue }
+            let isKnown = tree.value(at: components) != nil || TemplateSchema.overrideRule(for: path) != nil
+            guard isKnown, components.first != "slots" else { continue }
             let candidate = tree.setting(value, at: components[...])
             if (try? ScreenshotTemplate(json: candidate)) != nil { tree = candidate }
         }

@@ -52,6 +52,7 @@ struct TemplateOperationApplier: Sendable {
             return applySlot(operation, components: components, to: tree, slotCount: slotCount)
         }
         guard let rule = TemplateSchema.rule(for: path) else { return .failure(unknownPath(path)) }
+        if operation.value.isNull, TemplateSchema.optionalPaths.contains(path) { return .success(tree.setting(nil, at: components[...])) }
         if let refusal = check(operation.value, against: rule, path: path) { return .failure(refusal) }
         return .success(tree.setting(operation.value.isNull ? nil : operation.value, at: components[...]))
     }
@@ -103,21 +104,23 @@ struct TemplateOperationApplier: Sendable {
             value.isNull ? nil : checkFallback(value, script: script, path: path)
         case .text:
             (value.stringValue ?? "").trimmingCharacters(in: .whitespaces).isEmpty ? wrongType(path, String(localized: "non-empty text")) : nil
+        case .tilt, .emphasis, .highlight, .shadow, .decorations, .background:
+            checkStyle(value, against: rule, path: path)
         }
     }
 
-    private func checkNumber(_ value: JSONValue, range: ClosedRange<Double>, unit: String, path: String) -> TemplateRefusal? {
+    func checkNumber(_ value: JSONValue, range: ClosedRange<Double>, unit: String, path: String) -> TemplateRefusal? {
         guard let number = value.doubleValue else { return wrongType(path, String(localized: "a number")) }
         let bounds = "\(range.lowerBound.formatted()) and \(range.upperBound.formatted())" + (unit.isEmpty ? "" : " \(unit)")
         return range.contains(number) ? nil : outOfRange(path, number.formatted(), range: bounds)
     }
 
-    private func checkInteger(_ value: JSONValue, range: ClosedRange<Int>, path: String) -> TemplateRefusal? {
+    func checkInteger(_ value: JSONValue, range: ClosedRange<Int>, path: String) -> TemplateRefusal? {
         guard let number = value.intValue else { return wrongType(path, String(localized: "a whole number")) }
         return range.contains(number) ? nil : outOfRange(path, "\(number)", range: "\(range.lowerBound) and \(range.upperBound)")
     }
 
-    private func checkChoice(_ value: JSONValue, options: [String], path: String) -> TemplateRefusal? {
+    func checkChoice(_ value: JSONValue, options: [String], path: String) -> TemplateRefusal? {
         guard let text = value.stringValue, options.contains(text) else {
             let list = options.joined(separator: ", ")
             return TemplateRefusal(path: path, kind: .outOfRange, reason: String(localized: "\(path) is one of \(list)."))
@@ -125,14 +128,14 @@ struct TemplateOperationApplier: Sendable {
         return nil
     }
 
-    private func checkColors(_ value: JSONValue, count: ClosedRange<Int>, path: String) -> TemplateRefusal? {
+    func checkColors(_ value: JSONValue, count: ClosedRange<Int>, path: String) -> TemplateRefusal? {
         guard let stops = value.arrayValue, stops.allSatisfy({ $0.stringValue.flatMap(TemplateColor.init) != nil }) else {
             return wrongType(path, String(localized: "a list of colors like [\"#7A80FF\", \"#3A2FB8\"]"))
         }
         return count.contains(stops.count) ? nil : outOfRange(path, "\(stops.count)", range: "\(count.lowerBound) and \(count.upperBound) colors")
     }
 
-    private func checkFont(_ value: JSONValue, path: String) -> TemplateRefusal? {
+    func checkFont(_ value: JSONValue, path: String) -> TemplateRefusal? {
         guard let name = value.stringValue else { return wrongType(path, String(localized: "a font name")) }
         guard fonts.isAvailable(name) else {
             return TemplateRefusal(path: path, kind: .unknownFont, reason: String(localized: "“\(name)” isn’t installed on this Mac."))
@@ -193,15 +196,15 @@ struct TemplateOperationApplier: Sendable {
         return TemplateRefusal(path: path, kind: .unknownPath, reason: String(localized: "“\(path)” isn’t a template field.") + hint)
     }
 
-    private func wrongType(_ path: String, _ expected: String) -> TemplateRefusal {
+    func wrongType(_ path: String, _ expected: String) -> TemplateRefusal {
         TemplateRefusal(path: path, kind: .wrongType, reason: String(localized: "\(path) takes \(expected)."))
     }
 
-    private func outOfRange(_ path: String, _ value: String, range: String) -> TemplateRefusal {
+    func outOfRange(_ path: String, _ value: String, range: String) -> TemplateRefusal {
         TemplateRefusal(path: path, kind: .outOfRange, reason: String(localized: "\(path) must be between \(range); \(value) is out of range."))
     }
 
-    private func inconsistent(_ path: String, _ reason: String) -> TemplateRefusal {
+    func inconsistent(_ path: String, _ reason: String) -> TemplateRefusal {
         TemplateRefusal(path: path, kind: .inconsistent, reason: reason)
     }
 }

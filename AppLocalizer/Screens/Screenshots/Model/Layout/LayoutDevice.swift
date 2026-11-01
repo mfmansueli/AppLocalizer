@@ -18,4 +18,6 @@ struct LayoutDevice: Hashable, Sendable {
     var island: CGRect?
     var shadowOffset: CGFloat
     var shadowRadius: CGFloat
+    /// The device's angle; nil when it stands flat.
+    var tilt: LayoutTilt?
 }

@@ -155,10 +155,10 @@ struct TemplateEditorViewModelTests {
         #expect(after.template?.starter == .panorama)
         #expect(after.template?.name == "Lumen · Panorama")
         #expect(after.history?.currentNumber == 5)
-        #expect(after.history?.current?.note == "Switched to the starter “Panorama”")
+        #expect(after.history?.current?.note == "Switched to the template “Panorama”")
         #expect(after.captions == before.captions)
         #expect(after.captures == before.captures)
-        #expect(screen.editor.starterSheetNote.hasPrefix("Switching keeps Lumen’s captions and captures"))
+        #expect(screen.editor.starterSheetNote.hasPrefix("Every template renders all of Lumen’s languages and devices."))
     }
 
     @Test func openInTemplateEditorLandsOnTheViewersLocaleAndSlot() async {

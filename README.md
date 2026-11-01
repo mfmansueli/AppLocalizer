@@ -7,7 +7,13 @@ macOS app (SwiftUI, macOS 27+) for localizing apps faster through the App Store 
 - **Store page:** the App Store listing's text in every locale, with import, Find and Replace, and translation by Apple
   Translation, an AI provider (Anthropic or OpenAI, with your own API key) or your assistant.
 - **Screenshots (⌘4):** an App Store preview of the live set or the new one, per device, language and appearance;
-  one template, captions per locale, imported captures, and renders checked for fit before they're pushed. Review &
+  one template, captions per locale, imported captures, and renders checked for fit before they're pushed. The
+  template gallery (Templates…) offers 12 templates in four styles (Simple, Bold, Elegant, Playful): angled and leaning
+  devices, a caption below the device, uppercase, an emphasized first or last line, highlight bars, a slot's own
+  background, and decorations per slot (shapes, rating laurels and badges). Their fonts are bundled (SIL Open Font
+  License, `Resources/Fonts`), so a template looks the same on every Mac. A laurel or badge must be true: before a
+  push, its number is checked against the app's App Store rating in each locale's country (the iTunes Lookup API),
+  and a higher one, or one before the app has a rating there, fails the render. Review &
   Push uploads them, keeps the screenshots they replace on this Mac, and Activity puts those back. A live screenshot
   with no image in App Store Connect (its upload never finished, or Apple couldn't process it) has nothing to keep and
   is replaced anyway; one still processing is left for a later push. **Screenshot
@@ -110,7 +116,9 @@ App Store Connect or the Keychain, and the MCP server in a scene never opens a p
   `st-pick-all`, `st-choose-all`, `st-loc-all`, `st-ready-sheet-all`, `st-live-watch`, `st-live-vision`,
   `st-ready-watch` and `st-ready-vision`. With no project report but a build with a watch app, `st-asc-watch`. A
   Claude Design link nobody has read yet, a long assistant name and a long screen name, `st-plan-link`.
-  The Sets matrix, `sets*`, `viewer*` and `scope`; the Template editor, `tpl*` and `starter`; Captions, `cap*`
+  The Sets matrix, `sets*`, `viewer*` and `scope`; the Template editor, `tpl*` and `starter`; the template gallery,
+  `gallery` and `gallery-elegant`, and a few of its templates rendered, `tpl-cinema`, `tpl-highlight-ar`,
+  `tpl-market-de`, `tpl-poster-ja` and `tpl-swoosh-deco`; Captions, `cap*`
   (`ScreenshotsDebugScenes`). Captures, `capt*`, and assistants' proposals, `prop-*`
   (`ScreenshotsProposalsDebugScenes`). Pushing them, `shots-review`, `shots-push`, `shots-push-partial`, and
   restoring them from Activity, `shots-act` and `shots-act-restore` (`ScreenshotsPushDebugScenes`).

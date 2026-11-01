@@ -7,13 +7,17 @@ import CoreGraphics
 import Foundation
 
 /// Runs the checks of README §5 on a laid-out render, in the order the
-/// viewer lists them: size and format, glyphs, fit, capture size, UI not
-/// localized, then what's missing.
+/// viewer lists them: size and format, glyphs, fit, rating, capture size,
+/// UI not localized, then what's missing.
 enum ScreenshotChecker {
     /// How far a capture may be cropped or scaled before it fails.
     static let tolerance = 0.10
 
-    static func checks(for layout: ScreenshotLayout, capture: ResolvedCapture?, primaryLocaleName: String) -> [RenderCheck] {
+    /// `ratings` are the app's App Store ratings that laurels and badges
+    /// are checked against; unknown ones only warn.
+    static func checks(
+        for layout: ScreenshotLayout, capture: ResolvedCapture?, primaryLocaleName: String, ratings: StoreRatings = .unchecked
+    ) -> [RenderCheck] {
         let canvas = layout.canvas
         var checks = [RenderCheck(
             kind: .sizeAndFormat, status: .passed,
@@ -26,6 +30,7 @@ enum ScreenshotChecker {
                 kind: .captionPresent, status: .pending, text: String(localized: "No caption yet"), shortReason: String(localized: "No caption")
             ))
         }
+        if let rating = ratingCheck(layout, ratings: ratings) { checks.append(rating) }
         if let capture {
             if let size = captureSizeCheck(capture.capture, layout: layout) { checks.append(size) }
             if !capture.isInterfaceLocalized {

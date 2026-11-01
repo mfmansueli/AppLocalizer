@@ -22,4 +22,9 @@ struct LayoutTextLine: Hashable, Sendable {
     var isRightToLeft: Bool
     /// Past `maxLines`: drawn dimmed so the overflow shows.
     var isOverflow: Bool
+    var isItalic = false
+    /// A text shadow, lengths in em of `pixelSize`.
+    var shadow: TemplateShadow?
+    /// A marker bar behind the line; the text sits inside its padding.
+    var highlight: LayoutLineHighlight?
 }

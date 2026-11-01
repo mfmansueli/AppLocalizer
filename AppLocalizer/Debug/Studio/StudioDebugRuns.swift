@@ -225,7 +225,7 @@ enum StudioDebugRuns {
                 ("Full Bleed", "The capture fills the frame and a dusk band carries the caption. Shows the most of the app.", .band),
                 ("Dawn Panorama", "One dawn gradient runs across all five, so the set reads as one scene when people swipe.", .panorama),
             ]
-            : TemplateStarter.allCases.map { ($0.title, "AppLocalizer’s starter, in the colors of Lumen’s app icon.", $0) }
+            : TemplateStarter.simple.map { ($0.title, "AppLocalizer’s starter, in the colors of Lumen’s app icon.", $0) }
         let palette = IconPalette(light: "#7C86FF", dark: "#3A2FB8")
         let document = ScreenshotsDebugDocuments.document(for: .standard)
         let fonts = DebugScreenshotsServices().fonts

@@ -20,6 +20,7 @@ struct LiveScreenshotsServices: ScreenshotsServices {
     /// The installed fonts and the ones uploaded before, registered now.
     var fonts = ScreenshotFontCatalog(uploaded: ScreenshotFontLibrary().registerAll())
     var translator: any ListingTranslator = AppleListingTranslator()
+    var ratingLookup = StoreRatingLookup()
     var renderCacheDirectory: URL? = URL.cachesDirectory.appending(path: "AppLocalizer/Renders", directoryHint: .isDirectory)
     var renderHoldCount: Int? { nil }
     var documentCenter: ScreenshotsDocumentCenter? { .shared }
@@ -99,6 +100,11 @@ struct LiveScreenshotsServices: ScreenshotsServices {
 
     func uploadFont(from url: URL) async throws -> String {
         try fontLibrary.upload(url)
+    }
+
+    /// What the App Store shows on the app's page in each country.
+    func storeRatings(for app: StoreApp, countries: Set<String>) async -> StoreRatings {
+        await ratingLookup.ratings(appID: app.id, countries: countries)
     }
 
     func otherDisplayTypeNotes(for _: StoreApp) -> [ScreenshotDisplayType: String] {

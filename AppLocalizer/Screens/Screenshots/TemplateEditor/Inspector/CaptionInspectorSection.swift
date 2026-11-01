@@ -6,18 +6,24 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Placement, alignment, headline font (with uploaded fonts), size in u
-/// and color.
+/// Placement, alignment, headline font (with uploaded and bundled fonts),
+/// size in u, color, and the headline's uppercase, emphasis and highlight.
 struct CaptionInspectorSection: View {
     let model: TemplateEditorViewModel
     @State private var isImporting = false
+
+    private static let note = String(localized: """
+    Emphasis and highlights apply per line after wrapping, so they follow every language’s line breaks. \
+    1 u is 1/1320 of the canvas’s short side.
+    """)
 
     var body: some View {
         if let caption = model.template?.caption {
             TemplateInspectorSection(title: String(localized: "Caption")) {
                 TemplateInspectorRow(label: String(localized: "Placement")) {
                     Picker("Placement", selection: Binding { caption.placement } set: { model.set("caption.placement", to: .string($0.rawValue)) }) {
-                        Text("Above device").tag(TemplateCaption.Placement.above)
+                        Text("Above").tag(TemplateCaption.Placement.above)
+                        Text("Below").tag(TemplateCaption.Placement.below)
                         Text("Band").tag(TemplateCaption.Placement.band)
                     }
                     .pickerStyle(.segmented)
@@ -53,11 +59,12 @@ struct CaptionInspectorSection: View {
                 }
                 .accessibilityIdentifier("screenshots.template.size")
                 TemplateInspectorRow(label: String(localized: "Color")) {
-                    TemplateInspectorColorWell(label: String(localized: "Caption color"), color: caption.ink) {
-                        model.set("caption.ink", to: .string($0))
+                    TemplateInspectorColorWell(label: String(localized: "Caption color"), color: model.slotInk) {
+                        model.setInk($0)
                     }
                 }
-                Text("1 u is 1/1320 of the canvas’s short side, so sizes hold across display types.")
+                CaptionLookInspectorRows(model: model)
+                Text(Self.note)
                     .font(.caption)
                     .foregroundStyle(Palette.label2)
                     .layoutPriority(1)

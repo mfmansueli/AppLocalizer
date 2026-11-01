@@ -60,10 +60,10 @@ enum TemplateDiff {
         }
     }
 
-    /// The inspector's order: canvas, background, device, caption, fit,
-    /// right to left, safe areas, fonts.
+    /// The inspector's order: canvas, background, device, caption,
+    /// decorations, fit, right to left, safe areas, fonts.
     private static func schemaOrder(_ lhs: String, _ rhs: String) -> Bool {
-        let order = ["name", "canvas", "bg", "device", "caption", "fit", "rtl", "safe", "fonts"]
+        let order = ["name", "canvas", "bg", "device", "caption", "deco", "fit", "rtl", "safe", "fonts"]
         let lhsRank = order.firstIndex(of: String(lhs.prefix { $0 != "." })) ?? order.count
         let rhsRank = order.firstIndex(of: String(rhs.prefix { $0 != "." })) ?? order.count
         return lhsRank == rhsRank ? lhs < rhs : lhsRank < rhsRank

@@ -25,8 +25,14 @@ import SwiftUI
 /// - `tpl-glyph`: Thai slot 1 with the uploaded Northpier Display tried as
 ///   an unsaved edit, and no Thai fallback: Thai's glyphs are missing.
 /// - `tpl-pano`: switched to the Panorama starter (v5), Arabic slot 2.
-/// - `tpl-history`, `starter`: the History popover and the Starter
-///   Templates sheet over `tpl`.
+/// - `tpl-history`, `starter`: the History popover and the Templates
+///   sheet over `tpl`.
+/// - `gallery`, `gallery-elegant`: the Templates sheet showing all twelve
+///   templates, and only the three elegant ones.
+/// - `tpl-cinema`, `tpl-highlight-ar`, `tpl-market-de`, `tpl-poster-ja`,
+///   `tpl-swoosh-deco`: switched to a gallery template (v5), on English
+///   slot 2, Arabic slot 1, German slot 3, Japanese slot 1 and English
+///   slot 3 (Swoosh's badge).
 /// - `cap`, `cap-edit`: the captions table; German slot 3 in the editor.
 /// - `cap-translate`, `cap-translating`: Finnish, Polish, Swedish and
 ///   Turkish added with no captions; the Translate sheet, and its batch
@@ -36,6 +42,7 @@ enum ScreenshotsDebugScenes {
         "sets", "sets-ipad", "sets-fallback", "sets-rendering", "sets-failed", "viewer", "viewer-fail", "scope",
         "sets-empty", "sets-notpl", "sets-noversion",
         "tpl", "tpl-ipad", "tpl-glyph", "tpl-pano", "tpl-history", "starter",
+        "gallery", "gallery-elegant", "tpl-cinema", "tpl-highlight-ar", "tpl-market-de", "tpl-poster-ja", "tpl-swoosh-deco",
         "cap", "cap-edit", "cap-translate", "cap-translating",
     ]
 
@@ -44,7 +51,7 @@ enum ScreenshotsDebugScenes {
 
     @MainActor
     static func view(for id: String) -> AnyView? {
-        matrixScene(id) ?? stateScene(id) ?? templateScene(id) ?? captionsScene(id)
+        matrixScene(id) ?? stateScene(id) ?? templateScene(id) ?? galleryScene(id) ?? captionsScene(id)
     }
 
     /// The matrix, and the viewer and scope sheets over it.
@@ -111,6 +118,30 @@ enum ScreenshotsDebugScenes {
                 model.templateEditor.isStarterSheetPresented = true
             }
         default: nil
+        }
+    }
+
+    /// Board 23: the template gallery, and templates from it in use.
+    @MainActor
+    private static func galleryScene(_ id: String) -> AnyView? {
+        let switched: [String: (TemplateStarter, LocaleSlot)] = [
+            "tpl-cinema": (.cinema, LocaleSlot(locale: "en-US", slot: 1)),
+            "tpl-highlight-ar": (.highlight, LocaleSlot(locale: "ar-SA", slot: 0)),
+            "tpl-market-de": (.boldStack, LocaleSlot(locale: "de-DE", slot: 2)),
+            "tpl-poster-ja": (.poster, LocaleSlot(locale: "ja", slot: 0)),
+            "tpl-swoosh-deco": (.swoosh, LocaleSlot(locale: "en-US", slot: 2)),
+        ]
+        if let (starter, target) = switched[id] {
+            return scene { model in
+                await model.chooseStarter(starter)
+                model.openTemplateEditor(at: target)
+            }
+        }
+        guard id == "gallery" || id == "gallery-elegant" else { return nil }
+        return scene { model in
+            model.openTemplateEditor(at: LocaleSlot(locale: "de-DE", slot: 2))
+            model.galleryStyle = id == "gallery-elegant" ? .elegant : nil
+            model.templateEditor.isStarterSheetPresented = true
         }
     }
 

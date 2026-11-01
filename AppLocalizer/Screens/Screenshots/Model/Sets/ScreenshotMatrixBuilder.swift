@@ -73,7 +73,7 @@ struct ScreenshotMatrixBuilder {
         cell.caption = caption
         cell.capture = capture
         cell.showsPrimaryInterface = capture.map { !$0.isInterfaceLocalized } ?? false
-        cell.checks = ScreenshotChecker.checks(for: layout, capture: capture, primaryLocaleName: snapshot.primaryLocale.name)
+        cell.checks = ScreenshotChecker.checks(for: layout, capture: capture, primaryLocaleName: snapshot.primaryLocale.name, ratings: snapshot.ratings)
         cell.image = .render(RenderJob(key: renderKey, layout: layout, capture: capture?.capture))
         cell.state = state(of: cell, renderKey: renderKey, pushed: document.pushedRender(for: key))
         return cell

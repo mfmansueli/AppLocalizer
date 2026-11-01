@@ -22,6 +22,10 @@ final class FakeScreenshotsServices: ScreenshotsServices {
     var fontLibrary = ScreenshotFontLibrary(directory: URL.temporaryDirectory.appending(path: "AppLocalizerTests-Fonts-\(UUID().uuidString)"))
     var renderHoldCount: Int?
     private(set) var saved: [ScreenshotsDocument] = []
+    /// The App Store's ratings; unchecked by default.
+    var ratings = StoreRatings.unchecked
+    /// The countries each rating lookup asked about.
+    private(set) var ratingLookups: [Set<String>] = []
 
     init(document: ScreenshotsDocument? = nil, live: LiveScreenshots = LiveScreenshots()) {
         storedDocument = document
@@ -55,6 +59,11 @@ final class FakeScreenshotsServices: ScreenshotsServices {
 
     func uploadFont(from url: URL) async throws -> String {
         try fontLibrary.upload(url)
+    }
+
+    func storeRatings(for _: StoreApp, countries: Set<String>) async -> StoreRatings {
+        ratingLookups.append(countries)
+        return ratings
     }
 
     func otherDisplayTypeNotes(for _: StoreApp) -> [ScreenshotDisplayType: String] {

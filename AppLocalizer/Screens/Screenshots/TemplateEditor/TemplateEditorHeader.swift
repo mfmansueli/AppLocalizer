@@ -44,7 +44,7 @@ struct TemplateEditorHeader: View {
                 TemplateHistoryPopover(model: model)
             }
             .accessibilityIdentifier("screenshots.template.history")
-            Button("Starter Templates…") {
+            Button("Templates…") {
                 model.isStarterSheetPresented = true
             }
             .accessibilityIdentifier("screenshots.template.starters")

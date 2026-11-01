@@ -15,12 +15,15 @@ struct ScreenshotPlanInput: Sendable {
     /// Every App Store locale, in App Store Connect's order.
     var locales: [StoreLocale] = StoreLocaleCatalog.all
     var fonts: ScreenshotFontCatalog = .standard
+    /// The App Store ratings the template's laurels and badges must match.
+    var ratings: StoreRatings = .unchecked
     /// Discards and restores waiting.
     var state = ScreenshotPushState()
 
     var snapshot: ScreenshotsSnapshot {
         ScreenshotsSnapshot(
-            document: document, live: live, primaryLocale: context.primaryLocale, locales: locales, version: context.version, fonts: fonts
+            document: document, live: live, primaryLocale: context.primaryLocale, locales: locales, version: context.version, fonts: fonts,
+            ratings: ratings
         )
     }
 }

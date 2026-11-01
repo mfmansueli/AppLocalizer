@@ -47,7 +47,7 @@ struct ScreenshotFontLibraryTests {
 
     @Test func uploadedFontsAreOfferedAndMarked() {
         let catalog = ScreenshotFontCatalog(uploaded: ["Futura"])
-        #expect(catalog.displayFonts == ["SF Pro Display", "SF Pro Text", "New York", "Futura"])
+        #expect(catalog.displayFonts == ["SF Pro Display", "SF Pro Text", "New York"] + BundledFonts.names + ["Futura"])
         #expect(catalog.isUploaded("Futura"))
         #expect(!catalog.isUploaded("New York"))
         #expect(catalog.fonts(drawing: .latin).contains("Futura"))

@@ -27,12 +27,23 @@ extension TemplateEditorViewModel {
     // MARK: - Background
 
     /// Switching the kind starts from its usual colors: one stop for solid,
-    /// two at 168° for a gradient, the panorama starter's five.
+    /// two at 168° for a gradient, the panorama starter's five. A slot with
+    /// its own background switches that one, between solid and gradient.
     func setBackgroundKind(_ kind: TemplateBackground.Kind) {
+        if hasOwnBackground {
+            guard kind == .solid || kind == .linear else { return }
+            editOwnBackground { background in
+                guard background.kind != kind else { return }
+                background.stops = kind == .solid ? [background.stops.last ?? "#17143D"] : Self.gradientStops(from: background.stops)
+                background.angle = kind == .linear ? background.angle ?? 168 : nil
+                background.kind = kind
+            }
+            return
+        }
         guard let template, template.background.kind != kind else { return }
         let stops: [String] = switch kind {
         case .solid: [template.background.stops.last ?? "#17143D"]
-        case .linear: template.background.stops.count >= 2 ? Array(template.background.stops.prefix(2)) : ["#7A80FF", "#3A2FB8"]
+        case .linear: Self.gradientStops(from: template.background.stops)
         case .panorama, .image: ScreenshotTemplate.starter(.panorama, id: "", title: "").background.stops
         }
         var operations: [TemplateOperation] = [
@@ -43,9 +54,27 @@ extension TemplateEditorViewModel {
     }
 
     func setBackgroundStop(_ index: Int, to color: String) {
-        guard var stops = template?.background.stops, stops.indices.contains(index) else { return }
+        guard var stops = effectiveBackground?.stops, stops.indices.contains(index) else { return }
         stops[index] = color
-        set("bg.stops", to: .array(stops.map(JSONValue.string)))
+        if hasOwnBackground {
+            editOwnBackground { $0.stops = stops }
+        } else {
+            set("bg.stops", to: .array(stops.map(JSONValue.string)))
+        }
+    }
+
+    func setBackgroundAngle(_ angle: Double) {
+        if hasOwnBackground {
+            editOwnBackground { $0.angle = angle }
+        } else {
+            set("bg.angle", to: .double(angle))
+        }
+    }
+
+    /// A gradient keeps up to three of the current colors, or starts from
+    /// the starter's indigo.
+    private static func gradientStops(from stops: [String]) -> [String] {
+        stops.count >= 2 ? Array(stops.prefix(3)) : ["#7A80FF", "#3A2FB8"]
     }
 
     // MARK: - Device
@@ -79,9 +108,10 @@ extension TemplateEditorViewModel {
         apply([.replace("fonts.display", with: .string(name)), .replace("caption.headline.font", with: .string(name))])
     }
 
-    /// "Northpier Display · uploaded".
+    /// "Northpier Display · uploaded", "Anton · bundled".
     func fontTitle(_ name: String) -> String {
-        screenshots.fonts.isUploaded(name) ? String(localized: "\(name) · uploaded") : name
+        if screenshots.fonts.isUploaded(name) { return String(localized: "\(name) · uploaded") }
+        return screenshots.fonts.isBundled(name) ? String(localized: "\(name) · bundled") : name
     }
 
     /// The headline picker's fonts, with the current one even if it isn't

@@ -36,6 +36,8 @@ struct ScreenshotTemplate: Codable, Hashable, Sendable {
     var rightToLeft: TemplateRightToLeft
     var safeArea: TemplateSafeArea
     var fonts: TemplateFonts
+    /// Shapes, laurels and badges; usually set per slot instead.
+    var decorations: [TemplateDecoration]?
     var slots: [TemplateSlot]
 
     enum CodingKeys: String, CodingKey {
@@ -44,7 +46,9 @@ struct ScreenshotTemplate: Codable, Hashable, Sendable {
         case device, caption, fit
         case rightToLeft = "rtl"
         case safeArea = "safe"
-        case fonts, slots
+        case fonts
+        case decorations = "deco"
+        case slots
     }
 
     /// The most slots a set can have on the App Store.

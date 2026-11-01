@@ -32,7 +32,8 @@ struct DesignToolsTests {
         #expect(outcome.images.allSatisfy { $0.mimeType == "image/png" })
         #expect(brief["rightToLeft"] == ["ar-SA"])
         #expect(brief["directions"] == 3)
-        #expect(brief["bases"]?.arrayValue?.map { $0["base"] } == ["above", "band", "panorama"])
+        #expect(brief["bases"]?.arrayValue?.map { $0["base"]?.stringValue } == TemplateStarter.allCases.map(\.rawValue))
+        #expect(brief["bases"]?.arrayValue?.last?["style"] == "playful")
         #expect(brief["templateFields"]?.arrayValue?.contains("caption.headline.size") == true)
         #expect(brief["canvases"]?.arrayValue?.map { $0["displayType"] } == ["iphone", "ipad"])
         #expect(brief["canvases"]?.arrayValue?.first?["safeArea"]?["width"]?.intValue ?? 0 > 0)
@@ -116,7 +117,8 @@ struct DesignToolsTests {
         let empty = try await fixtures.call(ProposeDirectionTool(), ["run": "run-debug", "name": "Empty", "rationale": "x"])
         #expect(empty.result["reason"] == "The argument “template” must be a template (as get_template returns it), ops, or a base starter.")
 
-        await #expect(throws: MCPToolError.invalidArgument(name: "base", expected: "above, band, or panorama")) {
+        let names = TemplateStarter.allCases.map(\.rawValue).formatted(.list(type: .or))
+        await #expect(throws: MCPToolError.invalidArgument(name: "base", expected: names)) {
             try await fixtures.call(ProposeDirectionTool(), ["run": "run-debug", "name": "Spiral", "rationale": "x", "base": "spiral"])
         }
         #expect(fixtures.run?.directions.count == 1)
@@ -128,6 +130,14 @@ struct DesignToolsTests {
         let json: JSONValue = ["caption": ["headline": ["size": current, "maxLines": 3]], "glow": true]
         let operations = MCPDirectionTemplate.operations(from: json, over: base)
         #expect(operations == [.replace("caption.headline.maxLines", with: 3)], "Unchanged and unknown fields are left out")
+    }
+
+    @Test func aDirectionCanChangeOneSlot() {
+        let base = ScreenshotTemplate.starter(.cinema, id: "lumen", title: "Lumen")
+        let tilt: JSONValue = ["rz": 4, "ry": -10, "rx": 6]
+        let json: JSONValue = ["slots": [["layout": "hero"], ["over": ["device.tilt": tilt]], ["over": .object(base.slots[2].over)]]]
+        let operations = MCPDirectionTemplate.operations(from: json, over: base)
+        #expect(operations == [.replace("slots.1.over.device.tilt", with: tilt)], "Slot 1 is already hero; slot 3 is unchanged")
     }
 
     // MARK: - revise_direction

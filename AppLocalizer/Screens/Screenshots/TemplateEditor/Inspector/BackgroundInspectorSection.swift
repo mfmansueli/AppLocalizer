@@ -5,7 +5,9 @@
 
 import SwiftUI
 
-/// Solid, gradient (two stops and an angle) or panorama.
+/// Solid, gradient (two stops and an angle) or panorama. A slot with its
+/// own background edits that one, and any slot can be given one, unless
+/// the background is a panorama.
 struct BackgroundInspectorSection: View {
     let model: TemplateEditorViewModel
 
@@ -14,7 +16,7 @@ struct BackgroundInspectorSection: View {
     ]
 
     var body: some View {
-        if let background = model.template?.background {
+        if let background = model.effectiveBackground {
             TemplateInspectorSection(title: String(localized: "Background")) {
                 Picker("Background", selection: Binding { background.kind } set: { model.setBackgroundKind($0) }) {
                     ForEach(Self.kinds, id: \.0) { kind, title in
@@ -39,7 +41,7 @@ struct BackgroundInspectorSection: View {
                 }
                 if background.kind == .linear {
                     TemplateInspectorSlider(label: String(localized: "Angle"), value: background.angle ?? 168, range: 0...360, unit: "°") {
-                        model.set("bg.angle", to: .double($0))
+                        model.setBackgroundAngle($0)
                     }
                     .accessibilityIdentifier("screenshots.template.angle")
                 }
@@ -48,6 +50,22 @@ struct BackgroundInspectorSection: View {
                         .font(.caption)
                         .foregroundStyle(Palette.label2)
                         .layoutPriority(1)
+                }
+                if model.hasOwnBackground {
+                    HStack(spacing: Spacing.small) {
+                        Text("Slot \(model.slot + 1) has its own background; these colors edit it.")
+                            .font(.caption)
+                            .foregroundStyle(Palette.label2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .layoutPriority(1)
+                        Button("Use Template’s") { model.useTemplateBackground() }
+                            .buttonStyle(.link)
+                            .font(.caption)
+                            .accessibilityIdentifier("screenshots.template.useTemplateBackground")
+                    }
+                } else if model.canGiveOwnBackground {
+                    Button("Give Slot \(model.slot + 1) Its Own Background") { model.giveSlotOwnBackground() }
+                        .accessibilityIdentifier("screenshots.template.ownBackground")
                 }
             }
             .controlSize(.small)

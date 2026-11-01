@@ -30,10 +30,18 @@ final class ScreenshotsViewModel {
     private(set) var matrix: ScreenshotMatrix = .empty
     private(set) var isLoading = false
     private(set) var errorMessage: String?
-    /// The starter cards' previews, once rendered.
+    /// The gallery cards' previews, once rendered.
     var starterPreviews: [StarterPreview] = []
+    /// The gallery's style filter; nil shows every template.
+    var galleryStyle: TemplateStarter.Style?
     /// The fonts templates can use, with fonts uploaded since launch.
     private(set) var fonts: ScreenshotFontCatalog
+    /// The App Store ratings the template's laurels and badges are checked
+    /// against, looked up once per country.
+    private(set) var ratings: StoreRatings = .unchecked
+    @ObservationIgnored private var ratingCountriesAsked: Set<String> = []
+    /// The lookup in flight, if any; tests wait for it.
+    @ObservationIgnored private(set) var ratingsTask: Task<Void, Never>?
 
     // MARK: - Editors
 
@@ -115,13 +123,30 @@ final class ScreenshotsViewModel {
         guard let document else { return }
         let snapshot = ScreenshotsSnapshot(
             document: document, live: live, primaryLocale: context.primaryLocale, locales: locales,
-            version: context.version, fonts: fonts
+            version: context.version, fonts: fonts, ratings: ratings
         )
         matrix = await Task.detached(priority: .userInitiated) {
             ScreenshotMatrixBuilder().build(snapshot)
         }.value
         renderVisibleCells()
+        lookUpRatings(for: document.template)
         if document.template == nil, !document.captures.isEmpty { await renderStarterPreviews() }
+    }
+
+    /// Looks up the App Store rating in the countries a laurel or badge of
+    /// `template` (saved, or the editor's draft) shows in and nobody asked
+    /// about yet, then rebuilds with them.
+    func lookUpRatings(for template: ScreenshotTemplate?) {
+        guard let template, let scope = document?.scope else { return }
+        let countries = template.ratingCountries(scope: scope, locales: locales).subtracting(ratingCountriesAsked)
+        guard !countries.isEmpty else { return }
+        ratingCountriesAsked.formUnion(countries)
+        ratingsTask = Task { [services, app] in
+            let found = await services.storeRatings(for: app, countries: countries)
+            guard !found.checked.isEmpty else { return }
+            ratings = ratings.merging(found)
+            await rebuild()
+        }
     }
 
     /// Upload Font…: registers the file and adds its family to the fonts

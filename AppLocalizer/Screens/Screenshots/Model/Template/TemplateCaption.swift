@@ -20,10 +20,12 @@ struct TemplateCaption: Codable, Hashable, Sendable {
     var headline: TemplateTextStyle
     var subhead: TemplateTextStyle
 
-    /// Above the device, or in a solid band while the capture fills the
-    /// canvas (the device is ignored then).
+    /// Above the device; below it, at the bottom inside `safe.bottom`, with
+    /// the device leaning out of the top edge; or in a solid band while the
+    /// capture fills the canvas (the device is ignored then).
     enum Placement: String, Codable, Hashable, Sendable, CaseIterable {
         case above
+        case below
         case band
     }
 

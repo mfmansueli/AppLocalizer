@@ -145,8 +145,13 @@ final class ScreenshotPushController {
             }
             let context = try await context(for: app, pushing: pushing)
             let live = try await live(for: app, context: context, screenshots: screenshots)
+            // Ratings are checked before every push, so a laurel that's no
+            // longer true is caught.
+            let countries = document.ratingCountries(in: StoreLocaleCatalog.all)
+            let ratings = countries.isEmpty ? StoreRatings.unchecked : await screenshots.storeRatings(for: app, countries: countries)
             let input = ScreenshotPlanInput(
-                appID: app.id, appName: app.name, document: document, live: live, context: context, fonts: screenshots.fonts, state: state
+                appID: app.id, appName: app.name, document: document, live: live, context: context, fonts: screenshots.fonts,
+                ratings: ratings, state: state
             )
             let plan = await Task.detached(priority: .userInitiated) { ScreenshotPushPlanner().plan(input) }.value
             prepareThumbnails(for: plan, app: app)

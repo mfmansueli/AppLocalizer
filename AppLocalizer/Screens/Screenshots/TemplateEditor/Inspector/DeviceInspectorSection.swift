@@ -5,7 +5,8 @@
 
 import SwiftUI
 
-/// The device frame: on or off, finish and width.
+/// The device frame: on or off, finish, color, width and this slot's
+/// angle.
 struct DeviceInspectorSection: View {
     let model: TemplateEditorViewModel
 
@@ -34,6 +35,11 @@ struct DeviceInspectorSection: View {
                         .labelsHidden()
                         .fixedSize()
                     }
+                    TemplateInspectorRow(label: String(localized: "Color")) {
+                        TemplateInspectorColorWell(label: String(localized: "Frame color"), color: model.slotTemplate?.device.color ?? device.color) {
+                            model.set("device.color", to: .string($0))
+                        }
+                    }
                     TemplateInspectorSlider(
                         label: String(localized: "Width"), value: (device.width * 100).rounded(), range: 60...90,
                         unit: "%"
@@ -41,6 +47,7 @@ struct DeviceInspectorSection: View {
                         model.set("device.width", to: .double($0 / 100))
                     }
                     .accessibilityIdentifier("screenshots.template.deviceWidth")
+                    DeviceAngleInspectorRows(model: model)
                 } else {
                     Text("The capture fills the canvas. Captures must match the display type’s size, or the check fails.")
                         .font(.caption)

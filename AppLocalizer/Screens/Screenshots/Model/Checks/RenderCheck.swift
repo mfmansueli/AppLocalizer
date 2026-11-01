@@ -25,6 +25,7 @@ struct RenderCheck: Hashable, Sendable, Identifiable {
         case sizeAndFormat
         case glyphs
         case fit
+        case rating
         case captureSize
         case interfaceLocalized
         case captionPresent

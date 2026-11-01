@@ -57,12 +57,16 @@ struct GetDesignBriefTool: MCPTool {
             "canvases": .array(canvases(run: run, session: session)),
             "rightToLeft": .array(run.plan.localeCodes.filter { StoreLocaleCatalog.locale(code: $0)?.isRTL == true }.map(JSONValue.string)),
             "directions": .int(AutopilotRun.directionCount),
-            "bases": .array(TemplateStarter.allCases.map { ["base": .string($0.rawValue), "what": .string($0.summary)] }),
+            "bases": .array(TemplateStarter.allCases.map {
+                ["base": .string($0.rawValue), "style": .string($0.style.rawValue), "what": .string($0.summary)]
+            }),
             "templateFields": .array(TemplateSchema.rules.keys.sorted().map(JSONValue.string)),
             "contract": """
             Send each direction as a template: the JSON get_template returns (any subset of its fields) and/or ops \
-            {op: "replace", path, value} on a base starter. Fonts must be ones AppLocalizer has (system fonts or \
-            uploaded); colors are hex. Right-to-left languages mirror automatically.
+            {op: "replace", path, value} on a base starter. Fonts must be ones AppLocalizer has (system fonts, the \
+            bundled gallery fonts, or uploaded); colors are hex. Per-slot looks go in slots[i].over (a whole bg, \
+            device.tilt, device.dx/dy, deco…). Laurels and badges show a rating, so only use the app's real \
+            App Store rating. Right-to-left languages mirror automatically.
             """,
         ]
         if let project = session.center.designProject(for: session.app.id) {

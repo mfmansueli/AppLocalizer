@@ -87,6 +87,13 @@ final class DebugScreenshotsServices: ScreenshotsServices {
         try ScreenshotFontLibrary(directory: URL.temporaryDirectory.appending(path: "AppLocalizer-DebugFonts")).upload(url)
     }
 
+    /// Lumen is rated 4.9 everywhere, so the templates' laurels pass.
+    func storeRatings(for _: StoreApp, countries: Set<String>) async -> StoreRatings {
+        var ratings = StoreRatings.unchecked
+        for country in countries { ratings.record(.rated(4.9), inCountry: country) }
+        return ratings
+    }
+
     func otherDisplayTypeNotes(for _: StoreApp) -> [ScreenshotDisplayType: String] {
         [
             .mac: String(localized: "Lumen runs on Mac as an iPad app, so the Mac App Store shows its iPad screenshots."),

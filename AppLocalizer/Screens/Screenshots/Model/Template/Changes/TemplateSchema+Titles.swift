@@ -25,6 +25,7 @@ extension TemplateSchema {
     /// "none".
     static func formatted(_ value: JSONValue?, at path: String) -> String {
         guard let value, !value.isNull else { return String(localized: "none") }
+        if let text = formattedObject(value, at: path) { return text }
         if let flag = value.boolValue { return flag ? String(localized: "on") : String(localized: "off") }
         if let list = value.arrayValue { return list.map { formatted($0, at: "") }.joined(separator: ", ") }
         if let number = value.doubleValue, case let .number(_, unit)? = rule(for: path) {
@@ -38,8 +39,44 @@ extension TemplateSchema {
 
     /// Lengths given as a fraction of the canvas, shown as percentages.
     private static let fractionPaths: Set = [
-        "device.width", "device.offset", "device.bleed", "caption.gap", "safe.top", "safe.side", "safe.bottom",
+        "device.width", "device.offset", "device.bleed", "device.dx", "device.dy", "caption.gap", "safe.top", "safe.side", "safe.bottom",
     ]
+
+    /// The fields that hold an object or a list, in words: "rotate 5°,
+    /// turn −16°", "last line, weight 800", "2: Rating laurel, Circle",
+    /// "solid #2B2648".
+    private static func formattedObject(_ value: JSONValue, at path: String) -> String? {
+        switch path {
+        case "device.tilt":
+            return decoded(TemplateTilt.self, value)?.summary
+        case "caption.headline.emph":
+            return decoded(TemplateEmphasis.self, value).map(formattedEmphasis)
+        case "caption.headline.mark":
+            return decoded(TemplateHighlight.self, value).map { String(localized: "\($0.color) bars") }
+        case "deco":
+            guard let items = value.arrayValue?.compactMap({ decoded(TemplateDecoration.self, $0) }) else { return nil }
+            return items.isEmpty ? String(localized: "none") : "\(items.count): " + items.map(\.title).joined(separator: ", ")
+        case "bg":
+            guard let background = decoded(TemplateBackground.self, value) else { return nil }
+            let stops = background.stops.joined(separator: " → ")
+            return background.kind == .linear ? String(localized: "gradient \(stops)") : String(localized: "solid \(stops)")
+        default:
+            return nil
+        }
+    }
+
+    /// "last line, weight 900, italic".
+    private static func formattedEmphasis(_ emphasis: TemplateEmphasis) -> String {
+        var parts = [emphasis.line == .first ? String(localized: "first line") : String(localized: "last line")]
+        if let weight = emphasis.weight { parts.append(String(localized: "weight \(weight)")) }
+        if emphasis.italic == true { parts.append(String(localized: "italic")) }
+        if let font = emphasis.font { parts.append(font) }
+        return parts.joined(separator: ", ")
+    }
+
+    private static func decoded<Value: Decodable>(_ type: Value.Type, _ value: JSONValue) -> Value? {
+        TemplateOperationApplier.decode(type, from: value)
+    }
 
     private static let titles: [String: String] = [
         "name": String(localized: "Name"),
@@ -71,6 +108,17 @@ extension TemplateSchema {
         "safe.side": String(localized: "Side safe areas"),
         "safe.bottom": String(localized: "Bottom safe area"),
         "fonts.display": String(localized: "Display font"),
+        "device.tilt": String(localized: "Device angle"),
+        "device.dx": String(localized: "Device shift right"),
+        "device.dy": String(localized: "Device shift down"),
+        "caption.headline.upper": String(localized: "Uppercase headline"),
+        "caption.headline.italic": String(localized: "Italic headline"),
+        "caption.headline.shadow": String(localized: "Headline shadow"),
+        "caption.headline.emph": String(localized: "Emphasized line"),
+        "caption.headline.mark": String(localized: "Highlight bars"),
+        "caption.subhead.italic": String(localized: "Italic subhead"),
+        "deco": String(localized: "Decorations"),
+        "bg": String(localized: "Own background"),
     ]
 
     private static let blockTitles = ["headline": String(localized: "Headline"), "subhead": String(localized: "Subhead")]

@@ -74,6 +74,10 @@ protocol ScreenshotsServices {
     /// scenes made for the other tabs. Defaults to Preview.
     var initialTab: ScreenshotsTab { get }
 
+    /// The app's average App Store rating in each country, for checking
+    /// the ratings templates show. By default nothing is looked up.
+    func storeRatings(for app: StoreApp, countries: Set<String>) async -> StoreRatings
+
     /// Keeps a PNG the assistant captured with the app's captures, named by
     /// its checksum. By default it keeps nothing and only reads the size.
     func storeCapture(_ data: Data, for app: StoreApp) async throws -> CaptureFile

@@ -45,13 +45,15 @@ struct SlotPreview: Hashable, Sendable {
     }
 
     /// Lays out and checks one slot. `primaryLocaleName` words the "UI not
-    /// localized" warning.
+    /// localized" warning; laurels and badges are checked against
+    /// `ratings`.
     static func make(
         _ placement: Placement,
         caption: ScreenshotCaption?,
         capture: ResolvedCapture?,
         engine: ScreenshotLayoutEngine,
-        primaryLocaleName: String
+        primaryLocaleName: String,
+        ratings: StoreRatings = .unchecked
     ) -> SlotPreview {
         let template = placement.template
         let layout = engine.layout(template, slot: placement.slot, locale: placement.locale, displayType: placement.displayType, caption: caption)
@@ -59,7 +61,7 @@ struct SlotPreview: Hashable, Sendable {
             templateHash: template.contentHash, locale: placement.locale.code, displayType: placement.displayType, slot: placement.slot,
             caption: caption, captureID: capture?.capture.id
         )
-        let checks = ScreenshotChecker.checks(for: layout, capture: capture, primaryLocaleName: primaryLocaleName)
+        let checks = ScreenshotChecker.checks(for: layout, capture: capture, primaryLocaleName: primaryLocaleName, ratings: ratings)
         return SlotPreview(job: RenderJob(key: key, layout: layout, capture: capture?.capture), checks: checks)
     }
 }

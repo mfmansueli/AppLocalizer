@@ -7,9 +7,11 @@ import CoreText
 import SwiftUI
 
 /// Draws a `ScreenshotLayout` into a SwiftUI graphics context, in canvas
-/// pixels: background, the capture (in its device frame, floating, or full
-/// bleed under the band), the band, then the pre-broken caption lines.
-/// Lines are drawn exactly as the layout broke them; nothing re-wraps.
+/// pixels: background, the decorations behind, the capture (in its device
+/// frame, tilted when the device has an angle, floating, or full bleed
+/// under the band), the band, the decorations in front, then the
+/// pre-broken caption lines. Lines are drawn exactly as the layout broke
+/// them; nothing re-wraps.
 struct ScreenshotPainter {
     let layout: ScreenshotLayout
     let capture: CGImage?
@@ -20,6 +22,8 @@ struct ScreenshotPainter {
     func draw(in context: inout GraphicsContext) {
         let canvasRect = CGRect(origin: .zero, size: layout.canvas.size)
         drawBackground(in: &context, rect: canvasRect)
+        let decorations = DecorationPainter(layout: layout)
+        decorations.draw(front: false, in: &context)
         if layout.isFullBleed {
             drawCapture(in: &context, clip: Path(canvasRect))
             if let band = layout.band {
@@ -30,7 +34,8 @@ struct ScreenshotPainter {
         } else {
             drawFloatingScreen(in: &context)
         }
-        drawLines(in: &context)
+        decorations.draw(front: true, in: &context)
+        CaptionLinePainter(layout: layout).draw(in: &context)
     }
 
     // MARK: - Background
@@ -61,7 +66,9 @@ struct ScreenshotPainter {
 
     // MARK: - Device and capture
 
-    private func drawDevice(_ device: LayoutDevice, in context: inout GraphicsContext) {
+    private func drawDevice(_ device: LayoutDevice, in parent: inout GraphicsContext) {
+        var context = parent
+        if let tilt = device.tilt { context.concatenate(tilt.transform) }
         let body = Path(roundedRect: device.frame, cornerRadius: device.cornerRadius, style: .continuous)
         context.drawLayer { layer in
             layer.addFilter(.shadow(color: .black.opacity(0.28), radius: device.shadowRadius / 2, x: 0, y: device.shadowOffset))
@@ -105,28 +112,6 @@ struct ScreenshotPainter {
             let size = PixelSize(width: capture.width, height: capture.height)
             let frame = layout.captureFrame(for: size)
             layer.draw(Image(decorative: capture, scale: 1), in: frame)
-        }
-    }
-
-    // MARK: - Caption
-
-    private func drawLines(in context: inout GraphicsContext) {
-        for line in layout.lines {
-            let font = layout.fonts.font(named: line.fontName, weight: line.weight, size: line.pixelSize)
-                ?? NSFont.systemFont(ofSize: line.pixelSize, weight: ScreenshotFontCatalog.weight(line.weight)) as CTFont
-            let text = Text(verbatim: line.text)
-                .font(Font(font))
-                .tracking(line.tracking)
-                .foregroundStyle(line.color.color.opacity(line.isOverflow ? 0.55 : 1))
-            let frame = line.frame
-            switch line.alignment {
-            case .left:
-                context.draw(text, at: CGPoint(x: frame.minX, y: frame.midY), anchor: .leading)
-            case .center:
-                context.draw(text, at: CGPoint(x: frame.midX, y: frame.midY), anchor: .center)
-            case .right:
-                context.draw(text, at: CGPoint(x: frame.maxX, y: frame.midY), anchor: .trailing)
-            }
         }
     }
 }

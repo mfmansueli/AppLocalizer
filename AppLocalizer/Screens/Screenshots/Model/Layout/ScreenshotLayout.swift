@@ -36,6 +36,8 @@ struct ScreenshotLayout: Hashable, Sendable {
     var screenRim: CGFloat = 0
     /// The window bar under a visionOS window.
     var windowBar: CGRect?
+    /// Shapes, laurels and badges, behind or in front of the device.
+    var decorations: [LayoutDecoration] = []
     var headline: CaptionFit
     var subhead: CaptionFit?
     var headlineFont: FontChoice

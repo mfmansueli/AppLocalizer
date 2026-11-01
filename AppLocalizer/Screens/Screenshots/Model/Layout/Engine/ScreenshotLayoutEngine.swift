@@ -9,7 +9,8 @@ import Foundation
 /// Lays out one render: the template resolved for the slot, the caption
 /// fitted with the locale's fonts and line breaking, the caption box
 /// reserved at its full height so the device never moves between locales,
-/// then the device (or the full-bleed capture) below it. Mirrors the
+/// then the device (or the full-bleed capture) below it, or above it when
+/// the caption sits at the bottom, and the slot's decorations. Mirrors the
 /// layout in right-to-left locales when `rtl.mirror` is on.
 struct ScreenshotLayoutEngine {
     var catalog: ScreenshotFontCatalog = .standard
@@ -18,8 +19,12 @@ struct ScreenshotLayoutEngine {
     /// height.
     static let subheadGap = 0.012
 
+    /// The least space under a caption placed below the device, as a
+    /// fraction of the canvas height.
+    static let belowMinimumBottom = 0.05
+
     /// What every step of one layout needs.
-    private struct Context {
+    struct Context {
         var template: ScreenshotTemplate
         var slot: Int
         var canvas: ScreenshotCanvas
@@ -28,22 +33,6 @@ struct ScreenshotLayoutEngine {
         var isRightToLeft: Bool
         var isMirrored: Bool
         var isHero: Bool
-    }
-
-    /// One caption block's drawing style.
-    private struct LineBlock {
-        var style: TemplateTextStyle
-        var font: String
-        var color: TemplateColor
-    }
-
-    /// The parts of a layout that place the caption.
-    private struct CaptionFrame {
-        var boxX: CGFloat
-        var boxWidth: CGFloat
-        var headlineHeight: CGFloat
-        var subheadHeight: CGFloat
-        var alignment: LayoutTextAlignment
     }
 
     func layout(
@@ -59,10 +48,9 @@ struct ScreenshotLayoutEngine {
         let script = ScreenshotScript(locale: locale)
         let isRightToLeft = locale.isRTL || script.isRightToLeft
         let isMirrored = isRightToLeft && resolved.rightToLeft.mirror
-        let isHero = template.isHero(slot: slot)
         let context = Context(
             template: resolved, slot: slot, canvas: canvas, locale: locale, script: script,
-            isRightToLeft: isRightToLeft, isMirrored: isMirrored, isHero: isHero
+            isRightToLeft: isRightToLeft, isMirrored: isMirrored, isHero: template.isHero(slot: slot)
         )
         let fitted = fitCaption(caption, context: context)
 
@@ -80,128 +68,45 @@ struct ScreenshotLayoutEngine {
         )
         let frame = fitted.frame
         let captionHeight = frame.headlineHeight + frame.subheadHeight
-        if displayType == .watch {
+        switch displayType {
+        case .watch:
             result.captionBox = .zero
             result.screen = CGRect(origin: .zero, size: canvas.size)
             result.isFullBleed = true
             return result
-        }
-        if displayType == .visionPro {
+        case .visionPro:
             let top = 0.07 * height
             result.captionBox = CGRect(x: frame.boxX, y: top, width: frame.boxWidth, height: captionHeight)
             let aspect = captureSize.flatMap { $0.width > 0 ? CGFloat($0.height) / CGFloat($0.width) : nil } ?? 0.75
             placeWindow(in: &result, top: top + captionHeight + 0.05 * height, hasCaption: captionHeight > 0, aspect: min(max(aspect, 0.5625), 1.25))
             result.lines = lines(fitted, box: result.captionBox, context: context)
             return result
+        default:
+            break
         }
-        if resolved.caption.placement == .band {
+        switch resolved.caption.placement {
+        case .band:
             let padding = 0.035 * height
             let bandHeight = captionHeight + 2 * padding
-            let atTop = isHero || resolved.caption.band.pos == .top
+            let atTop = context.isHero || resolved.caption.band.pos == .top
             let bandY = atTop ? 0 : height - bandHeight
             result.band = CGRect(x: 0, y: bandY, width: width, height: bandHeight)
             result.bandColor = TemplateColor(resolved.caption.band.color)
             result.captionBox = CGRect(x: frame.boxX, y: bandY + padding, width: frame.boxWidth, height: captionHeight)
             result.screen = CGRect(origin: .zero, size: canvas.size)
             result.isFullBleed = true
-        } else {
+        case .above:
             let top = safe.top * height
             result.captionBox = CGRect(x: frame.boxX, y: top, width: frame.boxWidth, height: captionHeight)
-            let deviceTop = top + captionHeight + resolved.caption.gap * height
-            placeDevice(in: &result, context: context, top: deviceTop)
+            placeDevice(in: &result, context: context, captionTop: top, captionHeight: captionHeight, below: false)
+        case .below:
+            let top = height - max(safe.bottom, Self.belowMinimumBottom) * height - captionHeight
+            result.captionBox = CGRect(x: frame.boxX, y: top, width: frame.boxWidth, height: captionHeight)
+            placeDevice(in: &result, context: context, captionTop: top, captionHeight: captionHeight, below: true)
         }
         result.lines = lines(fitted, box: result.captionBox, context: context)
+        result.decorations = decorations(context: context, fontName: fitted.headlineFont.fontName)
         return result
-    }
-
-    // MARK: - Caption
-
-    private struct FittedCaption {
-        var headline: CaptionFit
-        var subhead: CaptionFit?
-        var headlineFont: FontChoice
-        var subheadFont: FontChoice?
-        var frame: CaptionFrame
-    }
-
-    private func fitCaption(_ caption: ScreenshotCaption?, context: Context) -> FittedCaption {
-        let template = context.template
-        let canvas = context.canvas
-        let script = context.script
-        let isHero = context.isHero
-        let style = template.caption
-        let width = canvas.width
-        let side = template.safeArea.side * width
-        let boxWidth = canvas.isLandscape
-            ? min(width * 0.62, width - 2 * side)
-            : (style.align == .start ? width - 2 * side - width * 0.04 : width - 2 * side)
-        let boxX = canvas.isLandscape ? (width - boxWidth) / 2 : (style.align == .start && context.isMirrored ? width - side - boxWidth : side)
-        let isCentered = style.align == .center || canvas.display == .visionPro
-        let alignment: LayoutTextAlignment = isCentered ? .center : (context.isRightToLeft ? .right : .left)
-        let box = CaptionFitter.Box(unit: canvas.unit, width: boxWidth, locale: Locale(identifier: context.locale.code), script: script)
-        let fitter = CaptionFitter(catalog: catalog)
-        let headlineScale = isHero ? 1.06 : 1
-        let headlineText = caption?.headline ?? ""
-        let headlineFont = FontChoice.choose(font: style.headline.font, for: headlineText, script: script, fonts: template.fonts, catalog: catalog)
-        let headline = fitter.fit(
-            CaptionFitter.Block(text: headlineText, style: style.headline, sizeScale: headlineScale, fontName: headlineFont.fontName),
-            in: box, rules: template.fit
-        )
-        var subhead: CaptionFit?
-        var subheadFont: FontChoice?
-        if isHero {
-            let text = caption?.visibleSubhead ?? ""
-            let choice = FontChoice.choose(font: style.subhead.font, for: text, script: script, fonts: template.fonts, catalog: catalog)
-            subheadFont = choice
-            subhead = fitter.fit(CaptionFitter.Block(text: text, style: style.subhead, fontName: choice.fontName), in: box, rules: template.fit)
-        }
-        let unit = canvas.unit
-        let headlineHeight = CGFloat(Double(style.headline.maxLines) * style.headline.size * headlineScale * style.headline.lineHeight) * unit
-        let subheadHeight = isHero
-            ? CGFloat(Double(style.subhead.maxLines) * style.subhead.size * style.subhead.lineHeight) * unit + Self.subheadGap * canvas.height
-            : 0
-        let frame = CaptionFrame(boxX: boxX, boxWidth: boxWidth, headlineHeight: headlineHeight, subheadHeight: subheadHeight, alignment: alignment)
-        return FittedCaption(
-            headline: headline, subhead: subhead, headlineFont: headlineFont, subheadFont: subheadFont, frame: frame
-        )
-    }
-
-    private func lines(_ fitted: FittedCaption, box: CGRect, context: Context) -> [LayoutTextLine] {
-        let style = context.template.caption
-        let headline = LineBlock(style: style.headline, font: fitted.headlineFont.fontName, color: TemplateColor(style.ink) ?? .white)
-        var lines = place(
-            fitted.headline, block: headline, alignment: fitted.frame.alignment,
-            in: CGRect(x: box.minX, y: box.minY, width: box.width, height: fitted.frame.headlineHeight), context: context
-        )
-        if let subhead = fitted.subhead, let font = fitted.subheadFont {
-            let unit = context.canvas.unit
-            let height = CGFloat(Double(style.subhead.maxLines) * style.subhead.size * style.subhead.lineHeight) * unit
-            let top = box.minY + fitted.frame.headlineHeight + fitted.frame.subheadHeight - height
-            let block = LineBlock(style: style.subhead, font: font.fontName, color: TemplateColor(style.subInk) ?? .white)
-            lines += place(
-                subhead, block: block, alignment: fitted.frame.alignment,
-                in: CGRect(x: box.minX, y: top, width: box.width, height: height), context: context
-            )
-        }
-        return lines
-    }
-
-    private func place(
-        _ fit: CaptionFit, block: LineBlock, alignment: LayoutTextAlignment, in box: CGRect, context: Context
-    ) -> [LayoutTextLine] {
-        guard !fit.isEmpty else { return [] }
-        let style = block.style
-        let pixelSize = CGFloat(fit.size) * context.canvas.unit
-        let lineHeight = pixelSize * CGFloat(style.lineHeight)
-        let top = box.minY + max(0, (box.height - CGFloat(fit.lines.count) * lineHeight) / 2)
-        return fit.lines.enumerated().map { index, text in
-            LayoutTextLine(
-                text: text, fontName: block.font, weight: style.weight, pixelSize: pixelSize,
-                frame: CGRect(x: box.minX, y: top + CGFloat(index) * lineHeight, width: box.width, height: lineHeight),
-                alignment: alignment, color: block.color, tracking: CGFloat(style.tracking ?? 0) * pixelSize,
-                isRightToLeft: context.isRightToLeft, isOverflow: !fit.fits && index >= style.maxLines
-            )
-        }
     }
 
     // MARK: - Window
@@ -232,14 +137,20 @@ struct ScreenshotLayoutEngine {
 
     // MARK: - Device
 
-    private func placeDevice(in layout: inout ScreenshotLayout, context: Context, top: CGFloat) {
+    /// The device under a caption at the top, or over one at the bottom,
+    /// leaning out of the top edge then: its bottom sits a gap above the
+    /// caption, raised by however far its angle makes it stick out.
+    private func placeDevice(in layout: inout ScreenshotLayout, context: Context, captionTop: CGFloat, captionHeight: CGFloat, below: Bool) {
         let template = context.template
         let canvas = layout.canvas
         let width = canvas.width
         let height = canvas.height
+        let gap = template.caption.gap * height
+        let top = below ? 0 : captionTop + captionHeight + gap
         guard template.device.show else {
             let side = template.safeArea.side * width
-            layout.screen = CGRect(x: side, y: top, width: width - 2 * side, height: height - top)
+            let screenHeight = below ? captionTop - gap : height - top
+            layout.screen = CGRect(x: side, y: top, width: width - 2 * side, height: max(0, screenHeight))
             layout.screenCornerRadius = 0.05 * width
             layout.screenHasShadow = true
             return
@@ -249,15 +160,26 @@ struct ScreenshotLayoutEngine {
         let bezelRatio = shape.bezel
         var deviceWidth = template.device.width * width * (context.isHero ? 0.96 : 1)
         var deviceHeight = deviceWidth * (1 - 2 * bezelRatio) * screenAspect + 2 * bezelRatio * deviceWidth
-        let maximumHeight = height * (1 + template.device.bleed) - top
+        let maximumHeight = below ? captionTop - gap + 0.25 * height : height * (1 + template.device.bleed) - top
         if canvas.isLandscape, deviceHeight > maximumHeight {
             deviceWidth = maximumHeight / ((1 - 2 * bezelRatio) * screenAspect + 2 * bezelRatio)
             deviceHeight = maximumHeight
         }
-        var offset = template.device.offset * width * (context.slot.isMultiple(of: 2) ? 1 : -1)
+        let tilt = template.device.tilt ?? .flat
+        let lift = LayoutTilt.lift(for: tilt, size: CGSize(width: deviceWidth, height: deviceHeight))
+        var y = top
+        if below {
+            y = captionTop - gap - deviceHeight - lift
+        } else if canvas.isLandscape {
+            // A landscape device fills the height under the caption, so a
+            // corner its angle raises would land on the caption.
+            y += lift
+        }
+        y += CGFloat(template.device.shiftDown ?? 0) * height
+        var offset = template.device.offset * width * (context.slot.isMultiple(of: 2) ? 1 : -1) + (template.device.shiftRight ?? 0) * width
         if layout.isMirrored { offset = -offset }
         let bezel = bezelRatio * deviceWidth
-        let frame = CGRect(x: (width - deviceWidth) / 2 + offset, y: top, width: deviceWidth, height: deviceHeight)
+        let frame = CGRect(x: (width - deviceWidth) / 2 + offset, y: y, width: deviceWidth, height: deviceHeight)
         let screen = frame.insetBy(dx: bezel, dy: bezel)
         let island = shape.hasIsland ? CGRect(
             x: screen.midX - screen.width * 0.15, y: screen.minY + screen.width * 0.03,
@@ -266,7 +188,8 @@ struct ScreenshotLayoutEngine {
         layout.device = LayoutDevice(
             frame: frame, cornerRadius: deviceWidth * shape.corner, bezel: bezel,
             color: TemplateColor(template.device.color) ?? .black, island: island,
-            shadowOffset: height * 0.012, shadowRadius: height * 0.04
+            shadowOffset: height * 0.012, shadowRadius: height * 0.04,
+            tilt: tilt.isFlat ? nil : LayoutTilt(tilt, isMirrored: layout.isMirrored, center: CGPoint(x: frame.midX, y: frame.midY))
         )
         layout.screen = screen
         layout.screenCornerRadius = deviceWidth * shape.screenCorner

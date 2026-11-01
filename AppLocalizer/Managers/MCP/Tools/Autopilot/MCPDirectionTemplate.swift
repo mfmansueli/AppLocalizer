@@ -29,20 +29,36 @@ enum MCPDirectionTemplate {
     }
 
     /// Replace operations for every field the JSON sets differently from
-    /// `base`, in the schema's fields only.
+    /// `base`, in the schema's fields only, and for each slot's layout and
+    /// overrides (`slots[i].layout`, `slots[i].over`).
     static func operations(from json: JSONValue, over base: ScreenshotTemplate) -> [TemplateOperation] {
-        TemplateSchema.rules.keys.sorted().compactMap { path in
+        let fields: [TemplateOperation] = TemplateSchema.rules.keys.sorted().compactMap { path in
             let components = path.split(separator: ".").map(String.init)
             guard let value = json.value(at: components), !value.isNull else { return nil }
             if let current = base.value(at: path), current.isEquivalent(to: value) { return nil }
             return .replace(path, with: value)
+        }
+        return fields + slotOperations(from: json.value(at: ["slots"])?.arrayValue ?? [], over: base)
+    }
+
+    private static func slotOperations(from slots: [JSONValue], over base: ScreenshotTemplate) -> [TemplateOperation] {
+        slots.prefix(base.slots.count).enumerated().flatMap { index, slot -> [TemplateOperation] in
+            var operations: [TemplateOperation] = []
+            if let layout = slot.value(at: ["layout"]), layout.stringValue != base.slots[index].layout.rawValue {
+                operations.append(.replace("slots.\(index).layout", with: layout))
+            }
+            for (path, value) in (slot.value(at: ["over"])?.objectValue ?? [:]).sorted(by: { $0.key < $1.key }) {
+                if let current = base.slots[index].over[path], current.isEquivalent(to: value) { continue }
+                operations.append(.replace("slots.\(index).over.\(path)", with: value))
+            }
+            return operations
         }
     }
 
     /// The starter named `base`, sized for the run, or Above.
     static func starter(_ arguments: MCPToolArguments, app: StoreApp, slotCount: Int) throws -> ScreenshotTemplate {
         let name = try arguments.optionalString("base") ?? TemplateStarter.above.rawValue
-        guard let starter = TemplateStarter(rawValue: name.lowercased()) else {
+        guard let starter = TemplateStarter.allCases.first(where: { $0.rawValue.caseInsensitiveCompare(name) == .orderedSame }) else {
             let names = TemplateStarter.allCases.map(\.rawValue).formatted(.list(type: .or))
             throw MCPToolError.invalidArgument(name: "base", expected: names)
         }
