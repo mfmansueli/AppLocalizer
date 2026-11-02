@@ -43,6 +43,7 @@ struct AutopilotProblemCard: View {
                 }
                 .accessibilityIdentifier("autopilot.problem.progress")
             }
+            if let duoHelper { duoHelperRow(duoHelper) }
             buttons
             if let note {
                 Text(note)
@@ -78,6 +79,27 @@ struct AutopilotProblemCard: View {
         }
     }
 
+    /// Why to save the helper, on a line of its own: AppLocalizer can't see
+    /// the Duo without it.
+    private func duoHelperRow(_ state: DuoState) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.small) {
+            Text(state.summary)
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("autopilot.problem.duoHelperNote")
+            Spacer(minLength: 0)
+            Button(state == .noHelper ? "Install the Helper…" : "Save the Helper Again…") { studio.installHelperAndCheck() }
+                .controlSize(.small)
+                .fixedSize()
+                .accessibilityIdentifier("autopilot.problem.duoHelper")
+        }
+    }
+
+    /// The Duo's state when the helper can't look at it yet.
+    private var duoHelper: DuoState? {
+        duo == .oldHelper || duo == .noHelper ? duo : nil
+    }
+
     private var duoText: String {
         switch duo {
         case .closed?, .spinner?, .notRunning?:
@@ -96,10 +118,6 @@ struct AutopilotProblemCard: View {
                     Button("Open Device Hub") { DeviceHub.open() }
                         .buttonStyle(.borderedProminent)
                         .accessibilityIdentifier("autopilot.problem.deviceHub")
-                }
-                if duo == .oldHelper || duo == .noHelper {
-                    Button(duo == .noHelper ? "Install the Helper…" : "Save the Helper Again…") { studio.installHelperAndCheck() }
-                        .accessibilityIdentifier("autopilot.problem.duoHelper")
                 }
             } else if group.isDeviceWide, let helperTitle {
                 Button(helperTitle) { studio.installHelperAndCheck() }

@@ -127,6 +127,9 @@ final class AutopilotSimulatorsUITests: XCTestCase {
         let note = element("autopilot.problem.note")
         XCTAssertTrue(text(of: note).contains("If its inner display shows only a spinner, shut it down there"), text(of: note))
         XCTAssertTrue(text(of: note).hasSuffix("Then retry; leaving it out finishes the run without it."), text(of: note))
+        let why = element("autopilot.problem.duoHelperNote")
+        XCTAssertTrue(why.waitForExistence(timeout: 10))
+        XCTAssertTrue(text(of: why).hasPrefix("Save the helper again so AppLocalizer can see whether iPhone Duo is open"), text(of: why))
         let save = app.buttons["autopilot.problem.duoHelper"]
         XCTAssertTrue(save.exists)
         XCTAssertEqual(save.title.isEmpty ? save.label : save.title, "Save the Helper Again…")
