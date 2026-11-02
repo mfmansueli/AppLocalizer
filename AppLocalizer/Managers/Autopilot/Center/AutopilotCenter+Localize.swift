@@ -16,6 +16,7 @@ extension AutopilotCenter {
         update(appID) { run in
             run.stage = .localize
             run.chosenDirectionID = directionID
+            run.handedBackAt = now()
             run.overflows = []
             run.localeStatus = Dictionary(uniqueKeysWithValues: run.plan.localeCodes.map { ($0, AutopilotLocaleStatus.waiting) })
             run.appendLog(String(localized: "Using \(direction.name)"), kind: .event, at: now())
@@ -50,6 +51,10 @@ extension AutopilotCenter {
             for caption in captions {
                 run.appendLog(String(localized: "\(client) wrote \(caption.locale) slot \(caption.slot + 1): “\(caption.headline)”"), kind: .event, at: now())
             }
+            run.appendLog(
+                String(localized: "\(client) sent \(AutopilotCaptionWork.captions(captions.count)); checking every language again"),
+                kind: .command, at: now()
+            )
         }
         await check(appID, with: localizer)
     }
@@ -72,7 +77,8 @@ extension AutopilotCenter {
                 run.finishedAt = now()
                 run.appendLog(String(localized: "\(run.totalScreenshots) screenshots ready in Review & Push"), kind: .event, at: now())
             } else {
-                run.appendLog(String(localized: "\(overflows.count) captions sent to \(run.client ?? String(localized: "the assistant")) to write or shorten"), kind: .command, at: now())
+                let client = run.client ?? String(localized: "the assistant")
+                run.appendLog(String(localized: "Sent to \(client): \(AutopilotCaptionWork(overflows).summary)"), kind: .command, at: now())
             }
         }
     }

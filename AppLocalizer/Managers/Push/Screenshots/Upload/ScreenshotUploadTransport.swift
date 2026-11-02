@@ -11,7 +11,9 @@ import Foundation
 protocol ScreenshotUploadTransport: Sendable {
     func send(_ request: PushRequest) async throws -> AppStoreConnectResponse
     func fetch(_ path: String) async throws -> AppStoreConnectResponse
-    func upload(_ operation: ScreenshotUploadOperation, data: Data) async throws
+    /// Sends one part of `data`, telling `progress` how many of the part's
+    /// bytes went out.
+    func upload(_ operation: ScreenshotUploadOperation, data: Data, progress: @escaping @Sendable (Int64) -> Void) async throws
 }
 
 extension AppStoreConnectClient: ScreenshotUploadTransport {}

@@ -44,7 +44,8 @@ struct ScreenshotLayoutEngine {
         captureSize: PixelSize? = nil
     ) -> ScreenshotLayout {
         let resolved = template.resolved(forSlot: slot)
-        let canvas = ScreenshotCanvas(display: displayType, orientation: resolved.canvas.orientation(for: displayType))
+        let orientation = resolved.canvas.following(captureSize, on: displayType).orientation(for: displayType)
+        let canvas = ScreenshotCanvas(display: displayType, orientation: orientation)
         let script = ScreenshotScript(locale: locale)
         let isRightToLeft = locale.isRTL || script.isRightToLeft
         let isMirrored = isRightToLeft && resolved.rightToLeft.mirror

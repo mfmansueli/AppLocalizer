@@ -17,7 +17,7 @@ struct ScreenshotSetProgress: Hashable, Sendable {
 
     init(group: ScreenshotPlanGroup) {
         self.group = group
-        setID = group.liveSet?.id
+        setID = group.liveSet?.id ?? group.emptySetID
         order = group.liveSet?.screenshots.map(\.id) ?? []
     }
 

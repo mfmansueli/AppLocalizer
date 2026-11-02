@@ -159,7 +159,8 @@ extension MCPServerController {
                 clientName: session.displayName,
                 allowedProposals: allowedProposals,
                 editsDrafts: editsDrafts,
-                port: port
+                port: port,
+                simulators: launcher?.simulators
             )
             return try await tool.call(arguments, in: context)
         } catch {

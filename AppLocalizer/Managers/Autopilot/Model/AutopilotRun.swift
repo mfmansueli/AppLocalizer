@@ -25,6 +25,15 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     /// when it stops with work left (`AutopilotContinuation`). Nil when the
     /// prompt was pasted, and in runs from before.
     var startsClaudeCode: Bool?
+    /// When the person's step last gave the assistant work again (Use These
+    /// Picks, Ask for Changes, Use This Direction). A Claude Code that ended
+    /// before then ended on the person's turn, not with work left
+    /// (`AutopilotContinuation.stall`). Nil in runs from before.
+    var handedBackAt: Date?
+    /// When the assistant last read the design brief (`get_design_brief`):
+    /// Design shows it has started on the directions. Nil before, and in
+    /// runs from before.
+    var briefReadAt: Date?
     var environment: AutopilotEnvironment?
     /// The secret in the upload link the assistant sends captures to.
     var uploadToken: String

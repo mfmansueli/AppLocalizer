@@ -7,10 +7,12 @@ import SwiftUI
 
 /// After an import (design `capt`): every localized locale's raw captures
 /// on the current display type, with where they came from and whether the
-/// interface is the locale's own.
+/// interface is the locale's own. A click on one shows it large.
 struct CaptureCoverageView: View {
     @Bindable var viewModel: ScreenshotsViewModel
     let coverage: CaptureCoverage
+    /// The capture the viewer last showed, kept while it closes.
+    @State private var lastViewed: CaptureViewerTarget?
 
     static let localeWidth: CGFloat = 190
     static let sourceWidth: CGFloat = 120
@@ -25,7 +27,9 @@ struct CaptureCoverageView: View {
                         ForEach(coverage.groups) { group in
                             groupHeader(group)
                             ForEach(group.rows) { row in
-                                CaptureCoverageRowView(row: row, thumbnailWidth: thumbnailWidth, images: viewModel.captureImages)
+                                CaptureCoverageRowView(row: row, thumbnailWidth: thumbnailWidth, images: viewModel.captureImages) { cell in
+                                    viewModel.captures.view(cell, of: row)
+                                }
                                 Divider()
                             }
                         }
@@ -36,8 +40,22 @@ struct CaptureCoverageView: View {
                 .frame(minWidth: minimumWidth, alignment: .leading)
             }
         }
+        // Presented while a capture is viewed, not per capture: stepping
+        // to another one keeps the same sheet.
+        .sheet(isPresented: isViewing) {
+            if let target = viewModel.captures.viewed ?? lastViewed {
+                CaptureViewerSheet(viewModel: viewModel, target: target)
+            }
+        }
+        .onChange(of: viewModel.captures.viewed) { _, viewed in
+            if let viewed { lastViewed = viewed }
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("captures.coverage")
+    }
+
+    private var isViewing: Binding<Bool> {
+        Binding { viewModel.captures.viewed != nil } set: { if !$0 { viewModel.captures.viewed = nil } }
     }
 
     private var thumbnailWidth: CGFloat { viewModel.displayType.thumbnailWidth(phone: 40, tablet: 74) }

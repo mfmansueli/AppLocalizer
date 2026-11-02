@@ -7,13 +7,14 @@ import Foundation
 import Observation
 
 /// Watches iPhone Duo's simulator for Screenshot Autopilot, so the Duo
-/// mostly sorts itself out. It starts closed and only the person can open
-/// it, in Device Hub (`DeviceHub`); AppLocalizer looks at its inner display
-/// every few seconds through the helper, starts it when it isn't running,
-/// restarts it when it's stuck (its SpringBoard crashed, or a spinner that
-/// doesn't go away), and says when the person has opened it, so the run
-/// captures it without a Retry. It never restarts an open Duo: starting it
-/// again closes it.
+/// sorts itself out. AppLocalizer looks at its inner display every few
+/// seconds through the helper; during a run it starts the Duo when it isn't
+/// running and opens it when it's closed (no command does: the helper
+/// presses Open in its window in Device Hub, which takes AppLocalizer being
+/// allowed in Accessibility, `DeviceHub`), and it restarts a stuck one (its
+/// SpringBoard crashed, or a spinner that doesn't go away). Once it's open,
+/// the run captures it without a Retry. It never restarts an open Duo:
+/// starting it again closes it.
 @MainActor
 @Observable
 final class DuoWatcher {
@@ -21,6 +22,11 @@ final class DuoWatcher {
     enum Event: Hashable, Sendable {
         case started
         case restarted(DuoStep.Reason)
+        /// The helper pressed Open in Device Hub.
+        case pressedOpen
+        /// It can't open the Duo until AppLocalizer is allowed in
+        /// Accessibility: macOS asked the person, once.
+        case askedForAccessibility
         /// Closed (or stuck) when it first looked, open now.
         case opened
 
@@ -32,6 +38,10 @@ final class DuoWatcher {
                 String(localized: "iPhone Duo was stuck, its SpringBoard crashed: AppLocalizer restarted it")
             case .restarted(.spinner):
                 String(localized: "iPhone Duo was stuck on a spinner: AppLocalizer restarted it")
+            case .pressedOpen:
+                String(localized: "iPhone Duo was closed: AppLocalizer opened it in Device Hub")
+            case .askedForAccessibility:
+                String(localized: "AppLocalizer needs Accessibility to open iPhone Duo: macOS asked for it")
             case .opened:
                 String(localized: "iPhone Duo is open: its screens are captured next")
             }
@@ -45,6 +55,16 @@ final class DuoWatcher {
     @ObservationIgnored private var inner: (udid: String, display: String)?
     @ObservationIgnored private var spinnerSince: Date?
     @ObservationIgnored private var restarts = 0
+    /// Tries at opening it since it last started or was seen open.
+    @ObservationIgnored private var opens = 0
+    /// Why the last try at opening it failed.
+    @ObservationIgnored private var openFailure: String?
+    /// The helper is from before it could open the Duo.
+    @ObservationIgnored private var helperCantOpen = false
+    /// What the helper last said about Accessibility; nil before it's asked.
+    @ObservationIgnored private var lacksAccessibility: Bool?
+    /// macOS asks the person once.
+    @ObservationIgnored private var hasAskedForAccessibility = false
     /// A look is under way: a view's task that restarts while one is still
     /// waiting on the helper mustn't restart the Duo a second time.
     @ObservationIgnored private var isLooking = false
@@ -66,21 +86,42 @@ final class DuoWatcher {
 
     // MARK: - Watching
 
-    /// Looks every `interval` until the task is cancelled, or, with
-    /// `untilOpened`, until the person opens it after it was closed or
-    /// stuck: then it returns true. One already open when it starts is
-    /// left alone, as whatever stopped the run there isn't the Duo being
-    /// closed.
-    func watch(mayStart: Bool, untilOpened: Bool, onEvent: (Event) -> Void = { _ in }) async -> Bool {
+    /// Looks every `interval` until the task is cancelled. `mayStart`:
+    /// AppLocalizer starts and opens it (during a run, or when the person
+    /// asks); otherwise it only says how it is, and restarts a stuck one.
+    /// `.opened` comes once it's open after being closed or stuck; one
+    /// already open when it starts is left alone, as whatever stopped the
+    /// run there isn't the Duo being closed.
+    func watch(mayStart: Bool, onEvent: (Event) async -> Void = { _ in }) async {
         while !Task.isCancelled, simulators != nil {
-            let event = await look(mayStart: mayStart)
-            if let event { onEvent(event) }
-            if untilOpened, event == .opened { return true }
+            if let event = await look(mayStart: mayStart) { await onEvent(event) }
             // Less often while there's nothing to see: no helper that can
             // look, or no simulator yet.
             try? await Task.sleep(for: state.isWatched ? interval : interval * 3)
         }
-        return false
+    }
+
+    /// For a recording of its inner display (`DisplayRecorder`): starts and
+    /// opens the Duo now if it needs to, and waits until it's open, until
+    /// AppLocalizer can't do more by itself, or for `limit`. Its state then.
+    func makeOpen(within limit: Duration, onEvent: (Event) async -> Void = { _ in }) async -> DuoState {
+        let deadline = ContinuousClock.now + limit
+        while !Task.isCancelled, simulators != nil {
+            if let event = await look(mayStart: true) { await onEvent(event) }
+            switch state {
+            case .open, .noHelper, .oldHelper, .noSimulator, .failed:
+                return state
+            default:
+                if state.waitsForPerson || ContinuousClock.now >= deadline { return state }
+            }
+            try? await Task.sleep(for: min(interval, .seconds(1)))
+        }
+        return state
+    }
+
+    /// The inner display it last read: the simulator and the display's ID.
+    var innerDisplay: (udid: String, display: String)? {
+        inner
     }
 
     /// One look, and the step it calls for (`DuoStep`); nothing while
@@ -100,16 +141,19 @@ final class DuoWatcher {
             return nil
         }
         guard let look = await look(at: device) else { return nil }
-        switch DuoStep.next(after: look, restarts: restarts, mayStart: mayStart, now: now()) {
+        let opens = helperCantOpen ? DuoStep.maximumOpens : opens
+        switch DuoStep.next(after: look, restarts: restarts, opens: opens, mayStart: mayStart, now: now()) {
         case .start:
             return await start(device.udid)
+        case .open:
+            return await open(device)
         case let .restart(reason):
             return await restart(device.udid, because: reason)
         case let .giveUp(reason):
             state = .stuck(reason)
             return nil
         case .wait:
-            return settle(look.inner)
+            return await settle(look.inner)
         }
     }
 
@@ -141,12 +185,34 @@ final class DuoWatcher {
 
     /// Nothing to do: the state is what it shows. `.opened` once it's open
     /// after being seen closed or stuck.
-    private func settle(_ inner: DuoInnerDisplay?) -> Event? {
+    private func settle(_ inner: DuoInnerDisplay?) async -> Event? {
         let before = state
-        state = inner.map(DuoState.init) ?? .notRunning
+        let seen = inner.map(DuoState.init) ?? .notRunning
+        state = seen == .closed ? await closedState() : seen
         guard state == .open else { return nil }
         restarts = 0
+        opens = 0
+        openFailure = nil
         return before.isWatched && before != .open ? .opened : nil
+    }
+
+    /// A closed Duo AppLocalizer isn't opening now: why not. While only
+    /// looking (the plan), it asks the helper whether it may, until it may,
+    /// so the person can allow it before the run.
+    private func closedState() async -> DuoState {
+        if helperCantOpen { return .helperCantOpen }
+        if opens >= DuoStep.maximumOpens {
+            return .couldntOpen(openFailure ?? String(localized: "Device Hub didn’t open it"))
+        }
+        if lacksAccessibility != false, let simulators {
+            let answer = await simulators.run(["accessibility"])
+            if answer.isFromOlderHelper {
+                helperCantOpen = true
+                return .helperCantOpen
+            }
+            if answer.succeeded { lacksAccessibility = !answer.lines.contains("trusted") }
+        }
+        return lacksAccessibility == true ? .needsAccessibility : .closed
     }
 
     // MARK: - Steps
@@ -154,6 +220,7 @@ final class DuoWatcher {
     private func start(_ udid: String) async -> Event? {
         guard let simulators else { return nil }
         state = .starting
+        opens = 0
         let answer = await simulators.run(["boot-simulator", udid])
         inner = nil
         await simulators.check()
@@ -169,6 +236,7 @@ final class DuoWatcher {
         guard let simulators else { return nil }
         state = .restarting(reason)
         restarts += 1
+        opens = 0
         spinnerSince = nil
         // It may have shut down already; starting it is what matters.
         _ = await simulators.run(["shutdown-simulator", udid])
@@ -181,6 +249,44 @@ final class DuoWatcher {
         }
         state = .closed
         return .restarted(reason)
+    }
+
+    /// The helper shows the Duo's window in Device Hub and presses Open.
+    /// Without Accessibility it says so; macOS asks the person the first
+    /// time, and later looks try again, so it opens once it's allowed.
+    private func open(_ device: SimulatorInventory.Device) async -> Event? {
+        guard let simulators else { return nil }
+        state = .opening
+        let answer = await simulators.run(["open-duo", device.udid, device.name])
+        if answer.isFromOlderHelper {
+            helperCantOpen = true
+            state = .helperCantOpen
+            return nil
+        }
+        if answer.lines.contains("accessibility-needed") {
+            lacksAccessibility = true
+            state = .needsAccessibility
+            guard !hasAskedForAccessibility else { return nil }
+            hasAskedForAccessibility = true
+            _ = await simulators.run(["accessibility", "prompt"])
+            return .askedForAccessibility
+        }
+        lacksAccessibility = false
+        opens += 1
+        guard answer.succeeded else {
+            openFailure = Self.openFailure(answer)
+            state = opens >= DuoStep.maximumOpens ? await closedState() : .closed
+            return nil
+        }
+        // It lights up a moment later: the next look sees it open.
+        return .pressedOpen
+    }
+
+    /// Why the helper couldn't open it, in a few words.
+    private static func openFailure(_ answer: SimulatorHelperAnswer) -> String? {
+        if answer.lines.contains("no-device-hub") { return String(localized: "this Mac’s Xcode has no Device Hub") }
+        if answer.lines.contains("no-open-button") { return String(localized: "Device Hub didn’t show its Open pose") }
+        return answer.failure
     }
 
     // MARK: - The helper

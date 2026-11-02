@@ -89,11 +89,16 @@ struct MCPScreenshotsDraft {
 
     // MARK: - Measuring
 
-    /// The layout of `caption` on a slot, from `template`.
+    /// The layout of `caption` on a slot, from `template`, on the canvas
+    /// the slot's capture gets (iPhone Duo's turns the way it lies).
     func layout(
         _ template: ScreenshotTemplate, locale: StoreLocale, slot: Int, displayType: ScreenshotDisplayType, caption: ScreenshotCaption?
     ) -> ScreenshotLayout {
-        engine.layout(template, slot: min(slot, template.slots.count - 1), locale: locale, displayType: displayType, caption: caption)
+        let capture = document.captures.capture(locale: locale.code, displayType: displayType, slot: slot, primary: document.scope.primary)
+        return engine.layout(
+            template, slot: min(slot, template.slots.count - 1), locale: locale, displayType: displayType, caption: caption,
+            captureSize: capture?.capture.pixelSize
+        )
     }
 
     /// The template with an assistant's patch applied, or why it can't be.

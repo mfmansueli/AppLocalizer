@@ -9,7 +9,7 @@ import XCTest
 /// sheet, driven through the DEBUG scenes in
 /// `ScreenshotsProposalsDebugScenes` (sample captures and proposals;
 /// nothing leaves the Mac): importing a fastlane folder after settling a
-/// row that needs you, accepting some of the proposed captions, rebasing a
+/// row that needs you, viewing a capture larger, accepting some of the proposed captions, rebasing a
 /// stale template proposal, and rejecting one. The prompt is never copied.
 @MainActor
 final class ScreenshotsProposalsUITests: XCTestCase {
@@ -58,6 +58,34 @@ final class ScreenshotsProposalsUITests: XCTestCase {
         XCTAssertTrue(text(of: summary).hasPrefix("70 captures · fastlane"), text(of: summary))
         XCTAssertTrue(element("captures.coverage.de-DE").exists)
         XCTAssertTrue(app.buttons["captures.importMore"].exists)
+    }
+
+    /// A click on a capture shows it large; the arrow keys (and ◀ ▶) step
+    /// through the locale's screens and ▼ to the next locale on the same
+    /// screen; Done closes it.
+    func testClickingACaptureShowsItLarger() {
+        app.launch(debugScene: "capt")
+        let cell = app.buttons["captures.coverage.de-DE.2"]
+        XCTAssertTrue(cell.waitForExistence(timeout: 15))
+        cell.click()
+        let title = element("captures.viewer.title")
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertEqual(text(of: title), "German · 2 Week")
+        XCTAssertTrue(element("captures.viewer.image").waitForExistence(timeout: 10))
+        XCTAssertEqual(text(of: element("captures.viewer.status")), "Localized · the interface is German")
+        XCTAssertTrue(text(of: element("captures.viewer.subtitle")).hasPrefix("iPhone 6.9″ · "), text(of: element("captures.viewer.subtitle")))
+
+        app.typeKey(.rightArrow, modifierFlags: [])
+        XCTAssertTrue(wait(for: title, "value == %@", "German · 3 Search"), text(of: title))
+        XCTAssertEqual(text(of: element("captures.viewer.screen.position")), "Screen 3 of 5")
+        app.typeKey(.downArrow, modifierFlags: [])
+        XCTAssertTrue(wait(for: title, "NOT (value BEGINSWITH %@) AND value ENDSWITH %@", "German", "· 3 Search"), text(of: title))
+        app.buttons["captures.viewer.screen.previous"].click()
+        XCTAssertTrue(wait(for: title, "value ENDSWITH %@", "· 2 Week"), text(of: title))
+
+        app.buttons["captures.viewer.done"].click()
+        XCTAssertTrue(element("captures.viewer").waitForNonExistence(timeout: 5))
+        XCTAssertTrue(cell.exists)
     }
 
     // MARK: - Proposals
@@ -127,6 +155,11 @@ final class ScreenshotsProposalsUITests: XCTestCase {
 
     private func waitForText(_ element: XCUIElement, beginningWith prefix: String) -> Bool {
         let predicate = NSPredicate(format: "value BEGINSWITH %@ OR label BEGINSWITH %@", prefix, prefix)
+        return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: 10) == .completed
+    }
+
+    private func wait(for element: XCUIElement, _ format: String, _ arguments: String...) -> Bool {
+        let predicate = NSPredicate(format: format, argumentArray: arguments)
         return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: 10) == .completed
     }
 

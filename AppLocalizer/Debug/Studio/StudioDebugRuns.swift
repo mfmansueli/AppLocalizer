@@ -260,6 +260,33 @@ enum StudioDebugRuns {
         return run
     }
 
+    /// Designing, after AppLocalizer started Claude Code for the run and
+    /// was closed since: paused, with one direction in.
+    static var designPaused: AutopilotRun {
+        var run = run(.design)
+        run.startsClaudeCode = true
+        return run
+    }
+
+    /// Localizing, with captions out to the assistant: Japanese and Arabic
+    /// without theirs (to translate) and one German caption too long; every
+    /// other language fits.
+    static var writingCaptions: AutopilotRun {
+        var run = run(.localize)
+        run.shortenings = []
+        for code in run.plan.localeCodes { run.localeStatus[code] = .fits(note: nil) }
+        for code in ["ja", "ar-SA"] where run.plan.localeCodes.contains(code) {
+            run.overflows += (0..<5).map { AutopilotOverflow(locale: code, slot: $0, displayType: .iPhone, headline: "", maxLines: 2, fill: 0) }
+            run.localeStatus[code] = .shortening(count: 5)
+        }
+        run.overflows.append(AutopilotOverflow(
+            locale: "de-DE", slot: 2, displayType: .iPhone, headline: "Durchsuche jahrelange Tagebucheinträge in Sekunden", maxLines: 2, fill: 1.3
+        ))
+        run.localeStatus["de-DE"] = .shortening(count: 1)
+        run.appendLog("Sent to \(client): 10 captions to translate, 1 too long", kind: .command, at: date(day: 31, month: 10, hour: 14, minute: 30))
+        return run
+    }
+
     /// Choosing, after Ask for changes revised Quiet Indigo.
     static var revised: AutopilotRun {
         var run = run(.choose)

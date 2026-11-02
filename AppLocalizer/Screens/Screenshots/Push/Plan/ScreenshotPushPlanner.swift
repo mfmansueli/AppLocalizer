@@ -53,7 +53,8 @@ struct ScreenshotPushPlanner {
         let id = "\(input.appID)|\(locale.code)|\(display.rawValue)"
         groups[id, default: ScreenshotPlanGroup(
             appID: input.appID, locale: locale, displayType: display, localizationID: input.context.localizationID(for: locale, displayType: display),
-            liveSet: input.live.set(locale: locale.code, displayType: display), items: [],
+            liveSet: input.live.set(locale: locale.code, displayType: display),
+            emptySetID: input.live.emptySet(locale: locale.code, displayType: display)?.id, items: [],
             previews: input.live.previews(locale: locale.code, displayType: display)
         )].items.append(item)
     }
@@ -89,7 +90,8 @@ struct ScreenshotPushPlanner {
             guard !items.isEmpty else { continue }
             let group = ScreenshotPlanGroup(
                 appID: input.appID, locale: locale, displayType: display, localizationID: localizationID,
-                liveSet: liveSet, items: items, extraLive: extra, restoredFrom: request.backupDate,
+                liveSet: liveSet, emptySetID: input.live.emptySet(locale: locale.code, displayType: display)?.id,
+                items: items, extraLive: extra, restoredFrom: request.backupDate,
                 previews: input.live.previews(locale: locale.code, displayType: display)
             )
             groups[group.id] = group

@@ -124,6 +124,28 @@ struct AutopilotContinuationTests {
         #expect(AutopilotContinuation.stall(of: run, session: failed, now: Self.now) == nil, "A failure has Try Again")
     }
 
+    /// Claude Code ended because it was the person's turn (picking), and
+    /// Use These Picks gave it the design: that isn't a stop. Nothing shows
+    /// while AppLocalizer starts it; without the helper, only that it's
+    /// Claude Code's turn, with Continue.
+    @Test func aSessionThatEndedOnThePersonsTurnIsntAStop() {
+        var run = StudioDebugRuns.run(.design)
+        run.startsClaudeCode = true
+        run.handedBackAt = Self.now.addingTimeInterval(600)
+        #expect(run.assistantHasWork)
+        var ended = Self.session(.finished, said: "All 252 captures are in; the run is waiting for you to pick.")
+        ended.endedAt = Self.now.addingTimeInterval(60)
+        let later = Self.now.addingTimeInterval(900)
+        #expect(AutopilotContinuation.stall(of: run, session: ended, startsItself: true, now: later) == nil)
+        #expect(AutopilotContinuation.stall(of: run, session: ended, startsItself: false, now: later) == .handedBack)
+
+        // One that ended after the hand-off stopped with work left.
+        ended.endedAt = Self.now.addingTimeInterval(700)
+        let stopped = AutopilotContinuation.stall(of: run, session: ended, startsItself: true, now: later)
+        #expect(stopped == .ended(lastWords: "All 252 captures are in; the run is waiting for you to pick."))
+        #expect(AutopilotContinuation.stall(of: run, session: Self.session(.working), startsItself: true, now: later) == nil)
+    }
+
     @Test func aRunAppLocalizerStartedWithNoSessionNowIsNotRunning() {
         #expect(AutopilotContinuation.stall(of: Self.run(), session: nil, now: Self.now) == .notRunning)
     }
@@ -134,6 +156,21 @@ struct AutopilotContinuationTests {
         let last = Self.now.addingTimeInterval(60)
         #expect(AutopilotContinuation.stall(of: run, session: nil, now: last.addingTimeInterval(29 * 60)) == nil, "A build can take a while")
         #expect(AutopilotContinuation.stall(of: run, session: nil, now: last.addingTimeInterval(30 * 60)) == .quiet(since: last))
+    }
+
+    /// The person picked for an hour: a pasted run's design goes quiet
+    /// counting from their step, not from the last capture, and reading
+    /// the brief counts as news.
+    @Test func aPastedRunIsQuietFromThePersonsStep() throws {
+        var run = StudioDebugRuns.run(.design)
+        run.directions = []
+        let handedOver = try #require(run.lastNewsAt).addingTimeInterval(3600)
+        run.handedBackAt = handedOver
+        #expect(AutopilotContinuation.stall(of: run, session: nil, now: handedOver.addingTimeInterval(60)) == nil)
+        let later = handedOver.addingTimeInterval(30 * 60)
+        #expect(AutopilotContinuation.stall(of: run, session: nil, now: later) == .quiet(since: handedOver))
+        run.briefReadAt = handedOver.addingTimeInterval(600)
+        #expect(AutopilotContinuation.stall(of: run, session: nil, now: later) == nil)
     }
 
     @Test func nothingStallsWhenTheAssistantHasNothingToDo() {

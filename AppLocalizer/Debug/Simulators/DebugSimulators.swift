@@ -16,7 +16,8 @@ import UniformTypeIdentifiers
 /// iPhone Duo needs iOS 27.1, so it can't be captured until "iOS 27.2" is
 /// installed (a few progress lines), and then made; Apple Vision Pro has no
 /// visionOS simulator. The Duo's scenes have it made and running, and say
-/// what its inner display shows (`DuoWatcher`).
+/// what its inner display shows (`DuoWatcher`), whether AppLocalizer is
+/// allowed in Accessibility to open it, and which helper answers.
 enum DebugSimulators {
     struct Mac: Sendable {
         var hasNewRuntime = false
@@ -30,8 +31,14 @@ enum DebugSimulators {
         /// The pretend person opens it in Device Hub after this many looks.
         var duoOpensAfterLooks: Int?
         var duoLooks = 0
-        /// The helper was saved before it could look at the Duo.
-        var hasOlderHelper = false
+        /// The saved helper's version: 3 can't look at the Duo, 4 can't
+        /// open it.
+        var helperVersion = ClaudeCodeHelperScript.version
+        /// macOS lets AppLocalizer press Open in Device Hub.
+        var isAccessibilityAllowed = true
+        /// The pretend person allows it after this many asks.
+        var accessibilityAfterAsks: Int?
+        var accessibilityAsks = 0
         /// `runDuo` set it up: a scene's view is built more than once, and
         /// must not make a restarted Duo stuck again.
         var duoIsSetUp = false
@@ -42,11 +49,14 @@ enum DebugSimulators {
 
     static let modes: Set<String> = [
         "simulators", "install-platform", "create-simulator", "simulator-displays", "simulator-screenshot", "simulator-crashes",
-        "boot-simulator", "shutdown-simulator",
+        "boot-simulator", "shutdown-simulator", "open-duo", "accessibility",
     ]
 
-    /// The modes an older helper doesn't know.
-    static let duoModes: Set<String> = ["simulator-displays", "simulator-screenshot", "simulator-crashes", "boot-simulator", "shutdown-simulator"]
+    /// The Duo's modes, by the helper version that has them.
+    static let duoModes: [String: Int] = [
+        "simulator-displays": 4, "simulator-screenshot": 4, "simulator-crashes": 4, "boot-simulator": 4, "shutdown-simulator": 4,
+        "open-duo": 5, "accessibility": 5,
+    ]
 
     /// The pretend Duo's inner display; the cover one is 1398 × 2034.
     static let innerDisplayID = "3B2A1C0D-0000-4000-8000-000000000003"
@@ -58,10 +68,11 @@ enum DebugSimulators {
 
     /// A Mac with iPhone Duo's simulator made, on iOS 27.2: running or
     /// not, what its inner display shows, whether it's stuck, when the
-    /// pretend person opens it, and whether the helper is older.
+    /// pretend person opens it, the helper's version, and whether (and
+    /// after how many asks) AppLocalizer is allowed in Accessibility.
     static func runDuo(
         booted: Bool = false, inner: DuoInnerDisplay = .black, crashed: Bool = false, opensAfterLooks: Int? = nil,
-        olderHelper: Bool = false
+        helperVersion: Int = ClaudeCodeHelperScript.version, accessibility: Bool = true, accessibilityAfterAsks: Int? = nil
     ) {
         mac.withLock { mac in
             guard !mac.duoIsSetUp else { return }
@@ -72,7 +83,9 @@ enum DebugSimulators {
             mac.duoInner = inner
             mac.duoCrashed = crashed
             mac.duoOpensAfterLooks = opensAfterLooks
-            mac.hasOlderHelper = olderHelper
+            mac.helperVersion = helperVersion
+            mac.isAccessibilityAllowed = accessibility
+            mac.accessibilityAfterAsks = accessibilityAfterAsks
         }
     }
 
@@ -85,13 +98,13 @@ enum DebugSimulators {
 
     /// The helper's answer to one of `modes`.
     static func answer(_ arguments: [String], delay: Duration = .milliseconds(300), onLine: @Sendable (String) -> Void) async -> UnixScriptExit {
-        if let mode = arguments.first, duoModes.contains(mode) {
-            if mac.withLock({ $0.hasOlderHelper }) {
+        if let mode = arguments.first, let version = duoModes[mode] {
+            if mac.withLock({ $0.helperVersion }) < version {
                 return UnixScriptExit(errorOutput: "Usage: Start Claude Code.zsh check | run <folder> -- <claude arguments…> | simulators | …")
             }
             let status = await answerDuo(mode, delay: delay, onLine: onLine)
             onLine("\(ClaudeCodeHelperScript.exitMarker) \(status)")
-            return status == 0 ? UnixScriptExit() : UnixScriptExit(errorOutput: "Unable to lookup in current state: Shutdown")
+            return status == 0 ? UnixScriptExit() : UnixScriptExit(errorOutput: status == 77 ? "" : "Unable to lookup in current state: Shutdown")
         }
         switch arguments.first {
         case "install-platform":
@@ -140,9 +153,38 @@ enum DebugSimulators {
                 mac.duoInner = .black
             }
         default:
-            break
+            return await answerOpening(mode, delay: delay, onLine: onLine)
         }
         return 0
+    }
+
+    /// Opening the Duo in Device Hub (`open-duo`), and whether macOS
+    /// allows it (`accessibility`).
+    private static func answerOpening(_ mode: String, delay: Duration, onLine: @Sendable (String) -> Void) async -> Int32 {
+        guard mode == "open-duo" || mode == "accessibility" else { return 0 }
+        let isAllowed = isAccessibilityAllowed()
+        guard mode == "open-duo" else {
+            onLine(isAllowed ? "trusted" : "not-trusted")
+            return 0
+        }
+        guard isAllowed else {
+            onLine("accessibility-needed")
+            return 77
+        }
+        try? await Task.sleep(for: delay)
+        mac.withLock { $0.duoInner = .showing }
+        onLine("pressed")
+        return 0
+    }
+
+    /// Whether AppLocalizer may press Open; each ask counts toward the
+    /// pretend person allowing it.
+    private static func isAccessibilityAllowed() -> Bool {
+        mac.withLock { mac in
+            mac.accessibilityAsks += 1
+            if let after = mac.accessibilityAfterAsks, mac.accessibilityAsks >= after { mac.isAccessibilityAllowed = true }
+            return mac.isAccessibilityAllowed
+        }
     }
 
     /// `simctl io enumerate`'s displays for the Duo: the cover, the inner.

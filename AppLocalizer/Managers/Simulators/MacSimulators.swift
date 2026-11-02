@@ -10,7 +10,8 @@ import Synchronization
 /// This Mac's simulators, for Screenshot Autopilot: whether each planned
 /// device can be captured before the run starts, and the fix when it can't
 /// (download the platform's simulator, make the simulator), and iPhone
-/// Duo's, which starts closed (`duo`). The app is sandboxed, so it asks the
+/// Duo's, which starts closed (`duo`) and is captured from a recording of
+/// its inner display (`recorder`). The app is sandboxed, so it asks the
 /// Claude Code helper (`ClaudeCodeHelperScript`), which runs `xcrun simctl`
 /// and `xcodebuild` outside the sandbox.
 @MainActor
@@ -42,6 +43,9 @@ final class MacSimulators {
     /// iPhone Duo's simulator: whether it's open, and starting or
     /// restarting it.
     @ObservationIgnored private(set) lazy var duo = DuoWatcher(simulators: self)
+    /// Records iPhone Duo's inner display during a UI test, whose own
+    /// screenshot there is the cover display.
+    @ObservationIgnored private(set) lazy var recorder = DisplayRecorder(simulators: self)
 
     init(runner: any UnixScriptRunning, helperURL: URL?) {
         self.runner = runner

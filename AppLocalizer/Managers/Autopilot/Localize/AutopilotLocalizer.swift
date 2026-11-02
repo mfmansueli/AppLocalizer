@@ -25,6 +25,7 @@ struct AutopilotLocalizer {
         template.id = document.template?.id ?? context.app.id
         template.name = "\(context.app.name) · \(direction.name)"
         template.slots = Self.slots(template.slots, count: run.plan.screens.count)
+        template.canvas = Self.canvas(template.canvas, matching: run)
         let author: ChangeSource = direction.client.map { .assistant(client: $0) } ?? .you
         let note = String(localized: "Autopilot · \(direction.name)")
         if var history = document.history {
@@ -59,6 +60,22 @@ struct AutopilotLocalizer {
         document.scope.setLocalized(run.plan.localeCodes)
         try await services.saveDocument(document, for: context.app)
         return document.history?.currentNumber ?? 1
+    }
+
+    /// The canvas turned the way each device's captures are: the device
+    /// lies the canvas's way, so a landscape capture on a portrait canvas
+    /// would be cropped by half and fail its size check (iPhone Duo's
+    /// unfolded display, an iPad held sideways). The way most of a device's
+    /// captures are wins; a device without captures keeps the direction's.
+    static func canvas(_ canvas: TemplateCanvas, matching run: AutopilotRun) -> TemplateCanvas {
+        var canvas = canvas
+        for display in run.plan.displayTypes where display.isRendered {
+            let sizes = run.plan.targets.filter { $0.displayType == display }.compactMap { run.finalCapture(for: $0)?.pixelSize }
+            guard !sizes.isEmpty else { continue }
+            let landscape = sizes.count(where: \.isLandscape)
+            canvas.setOrientation(landscape * 2 > sizes.count ? .landscape : .portrait, for: display)
+        }
+        return canvas
     }
 
     /// The document as saved now.

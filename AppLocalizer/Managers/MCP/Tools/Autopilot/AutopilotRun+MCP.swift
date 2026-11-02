@@ -88,12 +88,14 @@ extension AutopilotRun {
         return .object(json)
     }
 
-    /// "1320 × 2868"; iPhone Duo its inner display's; Apple Watch takes an
-    /// Ultra's screen; Apple Vision Pro the app's window as it is.
+    /// "1320 × 2868"; iPhone Duo its inner display's, either way up (open,
+    /// it's wider than tall); Apple Watch takes an Ultra's screen; Apple
+    /// Vision Pro the app's window as it is.
     static func capturePixelSize(_ display: ScreenshotDisplayType) -> String {
         switch display {
         case .iPad: display.portraitPixelSize.rotated.title
-        case .iPhoneDuo: String(localized: "\(display.portraitPixelSize.title) (the inner display, unfolded)")
+        case .iPhoneDuo:
+            String(localized: "\(display.portraitPixelSize.rotated.title) or \(display.portraitPixelSize.title) (the inner display, open)")
         case .watch: "422 × 514 (or 410 × 502)"
         case .visionPro: String(localized: "the app’s window, at least 600 px on its short side")
         default: display.portraitPixelSize.title
@@ -110,18 +112,22 @@ extension AutopilotRun {
             """
         case .iPhoneDuo:
             """
-            Use the iPhone Duo simulator (Xcode 27.1 or later), open, so the app runs on the inner display. It starts closed: \
-            the app shows on the 1398 × 2034 cover display and the inner one stays black, and no command opens it (not simctl, \
-            devicectl or XCTest); the person opens it in Device Hub (select iPhone Duo, then Open in its window's poses). Never \
-            change its displays with xcrun simctl io … screenConfig (power or mode): that doesn't open it, and the simulator's \
-            SpringBoard then crashes on every start until the simulator restarts. Before its first capture, screenshot the inner \
-            display: list the displays with xcrun simctl io booted enumerate, then xcrun simctl io booted screenshot \
-            --display=<the 2007 × 2853 one's ID> (the IDs change each time the simulator boots). If it's black (closed), or shows \
-            only a spinner, or SpringBoard crashed and xcrun simctl launch hangs (stuck), report one problem with affectsDevice: \
-            true saying which, with "Open iPhone Duo in Device Hub" as proposedFix, and go on with the other devices. AppLocalizer \
-            watches the Duo: it restarts a stuck one itself, and once the person opens it, next_step gives you its screens again. \
-            Don't shut it down, reboot or erase it yourself, which closes it again. Capture the inner display: App Store Connect \
-            also takes the outer display's 1398 × 2034, but the template renders at the inner display's size.
+            Use the iPhone Duo simulator (Xcode 27.1 or later), open, so the app runs on the inner display. It starts closed \
+            (the app on the 1398 × 2034 cover display, the inner one black), and no command opens it: AppLocalizer opens it \
+            itself (it presses Open in the Duo's window in Device Hub) and restarts a stuck one. Don't open Device Hub, press \
+            anything there, or shut down, reboot or erase the Duo yourself, which closes it again. Never change its displays \
+            with xcrun simctl io … screenConfig, which crashes its SpringBoard on every start. A UI test's screenshot \
+            (XCUIScreen.main) is the cover display, and the test closes the app right after it, too soon for simctl, so for \
+            each UI test run on iPhone Duo: call start_display_recording (it opens the Duo and records the inner display), run \
+            the test on the simulator it names with -resultBundlePath, then call finish_display_recording with that path. It \
+            gives each screenshot the test attached as the inner display at that moment (2853 × 2007), with an upload ID for \
+            report_capture; the project needs no change. A screen you open without a UI test (launch arguments), capture with \
+            xcrun simctl io <udid> screenshot --display=<the 2007 × 2853 display's ID from xcrun simctl io <udid> enumerate>. \
+            If start_display_recording says the Duo isn't open, or its inner display shows only a spinner, or SpringBoard \
+            crashed and xcrun simctl launch hangs (stuck), report one problem with affectsDevice: true saying which, with \
+            "AppLocalizer opens iPhone Duo" as proposedFix, and go on with the other devices: next_step gives you its screens \
+            again once it's open. App Store Connect also takes the outer display's 1398 × 2034, but the template renders at \
+            the inner display's size.
             """
         case .visionPro:
             """

@@ -24,6 +24,10 @@ final class FakeScreenshotUploadTransport: ScreenshotUploadTransport {
         var rateLimitedOnce = false
         /// What each response reports as left this hour, before counting.
         var remaining = 3000
+        /// Sets App Store Connect has that the plan didn't know about, by
+        /// "<display type> <localization ID>": their ID and screenshot
+        /// count. Creating one of these is refused with `STATE_ERROR`.
+        var existingSets: [String: (id: String, screenshots: Int)] = [:]
     }
 
     private struct State {
@@ -59,7 +63,12 @@ final class FakeScreenshotUploadTransport: ScreenshotUploadTransport {
         switch (request.method, path) {
         case (.post, "/v1/appScreenshotSets"):
             let localization = Self.relatedID(data, "appStoreVersionLocalization") ?? ""
-            let id = record("set", "create-set \(attributes?["screenshotDisplayType"] as? String ?? "") \(localization)")
+            let display = attributes?["screenshotDisplayType"] as? String ?? ""
+            if script.existingSets["\(display) \(localization)"] != nil {
+                log("create-set \(display) \(localization) refused")
+                throw AppStoreConnectError.rejected(statusCode: 409, code: "STATE_ERROR", detail: "Screenshot Set Already Exists!")
+            }
+            let id = record("set", "create-set \(display) \(localization)")
             return response(id: id)
         case (.post, "/v1/appScreenshots"):
             return try reserve(fileName: attributes?["fileName"] as? String ?? "", size: attributes?["fileSize"] as? Int ?? 0, data: data)
@@ -79,6 +88,7 @@ final class FakeScreenshotUploadTransport: ScreenshotUploadTransport {
     }
 
     func fetch(_ path: String) async throws -> AppStoreConnectResponse {
+        if path.hasPrefix("/v1/appStoreVersionLocalizations/") { return sets(at: path) }
         let id = path.components(separatedBy: "/").last?.components(separatedBy: "?").first ?? ""
         log("status \(id)")
         let fileName = state.withLock { $0.fileNames[id] } ?? ""
@@ -89,7 +99,7 @@ final class FakeScreenshotUploadTransport: ScreenshotUploadTransport {
         return response(id: id, attributes: ["assetDeliveryState": ["state": "UPLOAD_COMPLETE"]])
     }
 
-    func upload(_ operation: ScreenshotUploadOperation, data: Data) async throws {
+    func upload(_ operation: ScreenshotUploadOperation, data: Data, progress: @escaping @Sendable (Int64) -> Void) async throws {
         let parts = operation.url.components(separatedBy: "/")
         let id = parts.dropLast().last ?? ""
         let part = Int(parts.last ?? "") ?? 1
@@ -99,9 +109,28 @@ final class FakeScreenshotUploadTransport: ScreenshotUploadTransport {
             throw URLError(.timedOut)
         }
         state.withLock { $0.uploaded[id, default: Data()].append(operation.slice(of: data)) }
+        progress(Int64(operation.length))
     }
 
     // MARK: - Helpers
+
+    /// A localization's sets of one display type, as the lookup after a
+    /// refused create reads them.
+    private func sets(at path: String) -> AppStoreConnectResponse {
+        let localization = path.components(separatedBy: "/")[3]
+        let display = path.components(separatedBy: "%5D=").dropFirst().first?.components(separatedBy: "&").first ?? ""
+        log("find-set \(display) \(localization)")
+        let existing = script.existingSets["\(display) \(localization)"]
+        let data: [[String: Any]] = existing.map { set in
+            let shots = (0..<set.screenshots).map { ["type": "appScreenshots", "id": "\(set.id)-shot-\($0)"] }
+            return [[
+                "type": "appScreenshotSets", "id": set.id, "attributes": ["screenshotDisplayType": display],
+                "relationships": ["appScreenshots": ["data": shots]],
+            ]]
+        } ?? []
+        let body = (try? JSONSerialization.data(withJSONObject: ["data": data])) ?? Data()
+        return AppStoreConnectResponse(data: body, rateLimit: AppStoreConnectRateLimit(limit: 3600, remaining: 3000))
+    }
 
     /// Two parts, split in the middle.
     private func reserve(fileName: String, size: Int, data: [String: Any]?) throws -> AppStoreConnectResponse {

@@ -6,7 +6,8 @@
 import SwiftUI
 
 /// One stage in the list: its number (a check once done, a spinner while
-/// it runs, purple when it waits for you), title and who does it.
+/// it runs, purple when it waits for you), title and who does it, or a
+/// note instead: red for a problem, plain for a pause.
 struct AutopilotStageRow: View {
     enum State {
         case done
@@ -18,7 +19,9 @@ struct AutopilotStageRow: View {
 
     let step: AutopilotStage
     let who: String
-    let problem: String?
+    let note: String?
+    /// The note is a problem (red), not a pause.
+    var noteIsProblem = true
     let state: State
     let isSelected: Bool
     let action: () -> Void
@@ -31,9 +34,9 @@ struct AutopilotStageRow: View {
                     Text(step.title)
                         .font(.callout.weight(isSelected ? .semibold : .regular))
                         .foregroundStyle(state == .upcoming ? Palette.label2 : Palette.label)
-                    Text(problem ?? who)
+                    Text(note ?? who)
                         .font(.caption)
-                        .foregroundStyle(problem == nil ? Palette.label2 : Palette.danger)
+                        .foregroundStyle(note != nil && noteIsProblem ? Palette.danger : Palette.label2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
@@ -45,7 +48,7 @@ struct AutopilotStageRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("\(step.number). \(step.title), \(problem ?? who), \(stateText)"))
+        .accessibilityLabel(Text("\(step.number). \(step.title), \(note ?? who), \(stateText)"))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("autopilot.stage.\(step.rawValue)")
     }

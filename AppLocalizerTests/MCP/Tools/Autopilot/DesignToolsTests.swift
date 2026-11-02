@@ -36,11 +36,29 @@ struct DesignToolsTests {
         #expect(brief["bases"]?.arrayValue?.last?["style"] == "playful")
         #expect(brief["templateFields"]?.arrayValue?.contains("caption.headline.size") == true)
         #expect(brief["canvases"]?.arrayValue?.map { $0["displayType"] } == ["iphone", "ipad"])
+        #expect(brief["canvases"]?.arrayValue?.map { $0["orientation"] } == ["portrait", "landscape"], "The way the captures are")
         #expect(brief["canvases"]?.arrayValue?.first?["safeArea"]?["width"]?.intValue ?? 0 > 0)
-        #expect(brief["designProject"] == ["kind": "claudeDesign", "source": "Northpier Brand · Claude Design", "createDirectionsThere": true])
+        let project = try #require(brief["designProject"])
+        #expect(project["kind"] == "claudeDesign")
+        #expect(project["source"] == "Northpier Brand · Claude Design")
+        #expect(project["createDirectionsThere"] == true)
+        #expect(project["summary"]?["title"] == "Northpier Brand · design system")
+        #expect(project["summary"]?["colors"]?.arrayValue?.first == ["name": "Indigo", "hex": "#5B5BD6"])
+        #expect(project["summary"]?["typefaces"] == "New York Bold for headlines · SF Pro Text for the rest")
+        #expect(project["summary"]?["voice"] == "Calm, short sentences, no exclamation marks")
+        #expect(project["readFirst"] == nil, "It was read")
+        #expect(project["ifYouCantOpenIt"]?.stringValue?.hasPrefix("Don't stop: design the three directions from this brief") == true)
         #expect(brief["directionsSoFar"] == [["id": "d-1", "name": "Quiet Indigo"]])
         #expect(brief["revisionNote"] == nil)
         #expect(outcome.logLines == [.init(target: "Lumen Journal · Autopilot", outcome: .read)])
+    }
+
+    /// Reading the brief shows on Design that the design started.
+    @Test func readingTheBriefIsNotedInTheRun() async throws {
+        let fixtures = MCPAutopilotFixtures(StudioDebugRuns.run(.design), project: StudioDebugRuns.northpier)
+        _ = try await fixtures.call(GetDesignBriefTool(), ["run": "run-debug"])
+        #expect(fixtures.run?.briefReadAt == AutopilotTestFixtures.now)
+        #expect(fixtures.run?.log.last?.text == "\(AutopilotTestFixtures.client) read the brief and is designing 2 directions")
     }
 
     @Test func eachSlotsCaptionsComeWithTheLongest() async throws {
@@ -63,6 +81,8 @@ struct DesignToolsTests {
         run.revision = AutopilotRevisionRequest(note: "A lighter indigo", askedAt: AutopilotTestFixtures.now)
         let brief = try await MCPAutopilotFixtures(run, project: project).call(GetDesignBriefTool()).result
         #expect(brief["designProject"]?["readFirst"]?.stringValue?.contains("report_design_source") == true)
+        #expect(brief["designProject"]?["summary"] == nil)
+        #expect(brief["designProject"]?["ifYouCantOpenIt"] != nil, "Never stop for a project that can't be opened")
         #expect(brief["revisionNote"] == "A lighter indigo")
     }
 

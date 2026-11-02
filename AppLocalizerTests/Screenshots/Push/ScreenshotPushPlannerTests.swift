@@ -40,6 +40,19 @@ struct ScreenshotPushPlannerTests {
         ])
     }
 
+    /// An empty set App Store Connect has (an upload that never finished)
+    /// shows nothing, so it isn't the live set, but the push fills it.
+    @Test func anEmptySetInAppStoreConnectIsFilled() throws {
+        var live = ScreenshotsDebugDocuments.live
+        live.screenshotSets.append(LiveScreenshotSet(id: "set-empty", locale: "ar-SA", displayType: .iPhone, screenshots: []))
+        let plan = ScreenshotPushPlanner().plan(Fixtures.input(live: live))
+        let arabic = try #require(plan.groups.first { $0.locale.code == "ar-SA" && $0.displayType == .iPhone })
+        #expect(arabic.liveSet == nil)
+        #expect(arabic.emptySetID == "set-empty")
+        #expect(ScreenshotSetProgress(group: arabic).setID == "set-empty")
+        #expect(plan.groups.filter { $0.locale.code != "ar-SA" || $0.displayType != .iPhone }.allSatisfy { $0.emptySetID == nil })
+    }
+
     @Test func rendersAlreadyLiveAreLeftOut() {
         let cells = Set(plan().items.map(\.cell.locale))
         #expect(cells.isDisjoint(with: ScreenshotsSampleData.liveLocales))

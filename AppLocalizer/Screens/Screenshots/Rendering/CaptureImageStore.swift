@@ -8,19 +8,26 @@ import Foundation
 import Observation
 
 /// Capture images the editors draw their live previews with: the template
-/// editor's canvas and stress strip, and the caption editor's preview.
-/// Loaded once per capture and width, and dropped when too many pile up.
+/// editor's canvas and stress strip, the caption editor's preview, and the
+/// Captures tab's thumbnails and viewer. Loaded once per capture and width;
+/// past the pixel budget the ones asked for longest ago go first, so what's
+/// on screen stays.
 @MainActor
 @Observable
 final class CaptureImageStore {
     private(set) var images: [String: CGImage] = [:]
+    /// Every key asked for, the one asked for longest ago first.
+    @ObservationIgnored private var order: [String] = []
     @ObservationIgnored private var requested: Set<String> = []
     @ObservationIgnored private let load: (ScreenshotCapture, Int) async -> CGImage?
+    @ObservationIgnored private let pixelBudget: Int
 
-    /// How many images it keeps before starting over.
-    static let limit = 60
+    /// About 200 MB of images: every thumbnail of a Captures tab and a
+    /// handful of full-size captures.
+    nonisolated static let pixelBudget = 50_000_000
 
-    init(load: @escaping (ScreenshotCapture, Int) async -> CGImage?) {
+    init(pixelBudget: Int = CaptureImageStore.pixelBudget, load: @escaping (ScreenshotCapture, Int) async -> CGImage?) {
+        self.pixelBudget = pixelBudget
         self.load = load
     }
 
@@ -29,19 +36,25 @@ final class CaptureImageStore {
     }
 
     /// Loads the captures that aren't loaded or loading yet, one at a
-    /// time.
+    /// time; the ones already here count as just asked for.
     func request(_ captures: [ScreenshotCapture], width: Int) {
-        let missing = captures.filter { !requested.contains(Self.key($0, width: width)) }
-        guard !missing.isEmpty else { return }
-        if requested.count + missing.count > Self.limit {
-            images = [:]
-            requested = []
+        var missing: [(capture: ScreenshotCapture, key: String)] = []
+        for capture in captures {
+            let key = Self.key(capture, width: width)
+            if requested.contains(key) {
+                order.removeAll { $0 == key }
+            } else if !missing.contains(where: { $0.key == key }) {
+                missing.append((capture, key))
+                requested.insert(key)
+            }
+            order.append(key)
         }
-        missing.forEach { requested.insert(Self.key($0, width: width)) }
+        guard !missing.isEmpty else { return }
         Task { [weak self, load] in
-            for capture in missing {
-                guard let image = await load(capture, width) else { continue }
-                self?.images[Self.key(capture, width: width)] = image
+            for (capture, key) in missing {
+                guard let image = await load(capture, width), let self, requested.contains(key) else { continue }
+                images[key] = image
+                evict()
             }
         }
     }
@@ -50,6 +63,23 @@ final class CaptureImageStore {
     func waitUntilLoaded(_ captures: [ScreenshotCapture], width: Int) async {
         while captures.contains(where: { images[Self.key($0, width: width)] == nil }) {
             await Task.yield()
+        }
+    }
+
+    /// Past the budget, drops the loaded images asked for longest ago; the
+    /// newest always stays, however big.
+    private func evict() {
+        var pixels = images.values.reduce(0) { $0 + $1.width * $1.height }
+        var index = 0
+        while pixels > pixelBudget, index < order.count - 1 {
+            let key = order[index]
+            guard let image = images.removeValue(forKey: key) else {
+                index += 1
+                continue
+            }
+            pixels -= image.width * image.height
+            requested.remove(key)
+            order.remove(at: index)
         }
     }
 

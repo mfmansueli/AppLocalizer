@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import Synchronization
 import Testing
 @testable import AppLocalizer
 
@@ -78,7 +79,8 @@ struct ScreenshotUploadRequestsTests {
             method: "PUT", url: "https://upload.example/part/2", offset: 4, length: 3,
             requestHeaders: [ScreenshotUploadHeader(name: "Content-Type", value: "image/png")]
         )
-        try await client.upload(operation, data: Data([0, 1, 2, 3, 4, 5, 6, 7, 8]))
+        let sent = Mutex<[Int64]>([])
+        try await client.upload(operation, data: Data([0, 1, 2, 3, 4, 5, 6, 7, 8])) { bytes in sent.withLock { $0.append(bytes) } }
 
         let request = try #require(transport.requests.first)
         #expect(request.httpMethod == "PUT")
@@ -86,13 +88,26 @@ struct ScreenshotUploadRequestsTests {
         #expect(request.value(forHTTPHeaderField: "Content-Type") == "image/png")
         #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
         #expect(request.httpBody == Data([4, 5, 6]))
+        // A transport that can't watch the upload says it all went at the end.
+        #expect(sent.withLock { $0 } == [3])
+    }
+
+    /// URLSession tells the delegate the bytes sent so far, and the
+    /// delegate passes them on.
+    @Test func theProgressDelegatePassesOnTheBytesSent() {
+        let sent = Mutex<[Int64]>([])
+        let delegate = UploadProgressDelegate { bytes in sent.withLock { $0.append(bytes) } }
+        let task = URLSession.shared.dataTask(with: URLRequest(url: URL(fileURLWithPath: "/dev/null")))
+        delegate.urlSession(.shared, task: task, didSendBodyData: 512, totalBytesSent: 512, totalBytesExpectedToSend: 2048)
+        delegate.urlSession(.shared, task: task, didSendBodyData: 1024, totalBytesSent: 1536, totalBytesExpectedToSend: 2048)
+        #expect(sent.withLock { $0 } == [512, 1536])
     }
 
     @Test func aRefusedPartThrows() async {
         let transport = FakeHTTPTransport([CannedHTTPResponse(statusCode: 500, body: "")])
         let client = AppStoreConnectClient(credentials: TestKeys.credentials(), transport: transport)
         let operation = ScreenshotUploadOperation(method: "PUT", url: "https://upload.example/1", offset: 0, length: 1)
-        await #expect(throws: AppStoreConnectError.self) { try await client.upload(operation, data: Data([1])) }
+        await #expect(throws: AppStoreConnectError.self) { try await client.upload(operation, data: Data([1])) { _ in } }
     }
 
     @Test func aSliceNeverRunsPastTheFile() {

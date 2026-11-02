@@ -78,6 +78,7 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         case .runScreenshots: [
                 "list_apps", "get_capture_plan", "update_capture_plan", "report_capture", "report_capture_problem", "next_step",
                 "get_design_brief", "propose_direction", "revise_direction", "propose_captions", "report_app_support",
+                "start_display_recording", "finish_display_recording",
             ]
         }
     }
@@ -242,7 +243,9 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         (UI tests that find buttons by their English title, sample data in one language). Build the app with \
         xcodebuild, boot each simulator (pair the watch with the iPhone), run the \
         setup commands, and for each device and locale launch the app with its arguments, reach each screen and \
-        capture it (up to 3 times); locales marked notOnAppStoreYet are captured too. \
+        capture it (up to 3 times); locales marked notOnAppStoreYet are captured too. On iPhone Duo, a UI \
+        test's own screenshot is the cover display: call start_display_recording before each UI test there and \
+        finish_display_recording after it, which gives the inner display's screenshots as upload IDs. \
         Upload each PNG with curl --data-binary to the upload URL and call report_capture with the returned \
         upload ID, the attempt, a score from 0 to 1 and notes saying why. When a screen can't be reached, call \
         report_capture_problem with what happened and a fix (changesProject: true, once, when the fix is a \

@@ -97,18 +97,34 @@ extension ScreenshotPushRun {
         items[index].isOldDeleted = true
     }
 
+    /// The parts one by one, the percentage moving as their bytes go out.
     private func uploadParts(_ index: Int, operations: [ScreenshotUploadOperation], data: Data) async throws {
         items[index].status = .uploading(0)
         for (offset, operation) in operations.enumerated() {
+            let before = operation.offset
             do {
-                try await environment.transport.upload(operation, data: data)
+                try await environment.transport.upload(operation, data: data) { [weak self] sent in
+                    Task { @MainActor in self?.noteSent(index, bytes: before + Int(sent), of: data.count) }
+                }
             } catch {
                 let timedOut = (error as? URLError)?.code == .timedOut
                 throw ScreenshotPushFailure.part(offset + 1, count: operations.count, timedOut: timedOut, detail: Self.describe(error))
             }
             let sent = operation.offset + operation.length
-            items[index].status = .uploading(data.isEmpty ? Double(offset + 1) / Double(operations.count) : min(1, Double(sent) / Double(data.count)))
+            if data.isEmpty {
+                items[index].status = .uploading(Double(offset + 1) / Double(operations.count))
+            } else {
+                noteSent(index, bytes: sent, of: data.count)
+            }
         }
+    }
+
+    /// `bytes` of the image's `total` went out: the percentage moves on
+    /// while it's uploading, never back.
+    func noteSent(_ index: Int, bytes: Int, of total: Int) {
+        guard items.indices.contains(index), case let .uploading(fraction) = items[index].status, total > 0 else { return }
+        let sent = min(1, Double(bytes) / Double(total))
+        if sent > fraction { items[index].status = .uploading(sent) }
     }
 
     /// Deletes a reservation that won't be committed, so the set doesn't

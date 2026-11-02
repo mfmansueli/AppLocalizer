@@ -51,7 +51,7 @@ struct ScreenshotMatrixBuilder {
             key: key, state: .empty, image: .none, caption: nil, capture: nil, checks: [],
             showsPrimaryInterface: false, proposal: document.proposal(locale: key.locale, slot: key.slot)?.source, live: live
         )
-        guard let template = document.template else {
+        guard var template = document.template else {
             if let live {
                 cell.state = .uploadedByHand
                 cell.image = .live(live)
@@ -59,6 +59,8 @@ struct ScreenshotMatrixBuilder {
             return cell
         }
         let capture = document.captures.capture(locale: key.locale, displayType: key.displayType, slot: key.slot, primary: document.scope.primary)
+        // Turned the way an iPhone Duo capture is, in the render key too.
+        template.canvas = template.canvas.following(capture?.capture.pixelSize, on: key.displayType)
         let captionSlot = document.captionSlot(key.slot, on: key.displayType)
         let caption = captionSlot.flatMap { document.captions.caption(locale: key.locale, slot: $0) }
         let templateSlot = min(captionSlot ?? key.slot, max(0, template.slots.count - 1))

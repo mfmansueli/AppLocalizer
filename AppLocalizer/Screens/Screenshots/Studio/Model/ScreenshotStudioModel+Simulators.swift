@@ -28,17 +28,20 @@ extension ScreenshotStudioModel {
     /// the device tries it again.
     func installSimulator(for display: ScreenshotDisplayType) {
         guard let simulators else { return }
-        Task {
+        // The view model held too: a download can outlast the section.
+        Task { [screenshots] in
             await simulators.install(for: display)
             await retryDeviceProblems(on: display)
+            withExtendedLifetime(screenshots) {}
         }
     }
 
     func makeSimulator(for display: ScreenshotDisplayType) {
         guard let simulators else { return }
-        Task {
+        Task { [screenshots] in
             await simulators.make(for: display)
             await retryDeviceProblems(on: display)
+            withExtendedLifetime(screenshots) {}
         }
     }
 
@@ -47,26 +50,35 @@ extension ScreenshotStudioModel {
         guard let autopilot else { return }
         let context = context
         let appID = app.id
+        let goOn = goingOn()
         Task {
             await autopilot.leaveOut(display, appID: appID, context: context)
-            await keepGoing()
+            await goOn()
         }
     }
 
-    /// While iPhone Duo's card is shown, AppLocalizer starts the Duo when
-    /// it isn't running and restarts it when it's stuck, both in the run's
-    /// log, and once the person opens it in Device Hub its screens are
-    /// tried again, without a Retry.
+    /// The run still has iPhone Duo screens to capture, on a Mac that can
+    /// run its simulator: AppLocalizer gets the Duo ready.
+    var watchesDuo: Bool {
+        guard let run, run.stage == .capture, run.plan.displayTypes.contains(.iPhoneDuo),
+              simulators?.status(for: .iPhoneDuo)?.canCapture == true
+        else { return false }
+        return run.plan.targets.contains { $0.displayType == .iPhoneDuo && !run.isSettled($0) }
+    }
+
+    /// While the run captures and has iPhone Duo screens left, AppLocalizer
+    /// starts the Duo when it isn't running, opens it when it's closed and
+    /// restarts it when it's stuck, all in the run's log, so it's ready
+    /// when the assistant gets to it. When it was stopped there (its card),
+    /// its screens are tried again once it's open, without a Retry.
     func watchDuo() async {
         guard let simulators, let autopilot else { return }
         let appID = app.id
-        let opened = await simulators.duo.watch(mayStart: true, untilOpened: true) { event in
+        await simulators.duo.watch(mayStart: true) { event in
             autopilot.update(appID) { $0.appendLog(event.logText, kind: .event, at: autopilot.now()) }
+            // Only the Duo's open problems are retried.
+            if event == .opened, self.run?.stage == .capture { await self.retryDeviceProblems(on: .iPhoneDuo) }
         }
-        // Even when the card's task was replaced meanwhile: the opening is
-        // seen once, and only the Duo's open problems are retried.
-        guard opened, run?.stage == .capture else { return }
-        await retryDeviceProblems(on: .iPhoneDuo)
     }
 
     /// Once the device can be captured, its device-wide problems are

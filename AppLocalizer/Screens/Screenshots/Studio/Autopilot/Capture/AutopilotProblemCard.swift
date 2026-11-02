@@ -10,10 +10,12 @@ import SwiftUI
 /// run: what happened, the fix proposed, and the ways out. Only a fix
 /// that's a command joins the plan when retried; a change to the project or
 /// a step for the person is shown as what to do first. A device without a
-/// simulator offers to install it, or to leave the device out. iPhone Duo,
-/// whose simulator starts closed, offers Device Hub to open it, while
-/// AppLocalizer watches it (`DuoWatcher`): it restarts a stuck Duo and
-/// tries the Duo again once it's open.
+/// simulator offers to install it, or to leave the device out. iPhone
+/// Duo's simulator starts closed: AppLocalizer opens it itself, restarts a
+/// stuck one and tries its screens again once it's open (`DuoWatcher`,
+/// watched by the capture stage), so the card says what it sees, and offers
+/// only what lets it go on when AppLocalizer can't: Accessibility, the
+/// helper, or Device Hub.
 struct AutopilotProblemCard: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -22,7 +24,7 @@ struct AutopilotProblemCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.small) {
-            (Text(headline).bold() + Text(group.first.what) + Text(" ") + Text(othersText))
+            Text(summary)
                 .fixedSize(horizontal: false, vertical: true)
             if group.wasRefused, let command = group.refusedCommand {
                 code(command, identifier: "autopilot.problem.refused")
@@ -59,16 +61,14 @@ struct AutopilotProblemCard: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("autopilot.problem")
         .task(id: group.id) {
-            // A device-wide problem offers the fix this Mac needs; iPhone
-            // Duo's is watched until it's open.
-            guard group.isDeviceWide, let simulators else { return }
-            if simulators.inventory == nil { await simulators.check() }
-            if opensInDeviceHub { await studio.watchDuo() }
+            // A device-wide problem offers the fix this Mac needs.
+            guard group.isDeviceWide, let simulators, simulators.inventory == nil else { return }
+            await simulators.check()
         }
     }
 
     /// What AppLocalizer sees of iPhone Duo, in place of the assistant's
-    /// fix: AppLocalizer restarts a stuck one itself.
+    /// fix: AppLocalizer opens it and restarts a stuck one itself.
     private var duoStatus: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.small) {
             if duo?.isWorking == true { ProgressView().controlSize(.small) }
@@ -95,15 +95,18 @@ struct AutopilotProblemCard: View {
         }
     }
 
-    /// The Duo's state when the helper can't look at it yet.
+    /// The Duo's state when the helper can't look at it, or open it, yet.
     private var duoHelper: DuoState? {
-        duo == .oldHelper || duo == .noHelper ? duo : nil
+        duo == .oldHelper || duo == .noHelper || duo == .helperCantOpen ? duo : nil
     }
 
     private var duoText: String {
         switch duo {
-        case .closed?, .spinner?, .notRunning?:
+        case .closed?, .opening?, .spinner?, .notRunning?, .starting?:
             (duo?.summary ?? "") + " " + String(localized: "Once it’s open, the run captures it by itself.")
+        case .helperCantOpen?:
+            // The helper's row says why.
+            String(localized: "iPhone Duo is closed.")
         case .open?:
             String(localized: "iPhone Duo is open, so something else stopped it: retry, or leave it out.")
         default:
@@ -114,9 +117,16 @@ struct AutopilotProblemCard: View {
     private var buttons: some View {
         HStack(spacing: Spacing.small) {
             if opensInDeviceHub {
-                if DeviceHub.url != nil {
-                    Button("Open Device Hub") { DeviceHub.open() }
+                if duo == .needsAccessibility {
+                    Button("Open Accessibility Settings") { AccessibilitySettings.open() }
                         .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("autopilot.problem.accessibility")
+                }
+                // Only when AppLocalizer can't open it itself.
+                if DeviceHub.url != nil, !watchesDuo || duo?.waitsForPerson == true {
+                    Button("Open in Device Hub") { DeviceHub.open(udid: duoUDID) }
+                        .buttonStyle(.borderedProminent)
+                        .tint(duo == .needsAccessibility ? Palette.label2 : nil)
                         .accessibilityIdentifier("autopilot.problem.deviceHub")
                 }
             } else if group.isDeviceWide, let helperTitle {
@@ -161,6 +171,13 @@ struct AutopilotProblemCard: View {
 
     /// "Week, German on iPhone: …"; "Styles, 7 languages on iPhone and
     /// iPad: …"; "iPhone Duo: no screen can be captured. …".
+    /// The headline in bold, then what happened and what waits.
+    private var summary: AttributedString {
+        var bold = AttributedString(headline)
+        bold.inlinePresentationIntent = .stronglyEmphasized
+        return bold + AttributedString("\(group.first.what) \(othersText)")
+    }
+
     private var headline: String {
         if group.isDeviceWide { return String(localized: "\(group.displayType.title): no screen can be captured. ") }
         let place = String(localized: "\(screenName), \(languages) on \(devices)")
@@ -186,8 +203,20 @@ struct AutopilotProblemCard: View {
             Change the project so it doesn’t need this command, then retry, or continue the run in Terminal, where you can allow it.
             """)
         }
+        if duo == .needsAccessibility {
+            return String(localized: """
+            AppLocalizer uses it only to press Open in iPhone Duo’s window in Device Hub, and tries again every few seconds. \
+            Leaving iPhone Duo out finishes the run without it.
+            """)
+        }
+        if duo?.waitsForPerson == true {
+            let then = String(localized: "Once it’s open, the run captures it by itself; leaving it out finishes the run without it.")
+            return DeviceHub.openingSteps + " " + then
+        }
         if watchesDuo {
-            return DeviceHub.openingSteps + " " + String(localized: "AppLocalizer restarts it when it’s stuck; leaving it out finishes the run without it.")
+            return String(localized: """
+            AppLocalizer opens iPhone Duo in Device Hub itself and restarts it when it’s stuck; leaving it out finishes the run without it.
+            """)
         }
         if opensInDeviceHub {
             return DeviceHub.openingSteps + " " + DeviceHub.restartSteps + " "
@@ -248,15 +277,18 @@ struct AutopilotProblemCard: View {
     }
 
     /// This Mac has the device's simulator, but it starts closed (iPhone
-    /// Duo): the person opens it in Device Hub. Without a helper that can
-    /// look at it, the assistant's fix stays, as it says whether to open it
-    /// or restart it.
+    /// Duo): AppLocalizer opens it. Without a helper that can look at it,
+    /// the assistant's fix stays, as it says whether to open it or restart
+    /// it, and the person opens it in Device Hub.
     private var opensInDeviceHub: Bool {
         group.isDeviceWide && group.displayType.simulatorStartsClosed && simulatorStatus?.canCapture == true
     }
 
     /// iPhone Duo as AppLocalizer last saw it, for its card.
     private var duo: DuoState? { opensInDeviceHub ? simulators?.duo.state : nil }
+
+    /// Device Hub shows the Duo's own window, with its poses.
+    private var duoUDID: String? { simulators?.inventory?.simulator(for: .iPhoneDuo)?.udid }
 
     /// AppLocalizer sees the Duo, so its status replaces the assistant's
     /// fix.

@@ -7,7 +7,8 @@ macOS app (SwiftUI, macOS 27+) for localizing apps faster through the App Store 
 - **Store page:** the App Store listing's text in every locale, with import, Find and Replace, and translation by Apple
   Translation, an AI provider (Anthropic or OpenAI, with your own API key) or your assistant.
 - **Screenshots (⌘4):** an App Store preview of the live set or the new one, per device, language and appearance;
-  one template, captions per locale, imported captures, and renders checked for fit before they're pushed. The
+  one template, captions per locale, imported captures (the Captures tab lists each locale's; a click shows one large,
+  ← → step through its screens and ↑ ↓ through the locales), and renders checked for fit before they're pushed. The
   template gallery (Templates…) offers 12 templates in four styles (Simple, Bold, Elegant, Playful): angled and leaning
   devices, a caption below the device, uppercase, an emphasized first or last line, highlight bars, a slot's own
   background, and decorations per slot (shapes, rating laurels and badges). Their fonts are bundled (SIL Open Font
@@ -16,7 +17,10 @@ macOS app (SwiftUI, macOS 27+) for localizing apps faster through the App Store 
   and a higher one, or one before the app has a rating there, fails the render. Review &
   Push uploads them, keeps the screenshots they replace on this Mac, and Activity puts those back. A live screenshot
   with no image in App Store Connect (its upload never finished, or Apple couldn't process it) has nothing to keep and
-  is replaced anyway; one still processing is left for a later push. **Screenshot
+  is replaced anyway; one still processing is left for a later push. An empty set App Store Connect already has
+  (an upload that never finished) is filled instead of created again, which Apple refuses as "Screenshot Set Already
+  Exists"; if a create is refused anyway, the push looks the set up and fills it while it's empty. Each image's
+  percentage follows the bytes sent (`UploadProgressDelegate`), not just its parts. **Screenshot
   Autopilot** plans the screens, has a connected assistant (Claude Code, Cursor or Codex) capture them in Simulator in
   every language, lets you pick the best captures, gets three design directions (from Claude Design, a Figma file, a
   brand folder or AppLocalizer's starters), then localizes and checks every caption; the new set waits in Review &
@@ -41,6 +45,11 @@ macOS app (SwiftUI, macOS 27+) for localizing apps faster through the App Store 
   prompt) comes back to the assistant in `report_capture` with what to fix, and a clean attempt ranks above it. The
   ones the set still uses are listed at Pick and Ready as captures to check. The design AI still designs once, from the
   primary language's picks and every language's captions; AppLocalizer renders each language with its own captures.
+  Each device's canvas turns the way its captures are (`AutopilotLocalizer.canvas(_:matching:)`): the iPhone Duo
+  simulator's inner display captures landscape, 2853 × 2007, so Duo's canvas is landscape too, in the brief and in
+  the set Localize renders, instead of cropping every capture into a Wrong size render. A template with no Duo
+  orientation of its own (one made before) lies each Duo render the way its capture does (`TemplateCanvas.following`),
+  in the renders, their checks and render keys, the template editor and the MCP measurements.
 - **App Information:** general information, the age rating, accessibility declarations and an App Privacy worksheet.
 - **AI assistants (optional):** a local MCP server lets Claude Code, Claude Desktop, Cursor or Codex read the
   listing and propose text, prices, privacy answers and screenshots. Proposals wait for review like any other change;
@@ -119,7 +128,9 @@ App Store Connect or the Keychain, and the MCP server in a scene never opens a p
 - **App Information:** `info-*`, `a11y-*` and, for App Privacy, `priv-*` (`AppInformationDebugScenes`).
 - **Screenshots:** the Preview page and Autopilot, `st-*` (`StudioDebugScenes`): `st-home`, `st-live-ar`,
   `st-noasst`, `st-design` (Connect a Design Project), one sheet per stage (`st-plan`, `st-wait`, `st-cap`, `st-fail`,
-  `st-pick`, `st-des`, `st-choose`, `st-choose-rev`, `st-nodesign`, `st-loc`, `st-ready-sheet`), the strip on the
+  `st-pick`, `st-des`, `st-choose`, `st-choose-rev`, `st-nodesign`, `st-loc`, `st-ready-sheet`), Design paused
+  after AppLocalizer closed while Claude Code designed (`st-des-paused`), Localize with captions out to Claude Code
+  (`st-loc-captions`: Japanese and Arabic missing five each, German one too long), the strip on the
   page (`st-cap-page`, `st-pick-page`) and the new set (`st-ready`, `st-ready-de`, `st-ready-ar`, `st-ready-ipad`).
   On every device and with the project's new languages: `st-plan-all`, `st-cap-watch`, `st-cap-vision`,
   `st-pick-all`, `st-choose-all`, `st-loc-all`, `st-ready-sheet-all`, `st-live-watch`, `st-live-vision`,
@@ -128,14 +139,16 @@ App Store Connect or the Keychain, and the MCP server in a scene never opens a p
   refused command, `st-refused`; one cause on one screen in several languages, `st-group`; and iPhone Duo on a Mac
   without its simulator, `st-device` (a pretend Mac with iOS 26.5 and 27.0, `DebugSimulators`, so Install the iOS
   Simulator downloads nothing; the every-device scenes' Mac also runs Apple Vision Pro). iPhone Duo's simulator
-  running but closed, with Open Device Hub, `st-duo-closed`; opened a moment later by a pretend person, so the run
-  tries it again by itself, `st-duo-opens`; stuck (SpringBoard crashed, a spinner), so AppLocalizer restarts it,
-  `st-duo-stuck`; with a helper from before it could look at the Duo, `st-duo-old`; and the plan with it closed,
-  `st-plan-duo`. A run nothing has arrived for in over an hour, with Continue, `st-stalled`.
+  running but closed, so AppLocalizer opens it and the run tries it again, `st-duo-closed`; AppLocalizer not yet
+  allowed in Accessibility, until a pretend person allows it, `st-duo-access`; a version 4 helper that can't open it,
+  opened a moment later by a pretend person, `st-duo-opens`; stuck (SpringBoard crashed, a spinner), so AppLocalizer
+  restarts and opens it, `st-duo-stuck`; with a helper from before it could look at the Duo, `st-duo-old`; and the
+  plan with it closed, with Open Now, `st-plan-duo`, and without Accessibility, `st-plan-duo-access`. A run nothing
+  has arrived for in over an hour, with Continue, `st-stalled`.
   The Sets matrix, `sets*`, `viewer*` and `scope`; the Template editor, `tpl*` and `starter`; the template gallery,
   `gallery` and `gallery-elegant`, and a few of its templates rendered, `tpl-cinema`, `tpl-highlight-ar`,
   `tpl-market-de`, `tpl-poster-ja` and `tpl-swoosh-deco`; Captions, `cap*`
-  (`ScreenshotsDebugScenes`). Captures, `capt*`, and assistants' proposals, `prop-*`
+  (`ScreenshotsDebugScenes`). Captures, `capt*` (`capt-view`: one shown large), and assistants' proposals, `prop-*`
   (`ScreenshotsProposalsDebugScenes`). Pushing them, `shots-review`, `shots-push`, `shots-push-partial`, and
   restoring them from Activity, `shots-act` and `shots-act-restore` (`ScreenshotsPushDebugScenes`).
 - **Claude Code started by AppLocalizer:** through a pretend helper (`DebugUnixScriptRunner`), so nothing runs:
@@ -250,6 +263,10 @@ call.
     `update_capture_plan` writes the screens and steps; captures are sent as raw PNG bodies to
     `POST /autopilot/<token>` on the MCP server (the app is sandboxed, so it can't read the assistant's files), which
     returns an upload id for `report_capture`; `report_capture_problem` reports a screen that can't be reached.
+    On iPhone Duo each UI test run goes between `start_display_recording` (it opens the Duo, then records its inner
+    display) and `finish_display_recording` with the test's `-resultBundlePath`, which gives back each screenshot the
+    test attached as the inner display at that moment: an upload id for `report_capture`, a small preview, how long
+    before the test's screenshot it was taken, and a check when the frame is black (the Duo closed) or not settled.
     Each locale carries `launchArguments` for the simulator and `testArguments` (`-testLanguage de -testRegion DE`)
     for UI tests, so `xcodebuild test` needs nothing in front of it. A command the session wasn't allowed to run comes
     as `refusedCommand`: its fix is a change to the project, so retrying doesn't add it to the plan's commands.
@@ -268,7 +285,11 @@ call.
     problem reported on a screen already captured (out of date) and retried is captured again, and the new capture
     replaces the old ones.
     `next_step` says what to do next (capture, wait, design, revise, write captions, done). `get_design_brief`,
-    `report_design_source`, `propose_direction` and `revise_direction` carry the design stage, and
+    `report_design_source`, `propose_direction` and `revise_direction` carry the design stage. The brief carries the
+    design project's summary once it was read, and says to design from the brief rather than stop when the project
+    can't be opened: the Claude Code AppLocalizer starts only has AppLocalizer's tools, so it can't open Claude
+    Design or Figma, and its system prompt says so too. Reading the brief is noted in the run (`briefReadAt`) and its
+    log, and so is reading the design project while it designs. And
     `propose_captions` with the run's id shortens captions while localizing. The person plans, picks, chooses and
     pushes in the app; the assistant never pushes. The plan lists each device's screens and how to capture them
     (`devices`), and marks the languages not on the App Store yet (`notOnAppStoreYet`); `update_capture_plan` takes
@@ -316,7 +337,13 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
   stuck simulator can keep `simctl` waiting: `simulator-displays` (`simctl io enumerate`), `simulator-screenshot`
   (one display, shrunk to 256 pixels with `sips` and printed as base64), `simulator-crashes` (its SpringBoard crash
   reports written since it started, i.e. newer than its `launchd_bootstrap.plist`), `boot-simulator` (`simctl
-  bootstatus -b`) and `shutdown-simulator`.
+  bootstatus -b`) and `shutdown-simulator`. Version 5 adds `open-duo <udid> <name>`, which opens iPhone Duo (below),
+  and `accessibility [prompt]`, which says whether it may (and with `prompt`, has macOS ask the person). Version 6
+  adds recording a display: `record-display <udid> <display>` screenshots one display with `simctl io` over and over
+  into a new `mktemp` folder, printing `folder`, `frame <start> <end> <file>` (when each capture began and ended) and
+  `same <end>` (a frame like the last, not kept), until a line arrives on its stdin or stdin closes, for at most ten
+  minutes; `test-results <bundle.xcresult> [<test>]` prints `xcresulttool get test-results tests` (or one test's
+  `activities`); `recorded-frame <frame>` prints one frame as base64 and `discard-recording <folder>` deletes one.
 - **This Mac's simulators** (`Managers/Simulators/`): Autopilot's plan checks, through the helper, that each planned
   device has a simulator (`SimulatorInventory`, `SimulatorStatus`): ready, one to make, a runtime to install (iPhone
   Duo needs iOS 27.1 or later; Xcode 27.2 may come with only iOS 27.0), or a newer Xcode. "Install the iOS
@@ -324,25 +351,56 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
   missing reports it as one problem for the device (`AutopilotCenter.reportMissingSimulators`), and so does looking
   at a run that's capturing, or continuing it. Retrying a device this Mac still can't run brings its problem back
   without starting Claude Code: a retry waits while its device has an open device-wide problem. iPhone Duo's
-  simulator starts closed (only the outer 1398 × 2034 display shows the app) and nothing public opens it: not
-  `simctl`, `devicectl` or XCTest; Xcode 27.2's Device Hub (`DeviceHub`, `com.apple.dt.Devices`) does, in the
-  device's poses. So AppLocalizer watches the Duo (`Managers/Simulators/Duo/`, `DuoWatcher`): every few seconds it
-  finds the inner display by its size (`SimulatorDisplayList`), screenshots it and tells black (closed), a faint
-  spinner in the middle (starting, or stuck) and anything else (open) apart (`DuoInnerDisplay`). `DuoStep` decides:
-  during a run it starts a Duo that isn't running; it restarts a stuck one, whose SpringBoard crashed since it
-  started or whose spinner lasted 90 seconds, at most twice in a row, then asks the person to erase it; it never
-  restarts an open one, as starting it again closes it. The assistant reports a closed or stuck Duo as one
-  device-wide problem; its card shows what AppLocalizer sees in place of the assistant's fix, opens Device Hub, and
-  once the person opens the Duo the run tries it again without a Retry (only after seeing it closed, so a Duo
-  that was open all along can't loop). The plan's row says whether it's open. Starts, restarts and the opening go
-  in the run's log. With a helper older than version 4 the card keeps the assistant's fix, says how to restart a
-  stuck Duo by hand, and asks to save the helper again.
+  simulator starts closed (only the outer 1398 × 2034 display shows the app; a UI test's `XCUIScreen.main` is that
+  cover display even once it's open) and nothing public opens it: not `simctl`, `devicectl` or XCTest; Xcode 27.2's
+  Device Hub (`DeviceHub`, `com.apple.dt.Devices`) does, in the device's poses. So AppLocalizer watches the Duo
+  (`Managers/Simulators/Duo/`, `DuoWatcher`): every few seconds it finds the inner display by its size
+  (`SimulatorDisplayList`), screenshots it and tells black (closed), a faint spinner in the middle (starting, or
+  stuck) and anything else (open) apart (`DuoInnerDisplay`). `DuoStep` decides: during a run it starts a Duo that
+  isn't running and opens a closed one; it restarts a stuck one, whose SpringBoard crashed since it started or whose
+  spinner lasted 90 seconds, at most twice in a row, then asks the person to erase it; it never restarts an open
+  one, as starting it again closes it. To open it, the helper's `open-duo` opens the Duo's own window in Device Hub
+  (`devices://device/open?id=<udid>`; `DeviceHub.windowLink`), presses Open in its poses through Accessibility (a
+  small Swift program run with `xcrun swift`: Device Hub shows its windows to Accessibility only while it's in
+  front, so it goes in front, then closes that window, hides Device Hub if it started it, and puts the app that was
+  in front back, found with `lsappinfo`, as `NSWorkspace` gives scripts no pids here). It never quits Device Hub,
+  which can shut down the simulators it started. The open inner display captures at 2853 × 2007. That needs
+  AppLocalizer allowed in Privacy & Security › Accessibility (the helper runs as AppLocalizer's): macOS asks once,
+  the card and the plan say so with Open Accessibility Settings (`AccessibilitySettings`), and the watcher tries
+  again once it's allowed. Two failed tries, and the card asks the person to open it in Device Hub. The assistant
+  reports a closed or stuck Duo as one device-wide problem; its card shows what AppLocalizer sees in place of the
+  assistant's fix, and once the Duo is open the run tries it again without a Retry (only after seeing it closed, so
+  a Duo that was open all along can't loop). The plan's row says whether it's open, with Open Now. Starts,
+  restarts, presses and the opening go in the run's log. With a version 4 helper it can't open it: the card asks
+  to save the helper again and opens Device Hub; older than version 4, the card keeps the assistant's fix and
+  says how to restart a stuck Duo by hand. A UI test's screenshot being the cover display, and the test closing the
+  app about two seconds after its screen appears (too soon to screenshot the inner display after it), AppLocalizer
+  records the inner display while the test runs (`Managers/Simulators/Recording/`, `DisplayRecorder`, through the
+  helper's `record-display`: a frame about every 0.6 seconds). Afterwards `XcresultTimeline` reads from the test's
+  result bundle when it attached each screenshot (the attachment's `timestamp`), when the step before it began and
+  which simulator it ran on, and `RecordedFramePick` keeps the last frame that finished before that moment (one that
+  began before that step isn't settled); the rest are deleted. The project needs no change.
 - **Keeping a run going** (`Managers/Autopilot/Continuation/`): when the Claude Code AppLocalizer started for a run
   ends with work left and sent something since it started, AppLocalizer starts it again with the prompt that
   continues the run (`AutopilotContinuation`, through `ClaudeCodeLauncher.onRunEnded`); one that sent nothing isn't,
   so it can't loop. A run nobody works on says so in the sheet (`AutopilotStall`: Claude Code ended, with its last
   words; AppLocalizer was closed; or nothing arrived for 30 minutes after a paste), with Continue. Answering a
-  problem continues the run too, when AppLocalizer started Claude Code for it. A version 2 helper still starts
+  problem continues the run too, when AppLocalizer started Claude Code for it, and so does each step that gives
+  the assistant work again: Use These Picks, Use This Direction and Ask for Changes (`AutopilotContinuation.keepGoing`).
+  A Claude Code that ended on the person's turn (before that step, `AutopilotRun.handedBackAt`) didn't stop with
+  work left, so the sheet never says it stopped; without the helper the footer says it's Claude Code's turn, with
+  Continue. These steps' tasks hold the center and the app, never the studio, whose view model is unowned and
+  can go away with the section. The sheet says it in the stage's words (`AutopilotStall+Wording`: captures left,
+  directions still to design, your changes still to make); only a stop or a silence is drawn as a warning, and a
+  run AppLocalizer was closed on is paused, not stopped. A pasted run goes quiet counting from the person's last
+  step or the brief's reading too (`AutopilotRun.lastActivityAt`), so picking for an hour doesn't make the design
+  quiet. Design shows the same status as Capture (`AutopilotAssistantStatus`: what Claude Code is doing now, for
+  how long, Show Output and Stop, or why nobody is, with Continue), how many directions arrived, and cards that
+  only spin while someone works (`AutopilotDirectionCard`: the next one designing and for how long, the ones after
+  it up next, all waiting while nobody works); the stage's own spinner stops too. Localize says the same: how many
+  screenshots are ready, which language this Mac is checking, the captions out to Claude Code (`AutopilotCaptionWork`:
+  missing ones to translate told apart from ones too long, per language and in all) and what it's writing, with
+  each language's row spinning only while someone works on it. A version 2 helper still starts
   Claude Code (`minimumRunVersion`) and asks to be saved again for the simulator modes and iPhone Duo.
 - **Each run** (`ClaudeCodeInvocation`) is `claude -p --output-format stream-json --verbose --restricted
   --strict-mcp-config --mcp-config … --settings … --permission-mode dontAsk --tools …`. It knows only AppLocalizer's
@@ -371,7 +429,8 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
   - the Keychain round trip, under a throwaway service name;
   - the session and the view models;
   - the AI providers' requests and replies;
-  - the screenshot fit engine, renders, the push plan and its uploads, backups and restores;
+  - the screenshot fit engine, renders, the Captures tab's viewer and its images (kept within a pixel budget, the
+    oldest first), the push plan and its uploads, backups and restores;
   - the MCP server (HTTP parsing, JSON-RPC, pairing, sessions, tools and prompts) and the stdio bridge;
   - field suggestions: the store, the built-in checks, accepting and undoing on both pages, and the setup sheet;
   - Suggest Everything: what it covers and its prompt, the run's plan, progress and end, Accept All and its Undo,
@@ -383,9 +442,12 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
     Live/New set summaries; Apple Watch and Apple Vision Pro (their screens, layouts, checks, previews and pushes to
     the visionOS version), iPhone Duo (its sizes, checks, canvas, row and plan) and the project's new languages;
     this Mac's simulators (reading `simctl`'s list, what each device needs, installing and making one, a device-wide
-    problem, leaving a device out, and iPhone Duo's watcher: its displays, closed or stuck or open, restarting and
-    starting it); keeping a run going (the rehearsal per screen and device, starting Claude Code
-    again only after progress, a run nobody works on, recapturing a screen reported out of date);
+    problem, leaving a device out, and iPhone Duo's watcher: its displays, closed or stuck or open, restarting,
+    starting and opening it, and asking for Accessibility, and recording its inner display during a UI test: the
+    helper's recording lines, the result bundle's timeline, each screenshot's frame and the two MCP tools); keeping a run going (the rehearsal per screen and device, starting Claude Code
+    again only after progress, a run nobody works on, recapturing a screen reported out of date, what the sheet says
+    in each stage's words, a paused run that isn't a warning, Design's cards and the brief's reading, Localize's
+    captions to write, and each device's canvas turned the way its captures are);
   - Claude Code started by AppLocalizer: the helper's answers and exit line, each run's arguments and permissions,
     reading the stream, failures, the Terminal link, runs through a pretend helper (folders, run tokens, Stop, Try
     Again, login and server problems), and setup's test run.

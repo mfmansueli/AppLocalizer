@@ -10,8 +10,13 @@ import Foundation
 extension TemplateEditorViewModel {
     // MARK: - Canvas
 
+    /// The canvas's orientation, as the canvas shows it: iPhone Duo without
+    /// one of its own lies the way the capture on it does.
     var orientation: ScreenshotOrientation {
-        template?.canvas.orientation(for: displayType) ?? (displayType.isTablet ? .landscape : .portrait)
+        guard let canvas = template?.canvas else { return displayType.isTablet ? .landscape : .portrait }
+        let document = screenshots.document
+        let capture = document?.captures.capture(locale: localeCode, displayType: displayType, slot: slot, primary: document?.scope.primary ?? localeCode)
+        return canvas.following(capture?.capture.pixelSize, on: displayType).orientation(for: displayType)
     }
 
     func setOrientation(_ orientation: ScreenshotOrientation) {

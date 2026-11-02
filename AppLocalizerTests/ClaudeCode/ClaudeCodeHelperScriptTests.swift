@@ -41,7 +41,7 @@ struct ClaudeCodeHelperScriptTests {
         #expect(ClaudeCodeHelperScript.exitStatus(in: "applocalizer-helper-exit") == nil)
     }
 
-    @Test func theScriptMatchesWhatTheAppExpects() {
+    @Test func theScriptMatchesWhatTheAppExpects() throws {
         let script = ClaudeCodeHelperScript.contents
         #expect(script.hasPrefix("#!/bin/zsh"))
         #expect(script.contains("applocalizer-helper \(ClaudeCodeHelperScript.version)"))
@@ -54,7 +54,7 @@ struct ClaudeCodeHelperScriptTests {
         // Claude Code gets pipes of its own, so AppLocalizer's never turns
         // non-blocking and the exit line always gets through.
         #expect(script.contains(#"$claude "$@" </dev/null > >(cat) 2> >(cat >&2) &"#))
-        #expect(ClaudeCodeHelperScript.version >= 4)
+        #expect(ClaudeCodeHelperScript.version >= 6)
         // Autopilot's simulator check and fix: fixed commands, checked
         // arguments.
         #expect(script.contains("/usr/bin/xcrun simctl list -j runtimes devicetypes devices"))
@@ -76,8 +76,55 @@ struct ClaudeCodeHelperScriptTests {
         #expect(script.contains("/usr/bin/grep -q \"SimDevice.$1\" $report"))
         #expect(script.contains("with_limit 300 /usr/bin/xcrun simctl bootstatus $1 -b"))
         #expect(script.contains("with_limit 120 /usr/bin/xcrun simctl shutdown $1"))
+        // Opening it: no command does, so the helper presses Open in the
+        // Duo's own window in Device Hub, only once macOS allows AppLocalizer
+        // in Accessibility, and gives the Mac back to the app in front.
+        #expect(script.contains("open-duo) open_duo \"$@\" ;;"))
+        #expect(script.contains("accessibility) accessibility \"$@\" ;;"))
+        #expect(script.contains("if ! is_identifier $udid || [[ -z $name || $name == -* || $name == *[[:cntrl:]]* ]]; then"))
+        #expect(script.contains("if [[ $(accessibility) != trusted ]]; then"))
+        #expect(script.contains("$.AXIsProcessTrustedWithOptions($options)"))
+        #expect(script.contains("[[ $1 == prompt ]] && options='$({AXTrustedCheckOptionPrompt: true})'"))
+        #expect(script.contains("with_limit 120 /usr/bin/xcrun swift $folder/open-duo.swift $udid $name $front"))
+        #expect(script.contains(#"opener.arguments = ["devices://device/open?id=\(udid)"]"#))
+        #expect(script.contains("guard AXIsProcessTrusted() else { finish(\"accessibility-needed\", 77) }"))
+        #expect(script.contains("finish(\"pressed\", 0)"))
+        // The embedded Swift ends at a line of its own.
+        let swift = try #require(script.range(of: "<<'SWIFT'\n"))
+        #expect(script[swift.upperBound...].contains("\nSWIFT\n"))
+        #expect(script[swift.upperBound...].hasPrefix("import AppKit\n"))
         // An older helper is told apart by its usage line, which stays one line.
-        #expect(script.contains("| simulator-crashes <udid> | boot-simulator <udid> | shutdown-simulator <udid>\"\n"))
+        #expect(script.contains(
+            "| open-duo <udid> <name> | accessibility [prompt] | record-display <udid> <display> | "
+                + "test-results <bundle> [<test>] | recorded-frame <frame> | discard-recording <folder>\"\n"
+        ))
         #expect(ClaudeCodeHelperScript.fileName.hasSuffix(".zsh"))
+    }
+
+    /// Version 6 records a display during a UI test, reads when the test
+    /// took its screenshots, and gives back a frame: fixed commands, with
+    /// their arguments checked, and frames only from its own folders.
+    @Test func theScriptRecordsADisplayForUITests() {
+        let script = ClaudeCodeHelperScript.contents
+        #expect(script.contains("record-display) record_display \"$@\" ;;"))
+        #expect(script.contains("test-results) test_results \"$@\" ;;"))
+        #expect(script.contains("recorded-frame) recorded_frame \"$@\" ;;"))
+        #expect(script.contains("discard-recording) discard_recording \"$@\" ;;"))
+        #expect(script.contains("record-display|test-results|recorded-frame|discard-recording)\n    simulator_mode \"$@\""))
+        #expect(script.contains("if ! is_identifier $udid || ! is_identifier $display; then\n    print -u2 -r -- \"Usage: record-display"))
+        #expect(script.contains(
+            "with_limit 30 /usr/bin/xcrun simctl io $udid screenshot --display=$display $folder/capture.png >/dev/null 2>&1"
+        ))
+        #expect(script.contains("{ read -r _; : >$folder/.stop } &"))
+        #expect(script.contains("local deadline=$(( EPOCHSECONDS + 600 ))"))
+        #expect(script.contains("if (( ${#kept} > 200 )); then"))
+        #expect(script.contains("/usr/bin/cmp -s $folder/capture.png $folder/$last"))
+        #expect(script.contains("/bin/rm -rf -- ${tmp%/}/applocalizer-recording.*(N/mh+1)"))
+        #expect(script.contains("[[ $bundle != /*.xcresult || $bundle == *[[:cntrl:]]* || ! -d $bundle ]]"))
+        #expect(script.contains("with_limit 60 /usr/bin/xcrun xcresulttool get test-results tests --path $bundle"))
+        #expect(script.contains("with_limit 60 /usr/bin/xcrun xcresulttool get test-results activities --test-id $test --path $bundle"))
+        #expect(script.contains("${1:t} == applocalizer-recording.* && -d $1 && -O $1"))
+        #expect(script.contains("if ! is_recording ${1:h} || [[ ${1:t} != frame-*.png || ! -f $1 ]]; then"))
+        #expect(!script.contains("\\#("), "Every part of the script is filled in")
     }
 }

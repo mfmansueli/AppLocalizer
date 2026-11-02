@@ -47,6 +47,56 @@ final class AutopilotContinuationUITests: XCTestCase {
         XCTAssertFalse(element("autopilot.stage.capture").label.contains("stopped"))
     }
 
+    /// Design after AppLocalizer closed while Claude Code designed: paused,
+    /// not stopped (nothing red), and no card spins.
+    func testAPausedDesignSaysSoAndNothingSpins() {
+        app.launch(debugScene: "st-des-paused")
+        let notice = element("autopilot.stall")
+        XCTAssertTrue(notice.waitForExistence(timeout: 15))
+        XCTAssertEqual(text(of: element("autopilot.stall.text")), "Paused when AppLocalizer closed, with 2 directions still to design.")
+        let stage = element("autopilot.stage.design")
+        XCTAssertTrue(stage.label.contains("Paused · Continue picks it up"), stage.label)
+        XCTAssertFalse(stage.label.contains("stopped"), stage.label)
+        XCTAssertEqual(text(of: element("autopilot.design.count")), "1 of 3")
+        for index in 1...2 {
+            let card = text(of: element("autopilot.design.direction.\(index)"))
+            XCTAssertTrue(card.contains("Waits for Claude Code"), card)
+            XCTAssertFalse(card.contains("designing"), card)
+        }
+        XCTAssertTrue(text(of: element("autopilot.footer.text")).hasPrefix("Paused when AppLocalizer closed"), text(of: element("autopilot.footer.text")))
+        XCTAssertTrue(app.buttons["autopilot.continue"].exists)
+    }
+
+    /// Design while the assistant works: the next direction designs, the
+    /// one after it is up next, and nothing asks to continue.
+    func testADesignThatsGoingShowsWhatsNext() {
+        app.launch(debugScene: "st-des")
+        XCTAssertTrue(element("autopilot.design").waitForExistence(timeout: 15))
+        XCTAssertFalse(element("autopilot.stall").exists)
+        XCTAssertFalse(app.buttons["autopilot.continue"].exists)
+        let next = text(of: element("autopilot.design.direction.1"))
+        XCTAssertTrue(next.contains("Direction 2 · designing…"), next)
+        let after = text(of: element("autopilot.design.direction.2"))
+        XCTAssertTrue(after.contains("Direction 3 · up next"), after)
+    }
+
+    /// Localizing while the assistant writes captions: what it's doing,
+    /// missing captions told apart from ones too long, and nothing asking
+    /// to continue.
+    func testLocalizingSaysWhatClaudeCodeIsWriting() {
+        app.launch(debugScene: "st-loc-captions")
+        let now = element("autopilot.localize.now")
+        XCTAssertTrue(now.waitForExistence(timeout: 15))
+        XCTAssertTrue(text(of: now).contains("Claude Code is translating 10 captions and shortening 1, in 3 languages."), text(of: now))
+        let japanese = text(of: element("autopilot.localize.ja"))
+        XCTAssertTrue(japanese.contains("5 captions to translate · Claude Code is writing them"), japanese)
+        let german = text(of: element("autopilot.localize.de-DE"))
+        XCTAssertTrue(german.contains("1 caption too long · Claude Code is shortening them"), german)
+        XCTAssertFalse(element("autopilot.stall").exists)
+        let footer = text(of: element("autopilot.footer.text"))
+        XCTAssertTrue(footer.hasPrefix("Claude Code writes the captions"), footer)
+    }
+
     private func wait(until condition: @escaping () -> Bool, timeout: TimeInterval) -> Bool {
         let deadline = Date.now.addingTimeInterval(timeout)
         while Date.now < deadline {

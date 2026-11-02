@@ -46,6 +46,17 @@ enum AutopilotContinuation {
 
     // MARK: - Continuing
 
+    /// After the person's answer or step (a problem's answer, Use These
+    /// Picks, Use This Direction, Ask for Changes): when AppLocalizer
+    /// started Claude Code for the run and none is working now, it
+    /// continues with what the person left it to do.
+    static func keepGoing(appID: StoreApp.ID, appName: String, center: AutopilotCenter, launcher: ClaudeCodeLauncher) async {
+        guard let run = center.run(for: appID), run.startsClaudeCode == true, run.assistantHasWork, launcher.canStart,
+              launcher.latestRun(appID: appID, purpose: .autopilot)?.isActive != true
+        else { return }
+        await start(appID: appID, appName: appName, center: center, launcher: launcher)
+    }
+
     /// Starts Claude Code with the prompt that continues the run, after
     /// reporting the devices this Mac can't run. Returns the session, the
     /// one already going, or nil when nothing's left for the assistant or
@@ -74,9 +85,16 @@ enum AutopilotContinuation {
     /// Why nobody is working on `run` although the assistant has work, or
     /// nil while someone is, or should be. `session` is the newest Claude
     /// Code AppLocalizer started for it. A session that failed says so
-    /// itself, with Try Again.
-    static func stall(of run: AutopilotRun, session: ClaudeCodeRun?, now: Date) -> AutopilotStall? {
+    /// itself, with Try Again. One that ended before the person's step gave
+    /// the assistant work again (`handedBackAt`) stopped because it was the
+    /// person's turn, so it didn't stop with work left: when AppLocalizer
+    /// starts Claude Code itself (`startsItself`, `ScreenshotStudioModel.keepGoing`),
+    /// nobody is stalled while it does.
+    static func stall(of run: AutopilotRun, session: ClaudeCodeRun?, startsItself: Bool = false, now: Date) -> AutopilotStall? {
         guard run.stage != .waiting, run.assistantHasWork else { return nil }
+        if let session, !session.isActive, let handedBack = run.handedBackAt, (session.endedAt ?? session.startedAt) <= handedBack {
+            return startsItself ? nil : .handedBack
+        }
         if let session {
             switch session.phase {
             case .starting, .working, .failed: return nil
@@ -85,7 +103,7 @@ enum AutopilotContinuation {
             }
         }
         if run.startsClaudeCode == true { return .notRunning }
-        guard let last = run.lastNewsAt ?? run.startedAt, now.timeIntervalSince(last) >= quietLimit else { return nil }
+        guard let last = run.lastActivityAt, now.timeIntervalSince(last) >= quietLimit else { return nil }
         return .quiet(since: last)
     }
 }

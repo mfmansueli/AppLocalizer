@@ -99,6 +99,64 @@ struct ScreenshotPushRunTests {
         #expect(run.title == "All 2 images pushed")
     }
 
+    /// English (U.S.)'s iPhone Duo set was there, empty, from an upload
+    /// that never finished: the push fills it instead of creating another,
+    /// which App Store Connect refuses ("Screenshot Set Already Exists!").
+    @Test func anEmptySetAppStoreConnectHasIsFilledNotCreated() async {
+        let transport = FakeScreenshotUploadTransport()
+        var group = Fixtures.group(.arabic, display: .iPhoneDuo, live: nil, slots: [0, 1])
+        group.emptySetID = "set-empty"
+        let run = await Fixtures.push([Fixtures.plan([group])], environment: Fixtures.environment(transport))
+
+        #expect(!transport.log.contains { $0.hasPrefix("create-set") })
+        #expect(transport.log.count { $0.hasPrefix("reserve ") && $0.hasSuffix(" set-empty") } == 2)
+        #expect(run.title == "All 2 images pushed")
+    }
+
+    /// A set made after the push was planned: the refused create looks it
+    /// up and fills it while it's empty.
+    @Test func aRefusedCreateFillsTheEmptySetThatsThere() async {
+        let transport = FakeScreenshotUploadTransport(.init(existingSets: ["APP_IPHONE_DUO loc-ar-SA": ("set-there", 0)]))
+        let plan = Fixtures.plan([Fixtures.group(.arabic, display: .iPhoneDuo, live: nil, slots: [0, 1])])
+        let run = await Fixtures.push([plan], environment: Fixtures.environment(transport))
+
+        #expect(Array(transport.log.prefix(2)) == ["create-set APP_IPHONE_DUO loc-ar-SA refused", "find-set APP_IPHONE_DUO loc-ar-SA"])
+        #expect(transport.log.count { $0.hasPrefix("reserve ") && $0.hasSuffix(" set-there") } == 2)
+        #expect(run.title == "All 2 images pushed")
+    }
+
+    /// One with screenshots the push hasn't seen is left alone.
+    @Test func aSetWithScreenshotsThePushHasntSeenIsLeftAlone() async throws {
+        let transport = FakeScreenshotUploadTransport(.init(existingSets: ["APP_IPHONE_DUO loc-ar-SA": ("set-there", 3)]))
+        let plan = Fixtures.plan([Fixtures.group(.arabic, display: .iPhoneDuo, live: nil, slots: [0, 1])])
+        let run = await Fixtures.push([plan], environment: Fixtures.environment(transport))
+
+        #expect(run.failedCount == 2)
+        let text = try #require(run.items.first?.status.failureText)
+        #expect(text.hasPrefix(
+            "App Store Connect already has iPhone Duo screenshots for Arabic that this push hasn’t seen. Refresh, review them and push again."
+        ))
+        #expect(!transport.log.contains { $0.hasPrefix("reserve") })
+    }
+
+    /// The percentage moves as the bytes go out, never back, and only
+    /// while the image is uploading.
+    @Test func theUploadPercentageFollowsTheBytesSent() {
+        let plan = Fixtures.plan([Fixtures.group(.arabic, live: nil, slots: [0])])
+        let run = ScreenshotPushRun(plans: [plan], selection: nil, environment: Fixtures.environment(FakeScreenshotUploadTransport()))
+        run.items[0].status = .uploading(0)
+        run.noteSent(0, bytes: 256, of: 1024)
+        #expect(run.items[0].status == .uploading(0.25))
+        #expect(run.items[0].status.stepTitle == "Uploading 25%")
+        run.noteSent(0, bytes: 128, of: 1024)
+        #expect(run.items[0].status == .uploading(0.25))
+        run.noteSent(0, bytes: 4096, of: 1024)
+        #expect(run.items[0].status == .uploading(1))
+        run.items[0].status = .committing
+        run.noteSent(0, bytes: 1024, of: 1024)
+        #expect(run.items[0].status == .committing)
+    }
+
     @Test func aTimedOutPartFailsOnlyThatImageAndLeavesTheLiveOne() async throws {
         let transport = FakeScreenshotUploadTransport(.init(timeouts: ["de-DE_iPhone_2_": 2]))
         let live = Fixtures.liveSet(.german, count: 3)

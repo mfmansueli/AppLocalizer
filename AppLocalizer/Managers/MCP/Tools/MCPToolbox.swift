@@ -43,6 +43,8 @@ struct MCPToolbox {
             UpdateCapturePlanTool(),
             ReportCaptureTool(),
             ReportCaptureProblemTool(),
+            StartDisplayRecordingTool(),
+            FinishDisplayRecordingTool(),
             NextStepTool(),
             GetDesignBriefTool(),
             ProposeDirectionTool(),

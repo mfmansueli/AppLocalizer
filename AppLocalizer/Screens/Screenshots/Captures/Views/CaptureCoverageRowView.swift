@@ -6,11 +6,13 @@
 import SwiftUI
 
 /// One locale's captures: its name, where they came from, and each slot's
-/// capture labelled Localized, English UI or Wrong size.
+/// capture labelled Localized, English UI or Wrong size; a click on one
+/// shows it large.
 struct CaptureCoverageRowView: View {
     let row: CaptureCoverage.Row
     let thumbnailWidth: CGFloat
     let images: CaptureImageStore
+    let onView: (CaptureCoverage.Cell) -> Void
 
     /// Captures load at twice the thumbnail's width.
     private var imageWidth: Int { Int(thumbnailWidth * 2) }
@@ -31,7 +33,11 @@ struct CaptureCoverageRowView: View {
                 .lineLimit(1)
                 .frame(width: CaptureCoverageView.sourceWidth, alignment: .leading)
             ForEach(row.cells) { cell in
-                cellView(cell)
+                Button { onView(cell) } label: { cellView(cell) }
+                    .buttonStyle(.plain)
+                    .disabled(cell.capture == nil)
+                    .help(cell.capture == nil ? Text(cell.label.title) : Text("View it larger"))
+                    .accessibilityIdentifier("captures.coverage.\(row.locale.code).\(cell.slot + 1)")
                     .frame(width: thumbnailWidth + 24, alignment: .leading)
             }
         }
@@ -60,6 +66,7 @@ struct CaptureCoverageRowView: View {
                 .fixedSize()
         }
         .frame(width: thumbnailWidth + 12)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("\(row.locale.name) capture \(cell.slot + 1), \(cell.label.title)"))
     }

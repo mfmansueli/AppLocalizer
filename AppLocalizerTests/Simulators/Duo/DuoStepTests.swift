@@ -8,14 +8,14 @@ import Testing
 @testable import AppLocalizer
 
 /// What AppLocalizer does after looking at iPhone Duo's simulator: start
-/// it during a run, restart it when it's stuck (never when it's open), and
-/// leave opening it to the person.
+/// it and open it during a run, restart it when it's stuck (never when it's
+/// open), and leave it to the person after two tries at opening it.
 @Suite("iPhone Duo's next step")
 struct DuoStepTests {
     private let now = Date(timeIntervalSinceReferenceDate: 815_000_000)
 
-    private func next(_ look: DuoStep.Look, restarts: Int = 0, mayStart: Bool = true) -> DuoStep {
-        DuoStep.next(after: look, restarts: restarts, mayStart: mayStart, now: now)
+    private func next(_ look: DuoStep.Look, restarts: Int = 0, opens: Int = 0, mayStart: Bool = true) -> DuoStep {
+        DuoStep.next(after: look, restarts: restarts, opens: opens, mayStart: mayStart, now: now)
     }
 
     @Test func aDuoThatIsntRunningIsStartedOnlyDuringARun() {
@@ -23,9 +23,28 @@ struct DuoStepTests {
         #expect(next(DuoStep.Look(isBooted: false), mayStart: false) == .wait)
     }
 
-    @Test func closedOrOpenItWaits() {
-        #expect(next(DuoStep.Look(isBooted: true, inner: .black)) == .wait)
+    @Test func aClosedDuoIsOpenedOnlyDuringARun() {
+        let closed = DuoStep.Look(isBooted: true, inner: .black)
+        #expect(next(closed) == .open)
+        #expect(next(closed, mayStart: false) == .wait, "The plan is only being looked at")
         #expect(next(DuoStep.Look(isBooted: true, inner: .showing)) == .wait)
+    }
+
+    @Test func afterTwoTriesAtOpeningItItsLeftToThePerson() {
+        let closed = DuoStep.Look(isBooted: true, inner: .black)
+        #expect(next(closed, opens: 1) == .open)
+        #expect(next(closed, opens: DuoStep.maximumOpens) == .wait)
+    }
+
+    /// A spinner may be it starting: it's opened once it's black, or
+    /// restarted once the spinner has lasted.
+    @Test func aSpinnerOrAnUnreadableDisplayIsntOpened() {
+        #expect(next(DuoStep.Look(isBooted: true, inner: .spinner, spinnerSince: now)) == .wait)
+        #expect(next(DuoStep.Look(isBooted: true, inner: nil)) == .wait)
+    }
+
+    @Test func aStuckDuoIsRestartedBeforeItsOpened() {
+        #expect(next(DuoStep.Look(isBooted: true, inner: .black, crashedSinceStart: true)) == .restart(.springBoardCrashed))
     }
 
     /// The stuck Duo: SpringBoard crashed whenever an app opened, and only

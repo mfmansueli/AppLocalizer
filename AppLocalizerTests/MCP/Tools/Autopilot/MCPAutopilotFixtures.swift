@@ -32,12 +32,16 @@ struct MCPAutopilotFixtures {
     /// The app's run now.
     var run: AutopilotRun? { center.run(for: Self.appID) }
 
-    /// Calls `tool` on Lumen unless `arguments` names another app.
-    func call(_ tool: some MCPTool, _ arguments: [String: JSONValue] = [:], port: UInt16 = MCPEndpoint.defaultPort) async throws -> MCPToolOutcome {
+    /// Calls `tool` on Lumen unless `arguments` names another app, with
+    /// `simulators` as this Mac's.
+    func call(
+        _ tool: some MCPTool, _ arguments: [String: JSONValue] = [:], port: UInt16 = MCPEndpoint.defaultPort, simulators: MacSimulators? = nil
+    ) async throws -> MCPToolOutcome {
         var arguments = arguments
         if arguments["appId"] == nil { arguments["appId"] = .string(Self.appID) }
         var context = MCPToolContext(workspace: workspace, clientName: AutopilotTestFixtures.client)
         context.port = port
+        context.simulators = simulators
         return try await tool.call(MCPToolArguments(arguments), in: context)
     }
 

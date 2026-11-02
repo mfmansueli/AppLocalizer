@@ -100,7 +100,90 @@ struct ScreenshotStudioRunActionsTests {
         #expect(await ScreenshotsTestWaiting.until { center.run(for: appID)?.stage == .design })
     }
 
+    /// The Claude Code AppLocalizer started ended while the person picked:
+    /// Use These Picks starts it again for the design, rather than showing
+    /// that it stopped.
+    @Test func usingThePicksStartsClaudeCodeForTheDesign() async throws {
+        var start = StudioDebugRuns.run(.pick)
+        start.startsClaudeCode = true
+        let center = StudioTestFixtures.center(start)
+        let model = await StudioTestFixtures.screenshots(center: center)
+        let (launcher, runner) = await Self.launcher()
+        model.studio.launcher = launcher
+
+        model.studio.usePicks()
+        await ClaudeCodeTestFixtures.waitForHelper(runner)
+        #expect(center.run(for: appID)?.stage == .design)
+        #expect(center.run(for: appID)?.handedBackAt == StudioTestFixtures.now)
+        let session = try #require(runner.recordedArguments.first { $0.first == "run" })
+        #expect(session.contains { $0.hasPrefix("Continue \(StudioTestFixtures.app.name)’s screenshot run from AppLocalizer") })
+        withExtendedLifetime(launcher) {}
+    }
+
+    /// A pasted run (another assistant, or Claude Code in a terminal) isn't
+    /// AppLocalizer's to start.
+    @Test func usingThePicksOfAPastedRunStartsNothing() async throws {
+        let center = StudioTestFixtures.center(StudioDebugRuns.run(.pick))
+        let model = await StudioTestFixtures.screenshots(center: center)
+        let (launcher, runner) = await Self.launcher()
+        model.studio.launcher = launcher
+
+        model.studio.usePicks()
+        #expect(await ScreenshotsTestWaiting.until { center.run(for: appID)?.stage == .design })
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(!runner.recordedArguments.contains { $0.first == "run" })
+        withExtendedLifetime(launcher) {}
+    }
+
+    // MARK: - Design
+
+    /// Design's cards only spin while someone works on the run: a pasted
+    /// run that isn't quiet does; one AppLocalizer started Claude Code for,
+    /// with none running since AppLocalizer closed, is paused.
+    @Test func aPausedDesignIsntWorking() async {
+        let pasted = await StudioTestFixtures.screenshots(center: StudioTestFixtures.center(StudioDebugRuns.run(.design)))
+        #expect(pasted.studio.stall == nil)
+        #expect(pasted.studio.assistantIsWorking)
+
+        let paused = await StudioTestFixtures.screenshots(center: StudioTestFixtures.center(StudioDebugRuns.designPaused))
+        #expect(paused.studio.stall == .notRunning)
+        #expect(!paused.studio.assistantIsWorking)
+    }
+
+    // MARK: - Localize
+
+    /// The languages' rows say the assistant is writing their captions
+    /// while it works on the run, and that they wait for it once paused.
+    @Test func captionsOutAreBeingWrittenUnlessTheRunIsPaused() async {
+        let pasted = await StudioTestFixtures.screenshots(center: StudioTestFixtures.center(StudioDebugRuns.writingCaptions))
+        #expect(pasted.studio.assistantIsWorking)
+
+        var start = StudioDebugRuns.writingCaptions
+        start.startsClaudeCode = true
+        let paused = await StudioTestFixtures.screenshots(center: StudioTestFixtures.center(start))
+        #expect(paused.studio.stall == .notRunning)
+        #expect(!paused.studio.assistantIsWorking)
+    }
+
     // MARK: - Choose
+
+    /// Ask for Changes gives the design AI work: AppLocalizer starts the
+    /// Claude Code it started for the run.
+    @Test func askingForChangesStartsClaudeCode() async {
+        var start = StudioDebugRuns.run(.choose)
+        start.startsClaudeCode = true
+        let center = StudioTestFixtures.center(start)
+        let model = await StudioTestFixtures.screenshots(center: center)
+        let (launcher, runner) = await Self.launcher()
+        model.studio.launcher = launcher
+
+        model.studio.revisionNote = "Bigger headline"
+        model.studio.askForChanges()
+        await ClaudeCodeTestFixtures.waitForHelper(runner)
+        #expect(center.run(for: appID)?.revision?.note == "Bigger headline")
+        #expect(runner.recordedArguments.contains { $0.first == "run" })
+        withExtendedLifetime(launcher) {}
+    }
 
     @Test func usingADirectionStartsLocalizing() async throws {
         let center = StudioTestFixtures.center(StudioDebugRuns.run(.choose))
@@ -168,6 +251,19 @@ struct ScreenshotStudioRunActionsTests {
         let targets = Set(run.problems.map(\.target))
         run.captures.removeAll { targets.contains($0.target) }
         return run
+    }
+
+    /// A launcher with the helper saved and the app's folder set, on the
+    /// scenes' clock, and its pretend helper. Keep the launcher while the
+    /// studio uses it: the studio holds it weakly.
+    private static func launcher() async -> (ClaudeCodeLauncher, FakeUnixScriptRunner) {
+        let clock = TestClock(StudioTestFixtures.now)
+        let runner = FakeUnixScriptRunner()
+        let assistants = MCPTestFixtures.controller(server: FakeLocalHTTPServer(), clock: clock)
+        let launcher = ClaudeCodeTestFixtures.launcher(assistants: assistants, runner: runner, clock: clock)
+        launcher.setProjectFolder(ClaudeCodeTestFixtures.lumenFolder, for: StudioTestFixtures.app.id)
+        await launcher.refreshHelper()
+        return (launcher, runner)
     }
 
     private static func write(_ data: Data, name: String) throws -> URL {

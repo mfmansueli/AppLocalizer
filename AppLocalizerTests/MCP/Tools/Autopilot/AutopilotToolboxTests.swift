@@ -14,7 +14,8 @@ import Testing
 struct AutopilotToolboxTests {
     private static let tools = [
         "get_capture_plan", "update_capture_plan", "report_capture", "report_capture_problem", "next_step",
-        "get_design_brief", "propose_direction", "revise_direction", "report_design_source",
+        "get_design_brief", "propose_direction", "revise_direction", "report_design_source", "start_display_recording",
+        "finish_display_recording",
     ]
 
     private static var promptText: String {
@@ -27,7 +28,10 @@ struct AutopilotToolboxTests {
         #expect(toolbox.tool(named: "propose_direction")?.definition.proposalKind == .screenshots)
         #expect(toolbox.tool(named: "revise_direction")?.definition.proposalKind == .screenshots)
         // Picking a run up and reporting change state, without proposing.
-        for name in ["get_capture_plan", "next_step", "update_capture_plan", "report_capture", "report_capture_problem", "report_design_source"] {
+        for name in [
+            "get_capture_plan", "next_step", "update_capture_plan", "report_capture", "report_capture_problem", "report_design_source",
+            "start_display_recording", "finish_display_recording",
+        ] {
             let definition = toolbox.tool(named: name)?.definition
             #expect(definition?.isReadOnly == false, "\(name)")
             #expect(definition?.proposalKind == nil, "\(name)")

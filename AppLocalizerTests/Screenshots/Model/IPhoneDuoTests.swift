@@ -163,6 +163,51 @@ struct IPhoneDuoTests {
         #expect(layout(.iPhone, template: landscape).canvas.pixelSize == PixelSize(width: 1320, height: 2868), "iPhone keeps its own")
     }
 
+    /// The simulator's inner display captures landscape: without an
+    /// orientation of its own, the Duo canvas turns to fit it instead of
+    /// cropping it into a Wrong size render. A set one stays, and so does
+    /// every other device's.
+    @Test func anUnsetDuoCanvasLiesTheWayItsCaptureDoes() {
+        let template = ScreenshotsSampleData.template
+        #expect(template.canvas.duo == nil)
+        let landscape = engine.layout(
+            template, slot: 0, locale: .englishUS, displayType: .iPhoneDuo,
+            caption: ScreenshotsTestFixtures.caption("en-US", slot: 0), captureSize: Self.inner.rotated
+        )
+        #expect(landscape.canvas.pixelSize == Self.inner.rotated)
+        #expect(ScreenshotChecker.captureSizeCheck(capture(Self.inner.rotated), layout: landscape) == nil)
+        #expect(template.canvas.following(Self.inner, on: .iPhoneDuo) == template.canvas, "A portrait capture keeps it portrait")
+        #expect(template.canvas.following(Self.inner.rotated, on: .iPhone) == template.canvas)
+        #expect(template.canvas.following(nil, on: .iPhoneDuo) == template.canvas)
+
+        var portrait = template
+        portrait.canvas.duo = .portrait
+        #expect(portrait.canvas.following(Self.inner.rotated, on: .iPhoneDuo).orientation(for: .iPhoneDuo) == .portrait)
+    }
+
+    /// Alba's set: every Duo capture landscape, the template with no Duo
+    /// orientation. None is the wrong size, and the render key says it's
+    /// turned, so no portrait render made before comes back.
+    @Test func landscapeDuoCapturesArentTheWrongSize() throws {
+        var document = ScreenshotsDebugDocuments.standard
+        for slot in 0..<document.slotCount {
+            document.captures.add(ScreenshotsSampleData.capture(locale: "en-US", display: .iPhoneDuo, slot: slot, pixelSize: Self.inner.rotated))
+        }
+        let matrix = ScreenshotsTestFixtures.matrix(document)
+        let duo = matrix.localizedCells.filter { $0.key.displayType == .iPhoneDuo }
+        #expect(!duo.isEmpty)
+        #expect(!duo.contains { cell in cell.checks.contains { $0.status == .failed && $0.shortReason == "Wrong size" } })
+        let cell = try #require(matrix.cell(locale: "en-US", displayType: .iPhoneDuo, slot: 0))
+        #expect(cell.state.isPending)
+        #expect(cell.layout?.canvas.pixelSize == Self.inner.rotated)
+        let template = try #require(document.template)
+        let portraitKey = RenderKey(
+            templateHash: template.contentHash, locale: "en-US", displayType: .iPhoneDuo, slot: 0, caption: cell.caption, captureID: cell.capture?.capture.id
+        )
+        guard case let .render(job) = cell.image else { Issue.record("Not a render"); return }
+        #expect(job.key != portraitKey)
+    }
+
     @Test func aTemplateFromBeforeIPhoneDuoIsPortraitThere() throws {
         let canvas = try JSONDecoder().decode(TemplateCanvas.self, from: Data(#"{ "iphone": "landscape", "ipad": "landscape" }"#.utf8))
         #expect(canvas.duo == nil)
@@ -234,41 +279,52 @@ struct IPhoneDuoTests {
     }
 
     @Test func autopilotSaysHowToCaptureTheInnerDisplay() throws {
-        #expect(AutopilotRun.capturePixelSize(.iPhoneDuo) == "2007 × 2853 (the inner display, unfolded)")
+        // Open, the inner display is wider than tall; both ways are taken.
+        #expect(AutopilotRun.capturePixelSize(.iPhoneDuo) == "2853 × 2007 or 2007 × 2853 (the inner display, open)")
         let how = try #require(AutopilotRun.howToCapture(.iPhoneDuo))
-        #expect(how.contains("xcrun simctl io booted enumerate"))
-        #expect(how.contains("--display="))
         #expect(how.contains("1398 × 2034"))
+        // A UI test's screenshot is the cover display, even with the Duo
+        // open, and the test closes the app too soon for simctl: AppLocalizer
+        // records the inner display during the test (`DisplayRecorder`).
+        #expect(how.contains("A UI test's screenshot (XCUIScreen.main) is the cover display, and the test closes the app right after it"))
+        #expect(how.contains("call start_display_recording (it opens the Duo and records the inner display)"))
+        #expect(how.contains("then call finish_display_recording with that path"))
+        #expect(how.contains("with an upload ID for report_capture; the project needs no change"))
+        // Without a UI test, simctl still captures it.
+        #expect(how.contains("xcrun simctl io <udid> screenshot --display=<the 2007 × 2853 display's ID from xcrun simctl io <udid> enumerate>"))
     }
 
-    /// Its simulator starts closed and only Device Hub opens it, so the
-    /// assistant checks the inner display first and reports a closed Duo
-    /// once, and doesn't restart it once it's open.
-    @Test func autopilotSaysTheSimulatorStartsClosedAndOnlyThePersonOpensIt() throws {
+    /// Its simulator starts closed and no command opens it: AppLocalizer
+    /// does, in Device Hub, so the assistant never opens it itself, and
+    /// reports a Duo AppLocalizer couldn't open once and goes on.
+    @Test func autopilotSaysTheSimulatorStartsClosedAndAppLocalizerOpensIt() throws {
         let how = try #require(AutopilotRun.howToCapture(.iPhoneDuo))
         #expect(how.contains("It starts closed"))
-        #expect(how.contains("no command opens it (not simctl, devicectl or XCTest)"))
-        #expect(how.contains("the person opens it in Device Hub (select iPhone Duo, then Open in its window's poses)"))
-        #expect(how.contains("If it's black (closed)"))
+        #expect(how.contains("no command opens it: AppLocalizer opens it itself (it presses Open in the Duo's window in Device Hub)"))
+        #expect(how.contains("Don't open Device Hub, press anything there, or shut down, reboot or erase the Duo yourself"))
+        #expect(!how.contains("the person opens it"))
+        #expect(how.contains("If start_display_recording says the Duo isn't open"))
         #expect(how.contains("report one problem with affectsDevice: true saying which"))
-        #expect(how.contains("Don't shut it down, reboot or erase it yourself"))
         #expect(ScreenshotDisplayType.allCases.filter(\.simulatorStartsClosed) == [.iPhoneDuo])
-        #expect(DeviceHub.openingSteps.hasPrefix("In Device Hub, select iPhone Duo and choose Open in its window’s poses"))
+        // By hand only when AppLocalizer can't: its own window has the poses.
+        #expect(DeviceHub.openingSteps.hasPrefix("In iPhone Duo’s window in Device Hub, choose Open in the poses at the bottom"))
         #expect(DeviceHub.bundleIdentifier == "com.apple.dt.Devices")
+        let link = DeviceHub.windowLink(for: "9F1D621D-9735-4702-9F15-4D2792E475BA")
+        #expect(link?.absoluteString == "devices://device/open?id=9F1D621D-9735-4702-9F15-4D2792E475BA")
     }
 
     /// Switching its displays' power to open it crashed the simulator's
     /// SpringBoard on every start: the assistant is told not to. A stuck Duo
     /// (a spinner, launches that hang) is reported like a closed one, as
-    /// AppLocalizer restarts it itself (`DuoWatcher`) and gives its screens
-    /// back once the person opens it.
+    /// AppLocalizer restarts it itself (`DuoWatcher`), opens it and gives
+    /// its screens back.
     @Test func autopilotNeverChangesTheDisplaysAndLeavesAStuckDuoToAppLocalizer() throws {
         let how = try #require(AutopilotRun.howToCapture(.iPhoneDuo))
-        #expect(how.contains("Never change its displays with xcrun simctl io … screenConfig (power or mode)"))
-        #expect(how.contains("or shows only a spinner, or SpringBoard crashed and xcrun simctl launch hangs (stuck)"))
-        #expect(how.contains("with \"Open iPhone Duo in Device Hub\" as proposedFix"))
-        #expect(how.contains("AppLocalizer watches the Duo: it restarts a stuck one itself"))
-        #expect(how.contains("next_step gives you its screens again"))
+        #expect(how.contains("Never change its displays with xcrun simctl io … screenConfig, which crashes its SpringBoard on every start"))
+        #expect(how.contains("or its inner display shows only a spinner, or SpringBoard crashed and xcrun simctl launch hangs (stuck)"))
+        #expect(how.contains("with \"AppLocalizer opens iPhone Duo\" as proposedFix, and go on with the other devices"))
+        #expect(how.contains("and restarts a stuck one"))
+        #expect(how.contains("next_step gives you its screens again once it's open"))
         #expect(!how.contains("Restart iPhone Duo in Device Hub"))
         // By hand only when the helper can't look at it.
         #expect(DeviceHub.restartSteps.hasPrefix("If its inner display shows only a spinner, shut it down there"))

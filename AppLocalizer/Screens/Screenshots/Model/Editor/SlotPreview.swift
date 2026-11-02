@@ -55,8 +55,13 @@ struct SlotPreview: Hashable, Sendable {
         primaryLocaleName: String,
         ratings: StoreRatings = .unchecked
     ) -> SlotPreview {
-        let template = placement.template
-        let layout = engine.layout(template, slot: placement.slot, locale: placement.locale, displayType: placement.displayType, caption: caption)
+        var template = placement.template
+        // Turned the way an iPhone Duo capture is, in the render key too.
+        template.canvas = template.canvas.following(capture?.capture.pixelSize, on: placement.displayType)
+        let layout = engine.layout(
+            template, slot: placement.slot, locale: placement.locale, displayType: placement.displayType, caption: caption,
+            captureSize: capture?.capture.pixelSize
+        )
         let key = RenderKey(
             templateHash: template.contentHash, locale: placement.locale.code, displayType: placement.displayType, slot: placement.slot,
             caption: caption, captureID: capture?.capture.id

@@ -70,20 +70,42 @@ struct GetDesignBriefTool: MCPTool {
             """,
         ]
         if let project = session.center.designProject(for: session.app.id) {
-            var brand: [String: JSONValue] = [
-                "kind": .string(project.kind.rawValue), "source": .string(project.link),
-                "createDirectionsThere": .bool(project.createsInClaudeDesign),
-            ]
-            if project.summary == nil {
-                brand["readFirst"] = "Open the design project, then send what you found with report_design_source so the person sees it's the right one."
-            }
-            result["designProject"] = .object(brand)
+            result["designProject"] = designProject(project)
         }
         if let revision = run.revision { result["revisionNote"] = .string(revision.note) }
         if !run.directions.isEmpty {
             result["directionsSoFar"] = .array(run.directions.map { ["id": .string($0.id), "name": .string($0.name)] })
         }
+        session.center.noteBriefRead(appID: session.app.id, by: context.clientName)
         return MCPToolOutcome(result: .object(result), isError: false, logLines: [.init(target: session.target, outcome: .read)], images: images)
+    }
+
+    /// The connected design project, what was found in it, and what to do
+    /// when it can't be opened from where the assistant runs (Claude Code
+    /// that AppLocalizer started has only AppLocalizer's tools): design
+    /// from the brief, never stop for it.
+    private func designProject(_ project: DesignProject) -> JSONValue {
+        var brand: [String: JSONValue] = [
+            "kind": .string(project.kind.rawValue), "source": .string(project.link),
+            "createDirectionsThere": .bool(project.createsInClaudeDesign),
+            "ifYouCantOpenIt": """
+            Don't stop: design the three directions from this brief (and the summary, when there is one), send each \
+            with propose_direction, and skip creating them in the design project.
+            """,
+        ]
+        if let summary = project.summary {
+            var found: [String: JSONValue] = [
+                "title": .string(summary.title),
+                "colors": .array(summary.colors.map { ["name": .string($0.name), "hex": .string($0.hex)] }),
+            ]
+            if let typefaces = summary.typefaces { found["typefaces"] = .string(typefaces) }
+            if let logo = summary.logo { found["logo"] = .string(logo) }
+            if let voice = summary.voice { found["voice"] = .string(voice) }
+            brand["summary"] = .object(found)
+        } else {
+            brand["readFirst"] = "Open the design project, then send what you found with report_design_source so the person sees it's the right one."
+        }
+        return .object(brand)
     }
 
     /// Each slot's captions per language with their length, and the longest.
@@ -104,9 +126,12 @@ struct GetDesignBriefTool: MCPTool {
         }
     }
 
-    /// Canvas size and safe area per device, from the base starter.
+    /// Canvas size, orientation and safe area per device, from the base
+    /// starter turned the way the device's captures are.
     private func canvases(run: AutopilotRun, session: MCPAutopilotSession) -> [JSONValue] {
-        let template = ScreenshotTemplate.starter(.above, id: session.app.id, title: session.app.name, slotCount: max(run.plan.screens.count, 1))
+        var template = ScreenshotTemplate.starter(.above, id: session.app.id, title: session.app.name, slotCount: max(run.plan.screens.count, 1))
+        // Each device's canvas lies the way its captures do, as it will once used.
+        template.canvas = AutopilotLocalizer.canvas(template.canvas, matching: run)
         let engine = ScreenshotLayoutEngine(catalog: session.context.services.fonts)
         // Apple Watch's screenshots are the captures themselves: nothing to design.
         return run.plan.displayTypes.filter(\.hasCaptions).map { display in
@@ -115,6 +140,7 @@ struct GetDesignBriefTool: MCPTool {
             var canvas: [String: JSONValue] = [
                 "displayType": .string(display.mcpValue),
                 "pixelSize": .string(layout.canvas.pixelSize.title),
+                "orientation": .string(layout.canvas.isLandscape ? "landscape" : "portrait"),
                 "safeArea": ["x": .int(Int(safe.minX)), "y": .int(Int(safe.minY)), "width": .int(Int(safe.width)), "height": .int(Int(safe.height))],
             ]
             if display == .visionPro {

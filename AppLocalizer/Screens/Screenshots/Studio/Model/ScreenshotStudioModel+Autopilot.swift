@@ -61,7 +61,17 @@ extension ScreenshotStudioModel {
     /// or nil.
     var stall: AutopilotStall? {
         guard let run else { return nil }
-        return AutopilotContinuation.stall(of: run, session: launchedRun, now: autopilot?.now() ?? .now)
+        let startsItself = run.startsClaudeCode == true && launcher?.canStart == true
+        return AutopilotContinuation.stall(of: run, session: launchedRun, startsItself: startsItself, now: autopilot?.now() ?? .now)
+    }
+
+    /// Someone works on the run's next step: the Claude Code AppLocalizer
+    /// started is going (or AppLocalizer is starting it again), or a pasted
+    /// run hasn't gone quiet. Not after Claude Code failed, which says so
+    /// with Try Again. Design's cards only spin while it does.
+    var assistantIsWorking: Bool {
+        guard let run, run.assistantHasWork, stall == nil else { return false }
+        return launchedRun?.failure == nil
     }
 
     /// Continue: AppLocalizer starts Claude Code where the run stopped;
@@ -78,14 +88,21 @@ extension ScreenshotStudioModel {
         Task { await AutopilotContinuation.start(appID: appID, appName: name, center: autopilot, launcher: launcher) }
     }
 
-    /// After the person's answer: when AppLocalizer started Claude Code
-    /// for the run and none is working now, it continues with what the
-    /// answer left to do.
+    /// After the person's answer or step: Claude Code continues with what
+    /// they left it to do (`AutopilotContinuation.keepGoing`).
     func keepGoing() async {
-        guard let autopilot, let launcher, let run, run.startsClaudeCode == true, run.assistantHasWork,
-              launchedRun?.isActive != true, launcher.canStart
-        else { return }
-        await AutopilotContinuation.start(appID: app.id, appName: app.name, center: autopilot, launcher: launcher)
+        await goingOn()()
+    }
+
+    /// `keepGoing` for a step's task, which can end after the section
+    /// closed: it holds the center and the app, never the studio, whose
+    /// view model is unowned.
+    func goingOn() -> @MainActor () async -> Void {
+        let (center, appID, appName) = (autopilot, app.id, app.name)
+        return { [weak launcher = self.launcher] in
+            guard let center, let launcher else { return }
+            await AutopilotContinuation.keepGoing(appID: appID, appName: appName, center: center, launcher: launcher)
+        }
     }
 
     /// Cancel on the plan: the sheet closes and the last run comes back.
@@ -130,9 +147,10 @@ extension ScreenshotStudioModel {
         let context = context
         let appID = app.id
         let ids = group.problems.map(\.id)
+        let goOn = goingOn()
         Task {
             await autopilot.resolveProblems(appID: appID, problemIDs: ids, with: resolution, context: context)
-            await keepGoing()
+            await goOn()
         }
     }
 
@@ -173,7 +191,11 @@ extension ScreenshotStudioModel {
         let context = context
         viewedStep = nil
         let appID = app.id
-        Task { await autopilot.usePicks(appID: appID, context: context) }
+        let goOn = goingOn()
+        Task {
+            await autopilot.usePicks(appID: appID, context: context)
+            await goOn()
+        }
     }
 
     // MARK: - Choose
@@ -183,7 +205,11 @@ extension ScreenshotStudioModel {
         let context = context
         viewedStep = nil
         let appID = app.id
-        Task { await autopilot.useDirection(direction.id, appID: appID, context: context) }
+        let goOn = goingOn()
+        Task {
+            await autopilot.useDirection(direction.id, appID: appID, context: context)
+            await goOn()
+        }
     }
 
     /// Ask Claude Design: the note goes back to the design AI.
@@ -191,6 +217,8 @@ extension ScreenshotStudioModel {
         autopilot?.requestRevision(revisionNote, appID: app.id)
         revisionNote = ""
         viewedStep = nil
+        let goOn = goingOn()
+        Task { await goOn() }
     }
 
     /// The direction's five screenshots in the primary language, laid out

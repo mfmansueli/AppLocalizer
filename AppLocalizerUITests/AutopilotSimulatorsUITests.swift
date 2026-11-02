@@ -71,28 +71,51 @@ final class AutopilotSimulatorsUITests: XCTestCase {
         XCTAssertTrue(problem.waitForNonExistence(timeout: 15))
     }
 
-    /// iPhone Duo's simulator starts closed: AppLocalizer sees that it's
-    /// closed, the card opens Device Hub and says the run goes on by itself
-    /// once it's open, in place of the assistant's fix.
-    func testAClosedIPhoneDuoOpensDeviceHub() {
+    /// iPhone Duo's simulator starts closed: AppLocalizer opens it itself
+    /// (the helper presses Open in Device Hub), and the run tries it again
+    /// without a Retry: the card goes, and the log says so.
+    func testAClosedIPhoneDuoIsOpenedByAppLocalizer() {
         app.launch(debugScene: "st-duo-closed")
-        let problem = element("autopilot.problem")
-        XCTAssertTrue(problem.waitForExistence(timeout: 15))
-        let status = element("autopilot.problem.duo")
-        XCTAssertTrue(wait(until: { self.text(of: status).hasPrefix("Closed: open it in Device Hub.") }, timeout: 10), text(of: status))
-        XCTAssertTrue(text(of: status).hasSuffix("Once it’s open, the run captures it by itself."), text(of: status))
-        let note = element("autopilot.problem.note")
-        XCTAssertTrue(text(of: note).hasPrefix("In Device Hub, select iPhone Duo"), text(of: note))
-        XCTAssertTrue(text(of: note).hasSuffix("AppLocalizer restarts it when it’s stuck; leaving it out finishes the run without it."), text(of: note))
-        XCTAssertFalse(element("autopilot.problem.fix").exists)
-        XCTAssertTrue(app.buttons["autopilot.problem.deviceHub"].exists)
-        XCTAssertFalse(app.buttons["autopilot.problem.install"].exists)
-        XCTAssertTrue(app.buttons["autopilot.problem.retry"].exists)
-        XCTAssertTrue(app.buttons["autopilot.problem.leaveOut"].exists)
+        let log = element("autopilot.log")
+        XCTAssertTrue(log.waitForExistence(timeout: 15))
+        XCTAssertTrue(wait(until: {
+            self.text(of: log).contains("iPhone Duo was closed: AppLocalizer opened it in Device Hub")
+        }, timeout: 15), text(of: log))
+        XCTAssertTrue(wait(until: { self.text(of: log).contains("iPhone Duo is open: its screens are captured next") }, timeout: 10), text(of: log))
+        XCTAssertTrue(element("autopilot.problem").waitForNonExistence(timeout: 10))
     }
 
-    /// Once the person opens iPhone Duo in Device Hub, the run tries it
-    /// again by itself: the card goes, and the log says so.
+    /// Without Accessibility, the card says what lets AppLocalizer open the
+    /// Duo, with System Settings and Device Hub, in place of the
+    /// assistant's fix; once the pretend person allows it, the Duo opens and
+    /// the run goes on.
+    func testWithoutAccessibilityTheDuosCardSaysWhatLetsAppLocalizerOpenIt() {
+        app.launch(debugScene: "st-duo-access")
+        let status = element("autopilot.problem.duo")
+        XCTAssertTrue(status.waitForExistence(timeout: 15))
+        XCTAssertTrue(wait(until: {
+            self.text(of: status).hasPrefix("Closed: allow AppLocalizer in Privacy & Security › Accessibility, and it opens iPhone Duo itself.")
+        }, timeout: 10), text(of: status))
+        let note = element("autopilot.problem.note")
+        XCTAssertTrue(text(of: note).hasPrefix("AppLocalizer uses it only to press Open in iPhone Duo’s window in Device Hub"), text(of: note))
+        XCTAssertTrue(app.buttons["autopilot.problem.accessibility"].exists)
+        XCTAssertTrue(app.buttons["autopilot.problem.deviceHub"].exists)
+        XCTAssertFalse(element("autopilot.problem.fix").exists)
+        XCTAssertTrue(app.buttons["autopilot.problem.leaveOut"].exists)
+
+        let log = element("autopilot.log")
+        XCTAssertTrue(wait(until: {
+            self.text(of: log).contains("AppLocalizer needs Accessibility to open iPhone Duo: macOS asked for it")
+        }, timeout: 5), text(of: log))
+        XCTAssertTrue(wait(until: {
+            self.text(of: log).contains("iPhone Duo was closed: AppLocalizer opened it in Device Hub")
+        }, timeout: 20), text(of: log))
+        XCTAssertTrue(element("autopilot.problem").waitForNonExistence(timeout: 10))
+    }
+
+    /// With a helper that can't open the Duo yet (version 4), the card asks
+    /// to save it again; once the pretend person opens the Duo in Device
+    /// Hub, the run tries it again by itself.
     func testAnOpenedIPhoneDuoIsTriedAgainWithoutRetry() {
         app.launch(debugScene: "st-duo-opens")
         let problem = element("autopilot.problem")
@@ -100,19 +123,23 @@ final class AutopilotSimulatorsUITests: XCTestCase {
         XCTAssertTrue(problem.waitForNonExistence(timeout: 15))
         let log = element("autopilot.log")
         XCTAssertTrue(wait(until: { self.text(of: log).contains("iPhone Duo is open: its screens are captured next") }, timeout: 5), text(of: log))
+        XCTAssertFalse(text(of: log).contains("AppLocalizer opened it"), text(of: log))
     }
 
     /// A stuck iPhone Duo (its SpringBoard crashed, a spinner on its inner
-    /// display) is restarted by AppLocalizer, and comes back closed.
-    func testAStuckIPhoneDuoIsRestarted() {
+    /// display) is restarted by AppLocalizer, comes back closed, and is
+    /// opened.
+    func testAStuckIPhoneDuoIsRestartedAndOpened() {
         app.launch(debugScene: "st-duo-stuck")
-        XCTAssertTrue(element("autopilot.problem").waitForExistence(timeout: 15))
         let log = element("autopilot.log")
+        XCTAssertTrue(log.waitForExistence(timeout: 15))
         XCTAssertTrue(wait(until: {
             self.text(of: log).contains("iPhone Duo was stuck, its SpringBoard crashed: AppLocalizer restarted it")
         }, timeout: 15), text(of: log))
-        let status = element("autopilot.problem.duo")
-        XCTAssertTrue(wait(until: { self.text(of: status).hasPrefix("Closed: open it in Device Hub.") }, timeout: 10), text(of: status))
+        XCTAssertTrue(wait(until: {
+            self.text(of: log).contains("iPhone Duo was closed: AppLocalizer opened it in Device Hub")
+        }, timeout: 15), text(of: log))
+        XCTAssertTrue(element("autopilot.problem").waitForNonExistence(timeout: 10))
     }
 
     /// With a helper from before it could look at iPhone Duo, the card
@@ -129,22 +156,42 @@ final class AutopilotSimulatorsUITests: XCTestCase {
         XCTAssertTrue(text(of: note).hasSuffix("Then retry; leaving it out finishes the run without it."), text(of: note))
         let why = element("autopilot.problem.duoHelperNote")
         XCTAssertTrue(why.waitForExistence(timeout: 10))
-        XCTAssertTrue(text(of: why).hasPrefix("Save the helper again so AppLocalizer can see whether iPhone Duo is open"), text(of: why))
+        XCTAssertTrue(text(of: why).hasPrefix("Save the helper again so AppLocalizer can open iPhone Duo"), text(of: why))
         let save = app.buttons["autopilot.problem.duoHelper"]
         XCTAssertTrue(save.exists)
         XCTAssertEqual(save.title.isEmpty ? save.label : save.title, "Save the Helper Again…")
         XCTAssertTrue(app.buttons["autopilot.problem.deviceHub"].exists)
     }
 
-    /// The plan says whether iPhone Duo's simulator is open, and to open it
-    /// before Start.
-    func testThePlanSaysWhetherIPhoneDuoIsOpen() {
+    /// The plan says iPhone Duo is closed and AppLocalizer opens it when the
+    /// run needs it; Open Now opens it before Start.
+    func testThePlanSaysAppLocalizerOpensIPhoneDuo() {
         app.launch(debugScene: "st-plan-duo")
         let duo = element("autopilot.mac.iphone_duo")
         XCTAssertTrue(duo.waitForExistence(timeout: 15))
-        XCTAssertTrue(wait(until: { self.text(of: duo).contains("Closed: open it in Device Hub before Start") }, timeout: 10), text(of: duo))
+        XCTAssertTrue(wait(until: { self.text(of: duo).contains("Closed: AppLocalizer opens it when the run needs it.") }, timeout: 10), text(of: duo))
         XCTAssertTrue(text(of: duo).contains("iPhone Duo · iOS 27.2"), text(of: duo))
-        XCTAssertTrue(app.buttons["autopilot.mac.deviceHub"].exists)
+        XCTAssertFalse(app.buttons["autopilot.mac.deviceHub"].exists)
+        let openNow = app.buttons["autopilot.mac.openDuo"]
+        XCTAssertTrue(openNow.exists)
+        // The row sits under the sheet's footer until the plan scrolls.
+        element("autopilot.plan").scroll(byDeltaX: 0, deltaY: -600)
+        openNow.click()
+        XCTAssertTrue(wait(until: { self.text(of: duo).contains("Open: ready to capture.") }, timeout: 10), text(of: duo))
+        XCTAssertFalse(openNow.exists)
+    }
+
+    /// Before Start, the plan says when AppLocalizer needs Accessibility to
+    /// open iPhone Duo, with a way to System Settings.
+    func testThePlanSaysWhenAppLocalizerNeedsAccessibility() {
+        app.launch(debugScene: "st-plan-duo-access")
+        let duo = element("autopilot.mac.iphone_duo")
+        XCTAssertTrue(duo.waitForExistence(timeout: 15))
+        XCTAssertTrue(wait(until: {
+            self.text(of: duo).contains("Closed: allow AppLocalizer in Privacy & Security › Accessibility")
+        }, timeout: 10), text(of: duo))
+        XCTAssertTrue(app.buttons["autopilot.mac.accessibility"].exists)
+        XCTAssertFalse(app.buttons["autopilot.mac.openDuo"].exists)
     }
 
     /// Leaving iPhone Duo out closes its card.

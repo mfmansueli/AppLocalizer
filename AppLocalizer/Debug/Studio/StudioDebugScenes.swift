@@ -21,15 +21,23 @@ import SwiftUI
 /// - `st-device`: capturing, with no iPhone Duo simulator on this Mac (one
 ///   card for the device, which installs it).
 /// - `st-duo-closed`: capturing, with iPhone Duo's simulator made, running
-///   and closed (its card opens Device Hub and says the run goes on once
-///   it's open); `st-duo-opens`: the pretend person opens it a moment
-///   later and the run tries it again; `st-duo-stuck`: its SpringBoard
-///   crashed, so AppLocalizer restarts it; `st-duo-old`: the helper is from
-///   before it could look at the Duo (the assistant's fix and how to
+///   and closed: AppLocalizer opens it and the run tries it again;
+///   `st-duo-access`: AppLocalizer isn't allowed in Accessibility yet (the
+///   card says so), then the pretend person allows it; `st-duo-opens`: a
+///   helper that can't open it (version 4), and the pretend person opens
+///   it a moment later; `st-duo-stuck`: its SpringBoard crashed, so
+///   AppLocalizer restarts it, then opens it; `st-duo-old`: the helper is
+///   from before it could look at the Duo (the assistant's fix and how to
 ///   restart it by hand); `st-plan-duo`: the Plan on a Mac with that
-///   simulator closed.
+///   simulator closed (Open Now opens it); `st-plan-duo-access`: the same,
+///   AppLocalizer not allowed in Accessibility.
 /// - `st-stalled`: capturing, with nothing arriving for over an hour (the
 ///   prompt was pasted): Continue copies the prompt that picks it up.
+/// - `st-loc-captions`: localizing while the assistant translates two
+///   languages' captions and shortens a German one.
+/// - `st-des-paused`: designing, after AppLocalizer started Claude Code for
+///   the run and was closed since: paused (not stopped), the cards wait,
+///   and Continue copies the prompt.
 /// - `st-cap-page`, `st-pick-page`: the strip while it runs or waits.
 /// - `st-ready`, `st-ready-de`, `st-ready-ar`, `st-ready-ipad`: the new set
 ///   in the preview (German in Dark, Arabic, iPad).
@@ -45,8 +53,9 @@ import SwiftUI
 enum StudioDebugScenes {
     static let ids: [String] = [
         "st-home", "st-live-ar", "st-noasst", "st-design", "st-plan", "st-wait", "st-cap", "st-fail", "st-refused", "st-group", "st-device",
-        "st-duo-closed", "st-duo-opens", "st-duo-stuck", "st-duo-old", "st-plan-duo", "st-stalled", "st-cap-page",
-        "st-pick", "st-pick-page", "st-des", "st-choose", "st-choose-rev", "st-nodesign", "st-loc", "st-ready-sheet",
+        "st-duo-closed", "st-duo-access", "st-duo-opens", "st-duo-stuck", "st-duo-old", "st-plan-duo", "st-plan-duo-access",
+        "st-stalled", "st-cap-page",
+        "st-pick", "st-pick-page", "st-des", "st-des-paused", "st-choose", "st-choose-rev", "st-nodesign", "st-loc", "st-loc-captions", "st-ready-sheet",
         "st-ready", "st-ready-de", "st-ready-ar", "st-ready-ipad", "st-asc-watch", "st-plan-link",
     ] + everyDeviceIDs
 
@@ -83,17 +92,23 @@ enum StudioDebugScenes {
         case "st-duo-closed":
             DebugSimulators.runDuo(booted: true)
             return StudioDebugRuns.closedDuo
+        case "st-duo-access":
+            DebugSimulators.runDuo(booted: true, accessibility: false, accessibilityAfterAsks: 20)
+            return StudioDebugRuns.closedDuo
         case "st-duo-opens":
-            DebugSimulators.runDuo(booted: true, opensAfterLooks: 6)
+            DebugSimulators.runDuo(booted: true, opensAfterLooks: 6, helperVersion: 4)
             return StudioDebugRuns.closedDuo
         case "st-duo-stuck":
             DebugSimulators.runDuo(booted: true, inner: .spinner, crashed: true)
             return StudioDebugRuns.stuckDuo
         case "st-duo-old":
-            DebugSimulators.runDuo(booted: true, olderHelper: true)
+            DebugSimulators.runDuo(booted: true, helperVersion: 3)
             return StudioDebugRuns.closedDuo
         case "st-plan-duo":
             DebugSimulators.runDuo(booted: true)
+            return StudioDebugRuns.run(.plan)
+        case "st-plan-duo-access":
+            DebugSimulators.runDuo(booted: true, accessibility: false)
             return StudioDebugRuns.run(.plan)
         default:
             return nil
@@ -125,16 +140,14 @@ enum StudioDebugScenes {
             "st-choose": .choose, "st-loc": .localize, "st-ready-sheet": .ready,
         ]
         if let stage = stages[id] { return StudioDebugRuns.run(stage) }
-        switch id {
-        case "st-fail": return StudioDebugRuns.failing
-        case "st-refused": return StudioDebugRuns.refused
-        case "st-group": return StudioDebugRuns.grouped
-        case "st-device": return StudioDebugRuns.noDuoSimulator
-        case "st-stalled": return StudioDebugRuns.stalled
-        case "st-choose-rev": return StudioDebugRuns.revised
-        case "st-nodesign": return StudioDebugRuns.run(.choose, design: false)
-        default: return nil
-        }
+        let runs: [String: () -> AutopilotRun] = [
+            "st-fail": { StudioDebugRuns.failing }, "st-refused": { StudioDebugRuns.refused },
+            "st-group": { StudioDebugRuns.grouped }, "st-device": { StudioDebugRuns.noDuoSimulator },
+            "st-stalled": { StudioDebugRuns.stalled }, "st-des-paused": { StudioDebugRuns.designPaused },
+            "st-loc-captions": { StudioDebugRuns.writingCaptions }, "st-choose-rev": { StudioDebugRuns.revised },
+            "st-nodesign": { StudioDebugRuns.run(.choose, design: false) },
+        ]
+        return runs[id]?()
     }
 
     @MainActor

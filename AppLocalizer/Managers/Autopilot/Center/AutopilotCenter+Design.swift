@@ -21,7 +21,10 @@ extension AutopilotCenter {
     /// Use These Picks: on to Design.
     func usePicks(appID: StoreApp.ID, context: AutopilotContext) async {
         guard runs[appID]?.stage == .pick else { return }
-        update(appID) { $0.stage = .design }
+        update(appID) { run in
+            run.stage = .design
+            run.handedBackAt = now()
+        }
         await beginDesign(appID, context: context)
     }
 
@@ -44,6 +47,27 @@ extension AutopilotCenter {
             await addStarterDirection(checked(direction, of: run, context: context), appID: appID)
         }
         await advance(appID, context: context)
+    }
+
+    /// The assistant read the brief (`get_design_brief`): Design shows it's
+    /// designing, and the log says so once each time the person hands the
+    /// design over (Use These Picks, Ask for Changes).
+    func noteBriefRead(appID: StoreApp.ID, by client: String) {
+        update(appID) { run in
+            guard run.stage == .design else { return }
+            let handedOver = run.handedBackAt ?? run.startedAt ?? .distantPast
+            let isFirst = (run.briefReadAt ?? .distantPast) < handedOver
+            run.briefReadAt = now()
+            guard isFirst else { return }
+            let what = if run.revision != nil {
+                String(localized: "\(client) read the brief and is making your changes")
+            } else if run.directionsLeft == 1 {
+                String(localized: "\(client) read the brief and is designing the last direction")
+            } else {
+                String(localized: "\(client) read the brief and is designing \(run.directionsLeft) directions")
+            }
+            run.appendLog(what, kind: .command, at: now())
+        }
     }
 
     private func addStarterDirection(_ direction: AutopilotDirection, appID: StoreApp.ID) {
@@ -81,6 +105,7 @@ extension AutopilotCenter {
             guard run.stage == .choose, run.designKind.usesDesignAI else { return }
             run.revision = AutopilotRevisionRequest(note: note, askedAt: now())
             run.stage = .design
+            run.handedBackAt = now()
             run.appendLog(String(localized: "Asked for changes: “\(note)”"), kind: .command, at: now())
         }
     }

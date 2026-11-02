@@ -15,6 +15,7 @@ import SwiftUI
 /// - `capt-match`: fastlane's output at the matching step, "52 matched ·
 ///   3 need you".
 /// - `capt`: the coverage after the import.
+/// - `capt-view`: German's Week capture shown large from the coverage.
 /// - `prop-list`: the toolbar's popover, "Lumen Journal · 2 proposals".
 /// - `prop-tpl`, `prop-cap`: the Proposals sheet on Claude Code's template
 ///   revision and on its shorter German captions.
@@ -25,7 +26,7 @@ import SwiftUI
 /// Scenes share `ScreenshotsDocumentCenter.shared`, which the toolbar
 /// reads, without its disk store.
 enum ScreenshotsProposalsDebugScenes {
-    static let ids = ["capt-empty", "capt-hover", "capt-match", "capt", "prop-list", "prop-tpl", "prop-cap", "prop-stale", "prop-disc"]
+    static let ids = ["capt-empty", "capt-hover", "capt-match", "capt", "capt-view", "prop-list", "prop-tpl", "prop-cap", "prop-stale", "prop-disc"]
 
     @MainActor
     static func view(for id: String) -> AnyView? {
@@ -47,6 +48,11 @@ enum ScreenshotsProposalsDebugScenes {
             }
         case "capt":
             return scene { $0.tab = .captures }
+        case "capt-view":
+            return scene { model in
+                model.tab = .captures
+                model.captures.viewed = CaptureViewerTarget(localeCode: "de-DE", slot: 1)
+            }
         case "prop-list":
             AssistantToolbarIndicator.debugShowsPopover = true
             return scene(assistants: .paired) { _ in }

@@ -19,6 +19,9 @@ struct MCPToolContext {
     var editsDrafts = false
     /// The server's port, for Autopilot's upload link.
     var port: UInt16 = MCPEndpoint.defaultPort
+    /// This Mac's simulators, through the Claude Code helper: Autopilot
+    /// records iPhone Duo's inner display with them. Nil without a launcher.
+    var simulators: MacSimulators?
 
     func allows(_ kind: MCPProposalKind) -> Bool {
         allowedProposals.contains(kind)

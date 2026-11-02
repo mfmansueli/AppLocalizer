@@ -16,6 +16,9 @@ struct ScreenshotPlanGroup: Identifiable, Hashable, Sendable {
     var localizationID: String?
     /// The set live now, with its order; nil when the push creates it.
     var liveSet: LiveScreenshotSet?
+    /// An empty set App Store Connect already has here: the push fills it
+    /// instead of creating one, which would be refused.
+    var emptySetID: String?
     var items: [ScreenshotPlanItem]
     /// Live screenshots past the end of a restored set: the push deletes
     /// them so the set matches what was kept.

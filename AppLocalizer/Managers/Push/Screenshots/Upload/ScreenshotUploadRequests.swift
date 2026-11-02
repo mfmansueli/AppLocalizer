@@ -22,6 +22,14 @@ enum ScreenshotUploadRequests {
         ])
     }
 
+    /// `GET` a version localization's sets of one display type, with
+    /// their screenshots: the one App Store Connect says already exists.
+    static func setsPath(localizationID: String, displayType: ScreenshotDisplayType) -> String {
+        "/v1/appStoreVersionLocalizations/\(localizationID)/appScreenshotSets?filter%5BscreenshotDisplayType%5D=\(displayType.apiValue)"
+            + "&include=appScreenshots&fields%5BappScreenshotSets%5D=screenshotDisplayType,appScreenshots"
+            + "&fields%5BappScreenshots%5D=fileName&limit=50&limit%5BappScreenshots%5D=10"
+    }
+
     /// `POST /v1/appScreenshots`: reserves an upload of `fileSize` bytes.
     static func reserve(fileName: String, fileSize: Int, setID: String) -> PushRequest {
         request(.post, "/v1/appScreenshots", [
@@ -67,6 +75,13 @@ enum ScreenshotUploadRequests {
     /// The `data.id` of a created resource.
     static func createdID(in data: Data) throws -> String {
         try JSONDecoder().decode(ScreenshotAPISingleDocument<AppScreenshotUploadAttributes>.self, from: data).data.id
+    }
+
+    /// The set of `displayType` in a sets page, and how many screenshots
+    /// it has.
+    static func existingSet(in data: Data, displayType: ScreenshotDisplayType) throws -> (id: String, screenshotCount: Int)? {
+        let page = try JSONDecoder().decode(ScreenshotAPIDocument<AppScreenshotSetAttributes, AppScreenshotAttributes>.self, from: data)
+        return page.data.first { $0.attributes?.screenshotDisplayType == displayType.apiValue }.map { ($0.id, $0.related("appScreenshots").count) }
     }
 
     /// A reservation's screenshot ID and upload operations.

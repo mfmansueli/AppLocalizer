@@ -8,7 +8,8 @@ import SwiftUI
 /// Capture: progress, the latest capture in a device frame, whether
 /// nobody is working on it any more (with Continue), the problems the
 /// person has to answer (one card per cause), the assistant's log and the
-/// captures so far. Looking at it checks this Mac's simulators again.
+/// captures so far. Looking at it checks this Mac's simulators again, and
+/// gets iPhone Duo ready while its screens are left (`DuoWatcher`).
 struct AutopilotCaptureStageView: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -29,16 +30,7 @@ struct AutopilotCaptureStageView: View {
                 HStack(alignment: .top, spacing: Spacing.large) {
                     latest
                     VStack(alignment: .leading, spacing: Spacing.medium) {
-                        if let launched = studio.launchedRun, launched.isActive || launched.failure != nil || !launched.denials.isEmpty {
-                            AutopilotLaunchStatus(studio: studio, run: launched)
-                        }
-                        // Looked at again each minute: a pasted run goes
-                        // quiet with time.
-                        TimelineView(.periodic(from: .now, by: 60)) { _ in
-                            if let stall = studio.stall {
-                                AutopilotStallNotice(studio: studio, run: run, stall: stall)
-                            }
-                        }
+                        AutopilotAssistantStatus(studio: studio, run: run)
                         ForEach(run.problemGroups) { group in
                             AutopilotProblemCard(studio: studio, run: run, group: group)
                         }
@@ -51,6 +43,12 @@ struct AutopilotCaptureStageView: View {
         }
         .accessibilityIdentifier("autopilot.capture")
         .task(id: run.id) { await studio.checkDevicesDuringRun() }
+        .task(id: studio.watchesDuo) {
+            // iPhone Duo is started and opened before the assistant gets to
+            // it, and kept so while its screens are left.
+            guard studio.watchesDuo else { return }
+            await studio.watchDuo()
+        }
     }
 
     private var latest: some View {

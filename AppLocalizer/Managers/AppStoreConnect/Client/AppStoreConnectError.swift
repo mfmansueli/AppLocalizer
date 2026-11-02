@@ -70,6 +70,12 @@ enum AppStoreConnectError: LocalizedError, Equatable {
         return code == "ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE"
     }
 
+    /// 409 `STATE_ERROR`, e.g. "Screenshot Set Already Exists!".
+    var isStateError: Bool {
+        guard case let .rejected(_, code, _) = self else { return false }
+        return code == "STATE_ERROR"
+    }
+
     /// Apple's code and detail as the push progress list shows them:
     /// "ENTITY_ERROR.RELATIONSHIP.INVALID — The price point is not available…".
     var pushFailureText: String {

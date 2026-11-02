@@ -81,8 +81,9 @@ final class DebugScreenshotUploadTransport: ScreenshotUploadTransport {
         return response(id: id, attributes: ["assetDeliveryState": delivery])
     }
 
-    func upload(_ operation: ScreenshotUploadOperation, data: Data) async throws {
-        try await Task.sleep(for: script.delay)
+    /// Each part goes out in quarters, so the percentage moves as it does
+    /// with App Store Connect.
+    func upload(_ operation: ScreenshotUploadOperation, data: Data, progress: @escaping @Sendable (Int64) -> Void) async throws {
         let parts = operation.url.components(separatedBy: "/")
         let id = parts.dropLast().last ?? ""
         let part = Int(parts.last ?? "") ?? 1
@@ -93,7 +94,12 @@ final class DebugScreenshotUploadTransport: ScreenshotUploadTransport {
             try await Task.sleep(for: .seconds(3600))
         }
         if part == 2, let name = DebugScreenshotUploadScript.matching(fileName, in: script.timeouts), spend("timeout|\(name)") {
+            try await Task.sleep(for: script.delay)
             throw URLError(.timedOut)
+        }
+        for quarter in 1...4 {
+            try await Task.sleep(for: script.delay / 4)
+            progress(Int64(operation.length * quarter / 4))
         }
         state.withLock { $0.ledger.shots[id]?.data.append(operation.slice(of: data)) }
     }

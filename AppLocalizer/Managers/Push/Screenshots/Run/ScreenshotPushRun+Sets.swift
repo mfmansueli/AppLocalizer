@@ -53,8 +53,28 @@ extension ScreenshotPushRun {
         guard let localizationID = group.localizationID else {
             throw ScreenshotPushFailure.request(detail: String(localized: "\(group.locale.name) isn’t on this version in App Store Connect yet."))
         }
-        let response = try await send(ScreenshotUploadRequests.createSet(displayType: group.displayType, localizationID: localizationID))
-        sets[groupID]?.setID = try ScreenshotUploadRequests.createdID(in: response.data)
+        do {
+            let response = try await send(ScreenshotUploadRequests.createSet(displayType: group.displayType, localizationID: localizationID))
+            sets[groupID]?.setID = try ScreenshotUploadRequests.createdID(in: response.data)
+        } catch let error as AppStoreConnectError where error.isStateError {
+            try await useExistingSet(groupID, group: group, localizationID: localizationID, refusal: error)
+        }
+    }
+
+    /// App Store Connect refused a new set because the locale has one
+    /// already, made since the push was planned or left empty by an
+    /// upload that never finished: an empty one is filled; one with
+    /// screenshots the push hasn't seen is left alone.
+    private func useExistingSet(_ groupID: String, group: ScreenshotPlanGroup, localizationID: String, refusal: AppStoreConnectError) async throws {
+        let response = try await fetch(ScreenshotUploadRequests.setsPath(localizationID: localizationID, displayType: group.displayType))
+        guard let existing = try ScreenshotUploadRequests.existingSet(in: response.data, displayType: group.displayType) else { throw refusal }
+        guard existing.screenshotCount == 0 else {
+            throw ScreenshotPushFailure.request(detail: String(localized: """
+            App Store Connect already has \(group.displayType.title) screenshots for \(group.locale.name) that this push hasn’t seen. \
+            Refresh, review them and push again.
+            """))
+        }
+        sets[groupID]?.setID = existing.id
     }
 
     /// After a set's images: delete the screenshots the committed ones

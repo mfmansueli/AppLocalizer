@@ -21,7 +21,8 @@ struct AutopilotStageList: View {
                         AutopilotStageRow(
                             step: step,
                             who: who(step),
-                            problem: step == run.stage.step ? problemText : nil,
+                            note: step == run.stage.step ? note?.text : nil,
+                            noteIsProblem: note?.isProblem ?? true,
                             state: state(of: step),
                             isSelected: studio.shownStep == step
                         ) {
@@ -46,17 +47,15 @@ struct AutopilotStageList: View {
     private var client: String { run.clientName(assistant: assistant) }
 
     /// The run's row: the problems that need the person, or that nobody
-    /// is working on it any more.
-    private var problemText: String? {
+    /// is working on it any more: red when it stopped or went quiet, plain
+    /// when it's paused or Claude Code's turn (`AutopilotStall.stageNote`).
+    private var note: (text: String, isProblem: Bool)? {
         if run.stage.step == .capture, !run.openProblems.isEmpty {
             let count = run.problemGroups.count
-            return count == 1 ? String(localized: "1 problem needs you") : String(localized: "\(count) problems need you")
+            return (count == 1 ? String(localized: "1 problem needs you") : String(localized: "\(count) problems need you"), true)
         }
-        switch studio.stall {
-        case nil: return nil
-        case .quiet: return String(localized: "Nothing new for a while")
-        case .ended, .notRunning: return String(localized: "Claude Code stopped")
-        }
+        guard let stall = studio.stall, let text = stall.stageNote else { return nil }
+        return (text, stall.isWarning)
     }
 
     /// At Plan, the design project Start will use; then the run's.
@@ -86,7 +85,8 @@ struct AutopilotStageList: View {
         let current = run.stage.step
         if step.number < current.number { return .done }
         guard step == current else { return .upcoming }
-        if run.stage.isRunning { return .running }
+        // No spinner while nobody works on it.
+        if run.stage.isRunning { return studio.stall == nil ? .running : .current }
         return run.stage.waitsForPerson || run.stage == .ready ? .yourTurn : .current
     }
 }

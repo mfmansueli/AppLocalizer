@@ -43,6 +43,7 @@ struct AutopilotCenterLocalizeTests {
 
         let run = try #require(run)
         #expect(run.chosenDirection?.name == "Quiet Indigo")
+        #expect(run.handedBackAt == AutopilotTestFixtures.now, "Captions to shorten are the assistant's turn")
         #expect(run.templateVersion == 5)
         let document = try await savedDocument()
         #expect(document.history?.currentNumber == 5)
@@ -55,6 +56,38 @@ struct AutopilotCenterLocalizeTests {
         #expect(autopilot.contains { $0.fileName == "en-US/iPhone 17 Pro Max-01_Today.png" })
     }
 
+    /// iPhone Duo's unfolded display captured sideways: the set's canvas
+    /// turns landscape there, or every render would be cropped by half and
+    /// fail its size check (Alba's 70 iPhone Duo renders). The other
+    /// devices follow their captures too.
+    @Test func theCanvasTurnsTheWayEachDevicesCapturesAre() async throws {
+        var start = StudioDebugRuns.run(.choose)
+        start.plan.localeCodes = ["en-US"]
+        start.plan.setPlans(.iPhoneDuo, true)
+        for (index, target) in start.plan.targets.filter({ $0.displayType == .iPhoneDuo }).enumerated() {
+            var capture = AutopilotTestFixtures.capture(target, second: index)
+            capture.pixelSize = CaptureSizeRules.duoInnerSize.rotated
+            start.captures.append(capture)
+        }
+        center.install(start)
+        await center.useDirection("d-1", appID: appID, context: context)
+
+        let canvas = try #require(try await savedDocument().template?.canvas)
+        #expect(canvas.orientation(for: .iPhoneDuo) == .landscape)
+        #expect(canvas.orientation(for: .iPhone) == .portrait)
+        #expect(canvas.orientation(for: .iPad) == .landscape, "The sample's iPad captures are landscape")
+    }
+
+    @Test func aDeviceKeepsTheDirectionsWayOnlyWithoutCaptures() {
+        var run = StudioDebugRuns.run(.choose)
+        for index in run.captures.indices where run.captures[index].target.displayType == .iPad {
+            run.captures[index].pixelSize = ScreenshotDisplayType.iPad.portraitPixelSize
+        }
+        let canvas = AutopilotLocalizer.canvas(TemplateCanvas(iphone: .portrait, ipad: .landscape, duo: .landscape), matching: run)
+        #expect(canvas.ipad == .portrait, "Its captures are portrait")
+        #expect(canvas.duo == .landscape, "iPhone Duo isn't planned: the direction's way")
+    }
+
     @Test func missingTranslationsGoToTheAssistant() async throws {
         await useQuietIndigoWithThai()
 
@@ -65,7 +98,7 @@ struct AutopilotCenterLocalizeTests {
         #expect(run.overflows.allSatisfy { $0.headline.isEmpty && $0.displayType == .iPhone })
         #expect(run.localeStatus["th"] == .shortening(count: 5))
         #expect(run.localeStatus["en-US"]?.isDone == true)
-        #expect(run.log.last?.text == "5 captions sent to Claude Code to write or shorten")
+        #expect(run.log.last?.text == "Sent to Claude Code: 5 captions to translate")
         #expect(await center.nextStep(appID: appID, client: AutopilotTestFixtures.client) == .writeCaptions(run.overflows))
     }
 
@@ -82,6 +115,7 @@ struct AutopilotCenterLocalizeTests {
         #expect(run.finishedAt == AutopilotTestFixtures.now)
         #expect(run.shortenings.isEmpty, "Written captions aren't shortenings")
         #expect(run.log.map(\.text).contains("Claude Code wrote th slot 1: “เขียนทุกวัน”"))
+        #expect(run.log.map(\.text).contains("Claude Code sent 5 captions; checking every language again"))
         #expect(run.log.last?.text == "20 screenshots ready in Review & Push")
         let saved = try await savedDocument().captions.caption(locale: "th", slot: 0)
         #expect(saved?.headline == "เขียนทุกวัน")

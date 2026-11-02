@@ -6,15 +6,18 @@
 import Foundation
 
 /// What AppLocalizer does about iPhone Duo's simulator after looking at it
-/// (`DuoWatcher`). Opening it is the person's, in Device Hub; starting it
-/// and restarting a stuck one are AppLocalizer's. A stuck Duo's SpringBoard
-/// crashes whenever an app opens, and its inner display shows only a
-/// spinner; a restart clears it, and it comes back closed.
+/// (`DuoWatcher`): start it, open it (through the helper, in Device Hub)
+/// and restart a stuck one. A stuck Duo's SpringBoard crashes whenever an
+/// app opens, and its inner display shows only a spinner; a restart clears
+/// it, and it comes back closed.
 enum DuoStep: Hashable, Sendable {
-    /// Nothing to do: it's open, or closed until the person opens it.
+    /// Nothing to do: it's open, or closed and AppLocalizer may not open it
+    /// (or gave up trying).
     case wait
     /// It isn't running: start it.
     case start
+    /// It's closed: open it.
+    case open
     /// It's stuck: shut it down and start it again.
     case restart(Reason)
     /// Still stuck after `maximumRestarts` restarts.
@@ -33,6 +36,9 @@ enum DuoStep: Hashable, Sendable {
     /// Restarts in a row before it's left to the person.
     static let maximumRestarts = 2
 
+    /// Tries at opening it before it's left to the person.
+    static let maximumOpens = 2
+
     /// What one look found. `inner` is nil when it isn't running or the
     /// inner display couldn't be read; `spinnerSince`, when the spinner was
     /// first seen.
@@ -43,9 +49,10 @@ enum DuoStep: Hashable, Sendable {
         var spinnerSince: Date?
     }
 
-    /// The step after `look`. `mayStart`: AppLocalizer may start it (during
-    /// a run, not while the plan is only being looked at).
-    static func next(after look: Look, restarts: Int, mayStart: Bool, now: Date) -> DuoStep {
+    /// The step after `look`. `mayStart`: AppLocalizer may start and open it
+    /// (during a run, or when the person asks, not while the plan is only
+    /// being looked at); `opens`: its tries at opening it since it started.
+    static func next(after look: Look, restarts: Int, opens: Int = 0, mayStart: Bool, now: Date) -> DuoStep {
         guard look.isBooted else { return mayStart ? .start : .wait }
         guard look.inner != .showing else { return .wait }
         let reason: Reason? = if look.crashedSinceStart {
@@ -55,7 +62,7 @@ enum DuoStep: Hashable, Sendable {
         } else {
             nil
         }
-        guard let reason else { return .wait }
-        return restarts < maximumRestarts ? .restart(reason) : .giveUp(reason)
+        if let reason { return restarts < maximumRestarts ? .restart(reason) : .giveUp(reason) }
+        return look.inner == .black && mayStart && opens < maximumOpens ? .open : .wait
     }
 }

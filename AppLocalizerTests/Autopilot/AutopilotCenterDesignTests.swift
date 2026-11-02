@@ -59,6 +59,7 @@ struct AutopilotCenterDesignTests {
 
         let run = try #require(run)
         #expect(run.stage == .design)
+        #expect(run.handedBackAt == AutopilotTestFixtures.now, "The design AI's turn")
         #expect(run.directions.isEmpty)
         #expect(run.log.last?.text == "Brief ready for Northpier Brand: 5 captures, 12 languages")
         #expect(await center.nextStep(appID: appID, client: AutopilotTestFixtures.client) == .design(remaining: 3))
@@ -131,6 +132,7 @@ struct AutopilotCenterDesignTests {
         let asked = try #require(run)
         #expect(asked.stage == .design)
         #expect(asked.revision == AutopilotRevisionRequest(note: "Bigger headline, lighter indigo", askedAt: AutopilotTestFixtures.now))
+        #expect(asked.handedBackAt == AutopilotTestFixtures.now)
         #expect(asked.log.last?.text == "Asked for changes: “Bigger headline, lighter indigo”")
         await #expect(throws: AutopilotError("The person asked for changes: send them with revise_direction.")) {
             try await center.addDirection(northpierDirections[0], appID: appID, context: context)
@@ -170,6 +172,55 @@ struct AutopilotCenterDesignTests {
         center.requestRevision("Bigger headline", appID: appID)
         #expect(run?.stage == .choose)
         #expect(run?.revision == nil)
+    }
+
+    // MARK: - Progress
+
+    /// Reading the brief shows the design started: the log says so once
+    /// each time the person hands the design over, in that round's words.
+    @Test func readingTheBriefIsLoggedOncePerHandOver() async {
+        let clock = TestClock(AutopilotTestFixtures.now)
+        center.now = { clock.now }
+        center.setDesignProject(StudioDebugRuns.northpier, for: appID)
+        center.install(StudioDebugRuns.run(.pick))
+        await center.usePicks(appID: appID, context: context)
+        clock.advance(by: 30)
+        center.noteBriefRead(appID: appID, by: "Claude Code")
+        #expect(run?.briefReadAt == clock.now)
+        #expect(run?.log.last?.text == "Claude Code read the brief and is designing 3 directions")
+        let lines = run?.log.count
+        clock.advance(by: 60)
+        center.noteBriefRead(appID: appID, by: "Claude Code")
+        #expect(run?.briefReadAt == clock.now, "Each reading counts")
+        #expect(run?.log.count == lines, "Logged once per hand-over")
+
+        center.install(StudioDebugRuns.run(.choose))
+        clock.advance(by: 60)
+        center.requestRevision("Bigger headline", appID: appID)
+        clock.advance(by: 10)
+        center.noteBriefRead(appID: appID, by: "Claude Code")
+        #expect(run?.log.last?.text == "Claude Code read the brief and is making your changes")
+    }
+
+    @Test func theBriefIsOnlyNotedWhileDesigning() {
+        center.install(StudioDebugRuns.run(.choose))
+        center.noteBriefRead(appID: appID, by: "Claude Code")
+        #expect(run?.briefReadAt == nil)
+        #expect(run?.log.count == StudioDebugRuns.run(.choose).log.count)
+    }
+
+    /// The design project's summary arriving while the run designs is in
+    /// its log; at another stage it's only saved.
+    @Test func readingTheDesignProjectIsLoggedWhileDesigning() {
+        center.setDesignProject(StudioDebugRuns.northpier, for: appID)
+        center.install(StudioDebugRuns.run(.design))
+        center.setDesignSummary(DesignSourceSummary(title: "Alba · design system"), for: appID)
+        #expect(run?.log.last?.text == "Read the design project: Alba · design system")
+
+        center.install(StudioDebugRuns.run(.choose))
+        center.setDesignSummary(DesignSourceSummary(title: "Alba · design system"), for: appID)
+        #expect(run?.log.count == StudioDebugRuns.run(.choose).log.count)
+        #expect(center.designProject(for: appID)?.summary?.title == "Alba · design system")
     }
 }
 #endif

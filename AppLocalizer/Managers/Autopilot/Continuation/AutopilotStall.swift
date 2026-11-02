@@ -15,4 +15,8 @@ enum AutopilotStall: Hashable, Sendable {
     case notRunning
     /// The prompt was pasted, and nothing has arrived since then.
     case quiet(since: Date)
+    /// Claude Code ended on the person's turn, and their step gave it work
+    /// again, but AppLocalizer can't start it itself (no helper): not an
+    /// error, Continue starts it or copies the prompt.
+    case handedBack
 }

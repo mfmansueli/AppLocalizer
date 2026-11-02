@@ -20,6 +20,13 @@ struct LiveScreenshots: Codable, Hashable, Sendable {
         screenshotSets.first { $0.locale == locale && $0.displayType == displayType && !$0.screenshots.isEmpty }
     }
 
+    /// A set App Store Connect has here with nothing in it, left by an
+    /// upload that never finished. It shows nothing, but creating another
+    /// is refused ("Screenshot Set Already Exists"), so a push fills it.
+    func emptySet(locale: String, displayType: ScreenshotDisplayType) -> LiveScreenshotSet? {
+        screenshotSets.first { $0.locale == locale && $0.displayType == displayType && $0.screenshots.isEmpty }
+    }
+
     func screenshot(locale: String, displayType: ScreenshotDisplayType, slot: Int) -> LiveScreenshot? {
         set(locale: locale, displayType: displayType)?.screenshot(slot: slot)
     }

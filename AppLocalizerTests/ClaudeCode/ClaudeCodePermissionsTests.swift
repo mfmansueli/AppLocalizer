@@ -58,6 +58,16 @@ struct ClaudeCodePermissionsTests {
         #expect(prompt.contains("report_capture_problem with refusedCommand"))
     }
 
+    /// A run AppLocalizer starts has only AppLocalizer's MCP server, so it
+    /// can't open Claude Design or Figma: it designs from the brief rather
+    /// than stopping at Design.
+    @Test func autopilotDesignsFromTheBriefWithoutStopping() {
+        let prompt = ClaudeCodePermissions.autopilot.systemPrompt
+        #expect(prompt.contains("Claude Design and Figma can't be opened from here."))
+        #expect(prompt.contains("send each with propose_direction; don't stop because the design project can't be opened"))
+        #expect(!ClaudeCodePermissions.readProject.systemPrompt.contains("Claude Design"))
+    }
+
     /// Changing a simulator's displays (`simctl io … screenConfig`) left
     /// iPhone Duo's SpringBoard crashing on every start, so Autopilot may run
     /// any simctl command but that one, and the other runs deny nothing

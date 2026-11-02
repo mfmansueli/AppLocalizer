@@ -67,12 +67,17 @@ final class AutopilotCenter {
         scheduleSave()
     }
 
-    /// What the design AI found in the project.
+    /// What the design AI found in the project. While a run designs, its
+    /// log says so.
     func setDesignSummary(_ summary: DesignSourceSummary, for appID: StoreApp.ID) {
         guard var project = designProjects[appID] else { return }
         project.summary = summary
         designProjects[appID] = project
         scheduleSave()
+        update(appID) { run in
+            guard run.stage == .design else { return }
+            run.appendLog(String(localized: "Read the design project: \(summary.title)"), kind: .event, at: now())
+        }
     }
 
     // MARK: - Planning

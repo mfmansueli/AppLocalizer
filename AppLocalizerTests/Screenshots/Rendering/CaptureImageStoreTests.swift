@@ -9,8 +9,8 @@ import Foundation
 import Testing
 @testable import AppLocalizer
 
-/// The editor's capture images: loaded once per capture and width, and
-/// dropped when there are too many.
+/// The editors' and Captures tab's capture images: loaded once per capture
+/// and width; past the pixel budget, the ones asked for longest ago go.
 @MainActor
 @Suite("CaptureImageStore")
 struct CaptureImageStoreTests {
@@ -20,8 +20,8 @@ struct CaptureImageStoreTests {
         var count = 0
     }
 
-    private func store(_ loads: Loads) -> CaptureImageStore {
-        CaptureImageStore { capture, width in
+    private func store(_ loads: Loads, pixelBudget: Int = CaptureImageStore.pixelBudget) -> CaptureImageStore {
+        CaptureImageStore(pixelBudget: pixelBudget) { capture, width in
             await MainActor.run { loads.count += 1 }
             return FakeScreenshotsServices.flatImage(width: width, height: width * capture.pixelSize.height / max(1, capture.pixelSize.width))
         }
@@ -45,23 +45,52 @@ struct CaptureImageStoreTests {
         #expect(store.image(for: nil, width: 500) == nil)
     }
 
-    @Test func tooManyImagesStartOver() async {
+    /// Past the budget, the image asked for longest ago goes; one asked
+    /// for again counts as new, and one that went loads again when asked.
+    @Test func theOldestImagesGoFirstPastTheBudget() async {
+        let loads = Loads()
+        // Two 100-px-wide iPhone captures (100 × 217) fit, three don't.
+        let store = store(loads, pixelBudget: 50000)
+        let (first, second, third) = (capture("en-US", slot: 0), capture("en-US", slot: 1), capture("en-US", slot: 2))
+        for capture in [first, second] {
+            store.request([capture], width: 100)
+            await store.waitUntilLoaded([capture], width: 100)
+        }
+        store.request([first], width: 100)
+        store.request([third], width: 100)
+        await store.waitUntilLoaded([third], width: 100)
+        #expect(store.image(for: first, width: 100) != nil)
+        #expect(store.image(for: second, width: 100) == nil)
+        #expect(store.images.count == 2)
+        #expect(loads.count == 3)
+
+        store.request([second], width: 100)
+        await store.waitUntilLoaded([second], width: 100)
+        #expect(loads.count == 4)
+        #expect(store.image(for: first, width: 100) == nil)
+    }
+
+    /// The Captures tab asks for every thumbnail row by row: 14 locales of
+    /// 5 captures all stay, none blank.
+    @Test func aWholeCoverageOfThumbnailsStaysLoaded() async {
         let loads = Loads()
         let store = store(loads)
+        let locales = ["en-US", "ar-SA", "zh-Hans", "nl-NL", "fr-FR", "de-DE", "it", "ja", "ko", "pt-BR", "es-ES", "sv", "th", "vi"]
+        let rows = locales.map { locale in (0..<5).map { capture(locale, slot: $0) } }
+        rows.forEach { store.request($0, width: 80) }
+        let all = rows.flatMap(\.self)
+        await store.waitUntilLoaded(all, width: 80)
+        #expect(all.allSatisfy { store.image(for: $0, width: 80) != nil })
+        #expect(loads.count == 70)
+    }
+
+    /// The newest image stays even when it alone is over the budget.
+    @Test func theNewestImageStaysHoweverBig() async {
+        let store = store(Loads(), pixelBudget: 1000)
         let first = capture("en-US", slot: 0)
         store.request([first], width: 100)
         await store.waitUntilLoaded([first], width: 100)
-        let many = (0..<CaptureImageStore.limit).map { capture("en-US", slot: $0 % 5) }
-        let widths = Array(200..<(200 + CaptureImageStore.limit))
-        for (capture, width) in zip(many, widths) {
-            store.request([capture], width: width)
-        }
-        let last = (many.last, widths.last)
-        if let capture = last.0, let width = last.1 {
-            await store.waitUntilLoaded([capture], width: width)
-        }
-        #expect(store.image(for: first, width: 100) == nil)
-        #expect(store.images.count <= CaptureImageStore.limit)
+        #expect(store.image(for: first, width: 100) != nil)
     }
 }
 #endif

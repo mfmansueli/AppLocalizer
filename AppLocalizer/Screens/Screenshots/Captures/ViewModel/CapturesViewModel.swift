@@ -26,6 +26,8 @@ final class CapturesViewModel {
     var errorMessage: String?
     /// Every matched row shows, not just the first few.
     var showsAllMatched = false
+    /// The capture shown large, after a click in the coverage.
+    var viewed: CaptureViewerTarget?
     /// Folders chosen with the open panel, kept accessible until Import.
     @ObservationIgnored private var scopedURLs: [URL] = []
 

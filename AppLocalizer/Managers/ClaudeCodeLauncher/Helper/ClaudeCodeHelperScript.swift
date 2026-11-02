@@ -25,12 +25,20 @@ import Foundation
 /// whose simulator starts closed and can get stuck (`DuoWatcher`), it reads
 /// a simulator's displays (`simulator-displays`), screenshots one small
 /// (`simulator-screenshot`), lists the SpringBoard crashes since it started
-/// (`simulator-crashes`), and starts or shuts it down (`boot-simulator`,
-/// `shutdown-simulator`). Each takes only fixed values, checked by the
-/// script, never a command.
+/// (`simulator-crashes`), starts or shuts it down (`boot-simulator`,
+/// `shutdown-simulator`), and opens it (`open-duo`): no command does, so it
+/// shows the Duo's window in Device Hub, presses Open in its poses with
+/// macOS's accessibility features, closes the window and gives the Mac back
+/// to the app that was in front. That needs AppLocalizer allowed in
+/// Accessibility, which `accessibility` checks and asks for. A UI test's
+/// screenshot on the Duo is its cover display, so it records the inner
+/// display while the test runs (`record-display`), reads when the test took
+/// each screenshot (`test-results`), and gives back the frame from then
+/// (`recorded-frame`, `discard-recording`; `DisplayRecorder`). Each takes
+/// only fixed values, checked by the script, never a command.
 enum ClaudeCodeHelperScript {
     /// Bumped when the script changes; an older one asks to be saved again.
-    static let version = 4
+    static let version = 6
 
     /// The oldest helper that still starts Claude Code: version 2's `run`
     /// is this one's, so a run in progress doesn't stop for the update.
@@ -124,13 +132,24 @@ enum ClaudeCodeHelperScript {
     #   simulator-crashes <udid>       its SpringBoard crash reports since it started
     #   boot-simulator <udid>          starts it and waits until it has (xcrun simctl bootstatus -b)
     #   shutdown-simulator <udid>      shuts it down (xcrun simctl shutdown)
+    #   open-duo <udid> <name>         opens it: shows its window in Device Hub, presses
+    #                                  Open in its poses and closes the window again
+    #   accessibility [prompt]         whether macOS lets AppLocalizer press it (Privacy &
+    #                                  Security › Accessibility); with prompt, macOS asks
+    #   record-display <udid> <display>
+    #                                  captures a display again and again, full size, until
+    #                                  a line on stdin, into a temporary folder
+    #   test-results <bundle> [<test>] a UI test result bundle's tests, or when one test
+    #                                  took its screenshots (xcrun xcresulttool)
+    #   recorded-frame <frame>         one recorded frame, as base64
+    #   discard-recording <folder>     deletes a recording
     #
-    # applocalizer-helper 4
+    # applocalizer-helper 6
 
     emulate -L zsh
     setopt no_nomatch
 
-    helper_version=4
+    helper_version=6
 
     # Where Claude Code is: its own installer's folder first, then package
     # managers, then whatever your login shell finds.
@@ -218,33 +237,7 @@ enum ClaudeCodeHelperScript {
       return $code
     }
 
-    list_simulators() {
-      /usr/bin/xcrun simctl list -j runtimes devicetypes devices </dev/null
-    }
-
-    # Only the platforms xcodebuild downloads; its progress goes to stdout.
-    install_platform() {
-      case $1 in
-        iOS|watchOS|visionOS|tvOS) ;;
-        *)
-          print -u2 -r -- "Not a simulator platform: $1"
-          return 64
-          ;;
-      esac
-      /usr/bin/xcodebuild -downloadPlatform $1 </dev/null 2>&1
-    }
-
-    # A name, and CoreSimulator's identifiers for the device type and runtime.
-    create_simulator() {
-      local name=$1 type=$2 runtime=$3
-      if [[ -z $name || $name == -* || $name == *[[:cntrl:]]* ]] \
-        || [[ $type != com.apple.CoreSimulator.SimDeviceType.* || $type == *[^A-Za-z0-9.-]* ]] \
-        || [[ $runtime != com.apple.CoreSimulator.SimRuntime.* || $runtime == *[^A-Za-z0-9.-]* ]]; then
-        print -u2 -r -- "Usage: create-simulator <name> <device type> <runtime>"
-        return 64
-      fi
-      /usr/bin/xcrun simctl create $name $type $runtime </dev/null
-    }
+    \#(simulatorFunctions)
 
     # A simulator's or display's identifier, as simctl prints it.
     is_identifier() {
@@ -331,26 +324,47 @@ enum ClaudeCodeHelperScript {
       with_limit 120 /usr/bin/xcrun simctl shutdown $1
     }
 
+    \#(openDuoFunctions)
+
+    \#(recordingFunctions)
+
+    # A simulator mode's output, then the exit line.
+    simulator_mode() {
+      local mode=$1
+      shift
+      case $mode in
+        simulators) list_simulators ;;
+        install-platform) install_platform "$@" ;;
+        create-simulator) create_simulator "$@" ;;
+        simulator-displays) simulator_displays "$@" ;;
+        simulator-screenshot) simulator_screenshot "$@" ;;
+        simulator-crashes) simulator_crashes "$@" ;;
+        boot-simulator) boot_simulator "$@" ;;
+        shutdown-simulator) shutdown_simulator "$@" ;;
+        open-duo) open_duo "$@" ;;
+        accessibility) accessibility "$@" ;;
+        record-display) record_display "$@" ;;
+        test-results) test_results "$@" ;;
+        recorded-frame) recorded_frame "$@" ;;
+        discard-recording) discard_recording "$@" ;;
+      esac
+      local code=$?
+      print -r -- "applocalizer-helper-exit $code"
+      exit $code
+    }
+
     case $1 in
       check)
         check
         ;;
-      simulators|install-platform|create-simulator|simulator-displays|simulator-screenshot|simulator-crashes|boot-simulator|shutdown-simulator)
-        mode=$1
-        shift
-        case $mode in
-          simulators) list_simulators ;;
-          install-platform) install_platform "$@" ;;
-          create-simulator) create_simulator "$@" ;;
-          simulator-displays) simulator_displays "$@" ;;
-          simulator-screenshot) simulator_screenshot "$@" ;;
-          simulator-crashes) simulator_crashes "$@" ;;
-          boot-simulator) boot_simulator "$@" ;;
-          shutdown-simulator) shutdown_simulator "$@" ;;
-        esac
-        code=$?
-        print -r -- "applocalizer-helper-exit $code"
-        exit $code
+      simulators|install-platform|create-simulator|simulator-displays|simulator-screenshot|simulator-crashes)
+        simulator_mode "$@"
+        ;;
+      boot-simulator|shutdown-simulator|open-duo|accessibility)
+        simulator_mode "$@"
+        ;;
+      record-display|test-results|recorded-frame|discard-recording)
+        simulator_mode "$@"
         ;;
       run)
         shift
@@ -362,7 +376,9 @@ enum ClaudeCodeHelperScript {
       *)
         print -u2 -r -- "Usage: ${0:t} check | run <folder> -- <claude arguments…> | simulators | \#
     install-platform <platform> | create-simulator <name> <type> <runtime> | simulator-displays <udid> | \#
-    simulator-screenshot <udid> <display> | simulator-crashes <udid> | boot-simulator <udid> | shutdown-simulator <udid>"
+    simulator-screenshot <udid> <display> | simulator-crashes <udid> | boot-simulator <udid> | shutdown-simulator <udid> | \#
+    open-duo <udid> <name> | accessibility [prompt] | record-display <udid> <display> | test-results <bundle> [<test>] | \#
+    recorded-frame <frame> | discard-recording <folder>"
         exit 64
         ;;
     esac

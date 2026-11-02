@@ -41,11 +41,7 @@ struct AutopilotSheetFooter: View {
 
     /// The footer follows the run, not the stage looked at.
     private var text: String {
-        if studio.stall != nil {
-            return run.stage == .capture
-                ? String(localized: "Claude Code isn’t working on this run, with \(run.capturesLeft) captures left. Continue picks it up where it stopped.")
-                : String(localized: "Claude Code isn’t working on this run. Continue picks it up where it stopped.")
-        }
+        if let stall = studio.stall { return stall.footer(of: run) }
         return switch run.stage {
         case .plan:
             if let missing = launcher?.simulators.missing(in: run.plan.displayTypes), !missing.isEmpty {
@@ -66,7 +62,12 @@ struct AutopilotSheetFooter: View {
         case .pick: String(localized: "\(client)’s picks are selected.")
         case .design: String(localized: "Directions arrive one by one; then you choose one.")
         case .choose: String(localized: "The direction you use becomes template v\((studio.screenshots.document?.history?.currentNumber ?? 0) + 1).")
-        case .localize: String(localized: "Rendering on this Mac. \(client) only steps in when a caption doesn’t fit.")
+        case .localize:
+            if AutopilotCaptionWork(run.overflows).isEmpty {
+                String(localized: "Rendering on this Mac. \(client) only steps in when a caption is missing or doesn’t fit.")
+            } else {
+                String(localized: "\(client) writes the captions; AppLocalizer checks each language again when they arrive.")
+            }
         case .ready: String(localized: "Nothing is uploaded until you push.")
         }
     }

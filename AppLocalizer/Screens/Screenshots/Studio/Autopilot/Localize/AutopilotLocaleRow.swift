@@ -6,10 +6,15 @@
 import SwiftUI
 
 /// One language in Localize and check: waiting, rendering, fits (and how),
-/// or captions out to the assistant to shorten.
+/// or captions out to the assistant, saying which are missing (to
+/// translate) and which are too long, and whether it's working on them.
+/// That's the usual work after a new direction, so it never looks like a
+/// warning.
 struct AutopilotLocaleRow: View {
     let run: AutopilotRun
     let code: String
+    /// The assistant works on the run now (`ScreenshotStudioModel.assistantIsWorking`).
+    var isWorking = true
 
     var body: some View {
         HStack(spacing: Spacing.medium) {
@@ -43,12 +48,15 @@ struct AutopilotLocaleRow: View {
         let shortened = run.shortenings.filter { $0.locale == code }
         switch status {
         case .waiting:
-            return String(localized: "Waiting")
+            return String(localized: "Waiting to be checked")
         case .checking:
             let count = run.plan.screensPerLanguage
             return String(localized: "Rendering \(count) screenshots…")
         case let .shortening(count):
-            return count == 1 ? String(localized: "1 caption doesn’t fit · sent to \(client)") : String(localized: "\(count) captions don’t fit · sent to \(client)")
+            var work = AutopilotCaptionWork(run.overflows, locale: code)
+            // Before the check's overflows are in, all it knows is the count.
+            if work.total != count { work = AutopilotCaptionWork(missing: 0, tooLong: count) }
+            return work.rowText(by: client, isWorking: isWorking)
         case let .fits(note):
             if let first = shortened.first {
                 return String(localized: "Slot \(first.slot + 1) was too long · \(first.client) shortened it to “\(first.after)”")
@@ -63,7 +71,12 @@ struct AutopilotLocaleRow: View {
         switch status {
         case .waiting: EmptyView()
         case .checking: ProgressView().controlSize(.mini)
-        case .shortening: Image(systemName: "exclamationmark.circle").foregroundStyle(Palette.warning)
+        case .shortening:
+            if isWorking {
+                ProgressView().controlSize(.mini)
+            } else {
+                Image(systemName: "pencil.circle").foregroundStyle(Palette.label2).accessibilityHidden(true)
+            }
         case .fits: Image(systemName: "checkmark").foregroundStyle(Palette.positive)
         }
     }

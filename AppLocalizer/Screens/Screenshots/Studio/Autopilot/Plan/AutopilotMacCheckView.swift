@@ -8,12 +8,16 @@ import SwiftUI
 /// This Mac, before Start: whether each planned device has a simulator to
 /// capture on, and the fix when it doesn't — install the platform's
 /// simulator, make the simulator, or save the helper that checks. iPhone
-/// Duo's starts closed, so it says whether it's open, watching it
-/// (`DuoWatcher`), and to open it in Device Hub.
+/// Duo's starts closed and AppLocalizer opens it when the run needs it
+/// (`DuoWatcher`), so it says whether it's open, and what lets AppLocalizer
+/// open it when it can't yet: Accessibility, the helper, or Device Hub.
+/// Open Now opens it before Start.
 struct AutopilotMacCheckView: View {
     @Bindable var studio: ScreenshotStudioModel
     let plan: AutopilotPlan
     let simulators: MacSimulators
+    /// The person asked AppLocalizer to start and open the Duo now.
+    @State private var opensDuo = false
 
     var body: some View {
         AutopilotOptionGroup(title: String(localized: "This Mac")) {
@@ -66,27 +70,55 @@ struct AutopilotMacCheckView: View {
         }
     }
 
-    /// iPhone Duo is open, or AppLocalizer can't see it (an older helper)
-    /// and only says it starts closed.
+    /// iPhone Duo is open, or AppLocalizer opens it when the run needs it;
+    /// not when the person has something to do first.
     private var duoIsFine: Bool {
-        let state = simulators.duo.state
-        return state == .open || !state.isWatched
+        !simulators.duo.state.waitsForPerson
     }
 
-    /// "Closed: open it in Device Hub before Start, …".
+    /// "Closed: AppLocalizer opens it when the run needs it."
     private var duoText: String {
-        let starts = String(localized: "It starts closed: open it in Device Hub before Start.")
         switch simulators.duo.state {
         case .unknown:
-            return starts
+            String(localized: "It starts closed: AppLocalizer opens it when the run needs it.")
         case .noHelper, .oldHelper, .failed:
-            return starts + " " + simulators.duo.state.summary
+            String(localized: "It starts closed.") + " " + simulators.duo.state.summary
         case .open:
-            return String(localized: "Open: ready to capture.")
+            String(localized: "Open: ready to capture.")
         case .closed:
-            return String(localized: "Closed: open it in Device Hub before Start, or while the run captures the other devices.")
+            String(localized: "Closed: AppLocalizer opens it when the run needs it.")
         default:
-            return simulators.duo.state.summary
+            simulators.duo.state.summary
+        }
+    }
+
+    /// What the Duo's row offers: open it now, or what lets AppLocalizer
+    /// open it.
+    @ViewBuilder
+    private var duoButton: some View {
+        switch simulators.duo.state {
+        case .closed, .notRunning:
+            Button("Open Now") { opensDuo = true }
+                .controlSize(.small)
+                .help(Text("AppLocalizer starts iPhone Duo if it isn’t running and presses Open in its window in Device Hub."))
+                .accessibilityIdentifier("autopilot.mac.openDuo")
+        case .needsAccessibility:
+            Button("Open Accessibility Settings") { AccessibilitySettings.open() }
+                .controlSize(.small)
+                .accessibilityIdentifier("autopilot.mac.accessibility")
+        case .helperCantOpen:
+            Button("Save the Helper Again…") { studio.installHelperAndCheck() }
+                .controlSize(.small)
+                .accessibilityIdentifier("autopilot.mac.duoHelper")
+        case .noHelper, .oldHelper, .failed, .couldntOpen, .stuck:
+            if DeviceHub.url != nil {
+                Button("Open in Device Hub") { DeviceHub.open(udid: simulators.inventory?.simulator(for: .iPhoneDuo)?.udid) }
+                    .controlSize(.small)
+                    .help(Text(DeviceHub.openingSteps))
+                    .accessibilityIdentifier("autopilot.mac.deviceHub")
+            }
+        default:
+            EmptyView()
         }
     }
 
@@ -118,11 +150,12 @@ struct AutopilotMacCheckView: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("autopilot.mac.\(display.mcpValue)")
-            .task(id: watchesDuo) {
+            .task(id: [watchesDuo, opensDuo]) {
                 // While the plan is looked at: whether it's open, and a
-                // stuck one restarted. It's started only once the run needs it.
+                // stuck one restarted. It's started and opened once the run
+                // needs it, or the person asks.
                 guard watchesDuo else { return }
-                _ = await simulators.duo.watch(mayStart: false, untilOpened: false)
+                await simulators.duo.watch(mayStart: opensDuo)
             }
             Spacer(minLength: 0)
             if isWorking {
@@ -138,11 +171,8 @@ struct AutopilotMacCheckView: View {
                     .controlSize(.small)
                     .disabled(simulators.working != nil)
                     .accessibilityIdentifier("autopilot.mac.make")
-            } else if isReady, display.simulatorStartsClosed, DeviceHub.url != nil {
-                Button("Open Device Hub") { DeviceHub.open() }
-                    .controlSize(.small)
-                    .help(Text(DeviceHub.openingSteps))
-                    .accessibilityIdentifier("autopilot.mac.deviceHub")
+            } else if watchesDuo {
+                duoButton
             }
         }
     }

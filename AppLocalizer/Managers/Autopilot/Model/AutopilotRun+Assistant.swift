@@ -31,10 +31,24 @@ extension AutopilotRun {
         Set(remainingTargets).union(retries.map(\.target)).count
     }
 
+    /// Directions still to design: none while revising, which changes the
+    /// ones that arrived.
+    var directionsLeft: Int {
+        max(Self.directionCount - directions.count, 0)
+    }
+
     /// The last time the assistant sent a capture, a problem or a direction.
     var lastNewsAt: Date? {
         let dates = captures.map(\.receivedAt) + problems.map(\.reportedAt) + directions.map(\.receivedAt)
         return dates.max()
+    }
+
+    /// Where a run's quiet time counts from: its last news, the person's
+    /// step that gave the assistant work again, or the assistant reading
+    /// the design brief; the run's start before any of them. Picking for an
+    /// hour doesn't make the design quiet.
+    var lastActivityAt: Date? {
+        [lastNewsAt, handedBackAt, briefReadAt].compactMap(\.self).max() ?? startedAt
     }
 
     /// The assistant sent something since `date`: a session that did made

@@ -74,7 +74,7 @@ struct AutopilotSheet: View {
         case .choose:
             AutopilotChooseStageView(studio: studio, run: run, isEditable: run.stage == .choose)
         case .localize:
-            AutopilotLocalizeStageView(run: run)
+            AutopilotLocalizeStageView(studio: studio, run: run)
         case .ready:
             AutopilotReadyStageView(studio: studio, run: run)
         }
