@@ -7,7 +7,9 @@ import SwiftUI
 
 /// This Mac, before Start: whether each planned device has a simulator to
 /// capture on, and the fix when it doesn't — install the platform's
-/// simulator, make the simulator, or save the helper that checks.
+/// simulator, make the simulator, or save the helper that checks. iPhone
+/// Duo's starts closed, so it says whether it's open, watching it
+/// (`DuoWatcher`), and to open it in Device Hub.
 struct AutopilotMacCheckView: View {
     @Bindable var studio: ScreenshotStudioModel
     let plan: AutopilotPlan
@@ -64,13 +66,39 @@ struct AutopilotMacCheckView: View {
         }
     }
 
+    /// iPhone Duo is open, or AppLocalizer can't see it (an older helper)
+    /// and only says it starts closed.
+    private var duoIsFine: Bool {
+        let state = simulators.duo.state
+        return state == .open || !state.isWatched
+    }
+
+    /// "Closed: open it in Device Hub before Start, …".
+    private var duoText: String {
+        let starts = String(localized: "It starts closed: open it in Device Hub before Start.")
+        switch simulators.duo.state {
+        case .unknown:
+            return starts
+        case .noHelper, .oldHelper, .failed:
+            return starts + " " + simulators.duo.state.summary
+        case .open:
+            return String(localized: "Open: ready to capture.")
+        case .closed:
+            return String(localized: "Closed: open it in Device Hub before Start, or while the run captures the other devices.")
+        default:
+            return simulators.duo.state.summary
+        }
+    }
+
     private func row(_ display: ScreenshotDisplayType) -> some View {
         let status = simulators.status(for: display)
         let isWorking = simulators.working == display
         let isReady = status?.canCapture == true
+        let watchesDuo = isReady && display.simulatorStartsClosed
+        let isFine = isReady && (!watchesDuo || duoIsFine)
         return HStack(alignment: .firstTextBaseline, spacing: Spacing.small) {
-            Image(systemName: isReady ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(isReady ? Palette.positive : Palette.warning)
+            Image(systemName: isFine ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(isFine ? Palette.positive : Palette.warning)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(display.title).font(.callout.weight(.medium))
@@ -78,9 +106,24 @@ struct AutopilotMacCheckView: View {
                     .font(.caption)
                     .foregroundStyle(Palette.label2)
                     .fixedSize(horizontal: false, vertical: true)
+                if watchesDuo {
+                    HStack(spacing: Spacing.xSmall) {
+                        if simulators.duo.state.isWorking { ProgressView().controlSize(.mini) }
+                        Text(duoText)
+                            .font(.caption)
+                            .foregroundStyle(Palette.label2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("autopilot.mac.\(display.mcpValue)")
+            .task(id: watchesDuo) {
+                // While the plan is looked at: whether it's open, and a
+                // stuck one restarted. It's started only once the run needs it.
+                guard watchesDuo else { return }
+                _ = await simulators.duo.watch(mayStart: false, untilOpened: false)
+            }
             Spacer(minLength: 0)
             if isWorking {
                 ProgressView().controlSize(.small)
@@ -95,6 +138,11 @@ struct AutopilotMacCheckView: View {
                     .controlSize(.small)
                     .disabled(simulators.working != nil)
                     .accessibilityIdentifier("autopilot.mac.make")
+            } else if isReady, display.simulatorStartsClosed, DeviceHub.url != nil {
+                Button("Open Device Hub") { DeviceHub.open() }
+                    .controlSize(.small)
+                    .help(Text(DeviceHub.openingSteps))
+                    .accessibilityIdentifier("autopilot.mac.deviceHub")
             }
         }
     }

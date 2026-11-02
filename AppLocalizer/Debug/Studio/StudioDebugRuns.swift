@@ -219,6 +219,36 @@ enum StudioDebugRuns {
         return run
     }
 
+    /// Capturing, with iPhone Duo's simulator made but closed: the
+    /// assistant found its inner display black.
+    static var closedDuo: AutopilotRun {
+        duoProblem(
+            what: "The iPhone Duo simulator is closed: its inner 2007 × 2853 display stays black and the app shows on the cover display.",
+            log: "iPhone Duo: its simulator is closed"
+        )
+    }
+
+    /// Capturing, with iPhone Duo's simulator stuck: the assistant found
+    /// only a spinner on its inner display.
+    static var stuckDuo: AutopilotRun {
+        duoProblem(
+            what: "The iPhone Duo simulator's inner 2007 × 2853 display shows only a loading spinner in two screenshots in a row.",
+            log: "iPhone Duo: its inner display shows only a spinner"
+        )
+    }
+
+    private static func duoProblem(what: String, log: String) -> AutopilotRun {
+        var run = run(.capture)
+        run.plan.setPlans(.iPhoneDuo, true)
+        let reported = date(day: 31, month: 10, hour: 14, minute: 6, second: 40)
+        let target = AutopilotCaptureTarget(screenID: run.plan.screens[0].id, displayType: .iPhoneDuo, locale: run.plan.primaryLocale)
+        run.problems = [AutopilotProblem(
+            id: "pr-duo", target: target, what: what, proposedFix: "Open iPhone Duo in Device Hub.", affectsDevice: true, reportedAt: reported
+        )]
+        run.appendLog(log, kind: .problem, at: reported)
+        return run
+    }
+
     /// Capturing, with the last capture over an hour before the scenes'
     /// clock (14:32): nobody is working on it, so it says so with Continue.
     static var stalled: AutopilotRun {

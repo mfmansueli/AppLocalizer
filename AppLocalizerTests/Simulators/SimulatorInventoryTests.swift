@@ -85,6 +85,31 @@ struct SimulatorInventoryTests {
         #expect(inventory.status(for: .iPhoneDuo) == .needsRuntime(platform: "iOS", minimumVersion: "27.1", installed: ["iOS 27.0"]))
     }
 
+    /// iPhone Duo's watcher looks at the simulator the captures come from:
+    /// a running one first, so it sees the one the assistant uses.
+    @Test func theDevicesSimulatorIsTheRunningOneFirst() throws {
+        var mac = DebugSimulators.Mac(hasNewRuntime: true, hasDuo: true)
+        let shutDown = try #require(SimulatorInventory.parse(DebugSimulators.json(mac)).simulator(for: .iPhoneDuo))
+        #expect(shutDown.udid == "00000000-0000-0000-0000-000000000004")
+        #expect(shutDown.state == "Shutdown")
+        #expect(!shutDown.isBooted)
+
+        mac.duoIsBooted = true
+        #expect(try SimulatorInventory.parse(DebugSimulators.json(mac)).simulator(for: .iPhoneDuo)?.isBooted == true)
+        #expect(try Self.inventory().simulator(for: .iPhoneDuo) == nil, "None made")
+        #expect(try Self.inventory().simulator(for: .iPhone)?.name == "iPhone 17 Pro Max")
+
+        let json = """
+        {"runtimes": [{"identifier": "r", "name": "iOS 27.2", "version": "27.2", "isAvailable": true,
+          "supportedDeviceTypes": [{"identifier": "duo"}]}],
+         "devicetypes": [{"identifier": "duo", "name": "iPhone Duo"}],
+         "devices": {"r": [
+           {"udid": "A", "name": "iPhone Duo", "deviceTypeIdentifier": "duo", "isAvailable": true, "state": "Shutdown"},
+           {"udid": "B", "name": "iPhone Duo (2)", "deviceTypeIdentifier": "duo", "isAvailable": true, "state": "Booted"}]}}
+        """
+        #expect(try SimulatorInventory.parse(json).simulator(for: .iPhoneDuo)?.udid == "B")
+    }
+
     @Test func versionsAreShortened() {
         #expect(SimulatorInventory.shortVersion("27.1.0") == "27.1")
         #expect(SimulatorInventory.shortVersion("27.0.0") == "27.0")

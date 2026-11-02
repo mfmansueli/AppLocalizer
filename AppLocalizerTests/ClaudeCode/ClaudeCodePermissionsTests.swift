@@ -58,6 +58,18 @@ struct ClaudeCodePermissionsTests {
         #expect(prompt.contains("report_capture_problem with refusedCommand"))
     }
 
+    /// Changing a simulator's displays (`simctl io … screenConfig`) left
+    /// iPhone Duo's SpringBoard crashing on every start, so Autopilot may run
+    /// any simctl command but that one, and the other runs deny nothing
+    /// they could run anyway.
+    @Test func autopilotMayNotChangeASimulatorsDisplays() {
+        #expect(ClaudeCodePermissions.autopilot.denyRules == ["Bash(xcrun simctl io * screenConfig*)"])
+        #expect(ClaudeCodePermissions.appLocalizerOnly.denyRules.isEmpty)
+        #expect(ClaudeCodePermissions.readProject.denyRules.isEmpty)
+        let how = AutopilotRun.howToCapture(.iPhoneDuo) ?? ""
+        #expect(how.contains("Never change its displays with xcrun simctl io … screenConfig"))
+    }
+
     @Test func noRunMayEditFilesOrUseTheWeb() {
         for permissions in ClaudeCodePermissions.allCases {
             let everything = permissions.tools + permissions.allowRules(port: port)

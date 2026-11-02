@@ -115,6 +115,7 @@ struct CapturePlanToolsTests {
         #expect(checks == AutopilotPreflight.checks)
         #expect(checks.contains { $0.contains("accessibility identifier") && $0.contains("app.buttons[\"Styles\"]") })
         #expect(checks.contains { $0.contains("Sample data") })
+        #expect(checks.contains { $0.contains("BUILT_PRODUCTS_DIR") && $0.contains("not in /tmp") }, "Its file tools read only the project")
         #expect(plan["preflight"]?["whenACheckFails"]?.stringValue?.contains("changesProject: true") == true)
         #expect(plan["rehearsal"]?["locale"] == "de-DE")
         #expect(plan["rehearsal"]?["why"] == "Its long words show labels that don't fit.")

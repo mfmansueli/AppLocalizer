@@ -10,7 +10,10 @@ import SwiftUI
 /// run: what happened, the fix proposed, and the ways out. Only a fix
 /// that's a command joins the plan when retried; a change to the project or
 /// a step for the person is shown as what to do first. A device without a
-/// simulator offers to install it, or to leave the device out.
+/// simulator offers to install it, or to leave the device out. iPhone Duo,
+/// whose simulator starts closed, offers Device Hub to open it, while
+/// AppLocalizer watches it (`DuoWatcher`): it restarts a stuck Duo and
+/// tries the Duo again once it's open.
 struct AutopilotProblemCard: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -24,7 +27,9 @@ struct AutopilotProblemCard: View {
             if group.wasRefused, let command = group.refusedCommand {
                 code(command, identifier: "autopilot.problem.refused")
             }
-            if let fix = group.proposedFix {
+            if watchesDuo {
+                duoStatus
+            } else if let fix = group.proposedFix {
                 if let fixLabel {
                     Text(fixLabel)
                         .font(.callout.weight(.medium))
@@ -53,15 +58,50 @@ struct AutopilotProblemCard: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("autopilot.problem")
         .task(id: group.id) {
-            // A device-wide problem offers the fix this Mac needs.
-            guard group.isDeviceWide, let simulators, simulators.inventory == nil else { return }
-            await simulators.check()
+            // A device-wide problem offers the fix this Mac needs; iPhone
+            // Duo's is watched until it's open.
+            guard group.isDeviceWide, let simulators else { return }
+            if simulators.inventory == nil { await simulators.check() }
+            if opensInDeviceHub { await studio.watchDuo() }
+        }
+    }
+
+    /// What AppLocalizer sees of iPhone Duo, in place of the assistant's
+    /// fix: AppLocalizer restarts a stuck one itself.
+    private var duoStatus: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.small) {
+            if duo?.isWorking == true { ProgressView().controlSize(.small) }
+            Text(duoText)
+                .font(.callout.weight(.medium))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("autopilot.problem.duo")
+        }
+    }
+
+    private var duoText: String {
+        switch duo {
+        case .closed?, .spinner?, .notRunning?:
+            (duo?.summary ?? "") + " " + String(localized: "Once it’s open, the run captures it by itself.")
+        case .open?:
+            String(localized: "iPhone Duo is open, so something else stopped it: retry, or leave it out.")
+        default:
+            duo?.summary ?? ""
         }
     }
 
     private var buttons: some View {
         HStack(spacing: Spacing.small) {
-            if group.isDeviceWide, let helperTitle {
+            if opensInDeviceHub {
+                if DeviceHub.url != nil {
+                    Button("Open Device Hub") { DeviceHub.open() }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("autopilot.problem.deviceHub")
+                }
+                if duo == .oldHelper || duo == .noHelper {
+                    Button(duo == .noHelper ? "Install the Helper…" : "Save the Helper Again…") { studio.installHelperAndCheck() }
+                        .accessibilityIdentifier("autopilot.problem.duoHelper")
+                }
+            } else if group.isDeviceWide, let helperTitle {
                 Button(helperTitle) { studio.installHelperAndCheck() }
                     .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("autopilot.problem.helper")
@@ -80,7 +120,7 @@ struct AutopilotProblemCard: View {
                 studio.resolve(group, with: .retryWithFix)
             }
             .buttonStyle(.borderedProminent)
-            .tint(simulatorStatus?.canCapture == false || isMakeable ? Palette.label2 : nil)
+            .tint(simulatorStatus?.canCapture == false || isMakeable || opensInDeviceHub ? Palette.label2 : nil)
             .accessibilityIdentifier("autopilot.problem.retry")
             if canUsePrimaryCapture {
                 Button("Use the \(primaryName) Capture") { studio.resolve(group, with: .usePrimaryCapture) }
@@ -127,6 +167,13 @@ struct AutopilotProblemCard: View {
             Claude Code started by AppLocalizer may only run commands that start with xcodebuild, xcrun simctl and the like. \
             Change the project so it doesn’t need this command, then retry, or continue the run in Terminal, where you can allow it.
             """)
+        }
+        if watchesDuo {
+            return DeviceHub.openingSteps + " " + String(localized: "AppLocalizer restarts it when it’s stuck; leaving it out finishes the run without it.")
+        }
+        if opensInDeviceHub {
+            return DeviceHub.openingSteps + " " + DeviceHub.restartSteps + " "
+                + String(localized: "Then retry; leaving it out finishes the run without it.")
         }
         if group.isDeviceWide, helperTitle != nil {
             return String(localized: """
@@ -181,6 +228,21 @@ struct AutopilotProblemCard: View {
         default: nil
         }
     }
+
+    /// This Mac has the device's simulator, but it starts closed (iPhone
+    /// Duo): the person opens it in Device Hub. Without a helper that can
+    /// look at it, the assistant's fix stays, as it says whether to open it
+    /// or restart it.
+    private var opensInDeviceHub: Bool {
+        group.isDeviceWide && group.displayType.simulatorStartsClosed && simulatorStatus?.canCapture == true
+    }
+
+    /// iPhone Duo as AppLocalizer last saw it, for its card.
+    private var duo: DuoState? { opensInDeviceHub ? simulators?.duo.state : nil }
+
+    /// AppLocalizer sees the Duo, so its status replaces the assistant's
+    /// fix.
+    private var watchesDuo: Bool { duo?.isWatched == true }
 
     private var isMakeable: Bool {
         if case .canMake = simulatorStatus { return true }

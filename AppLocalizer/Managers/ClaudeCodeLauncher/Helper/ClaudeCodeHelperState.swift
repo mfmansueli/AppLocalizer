@@ -34,7 +34,8 @@ enum ClaudeCodeHelperState: Hashable, Sendable {
     }
 
     /// Ready, but saved by an older AppLocalizer: Claude Code starts, and
-    /// what's new (the simulator check) waits for it to be saved again.
+    /// what's new (the simulator check, watching iPhone Duo) waits for it
+    /// to be saved again.
     var isOlder: Bool {
         (installation?.helperVersion ?? ClaudeCodeHelperScript.version) < ClaudeCodeHelperScript.version
     }
@@ -68,7 +69,7 @@ enum ClaudeCodeHelperState: Hashable, Sendable {
         case .notInstalled:
             String(localized: "Save it once and AppLocalizer starts Claude Code for you: no Terminal, nothing to paste.")
         case let .ready(installation) where isOlder:
-            String(localized: "\(installation.title) still starts. Save the helper again over the old one for the simulator check.")
+            String(localized: "\(installation.title) still starts. Save the helper again over the old one for the simulator check and iPhone Duo.")
         case let .ready(installation):
             "\(installation.title) · \(installation.displayPath())"
         case .outdated:

@@ -73,6 +73,9 @@ struct ClaudeCodeInvocationTests {
         let settings = try json(value(after: "--settings", in: invocation(.autopilot).claudeArguments))
         let allow = try #require(settings["permissions"]?["allow"]?.arrayValue).compactMap(\.stringValue)
         #expect(allow == ClaudeCodePermissions.autopilot.allowRules(port: 47399))
+        let deny = try #require(settings["permissions"]?["deny"]?.arrayValue).compactMap(\.stringValue)
+        #expect(deny == ClaudeCodePermissions.autopilot.denyRules)
         #expect(settings.objectValue?.keys.sorted() == ["permissions"])
+        #expect(settings["permissions"]?.objectValue?.keys.sorted() == ["allow", "deny"])
     }
 }

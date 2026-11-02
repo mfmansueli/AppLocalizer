@@ -110,10 +110,18 @@ extension AutopilotRun {
             """
         case .iPhoneDuo:
             """
-            Use the iPhone Duo simulator (Xcode 27.1 or later), unfolded, so the app runs on the inner display. It has two displays: \
-            list them with xcrun simctl io booted enumerate and capture the inner one with xcrun simctl io booted screenshot \
-            --display=<its ID> (the IDs change each time the simulator boots). App Store Connect also takes the outer display's \
-            1398 × 2034, but the template renders at the inner display's size, so capture the inner one.
+            Use the iPhone Duo simulator (Xcode 27.1 or later), open, so the app runs on the inner display. It starts closed: \
+            the app shows on the 1398 × 2034 cover display and the inner one stays black, and no command opens it (not simctl, \
+            devicectl or XCTest); the person opens it in Device Hub (select iPhone Duo, then Open in its window's poses). Never \
+            change its displays with xcrun simctl io … screenConfig (power or mode): that doesn't open it, and the simulator's \
+            SpringBoard then crashes on every start until the simulator restarts. Before its first capture, screenshot the inner \
+            display: list the displays with xcrun simctl io booted enumerate, then xcrun simctl io booted screenshot \
+            --display=<the 2007 × 2853 one's ID> (the IDs change each time the simulator boots). If it's black (closed), or shows \
+            only a spinner, or SpringBoard crashed and xcrun simctl launch hangs (stuck), report one problem with affectsDevice: \
+            true saying which, with "Open iPhone Duo in Device Hub" as proposedFix, and go on with the other devices. AppLocalizer \
+            watches the Duo: it restarts a stuck one itself, and once the person opens it, next_step gives you its screens again. \
+            Don't shut it down, reboot or erase it yourself, which closes it again. Capture the inner display: App Store Connect \
+            also takes the outer display's 1398 × 2034, but the template renders at the inner display's size.
             """
         case .visionPro:
             """

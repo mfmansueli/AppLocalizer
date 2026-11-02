@@ -54,7 +54,7 @@ struct ClaudeCodeHelperScriptTests {
         // Claude Code gets pipes of its own, so AppLocalizer's never turns
         // non-blocking and the exit line always gets through.
         #expect(script.contains(#"$claude "$@" </dev/null > >(cat) 2> >(cat >&2) &"#))
-        #expect(ClaudeCodeHelperScript.version >= 3)
+        #expect(ClaudeCodeHelperScript.version >= 4)
         // Autopilot's simulator check and fix: fixed commands, checked
         // arguments.
         #expect(script.contains("/usr/bin/xcrun simctl list -j runtimes devicetypes devices"))
@@ -62,8 +62,22 @@ struct ClaudeCodeHelperScriptTests {
         #expect(script.contains("/usr/bin/xcodebuild -downloadPlatform $1"))
         #expect(script.contains("$type != com.apple.CoreSimulator.SimDeviceType.*"))
         #expect(script.contains("/usr/bin/xcrun simctl create $name $type $runtime"))
+        // iPhone Duo (`DuoWatcher`): fixed commands on a simulator and display
+        // checked to be identifiers, each with a time limit, as a stuck
+        // simulator can keep simctl waiting; the timer holds no pipe.
+        #expect(script.contains("[[ ${#1} == 36 && $1 != *[^0-9A-F-]* ]]"))
+        #expect(script.contains("( /bin/sleep $seconds && kill -TERM $pid ) </dev/null >/dev/null 2>&1 &"))
+        #expect(script.contains("with_limit 30 /usr/bin/xcrun simctl io $1 enumerate"))
+        #expect(script.contains("with_limit 30 /usr/bin/xcrun simctl io $udid screenshot --display=$display $file >/dev/null"))
+        #expect(script.contains("/usr/bin/sips -Z 256 $file"))
+        #expect(script.contains("/usr/bin/base64 -i $file"))
+        // Crashes since it started: its launchd_bootstrap.plist is written then.
+        #expect(script.contains("[[ $report -nt $started ]] || continue"))
+        #expect(script.contains("/usr/bin/grep -q \"SimDevice.$1\" $report"))
+        #expect(script.contains("with_limit 300 /usr/bin/xcrun simctl bootstatus $1 -b"))
+        #expect(script.contains("with_limit 120 /usr/bin/xcrun simctl shutdown $1"))
         // An older helper is told apart by its usage line, which stays one line.
-        #expect(script.contains("| simulators | install-platform <platform> | create-simulator <name> <type> <runtime>\"\n"))
+        #expect(script.contains("| simulator-crashes <udid> | boot-simulator <udid> | shutdown-simulator <udid>\"\n"))
         #expect(ClaudeCodeHelperScript.fileName.hasSuffix(".zsh"))
     }
 }

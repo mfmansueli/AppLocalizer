@@ -127,8 +127,11 @@ App Store Connect or the Keychain, and the MCP server in a scene never opens a p
   Claude Design link nobody has read yet, a long assistant name and a long screen name, `st-plan-link`. Problems: a
   refused command, `st-refused`; one cause on one screen in several languages, `st-group`; and iPhone Duo on a Mac
   without its simulator, `st-device` (a pretend Mac with iOS 26.5 and 27.0, `DebugSimulators`, so Install the iOS
-  Simulator downloads nothing; the every-device scenes' Mac also runs Apple Vision Pro). A run nothing has arrived
-  for in over an hour, with Continue, `st-stalled`.
+  Simulator downloads nothing; the every-device scenes' Mac also runs Apple Vision Pro). iPhone Duo's simulator
+  running but closed, with Open Device Hub, `st-duo-closed`; opened a moment later by a pretend person, so the run
+  tries it again by itself, `st-duo-opens`; stuck (SpringBoard crashed, a spinner), so AppLocalizer restarts it,
+  `st-duo-stuck`; with a helper from before it could look at the Duo, `st-duo-old`; and the plan with it closed,
+  `st-plan-duo`. A run nothing has arrived for in over an hour, with Continue, `st-stalled`.
   The Sets matrix, `sets*`, `viewer*` and `scope`; the Template editor, `tpl*` and `starter`; the template gallery,
   `gallery` and `gallery-elegant`, and a few of its templates rendered, `tpl-cinema`, `tpl-highlight-ar`,
   `tpl-market-de`, `tpl-poster-ja` and `tpl-swoosh-deco`; Captions, `cap*`
@@ -252,7 +255,8 @@ call.
     as `refusedCommand`: its fix is a change to the project, so retrying doesn't add it to the plan's commands.
     So does a fix the assistant marks `changesProject: true`, or one that doesn't read as a command
     (`AutopilotProblem.needsProjectChange`). The plan carries `preflight` checks (`AutopilotPreflight`: identifiers
-    rather than visible titles, sample data in each language, no forced `-AppleLanguages`, no `VAR=value`) and a
+    rather than visible titles, sample data in each language, no forced `-AppleLanguages`, no `VAR=value`, derived
+    data and exports in the project folder, since AppLocalizer's Claude Code reads only there, not in `/tmp`) and a
     `rehearsal` language (another script than the primary's, else German): `next_step` gives each screen on each
     device in those two first (`phase: rehearsal`), then its other languages, so a screen or device that can't go on
     holds back only its own languages, never the rest of the run. An open problem holds the same screen on the same
@@ -308,20 +312,38 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
   adds Autopilot's simulator modes, each a fixed command with checked arguments: `simulators` (`xcrun simctl list
   -j runtimes devicetypes devices`), `install-platform <iOS|watchOS|visionOS|tvOS>` (`xcodebuild -downloadPlatform`)
   and `create-simulator <name> <type> <runtime>` (`xcrun simctl create`, only `SimDeviceType`/`SimRuntime` ids).
+  Version 4 adds iPhone Duo's, each on a simulator (and display) checked to be a UUID and with a time limit, as a
+  stuck simulator can keep `simctl` waiting: `simulator-displays` (`simctl io enumerate`), `simulator-screenshot`
+  (one display, shrunk to 256 pixels with `sips` and printed as base64), `simulator-crashes` (its SpringBoard crash
+  reports written since it started, i.e. newer than its `launchd_bootstrap.plist`), `boot-simulator` (`simctl
+  bootstatus -b`) and `shutdown-simulator`.
 - **This Mac's simulators** (`Managers/Simulators/`): Autopilot's plan checks, through the helper, that each planned
   device has a simulator (`SimulatorInventory`, `SimulatorStatus`): ready, one to make, a runtime to install (iPhone
   Duo needs iOS 27.1 or later; Xcode 27.2 may come with only iOS 27.0), or a newer Xcode. "Install the iOS
   Simulator" downloads the platform, then makes the simulator (`MacSimulators`). Starting with a device still
   missing reports it as one problem for the device (`AutopilotCenter.reportMissingSimulators`), and so does looking
   at a run that's capturing, or continuing it. Retrying a device this Mac still can't run brings its problem back
-  without starting Claude Code: a retry waits while its device has an open device-wide problem.
+  without starting Claude Code: a retry waits while its device has an open device-wide problem. iPhone Duo's
+  simulator starts closed (only the outer 1398 × 2034 display shows the app) and nothing public opens it: not
+  `simctl`, `devicectl` or XCTest; Xcode 27.2's Device Hub (`DeviceHub`, `com.apple.dt.Devices`) does, in the
+  device's poses. So AppLocalizer watches the Duo (`Managers/Simulators/Duo/`, `DuoWatcher`): every few seconds it
+  finds the inner display by its size (`SimulatorDisplayList`), screenshots it and tells black (closed), a faint
+  spinner in the middle (starting, or stuck) and anything else (open) apart (`DuoInnerDisplay`). `DuoStep` decides:
+  during a run it starts a Duo that isn't running; it restarts a stuck one, whose SpringBoard crashed since it
+  started or whose spinner lasted 90 seconds, at most twice in a row, then asks the person to erase it; it never
+  restarts an open one, as starting it again closes it. The assistant reports a closed or stuck Duo as one
+  device-wide problem; its card shows what AppLocalizer sees in place of the assistant's fix, opens Device Hub, and
+  once the person opens the Duo the run tries it again without a Retry (only after seeing it closed, so a Duo
+  that was open all along can't loop). The plan's row says whether it's open. Starts, restarts and the opening go
+  in the run's log. With a helper older than version 4 the card keeps the assistant's fix, says how to restart a
+  stuck Duo by hand, and asks to save the helper again.
 - **Keeping a run going** (`Managers/Autopilot/Continuation/`): when the Claude Code AppLocalizer started for a run
   ends with work left and sent something since it started, AppLocalizer starts it again with the prompt that
   continues the run (`AutopilotContinuation`, through `ClaudeCodeLauncher.onRunEnded`); one that sent nothing isn't,
   so it can't loop. A run nobody works on says so in the sheet (`AutopilotStall`: Claude Code ended, with its last
   words; AppLocalizer was closed; or nothing arrived for 30 minutes after a paste), with Continue. Answering a
   problem continues the run too, when AppLocalizer started Claude Code for it. A version 2 helper still starts
-  Claude Code (`minimumRunVersion`) and asks to be saved again for the simulator modes.
+  Claude Code (`minimumRunVersion`) and asks to be saved again for the simulator modes and iPhone Duo.
 - **Each run** (`ClaudeCodeInvocation`) is `claude -p --output-format stream-json --verbose --restricted
   --strict-mcp-config --mcp-config … --settings … --permission-mode dontAsk --tools …`. It knows only AppLocalizer's
   server, with a token made for that run that acts as the paired Claude Code and stops working when the run ends
@@ -329,7 +351,8 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
   refused and listed. `ClaudeCodePermissions`: setup's test uses only AppLocalizer's tools; suggestions, translations
   and the privacy scan also read the project and run read-only git; Autopilot also runs `xcodebuild`, `xcrun simctl`
   and uploads to AppLocalizer. Each command must start with an allowed program, so `VAR=value xcodebuild …` is
-  refused; Autopilot is told so.
+  refused; Autopilot is told so. Its one deny rule is `xcrun simctl io … screenConfig`: an assistant powered iPhone
+  Duo's displays off and on to open it, and the simulator's SpringBoard crashed on every start until it restarted.
 - **Where:** Ask on every suggestion bar, Suggest Everything, Screenshot Autopilot, Translate Missing, Translate
   Captions, App Privacy's scan, and setup's test. Each app's project folder is asked for once, and Settings lists
   them. Without the helper, every screen copies its prompt as before.
@@ -360,7 +383,8 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
     Live/New set summaries; Apple Watch and Apple Vision Pro (their screens, layouts, checks, previews and pushes to
     the visionOS version), iPhone Duo (its sizes, checks, canvas, row and plan) and the project's new languages;
     this Mac's simulators (reading `simctl`'s list, what each device needs, installing and making one, a device-wide
-    problem, leaving a device out); keeping a run going (the rehearsal per screen and device, starting Claude Code
+    problem, leaving a device out, and iPhone Duo's watcher: its displays, closed or stuck or open, restarting and
+    starting it); keeping a run going (the rehearsal per screen and device, starting Claude Code
     again only after progress, a run nobody works on, recapturing a screen reported out of date);
   - Claude Code started by AppLocalizer: the helper's answers and exit line, each run's arguments and permissions,
     reading the stream, failures, the Terminal link, runs through a pretend helper (folders, run tokens, Stop, Try

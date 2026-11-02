@@ -54,6 +54,20 @@ enum ClaudeCodePermissions: Hashable, Sendable, CaseIterable {
         }
     }
 
+    /// The `permissions.deny` rules, which win over the allow rules.
+    ///
+    /// Autopilot may run any `xcrun simctl` command, but not change a
+    /// simulator's displays: trying to open iPhone Duo with `simctl io …
+    /// screenConfig --display=1 power off`, an assistant left its display
+    /// configuration invalid, and the simulator's SpringBoard crashed again
+    /// on every start until the simulator was restarted.
+    var denyRules: [String] {
+        switch self {
+        case .appLocalizerOnly, .readProject: []
+        case .autopilot: ["Bash(xcrun simctl io * screenConfig*)"]
+        }
+    }
+
     /// Read-only git subcommands.
     static let gitCommands = ["log", "show", "diff", "tag", "describe", "rev-parse", "ls-files", "status", "branch"]
 

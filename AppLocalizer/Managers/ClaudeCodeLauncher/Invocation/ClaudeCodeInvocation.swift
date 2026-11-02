@@ -55,10 +55,11 @@ struct ClaudeCodeInvocation: Hashable, Sendable {
         return configuration.jsonString()
     }
 
-    /// `{"permissions":{"allow":[…]}}`.
+    /// `{"permissions":{"allow":[…],"deny":[…]}}`.
     var settings: String {
         let allow = permissions.allowRules(port: port).map(JSONValue.string)
-        let settings: JSONValue = ["permissions": ["allow": .array(allow)]]
+        let deny = permissions.denyRules.map(JSONValue.string)
+        let settings: JSONValue = ["permissions": ["allow": .array(allow), "deny": .array(deny)]]
         return settings.jsonString()
     }
 }

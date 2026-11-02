@@ -241,6 +241,40 @@ struct IPhoneDuoTests {
         #expect(how.contains("1398 × 2034"))
     }
 
+    /// Its simulator starts closed and only Device Hub opens it, so the
+    /// assistant checks the inner display first and reports a closed Duo
+    /// once, and doesn't restart it once it's open.
+    @Test func autopilotSaysTheSimulatorStartsClosedAndOnlyThePersonOpensIt() throws {
+        let how = try #require(AutopilotRun.howToCapture(.iPhoneDuo))
+        #expect(how.contains("It starts closed"))
+        #expect(how.contains("no command opens it (not simctl, devicectl or XCTest)"))
+        #expect(how.contains("the person opens it in Device Hub (select iPhone Duo, then Open in its window's poses)"))
+        #expect(how.contains("If it's black (closed)"))
+        #expect(how.contains("report one problem with affectsDevice: true saying which"))
+        #expect(how.contains("Don't shut it down, reboot or erase it yourself"))
+        #expect(ScreenshotDisplayType.allCases.filter(\.simulatorStartsClosed) == [.iPhoneDuo])
+        #expect(DeviceHub.openingSteps.hasPrefix("In Device Hub, select iPhone Duo and choose Open in its window’s poses"))
+        #expect(DeviceHub.bundleIdentifier == "com.apple.dt.Devices")
+    }
+
+    /// Switching its displays' power to open it crashed the simulator's
+    /// SpringBoard on every start: the assistant is told not to. A stuck Duo
+    /// (a spinner, launches that hang) is reported like a closed one, as
+    /// AppLocalizer restarts it itself (`DuoWatcher`) and gives its screens
+    /// back once the person opens it.
+    @Test func autopilotNeverChangesTheDisplaysAndLeavesAStuckDuoToAppLocalizer() throws {
+        let how = try #require(AutopilotRun.howToCapture(.iPhoneDuo))
+        #expect(how.contains("Never change its displays with xcrun simctl io … screenConfig (power or mode)"))
+        #expect(how.contains("or shows only a spinner, or SpringBoard crashed and xcrun simctl launch hangs (stuck)"))
+        #expect(how.contains("with \"Open iPhone Duo in Device Hub\" as proposedFix"))
+        #expect(how.contains("AppLocalizer watches the Duo: it restarts a stuck one itself"))
+        #expect(how.contains("next_step gives you its screens again"))
+        #expect(!how.contains("Restart iPhone Duo in Device Hub"))
+        // By hand only when the helper can't look at it.
+        #expect(DeviceHub.restartSteps.hasPrefix("If its inner display shows only a spinner, shut it down there"))
+        #expect(!DeviceHub.openingSteps.contains("spinner"))
+    }
+
     @Test func autopilotTakesTheInnerDisplayAndSendsTheOuterOneBack() throws {
         try AutopilotCenter.checkSize(Self.inner, for: .iPhoneDuo)
         try AutopilotCenter.checkSize(Self.inner.rotated, for: .iPhoneDuo)

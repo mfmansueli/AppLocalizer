@@ -42,6 +42,10 @@ struct SimulatorInventory: Decodable, Hashable, Sendable {
         var name: String
         var deviceTypeIdentifier: String?
         var isAvailable: Bool?
+        /// "Booted", "Shutdown", "Booting".
+        var state: String?
+
+        var isBooted: Bool { state == "Booted" }
     }
 
     var runtimes: [Runtime]
@@ -86,6 +90,18 @@ struct SimulatorInventory: Decodable, Hashable, Sendable {
             minimumVersion: preferred.minRuntimeVersionString.map(Self.shortVersion),
             installed: installed
         )
+    }
+
+    /// The simulator `display`'s captures come from: one that's running
+    /// first, else the newest runtime's, as `status(for:)` picks it. Nil
+    /// when none is made.
+    func simulator(for display: ScreenshotDisplayType) -> Device? {
+        let types = Set(display.simulatorDeviceTypes.compactMap { name in deviceTypes.first { $0.name == name }?.identifier })
+        let made = runtimes.filter(\.isAvailable)
+            .sorted { $0.version.compare($1.version, options: .numeric) == .orderedDescending }
+            .flatMap { devices[$0.identifier] ?? [] }
+            .filter { types.contains($0.deviceTypeIdentifier ?? "") && $0.isAvailable != false }
+        return made.first(where: \.isBooted) ?? made.first
     }
 
     /// "27.1.0" → "27.1"; "27.0.0" → "27.0".

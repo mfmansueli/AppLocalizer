@@ -28,6 +28,11 @@ enum AutopilotPreflight {
         """,
         "Nothing waits on a permission alert, the keyboard or the network: grant permissions with simctl and use local sample data.",
         """
+        Keep what you read back (derived data, exported captures) in the project folder, e.g. build/, and find the built app \
+        with xcodebuild -showBuildSettings (BUILT_PRODUCTS_DIR): AppLocalizer's own Claude Code reads and lists files only in \
+        the project folder, not in /tmp.
+        """,
+        """
         Every planned device has a simulator this Mac runs (xcrun simctl list devicetypes runtimes): iPhone Duo needs an iOS 27.1 \
         runtime or later. One that's missing is reported once with affectsDevice: true; don't download runtimes yourself.
         """,

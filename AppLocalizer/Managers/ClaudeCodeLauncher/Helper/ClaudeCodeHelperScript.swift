@@ -21,11 +21,16 @@ import Foundation
 ///
 /// Screenshot Autopilot also asks it about the Mac's simulators
 /// (`MacSimulators`): `simulators` lists them, `install-platform` downloads
-/// a platform's simulator, `create-simulator` makes one. Each takes only
-/// fixed values, checked by the script, never a command.
+/// a platform's simulator, `create-simulator` makes one. For iPhone Duo,
+/// whose simulator starts closed and can get stuck (`DuoWatcher`), it reads
+/// a simulator's displays (`simulator-displays`), screenshots one small
+/// (`simulator-screenshot`), lists the SpringBoard crashes since it started
+/// (`simulator-crashes`), and starts or shuts it down (`boot-simulator`,
+/// `shutdown-simulator`). Each takes only fixed values, checked by the
+/// script, never a command.
 enum ClaudeCodeHelperScript {
     /// Bumped when the script changes; an older one asks to be saved again.
-    static let version = 3
+    static let version = 4
 
     /// The oldest helper that still starts Claude Code: version 2's `run`
     /// is this one's, so a run in progress doesn't stop for the update.
@@ -111,12 +116,21 @@ enum ClaudeCodeHelperScript {
     #   create-simulator <name> <device type> <runtime>
     #                                  makes a simulator (xcrun simctl create)
     #
-    # applocalizer-helper 3
+    # And for iPhone Duo, whose simulator starts closed and can get stuck:
+    #
+    #   simulator-displays <udid>      a simulator's displays (xcrun simctl io enumerate)
+    #   simulator-screenshot <udid> <display>
+    #                                  one display's screenshot, 256 pixels high, as base64
+    #   simulator-crashes <udid>       its SpringBoard crash reports since it started
+    #   boot-simulator <udid>          starts it and waits until it has (xcrun simctl bootstatus -b)
+    #   shutdown-simulator <udid>      shuts it down (xcrun simctl shutdown)
+    #
+    # applocalizer-helper 4
 
     emulate -L zsh
     setopt no_nomatch
 
-    helper_version=3
+    helper_version=4
 
     # Where Claude Code is: its own installer's folder first, then package
     # managers, then whatever your login shell finds.
@@ -232,17 +246,107 @@ enum ClaudeCodeHelperScript {
       /usr/bin/xcrun simctl create $name $type $runtime </dev/null
     }
 
+    # A simulator's or display's identifier, as simctl prints it.
+    is_identifier() {
+      [[ ${#1} == 36 && $1 != *[^0-9A-F-]* ]]
+    }
+
+    # Runs a command for at most <seconds>: a stuck simulator can keep simctl
+    # waiting. The timer has no pipes of AppLocalizer's, so it never holds the
+    # answer back.
+    with_limit() {
+      local seconds=$1
+      shift
+      "$@" </dev/null &
+      local pid=$!
+      ( /bin/sleep $seconds && kill -TERM $pid ) </dev/null >/dev/null 2>&1 &
+      local timer=$!
+      wait $pid
+      local code=$?
+      kill $timer 2>/dev/null
+      return $code
+    }
+
+    simulator_displays() {
+      if ! is_identifier $1; then
+        print -u2 -r -- "Usage: simulator-displays <udid>"
+        return 64
+      fi
+      with_limit 30 /usr/bin/xcrun simctl io $1 enumerate
+    }
+
+    # Small, so it fits on one line: enough to tell black, a spinner and an
+    # app apart.
+    simulator_screenshot() {
+      local udid=$1 display=$2
+      if ! is_identifier $udid || ! is_identifier $display; then
+        print -u2 -r -- "Usage: simulator-screenshot <udid> <display>"
+        return 64
+      fi
+      local folder
+      folder=$(/usr/bin/mktemp -d -t applocalizer-display) || return 73
+      local file=$folder/display.png code=0
+      if with_limit 30 /usr/bin/xcrun simctl io $udid screenshot --display=$display $file >/dev/null \
+        && /usr/bin/sips -Z 256 $file >/dev/null 2>&1; then
+        /usr/bin/base64 -i $file
+      else
+        code=69
+      fi
+      /bin/rm -rf -- $folder
+      return $code
+    }
+
+    # The SpringBoard crash reports written since the simulator started (its
+    # launchd_bootstrap.plist is written then): the time and name of each.
+    simulator_crashes() {
+      if ! is_identifier $1; then
+        print -u2 -r -- "Usage: simulator-crashes <udid>"
+        return 64
+      fi
+      local started=$HOME/Library/Developer/CoreSimulator/Devices/$1/data/var/run/launchd_bootstrap.plist
+      [[ -f $started ]] || return 0
+      local report
+      for report in $HOME/Library/Logs/DiagnosticReports/SpringBoard-*.ips(N.); do
+        [[ $report -nt $started ]] || continue
+        if /usr/bin/grep -q "SimDevice.$1" $report; then
+          print -r -- "$(/usr/bin/stat -f %m $report) ${report:t}"
+        fi
+      done
+      return 0
+    }
+
+    boot_simulator() {
+      if ! is_identifier $1; then
+        print -u2 -r -- "Usage: boot-simulator <udid>"
+        return 64
+      fi
+      with_limit 300 /usr/bin/xcrun simctl bootstatus $1 -b 2>&1
+    }
+
+    shutdown_simulator() {
+      if ! is_identifier $1; then
+        print -u2 -r -- "Usage: shutdown-simulator <udid>"
+        return 64
+      fi
+      with_limit 120 /usr/bin/xcrun simctl shutdown $1
+    }
+
     case $1 in
       check)
         check
         ;;
-      simulators|install-platform|create-simulator)
+      simulators|install-platform|create-simulator|simulator-displays|simulator-screenshot|simulator-crashes|boot-simulator|shutdown-simulator)
         mode=$1
         shift
         case $mode in
           simulators) list_simulators ;;
           install-platform) install_platform "$@" ;;
           create-simulator) create_simulator "$@" ;;
+          simulator-displays) simulator_displays "$@" ;;
+          simulator-screenshot) simulator_screenshot "$@" ;;
+          simulator-crashes) simulator_crashes "$@" ;;
+          boot-simulator) boot_simulator "$@" ;;
+          shutdown-simulator) shutdown_simulator "$@" ;;
         esac
         code=$?
         print -r -- "applocalizer-helper-exit $code"
@@ -257,7 +361,8 @@ enum ClaudeCodeHelperScript {
         ;;
       *)
         print -u2 -r -- "Usage: ${0:t} check | run <folder> -- <claude arguments…> | simulators | \#
-    install-platform <platform> | create-simulator <name> <type> <runtime>"
+    install-platform <platform> | create-simulator <name> <type> <runtime> | simulator-displays <udid> | \#
+    simulator-screenshot <udid> <display> | simulator-crashes <udid> | boot-simulator <udid> | shutdown-simulator <udid>"
         exit 64
         ;;
     esac

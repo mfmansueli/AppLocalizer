@@ -9,9 +9,10 @@ import Synchronization
 
 /// This Mac's simulators, for Screenshot Autopilot: whether each planned
 /// device can be captured before the run starts, and the fix when it can't
-/// (download the platform's simulator, make the simulator). The app is
-/// sandboxed, so it asks the Claude Code helper (`ClaudeCodeHelperScript`),
-/// which runs `xcrun simctl` and `xcodebuild` outside the sandbox.
+/// (download the platform's simulator, make the simulator), and iPhone
+/// Duo's, which starts closed (`duo`). The app is sandboxed, so it asks the
+/// Claude Code helper (`ClaudeCodeHelperScript`), which runs `xcrun simctl`
+/// and `xcodebuild` outside the sandbox.
 @MainActor
 @Observable
 final class MacSimulators {
@@ -38,9 +39,19 @@ final class MacSimulators {
     @ObservationIgnored private let runner: any UnixScriptRunning
     @ObservationIgnored private let helperURL: URL?
 
+    /// iPhone Duo's simulator: whether it's open, and starting or
+    /// restarting it.
+    @ObservationIgnored private(set) lazy var duo = DuoWatcher(simulators: self)
+
     init(runner: any UnixScriptRunning, helperURL: URL?) {
         self.runner = runner
         self.helperURL = helperURL
+    }
+
+    /// The helper is saved, so it can be asked.
+    var hasHelper: Bool {
+        guard let helperURL else { return false }
+        return runner.exists(helperURL)
     }
 
     var inventory: SimulatorInventory? {
@@ -62,7 +73,7 @@ final class MacSimulators {
 
     /// Lists the simulators again; what was known stays shown meanwhile.
     func check() async {
-        guard let helperURL, runner.exists(helperURL) else {
+        guard hasHelper else {
             state = .noHelper
             return
         }
@@ -70,7 +81,7 @@ final class MacSimulators {
         let answer = await run(["simulators"])
         if let inventory = try? SimulatorInventory.parse(answer.lines.joined(separator: "\n")) {
             state = .checked(inventory)
-        } else if answer.exit.errorOutput.contains("Usage:") {
+        } else if answer.isFromOlderHelper {
             state = .oldHelper
         } else {
             state = .failed(Self.reason(answer))
@@ -89,7 +100,7 @@ final class MacSimulators {
     }
 
     /// Why the list couldn't be read: no Xcode, or what it said.
-    private static func reason(_ answer: Answer) -> String {
+    private static func reason(_ answer: SimulatorHelperAnswer) -> String {
         if answer.exit.errorOutput.contains("xcrun: error") {
             return String(localized: "Xcode isn’t set up on this Mac: install it and open it once.")
         }
@@ -137,16 +148,13 @@ final class MacSimulators {
 
     // MARK: - The helper
 
-    private struct Answer: Sendable {
-        var lines: [String] = []
-        /// The helper's own exit line's; nil when it didn't print one.
-        var status: Int32?
-        var exit = UnixScriptExit()
-    }
-
-    private func run(_ arguments: [String], onLine: (@Sendable (String) -> Void)? = nil) async -> Answer {
-        guard let helperURL else { return Answer(exit: UnixScriptExit(taskError: String(localized: "The helper isn’t installed."))) }
-        let answer = Mutex(Answer())
+    /// Runs one of the helper's simulator commands; `onLine` gets each line
+    /// as it comes.
+    func run(_ arguments: [String], onLine: (@Sendable (String) -> Void)? = nil) async -> SimulatorHelperAnswer {
+        guard let helperURL else {
+            return SimulatorHelperAnswer(exit: UnixScriptExit(taskError: String(localized: "The helper isn’t installed.")))
+        }
+        let answer = Mutex(SimulatorHelperAnswer())
         let exit = await runner.run(helperURL, arguments: arguments) { line in
             if let status = ClaudeCodeHelperScript.exitStatus(in: line) {
                 answer.withLock { $0.status = status }

@@ -34,4 +34,8 @@ extension ScreenshotDisplayType {
     var simulatorRuntimePlatforms: Set<String> {
         self == .visionPro ? ["xrOS", "visionOS"] : [simulatorPlatform]
     }
+
+    /// Its simulator starts closed, with apps on its cover display, and
+    /// only the person can open it, in Device Hub (`DeviceHub`): iPhone Duo.
+    var simulatorStartsClosed: Bool { self == .iPhoneDuo }
 }

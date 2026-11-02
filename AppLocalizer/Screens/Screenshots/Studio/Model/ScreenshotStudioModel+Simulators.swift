@@ -53,6 +53,22 @@ extension ScreenshotStudioModel {
         }
     }
 
+    /// While iPhone Duo's card is shown, AppLocalizer starts the Duo when
+    /// it isn't running and restarts it when it's stuck, both in the run's
+    /// log, and once the person opens it in Device Hub its screens are
+    /// tried again, without a Retry.
+    func watchDuo() async {
+        guard let simulators, let autopilot else { return }
+        let appID = app.id
+        let opened = await simulators.duo.watch(mayStart: true, untilOpened: true) { event in
+            autopilot.update(appID) { $0.appendLog(event.logText, kind: .event, at: autopilot.now()) }
+        }
+        // Even when the card's task was replaced meanwhile: the opening is
+        // seen once, and only the Duo's open problems are retried.
+        guard opened, run?.stage == .capture else { return }
+        await retryDeviceProblems(on: .iPhoneDuo)
+    }
+
     /// Once the device can be captured, its device-wide problems are
     /// retried.
     private func retryDeviceProblems(on display: ScreenshotDisplayType) async {

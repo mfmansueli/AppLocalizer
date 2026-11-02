@@ -20,6 +20,14 @@ import SwiftUI
 ///   same screen in two languages on iPhone and iPad (one card).
 /// - `st-device`: capturing, with no iPhone Duo simulator on this Mac (one
 ///   card for the device, which installs it).
+/// - `st-duo-closed`: capturing, with iPhone Duo's simulator made, running
+///   and closed (its card opens Device Hub and says the run goes on once
+///   it's open); `st-duo-opens`: the pretend person opens it a moment
+///   later and the run tries it again; `st-duo-stuck`: its SpringBoard
+///   crashed, so AppLocalizer restarts it; `st-duo-old`: the helper is from
+///   before it could look at the Duo (the assistant's fix and how to
+///   restart it by hand); `st-plan-duo`: the Plan on a Mac with that
+///   simulator closed.
 /// - `st-stalled`: capturing, with nothing arriving for over an hour (the
 ///   prompt was pasted): Continue copies the prompt that picks it up.
 /// - `st-cap-page`, `st-pick-page`: the strip while it runs or waits.
@@ -37,7 +45,7 @@ import SwiftUI
 enum StudioDebugScenes {
     static let ids: [String] = [
         "st-home", "st-live-ar", "st-noasst", "st-design", "st-plan", "st-wait", "st-cap", "st-fail", "st-refused", "st-group", "st-device",
-        "st-stalled", "st-cap-page",
+        "st-duo-closed", "st-duo-opens", "st-duo-stuck", "st-duo-old", "st-plan-duo", "st-stalled", "st-cap-page",
         "st-pick", "st-pick-page", "st-des", "st-choose", "st-choose-rev", "st-nodesign", "st-loc", "st-ready-sheet",
         "st-ready", "st-ready-de", "st-ready-ar", "st-ready-ipad", "st-asc-watch", "st-plan-link",
     ] + everyDeviceIDs
@@ -54,6 +62,9 @@ enum StudioDebugScenes {
             DebugSimulators.runEveryDevice()
             return scene(run: run, sheet: true, everyDevice: true)
         }
+        if let run = duoRun(for: id) {
+            return scene(run: run, project: StudioDebugRuns.northpier, sheet: true)
+        }
         if id == "st-plan-link" {
             return scene(run: StudioDebugRuns.linkedPlan, project: StudioDebugRuns.unreadLink, sheet: true)
         }
@@ -63,6 +74,30 @@ enum StudioDebugScenes {
             }
         }
         return pageScene(for: id)
+    }
+
+    /// The iPhone Duo scenes' run, after setting up the pretend Duo.
+    @MainActor
+    private static func duoRun(for id: String) -> AutopilotRun? {
+        switch id {
+        case "st-duo-closed":
+            DebugSimulators.runDuo(booted: true)
+            return StudioDebugRuns.closedDuo
+        case "st-duo-opens":
+            DebugSimulators.runDuo(booted: true, opensAfterLooks: 6)
+            return StudioDebugRuns.closedDuo
+        case "st-duo-stuck":
+            DebugSimulators.runDuo(booted: true, inner: .spinner, crashed: true)
+            return StudioDebugRuns.stuckDuo
+        case "st-duo-old":
+            DebugSimulators.runDuo(booted: true, olderHelper: true)
+            return StudioDebugRuns.closedDuo
+        case "st-plan-duo":
+            DebugSimulators.runDuo(booted: true)
+            return StudioDebugRuns.run(.plan)
+        default:
+            return nil
+        }
     }
 
     /// The every-device scenes that open the Autopilot sheet.
