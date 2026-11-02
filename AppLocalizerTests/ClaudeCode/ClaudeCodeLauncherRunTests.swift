@@ -128,6 +128,33 @@ struct ClaudeCodeLauncherRunTests {
         #expect(launcher.activeRuns.isEmpty)
     }
 
+    /// Claude Code's result is its last word: a helper that doesn't end
+    /// after it is told to stop, and the run ends on its result, once, so
+    /// Continue and Retry can start another.
+    @Test func aHelperThatDoesntEndAfterTheResultEndsTheRunAnyway() async throws {
+        runner.lines = [Lines.initLine(), Lines.resultLine(text: "Sent 182 of 252 captures; iPhone Duo waits for you.")]
+        runner.exitStatus = nil
+        launcher.resultGrace = .milliseconds(50)
+        let endings = EndedRuns()
+        launcher.onRunEnded = { endings.phases.append($0.phase) }
+
+        let id = try await start(.autopilot, prompt: "Capture screenshots")
+        let run = try await finishedRun(id)
+        #expect(run.phase == .finished)
+        #expect(run.result?.text == "Sent 182 of 252 captures; iPhone Duo waits for you.")
+        #expect(assistants.runTokens.isEmpty)
+
+        // Told to stop, the helper ends after all: the run stays finished.
+        await MCPTestFixtures.waitUntil { runner.recordedArguments.count(where: { $0.first == "run" }) == 1 }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(launcher.run(id)?.phase == .finished)
+        #expect(endings.phases == [.finished])
+
+        let next = try await start(.autopilot, prompt: "Continue the run")
+        #expect(next != id)
+        await ClaudeCodeTestFixtures.waitForEnd(of: next, in: launcher)
+    }
+
     @Test func askingAgainWhileItRunsReturnsTheSameRun() async throws {
         runner.exitStatus = nil
         let id = try await start()
@@ -269,5 +296,10 @@ struct ClaudeCodeLauncherRunTests {
         _ = try await finishedRun(start())
         #expect(assistants.pairedClients.count == 1)
         #expect(assistants.pairedClients.first?.id != client.id)
+    }
+
+    /// The phases runs ended with, in order.
+    private final class EndedRuns {
+        var phases: [ClaudeCodeRun.Phase] = []
     }
 }

@@ -128,9 +128,10 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     var problemGroups: [AutopilotProblemGroup] { AutopilotProblemGroup.groups(of: openProblems) }
 
     /// Problems the person chose to retry: the assistant captures them again
-    /// with the fix. One reported again is open instead. A problem reported
-    /// on a screen already captured (out of date, say) waits for a capture
-    /// that arrives after it.
+    /// with the fix. One reported again is open instead, and so is one on a
+    /// device this Mac still can't run (an open problem for the device). A
+    /// problem reported on a screen already captured (out of date, say)
+    /// waits for a capture that arrives after it.
     var retries: [AutopilotProblem] {
         problems.filter(isPendingRetry)
     }
@@ -138,7 +139,7 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     private func isPendingRetry(_ problem: AutopilotProblem) -> Bool {
         problem.resolution == .retryWithFix && plan.displayTypes.contains(problem.target.displayType)
             && !captures.contains { $0.target == problem.target && $0.receivedAt >= problem.reportedAt }
-            && !problems.contains { $0.isOpen && $0.target == problem.target }
+            && !problems.contains { $0.isOpen && ($0.target == problem.target || $0.holdsDevice(of: problem)) }
     }
 
     /// Reuse the primary language's capture for a screen on a device in

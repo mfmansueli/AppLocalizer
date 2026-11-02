@@ -74,6 +74,44 @@ struct AutopilotContinuationTests {
         #expect(!AutopilotContinuation.shouldStartAgain(after: earlier, run: old), "A session of an earlier run")
     }
 
+    /// Retry on a device this Mac still can't run brings its problem back
+    /// at once, without starting Claude Code just to find that out again.
+    @Test func retryingADeviceThisMacStillCantRunStartsNothing() async throws {
+        let clock = TestClock()
+        let runner = FakeUnixScriptRunner()
+        runner.answers["simulators"] = [[DebugSimulators.json(DebugSimulators.Mac())]]
+        let assistants = MCPTestFixtures.controller(server: FakeLocalHTTPServer(), clock: clock)
+        let launcher = ClaudeCodeTestFixtures.launcher(assistants: assistants, runner: runner, clock: clock)
+        let appID = ClaudeCodeTestFixtures.lumenID
+        launcher.setProjectFolder(ClaudeCodeTestFixtures.lumenFolder, for: appID)
+        await launcher.refreshHelper()
+
+        var run = AutopilotTestFixtures.run(.capture)
+        run.appID = appID
+        run.startsClaudeCode = true
+        run.plan.setPlans(.iPhoneDuo, true)
+        let duo = run.plan.targets.filter { $0.displayType == .iPhoneDuo }
+        AutopilotTestFixtures.captureAll(&run, except: Set(duo))
+        let center = AutopilotCenter(runs: [appID: run])
+        center.now = { clock.now }
+        // The assistant reported it on a screen of its own; the person chose Retry.
+        let reported = try center.reportProblem(
+            appID: appID, target: #require(duo.last), what: "No iOS 27.1 runtime on this Mac.", proposedFix: nil, affectsDevice: true
+        )
+        center.update(appID) { run in
+            if let index = run.problems.firstIndex(where: { $0.id == reported.id }) { run.problems[index].resolution = .retryWithFix }
+        }
+        #expect(center.run(for: appID)?.assistantHasWork == true)
+
+        let started = await AutopilotContinuation.start(appID: appID, appName: "Lumen Journal", center: center, launcher: launcher)
+        #expect(started == nil)
+        #expect(!runner.recordedArguments.contains { $0.first == "run" })
+        let after = try #require(center.run(for: appID))
+        #expect(after.openProblems.map(\.target.displayType) == [.iPhoneDuo])
+        #expect(after.retries.isEmpty, "The device's open problem holds the retry")
+        #expect(!after.assistantHasWork)
+    }
+
     // MARK: - Nobody working
 
     @Test func aSessionThatEndedSaysSoWithItsLastWords() {

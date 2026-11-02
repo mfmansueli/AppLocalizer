@@ -39,6 +39,11 @@ struct AutopilotProblem: Codable, Hashable, Sendable, Identifiable {
 
     var isDeviceWide: Bool { affectsDevice == true }
 
+    /// This one is about the whole device `other` is on.
+    func holdsDevice(of other: AutopilotProblem) -> Bool {
+        isDeviceWide && target.displayType == other.target.displayType
+    }
+
     /// The project has to change before a retry can work: the assistant
     /// said so, a command was refused, or the fix doesn't read as a command
     /// ("In ScreenshotUITests.swift:78 tap … instead of …"). A device-wide

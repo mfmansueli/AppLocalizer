@@ -7,8 +7,9 @@ import Foundation
 
 /// Runs scripts with `NSUserUnixTask`, which macOS starts outside the
 /// sandbox for scripts in the app's scripts folder. Output comes back line
-/// by line through a pipe; stdin stays open for the whole run, and a line
-/// on it is the helper's signal to stop.
+/// by line through a pipe, read as it arrives whatever stderr does
+/// (`PipeLineReader`); stdin stays open for the whole run, and a line on it
+/// is the helper's signal to stop.
 struct LiveUnixScriptRunner: UnixScriptRunning {
     func exists(_ script: URL) -> Bool {
         FileManager.default.fileExists(atPath: script.path)
@@ -29,8 +30,12 @@ struct LiveUnixScriptRunner: UnixScriptRunning {
         task.standardError = errors.fileHandleForWriting
         let stopHandle = input.fileHandleForWriting
 
-        async let printed: Void = Self.forEachLine(of: output.fileHandleForReading, onLine)
-        async let errorText = Self.text(of: errors.fileHandleForReading)
+        // Both pipes are read from the start, each on its own, so a full one
+        // never makes the script wait.
+        let printedLines = PipeLineReader.lines(of: output.fileHandleForReading)
+        let errorLines = PipeLineReader.lines(of: errors.fileHandleForReading)
+        async let printed: Void = Self.forEach(printedLines, onLine)
+        async let errorText = Self.text(of: errorLines)
         let taskError: String? = await withTaskCancellationHandler {
             await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
                 task.execute(withArguments: arguments) { error in
@@ -50,25 +55,21 @@ struct LiveUnixScriptRunner: UnixScriptRunning {
         return UnixScriptExit(errorOutput: String(stderr.suffix(4000)), taskError: taskError)
     }
 
-    private static func forEachLine(of handle: FileHandle, _ onLine: @Sendable (String) -> Void) async {
-        do {
-            for try await line in handle.bytes.lines {
-                onLine(line)
-            }
-        } catch {
-            // The pipe closed early; whatever arrived was passed on.
+    /// Stops early when the run is cancelled (Stop); the pipe is still
+    /// drained.
+    private static func forEach(_ lines: AsyncStream<String>, _ onLine: @Sendable (String) -> Void) async {
+        for await line in lines {
+            onLine(line)
         }
     }
 
-    private static func text(of handle: FileHandle) async -> String {
-        var lines: [String] = []
-        do {
-            for try await line in handle.bytes.lines {
-                lines.append(line)
-            }
-        } catch {
-            // As above.
+    /// stderr's last lines: only the end is shown.
+    private static func text(of lines: AsyncStream<String>) async -> String {
+        var collected: [String] = []
+        for await line in lines {
+            collected.append(line)
+            if collected.count > 400 { collected.removeFirst(200) }
         }
-        return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        return collected.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

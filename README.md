@@ -299,7 +299,11 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
   <arguments…>` runs Claude Code in the app's project folder, streams its output and prints
   `applocalizer-helper-exit <status>` when it ends. Claude Code writes through pipes of its own that `cat` passes on:
   Node leaves the pipe it writes to non-blocking, which on AppLocalizer's pipe lost a run's last lines and its exit
-  line (helper version 1). A line on stdin, or stdin closing, ends Claude Code with SIGTERM (a script's background job
+  line (helper version 1). AppLocalizer reads stdout and stderr each on its own (`PipeLineReader`), never with
+  `FileHandle.bytes`: that reads every handle in the process on one serial queue, so an idle stderr stopped stdout
+  from being read, the pipe filled and the helper waited forever on its last line, holding back every later call.
+  A run whose helper hasn't ended a minute after Claude Code's result ends anyway (`ClaudeCodeLauncher.resultGrace`).
+  A line on stdin, or stdin closing, ends Claude Code with SIGTERM (a script's background job
   ignores SIGINT); the session stays resumable. A helper older than `version` asks to be saved again. Version 3
   adds Autopilot's simulator modes, each a fixed command with checked arguments: `simulators` (`xcrun simctl list
   -j runtimes devicetypes devices`), `install-platform <iOS|watchOS|visionOS|tvOS>` (`xcodebuild -downloadPlatform`)
@@ -309,7 +313,8 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
   Duo needs iOS 27.1 or later; Xcode 27.2 may come with only iOS 27.0), or a newer Xcode. "Install the iOS
   Simulator" downloads the platform, then makes the simulator (`MacSimulators`). Starting with a device still
   missing reports it as one problem for the device (`AutopilotCenter.reportMissingSimulators`), and so does looking
-  at a run that's capturing, or continuing it.
+  at a run that's capturing, or continuing it. Retrying a device this Mac still can't run brings its problem back
+  without starting Claude Code: a retry waits while its device has an open device-wide problem.
 - **Keeping a run going** (`Managers/Autopilot/Continuation/`): when the Claude Code AppLocalizer started for a run
   ends with work left and sent something since it started, AppLocalizer starts it again with the prompt that
   continues the run (`AutopilotContinuation`, through `ClaudeCodeLauncher.onRunEnded`); one that sent nothing isn't,

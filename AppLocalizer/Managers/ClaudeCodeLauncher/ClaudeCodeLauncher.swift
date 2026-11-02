@@ -57,6 +57,12 @@ final class ClaudeCodeLauncher {
     /// Runs kept for Show Output, the oldest finished ones going first.
     static let runLimit = 12
 
+    /// How long the helper has to end after Claude Code's result, its last
+    /// word, before the run counts as ended anyway and the helper is told
+    /// to stop: a helper that never ends must not keep a run "working",
+    /// which holds back Continue and Retry.
+    @ObservationIgnored var resultGrace: Duration = .seconds(60)
+
     init(
         assistants: MCPServerController,
         runner: any UnixScriptRunning = LiveUnixScriptRunner(),
@@ -269,17 +275,35 @@ final class ClaudeCodeLauncher {
         let (lines, continuation) = AsyncStream<String>.makeStream()
         let runner = runner
         let arguments = invocation.helperArguments
+        let token = invocation.token
         tasks[id] = Task { [weak self] in
             async let exit: UnixScriptExit = {
                 let exit = await runner.run(helperURL, arguments: arguments) { continuation.yield($0) }
                 continuation.finish()
                 return exit
             }()
+            var grace: Task<Void, Never>?
             for await line in lines {
-                self?.receive(line, for: id)
+                guard let self else { continue }
+                receive(line, for: id)
+                if grace == nil, run(id)?.result != nil {
+                    grace = endAfterGrace(id, token: token)
+                }
             }
             let ended = await exit
-            self?.complete(id, exit: ended, token: invocation.token)
+            grace?.cancel()
+            self?.complete(id, exit: ended, token: token)
+        }
+    }
+
+    /// Ends the run on its result when the helper hasn't ended
+    /// `resultGrace` after it, and tells the helper to stop.
+    private func endAfterGrace(_ id: ClaudeCodeRun.ID, token: String) -> Task<Void, Never> {
+        let grace = resultGrace
+        return Task { [weak self] in
+            guard await (try? Task.sleep(for: grace)) != nil, let self, run(id)?.isActive == true else { return }
+            tasks[id]?.cancel()
+            complete(id, exit: UnixScriptExit(), token: token)
         }
     }
 
@@ -328,13 +352,16 @@ final class ClaudeCodeLauncher {
         run.activity.append(ClaudeCodeActivity(id: nextActivityID, date: now(), kind: kind, text: text))
     }
 
+    /// Once: a run already ended on its result (`endAfterGrace`) stays
+    /// as it ended when its helper ends after all.
     private func complete(_ id: ClaudeCodeRun.ID, exit: UnixScriptExit, token: String) {
         assistants.revokeRunToken(token)
         tasks[id] = nil
         let status = exitStatuses.removeValue(forKey: id)
         let didFailToConnect = serverFailed.remove(id) != nil
-        guard let run = run(id) else { return }
-        if stopRequested.remove(id) != nil {
+        let didStop = stopRequested.remove(id) != nil
+        guard let run = run(id), run.isActive else { return }
+        if didStop {
             end(id, as: .stopped)
         } else if let result = run.result, !result.isError {
             end(id, as: .finished)
