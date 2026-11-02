@@ -6,7 +6,7 @@
 import SwiftUI
 
 /// The sheet's bottom line: what's happening or what to do, and the
-/// stage's buttons.
+/// stage's buttons. A run nobody works on any more says so, with Continue.
 struct AutopilotSheetFooter: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -14,13 +14,24 @@ struct AutopilotSheetFooter: View {
     @Environment(ClaudeCodeLauncher.self) private var launcher: ClaudeCodeLauncher?
 
     var body: some View {
-        HStack(spacing: Spacing.small) {
-            Text(text)
-                .font(.callout)
-                .foregroundStyle(Palette.label2)
-                .accessibilityIdentifier("autopilot.footer.text")
-            Spacer()
-            buttons
+        // Looked at again each minute: a pasted run goes quiet with time.
+        TimelineView(.periodic(from: .now, by: 60)) { _ in
+            HStack(spacing: Spacing.small) {
+                Text(text)
+                    .font(.callout)
+                    .foregroundStyle(Palette.label2)
+                    .accessibilityIdentifier("autopilot.footer.text")
+                Spacer()
+                if studio.stall != nil {
+                    Button(launcher?.canStart == true ? String(localized: "Continue") : String(localized: "Copy the Prompt to Continue")) {
+                        studio.continueRun()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .accessibilityIdentifier("autopilot.continue")
+                }
+                buttons
+            }
         }
         .padding(.horizontal, Spacing.xLarge)
         .padding(.vertical, Spacing.medium)
@@ -30,7 +41,12 @@ struct AutopilotSheetFooter: View {
 
     /// The footer follows the run, not the stage looked at.
     private var text: String {
-        switch run.stage {
+        if studio.stall != nil {
+            return run.stage == .capture
+                ? String(localized: "Claude Code isn’t working on this run, with \(run.capturesLeft) captures left. Continue picks it up where it stopped.")
+                : String(localized: "Claude Code isn’t working on this run. Continue picks it up where it stopped.")
+        }
+        return switch run.stage {
         case .plan:
             if let missing = launcher?.simulators.missing(in: run.plan.displayTypes), !missing.isEmpty {
                 String(localized: "This Mac can’t capture \(missing.map(\.title).formatted(.list(type: .and))) yet: install the simulator, or turn it off.")

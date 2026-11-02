@@ -27,6 +27,11 @@ enum ClaudeCodeHelperScript {
     /// Bumped when the script changes; an older one asks to be saved again.
     static let version = 3
 
+    /// The oldest helper that still starts Claude Code: version 2's `run`
+    /// is this one's, so a run in progress doesn't stop for the update.
+    /// Version 1 could lose a run's end.
+    static let minimumRunVersion = 2
+
     /// The name the Save panel suggests.
     static let fileName = "Start Claude Code.zsh"
 

@@ -21,7 +21,7 @@ struct AutopilotStageList: View {
                         AutopilotStageRow(
                             step: step,
                             who: who(step),
-                            problem: step == .capture && !run.openProblems.isEmpty ? problemText : nil,
+                            problem: step == run.stage.step ? problemText : nil,
                             state: state(of: step),
                             isSelected: studio.shownStep == step
                         ) {
@@ -45,9 +45,18 @@ struct AutopilotStageList: View {
 
     private var client: String { run.clientName(assistant: assistant) }
 
-    private var problemText: String {
-        let count = run.problemGroups.count
-        return count == 1 ? String(localized: "1 problem needs you") : String(localized: "\(count) problems need you")
+    /// The run's row: the problems that need the person, or that nobody
+    /// is working on it any more.
+    private var problemText: String? {
+        if run.stage.step == .capture, !run.openProblems.isEmpty {
+            let count = run.problemGroups.count
+            return count == 1 ? String(localized: "1 problem needs you") : String(localized: "\(count) problems need you")
+        }
+        switch studio.stall {
+        case nil: return nil
+        case .quiet: return String(localized: "Nothing new for a while")
+        case .ended, .notRunning: return String(localized: "Claude Code stopped")
+        }
     }
 
     /// At Plan, the design project Start will use; then the run's.

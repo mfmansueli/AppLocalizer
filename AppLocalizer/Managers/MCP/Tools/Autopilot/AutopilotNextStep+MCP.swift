@@ -79,16 +79,19 @@ extension AutopilotNextStep {
             spinner, nothing private, matches the caption) with notes saying why. When a screen can't be \
             reached, call report_capture_problem and go on with the others. When the fix is a change to the \
             project, report it once with changesProject: true: AppLocalizer holds that screen on that device in \
-            the other languages.
+            the other languages. When this Mac can't run a device at all, report it once with affectsDevice: true. \
+            Don't stop while next_step says capture: report what you can't capture, then ask next_step again, \
+            and it gives you the rest.
             """,
         ]
         if let run, let rehearsal = run.plan.rehearsalLocale {
-            let rehearsing = run.isRehearsing
+            let rehearsing = targets.contains(where: run.plan.isRehearsal)
             json["phase"] = .string(rehearsing ? "rehearsal" : "capture")
             if rehearsing {
                 json["rehearsal"] = .string("""
-                These are every screen on every device in \(run.plan.primaryLocale) and \(rehearsal), before the other \
-                languages: check that each reaches its screen in \(rehearsal) too, in that language, with nothing cut off.
+                Each screen on each device is captured in \(run.plan.primaryLocale) and \(rehearsal) before its other \
+                languages, which come once it's done: check that it reaches its screen in \(rehearsal) too, in that \
+                language, with nothing cut off. A screen or device that can't go on holds back only its own languages.
                 """)
             }
         }

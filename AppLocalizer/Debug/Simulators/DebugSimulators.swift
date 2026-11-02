@@ -17,12 +17,19 @@ enum DebugSimulators {
     struct Mac: Sendable {
         var hasNewRuntime = false
         var hasDuo = false
+        /// The every-device scenes' Mac also runs Apple Vision Pro.
+        var hasVision = false
     }
 
     /// The pretend Mac, changed by `install-platform` and `create-simulator`.
     static let mac = Mutex(Mac())
 
     static let modes: Set<String> = ["simulators", "install-platform", "create-simulator"]
+
+    /// The every-device scenes' Mac: it runs Apple Vision Pro too.
+    static func runEveryDevice() {
+        mac.withLock { $0.hasVision = true }
+    }
 
     static let downloadLines = [
         "Downloading iOS 27.2 Simulator (24C61): 12.4% (1.09 GB of 8.81 GB)",
@@ -68,6 +75,10 @@ enum DebugSimulators {
         ]
         if mac.hasNewRuntime { runtimes.append(runtime("iOS", "27.2", runs: [iPhone, iPad, duo])) }
         if mac.hasDuo { devices[runtimeID("iOS", "27.2")] = [device("iPhone Duo", duo, 4)] }
+        if mac.hasVision {
+            runtimes.append(runtime("xrOS", "3.0", runs: [vision]))
+            devices[runtimeID("xrOS", "3.0")] = [device("Apple Vision Pro", vision, 5)]
+        }
         let list: [String: Any] = ["runtimes": runtimes, "devicetypes": [iPhone, iPad, duo, watch, vision], "devices": devices]
         let data = (try? JSONSerialization.data(withJSONObject: list, options: [.sortedKeys])) ?? Data()
         return String(data: data, encoding: .utf8) ?? "{}"

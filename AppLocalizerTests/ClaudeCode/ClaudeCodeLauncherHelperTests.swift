@@ -64,6 +64,25 @@ struct ClaudeCodeLauncherHelperTests {
         #expect(!launcher.canStart)
     }
 
+    /// Version 2 runs Claude Code as this one does: a run doesn't stop for
+    /// the update, and the helper still asks to be saved again.
+    @Test func anOlderHelperThatStillRunsClaudeCodeIsReadyAndAsksForTheUpdate() async {
+        #expect(ClaudeCodeHelperScript.minimumRunVersion == 2)
+        runner.checkLines = ["helper 2", "claude /usr/local/bin/claude", "version 2.1.316 (Claude Code)"]
+        let launcher = launcher()
+        await launcher.refreshHelper()
+        #expect(launcher.canStart)
+        #expect(launcher.helper.isOlder)
+        #expect(launcher.helper.title == "Helper needs updating")
+        #expect(launcher.helper.installTitle == "Save the Helper Again…")
+        #expect(launcher.helper.detail.contains("still starts"))
+
+        runner.checkLines = FakeUnixScriptRunner.foundLines
+        await launcher.refreshHelper()
+        #expect(!launcher.helper.isOlder)
+        #expect(launcher.helper.installTitle == nil)
+    }
+
     @Test func noClaudeCodeOnThisMac() async {
         runner.checkLines = ["helper \(ClaudeCodeHelperScript.version)", "claude-missing"]
         let launcher = launcher()

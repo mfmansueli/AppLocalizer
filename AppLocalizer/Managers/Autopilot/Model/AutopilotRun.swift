@@ -21,6 +21,10 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     var designName: String?
     /// The assistant that picked the plan up, e.g. "Claude Code".
     var client: String?
+    /// AppLocalizer started Claude Code for this run, so it starts it again
+    /// when it stops with work left (`AutopilotContinuation`). Nil when the
+    /// prompt was pasted, and in runs from before.
+    var startsClaudeCode: Bool?
     var environment: AutopilotEnvironment?
     /// The secret in the upload link the assistant sends captures to.
     var uploadToken: String
@@ -75,12 +79,19 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
         return plan.rehearsalFirstTargets.filter { !isSettled($0) && !held.contains($0) }
     }
 
-    /// What the assistant captures now: the rehearsal while any of it is
-    /// left, then the other languages.
+    /// What the assistant captures now: each screen on each device in the
+    /// rehearsal's languages before its other languages, the rehearsal
+    /// first. A screen or a device that can't go on holds back only its
+    /// own other languages, never the rest of the run.
     var nextTargets: [AutopilotCaptureTarget] {
         let remaining = remainingTargets
-        let rehearsal = remaining.filter(plan.isRehearsal)
-        return rehearsal.isEmpty ? remaining : rehearsal
+        let rehearsing = Set(remaining.filter(plan.isRehearsal).map { Self.place(of: $0) })
+        return remaining.filter { plan.isRehearsal($0) || !rehearsing.contains(Self.place(of: $0)) }
+    }
+
+    /// A screen on a device, whatever the language.
+    private static func place(of target: AutopilotCaptureTarget) -> AutopilotCaptureTarget {
+        AutopilotCaptureTarget(screenID: target.screenID, displayType: target.displayType, locale: "")
     }
 
     /// Every screen is still being tried in the primary language and the
@@ -117,14 +128,16 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     var problemGroups: [AutopilotProblemGroup] { AutopilotProblemGroup.groups(of: openProblems) }
 
     /// Problems the person chose to retry: the assistant captures them again
-    /// with the fix. One reported again is open instead.
+    /// with the fix. One reported again is open instead. A problem reported
+    /// on a screen already captured (out of date, say) waits for a capture
+    /// that arrives after it.
     var retries: [AutopilotProblem] {
         problems.filter(isPendingRetry)
     }
 
     private func isPendingRetry(_ problem: AutopilotProblem) -> Bool {
         problem.resolution == .retryWithFix && plan.displayTypes.contains(problem.target.displayType)
-            && !captures.contains { $0.target == problem.target }
+            && !captures.contains { $0.target == problem.target && $0.receivedAt >= problem.reportedAt }
             && !problems.contains { $0.isOpen && $0.target == problem.target }
     }
 
@@ -139,9 +152,10 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
         primaryCaptureTargets = settled.isEmpty ? nil : settled
     }
 
-    /// Every target settled and nothing waiting on the person.
+    /// Every target settled, nothing waiting on the person, and nothing to
+    /// capture again.
     var isCaptureComplete: Bool {
-        !plan.targets.isEmpty && plan.targets.allSatisfy(isSettled) && openProblems.isEmpty
+        !plan.targets.isEmpty && plan.targets.allSatisfy(isSettled) && openProblems.isEmpty && retries.isEmpty
     }
 
     /// A target's captures, best first: clean text before an issue, then

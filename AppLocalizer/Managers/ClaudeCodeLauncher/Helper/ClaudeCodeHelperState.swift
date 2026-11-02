@@ -12,9 +12,11 @@ enum ClaudeCodeHelperState: Hashable, Sendable {
     case unknown
     case notInstalled
     case checking
-    /// Saved, and it found Claude Code.
+    /// Saved, and it found Claude Code. One saved by an older AppLocalizer
+    /// still starts it, and asks to be saved again (`isOlder`).
     case ready(ClaudeCodeInstallation)
-    /// Saved by an older AppLocalizer; it needs saving again.
+    /// Saved by an AppLocalizer too old to start Claude Code with it; it
+    /// needs saving again.
     case outdated(installedVersion: Int)
     /// Saved, but there's no `claude` on this Mac.
     case claudeMissing
@@ -31,6 +33,12 @@ enum ClaudeCodeHelperState: Hashable, Sendable {
         return nil
     }
 
+    /// Ready, but saved by an older AppLocalizer: Claude Code starts, and
+    /// what's new (the simulator check) waits for it to be saved again.
+    var isOlder: Bool {
+        (installation?.helperVersion ?? ClaudeCodeHelperScript.version) < ClaudeCodeHelperScript.version
+    }
+
     /// The file is in the scripts folder, whatever it found.
     var isInstalled: Bool {
         switch self {
@@ -44,6 +52,7 @@ enum ClaudeCodeHelperState: Hashable, Sendable {
         switch self {
         case .unknown, .checking: String(localized: "Checking the helper…")
         case .notInstalled: String(localized: "Helper not installed")
+        case .ready where isOlder: String(localized: "Helper needs updating")
         case .ready: String(localized: "Helper installed")
         case .outdated: String(localized: "Helper needs updating")
         case .claudeMissing: String(localized: "Claude Code not found")
@@ -58,6 +67,8 @@ enum ClaudeCodeHelperState: Hashable, Sendable {
             ""
         case .notInstalled:
             String(localized: "Save it once and AppLocalizer starts Claude Code for you: no Terminal, nothing to paste.")
+        case let .ready(installation) where isOlder:
+            String(localized: "\(installation.title) still starts. Save the helper again over the old one for the simulator check.")
         case let .ready(installation):
             "\(installation.title) · \(installation.displayPath())"
         case .outdated:
@@ -74,6 +85,7 @@ enum ClaudeCodeHelperState: Hashable, Sendable {
         switch self {
         case .notInstalled, .unknown: String(localized: "Install Helper…")
         case .outdated, .failed: String(localized: "Save the Helper Again…")
+        case .ready where isOlder: String(localized: "Save the Helper Again…")
         case .checking, .ready, .claudeMissing: nil
         }
     }

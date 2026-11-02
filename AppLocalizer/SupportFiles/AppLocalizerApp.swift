@@ -40,6 +40,13 @@ struct AppLocalizerApp: App {
         #if DEBUG
         if let id = DebugScene.requestedID { ClaudeCodeDebugScenes.configure(launcher, for: id) }
         #endif
+        if Self.continuesAutopilot {
+            // A Claude Code that stops with captures left is started again.
+            launcher.onRunEnded = { [weak launcher] session in
+                guard let launcher else { return }
+                Task { await AutopilotContinuation.sessionEnded(session, center: .shared, launcher: launcher) }
+            }
+        }
         _translation = State(initialValue: translation)
         _keyAssistant = State(initialValue: keyAssistant)
         _assistants = State(initialValue: assistants)
@@ -133,6 +140,15 @@ struct AppLocalizerApp: App {
         if let id = DebugScene.requestedID { return ClaudeCodeDebugScenes.scriptRunner(for: id) }
         #endif
         return LiveUnixScriptRunner()
+    }
+
+    /// Autopilot's runs go on when Claude Code stops early; DEBUG scenes keep
+    /// their own runs, never the real ones.
+    private static var continuesAutopilot: Bool {
+        #if DEBUG
+        if DebugScene.requestedID != nil { return false }
+        #endif
+        return true
     }
 
     /// DEBUG scenes read a pretend Mac's simulators; nil uses the helper's

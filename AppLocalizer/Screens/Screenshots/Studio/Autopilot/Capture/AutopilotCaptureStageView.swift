@@ -5,9 +5,10 @@
 
 import SwiftUI
 
-/// Capture: progress, the latest capture in a device frame, the problems
-/// the person has to answer (one card per cause), the assistant's log and
-/// the captures so far.
+/// Capture: progress, the latest capture in a device frame, whether
+/// nobody is working on it any more (with Continue), the problems the
+/// person has to answer (one card per cause), the assistant's log and the
+/// captures so far. Looking at it checks this Mac's simulators again.
 struct AutopilotCaptureStageView: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -31,6 +32,13 @@ struct AutopilotCaptureStageView: View {
                         if let launched = studio.launchedRun, launched.isActive || launched.failure != nil || !launched.denials.isEmpty {
                             AutopilotLaunchStatus(studio: studio, run: launched)
                         }
+                        // Looked at again each minute: a pasted run goes
+                        // quiet with time.
+                        TimelineView(.periodic(from: .now, by: 60)) { _ in
+                            if let stall = studio.stall {
+                                AutopilotStallNotice(studio: studio, run: run, stall: stall)
+                            }
+                        }
                         ForEach(run.problemGroups) { group in
                             AutopilotProblemCard(studio: studio, run: run, group: group)
                         }
@@ -42,6 +50,7 @@ struct AutopilotCaptureStageView: View {
             .padding(Spacing.xLarge)
         }
         .accessibilityIdentifier("autopilot.capture")
+        .task(id: run.id) { await studio.checkDevicesDuringRun() }
     }
 
     private var latest: some View {

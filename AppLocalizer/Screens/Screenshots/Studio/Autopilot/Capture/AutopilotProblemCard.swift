@@ -61,7 +61,11 @@ struct AutopilotProblemCard: View {
 
     private var buttons: some View {
         HStack(spacing: Spacing.small) {
-            if let platform = simulatorStatus?.platformToInstall {
+            if group.isDeviceWide, let helperTitle {
+                Button(helperTitle) { studio.installHelperAndCheck() }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("autopilot.problem.helper")
+            } else if let platform = simulatorStatus?.platformToInstall {
                 Button("Install the \(platform) Simulator") { studio.installSimulator(for: group.displayType) }
                     .buttonStyle(.borderedProminent)
                     .disabled(simulators?.working != nil)
@@ -124,6 +128,12 @@ struct AutopilotProblemCard: View {
             Change the project so it doesn’t need this command, then retry, or continue the run in Terminal, where you can allow it.
             """)
         }
+        if group.isDeviceWide, helperTitle != nil {
+            return String(localized: """
+            AppLocalizer installs the simulator through its helper: save it, then Install appears here. Leaving the device \
+            out finishes the run without it.
+            """)
+        }
         if group.isDeviceWide {
             return simulatorStatus?.platformToInstall != nil
                 ? String(localized: """
@@ -161,6 +171,15 @@ struct AutopilotProblemCard: View {
     /// This Mac's simulator for a device-wide problem.
     private var simulatorStatus: SimulatorStatus? {
         group.isDeviceWide ? simulators?.status(for: group.displayType) : nil
+    }
+
+    /// The helper to save before AppLocalizer can install the simulator.
+    private var helperTitle: String? {
+        switch simulators?.state {
+        case .noHelper: String(localized: "Install the Helper…")
+        case .oldHelper: String(localized: "Save the Helper Again…")
+        default: nil
+        }
     }
 
     private var isMakeable: Bool {

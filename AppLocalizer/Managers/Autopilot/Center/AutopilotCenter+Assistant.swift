@@ -32,7 +32,8 @@ extension AutopilotCenter {
     // MARK: - Captures
 
     /// Records a capture of `target`; a problem on the same screen counts as
-    /// solved. Moves on when the last one arrives.
+    /// solved, and captures from before that problem (out of date, say)
+    /// give way to this one. Moves on when the last one arrives.
     func receiveCapture(
         appID: StoreApp.ID, file: CaptureFile, report: AutopilotCaptureReport, context: AutopilotContext
     ) async throws -> AutopilotCapture {
@@ -49,6 +50,8 @@ extension AutopilotCenter {
         let slot = (run.plan.slot(of: target.screenID) ?? 0) + 1
         capture.text = await readText(of: capture, slot: slot - 1, context: context)
         update(appID) { run in
+            let reported = run.problems.filter { $0.target == target && ($0.isOpen || $0.resolution == .retryWithFix) }.map(\.reportedAt).max()
+            if let reported { run.captures.removeAll { $0.target == target && $0.receivedAt < reported } }
             run.captures.removeAll { $0.target == target && $0.attempt == capture.attempt }
             run.captures.append(capture)
             for index in run.problems.indices where run.problems[index].target == target && run.problems[index].resolution != .usePrimaryCapture {
@@ -73,7 +76,8 @@ extension AutopilotCenter {
 
     /// A screen couldn't be reached; the others keep going, but the same
     /// screen on the same device waits in the other languages (every
-    /// screen on it, when the whole device can't be captured).
+    /// screen on it, when the whole device can't be captured: that one
+    /// problem takes the place of the device's others).
     func reportProblem(
         appID: StoreApp.ID, target: AutopilotCaptureTarget, what: String, proposedFix: String?, refusedCommand: String? = nil,
         changesProject: Bool? = nil, affectsDevice: Bool? = nil
@@ -89,7 +93,7 @@ extension AutopilotCenter {
         let name = run.plan.screen(id: target.screenID)?.name ?? target.screenID
         update(appID) { run in
             run.problems.removeAll { open in
-                open.isOpen && (open.target == target || (problem.isDeviceWide && open.isDeviceWide && open.target.displayType == target.displayType))
+                open.isOpen && (open.target == target || (problem.isDeviceWide && open.target.displayType == target.displayType))
             }
             run.problems.append(problem)
             let place = problem.isDeviceWide ? target.displayType.title : "\(name) (\(target.locale))"

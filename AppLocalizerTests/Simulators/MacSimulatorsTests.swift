@@ -92,6 +92,33 @@ struct MacSimulatorsTests {
         #expect(simulators.status(for: .iPhoneDuo)?.canCapture == false)
     }
 
+    /// A run already capturing gets its device's problem when it's looked
+    /// at again, once; a run at Plan gets none.
+    @Test func aRunCapturingGetsTheDeviceThisMacCantRunOnce() async throws {
+        let runner = FakeUnixScriptRunner()
+        runner.answers["simulators"] = [Self.lines()]
+        let simulators = MacSimulators(runner: runner, helperURL: helper)
+        await simulators.check()
+        var run = AutopilotTestFixtures.run(.capture)
+        run.plan.setPlans(.iPhoneDuo, true)
+        let center = AutopilotCenter(runs: [run.appID: run])
+
+        #expect(center.reportMissingSimulators(appID: run.appID, simulators: simulators) == [.iPhoneDuo])
+        #expect(center.reportMissingSimulators(appID: run.appID, simulators: simulators).isEmpty, "Its problem is open already")
+        let reported = try #require(center.run(for: run.appID))
+        let problem = try #require(reported.openProblems.first)
+        #expect(reported.openProblems.count == 1)
+        #expect(problem.isDeviceWide)
+        #expect(problem.target.displayType == .iPhoneDuo)
+        #expect(problem.proposedFix == "Install the iOS simulator (xcodebuild -downloadPlatform iOS).")
+        #expect(!reported.nextTargets.contains { $0.displayType == .iPhoneDuo })
+        #expect(reported.assistantHasWork, "The other devices go on")
+
+        var planned = AutopilotTestFixtures.run(.plan)
+        planned.plan.setPlans(.iPhoneDuo, true)
+        #expect(AutopilotCenter(runs: [planned.appID: planned]).reportMissingSimulators(appID: planned.appID, simulators: simulators).isEmpty)
+    }
+
     @Test func aReadyDeviceInstallsNothing() async {
         let runner = FakeUnixScriptRunner()
         runner.answers["simulators"] = [Self.lines()]

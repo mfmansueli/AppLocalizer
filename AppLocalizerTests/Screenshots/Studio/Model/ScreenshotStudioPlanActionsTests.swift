@@ -97,7 +97,9 @@ struct ScreenshotStudioPlanActionsTests {
         let devices = ["iPhone", "iPhone Duo", "iPad"].formatted(.list(type: .and))
         #expect(model.studio.prompt == "Run Lumen Journal’s screenshot plan from AppLocalizer: decide which screens show Lumen Journal best, "
             + "build the app, capture them on \(devices) in all 12 languages, and send the captures back. "
-            + "Start with get_capture_plan for app 6450000001, then ask next_step after each step.")
+            + "Start with get_capture_plan for app 6450000001, then ask next_step after each step. "
+            + "Keep going until next_step says done or wait: report a screen you can’t capture with report_capture_problem "
+            + "(affectsDevice: true when this Mac can’t run the device) and go on with the rest.")
     }
 
     @Test func keepingTheScreensNamesThem() async {

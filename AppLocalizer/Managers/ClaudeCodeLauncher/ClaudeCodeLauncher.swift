@@ -45,6 +45,9 @@ final class ClaudeCodeLauncher {
     /// Asks the person for an app's project folder: an Open panel, canned
     /// in tests and DEBUG scenes.
     @ObservationIgnored var folderChooser: @MainActor (_ appName: String, _ suggestion: String?) -> String?
+    /// Told when a run ends, however it ended: Autopilot starts Claude Code
+    /// again when it stopped with work left (`AutopilotContinuation`).
+    @ObservationIgnored var onRunEnded: (@MainActor (ClaudeCodeRun) -> Void)?
     @ObservationIgnored private var tasks: [ClaudeCodeRun.ID: Task<Void, Never>] = [:]
     @ObservationIgnored private var stopRequested: Set<ClaudeCodeRun.ID> = []
     @ObservationIgnored private var exitStatuses: [ClaudeCodeRun.ID: Int32] = [:]
@@ -129,11 +132,13 @@ final class ClaudeCodeLauncher {
         }
         let output = lines.withLock { $0.joined(separator: "\n") }
         switch ClaudeCodeHelperScript.parseCheck(output) {
-        case let .found(installation) where installation.helperVersion < ClaudeCodeHelperScript.version:
+        case let .found(installation) where installation.helperVersion < ClaudeCodeHelperScript.minimumRunVersion:
             helper = .outdated(installedVersion: installation.helperVersion)
         case let .found(installation):
+            // An older helper that still runs Claude Code is ready, and
+            // asks to be saved again for what's new.
             helper = .ready(installation)
-        case let .claudeMissing(version) where version < ClaudeCodeHelperScript.version:
+        case let .claudeMissing(version) where version < ClaudeCodeHelperScript.minimumRunVersion:
             helper = .outdated(installedVersion: version)
         case .claudeMissing:
             helper = .claudeMissing
@@ -346,6 +351,7 @@ final class ClaudeCodeLauncher {
             run.phase = phase
             run.endedAt = now()
         }
+        if let ended = run(id) { onRunEnded?(ended) }
     }
 
     private func append(_ run: ClaudeCodeRun) {

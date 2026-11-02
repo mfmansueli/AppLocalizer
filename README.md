@@ -127,7 +127,8 @@ App Store Connect or the Keychain, and the MCP server in a scene never opens a p
   Claude Design link nobody has read yet, a long assistant name and a long screen name, `st-plan-link`. Problems: a
   refused command, `st-refused`; one cause on one screen in several languages, `st-group`; and iPhone Duo on a Mac
   without its simulator, `st-device` (a pretend Mac with iOS 26.5 and 27.0, `DebugSimulators`, so Install the iOS
-  Simulator downloads nothing).
+  Simulator downloads nothing; the every-device scenes' Mac also runs Apple Vision Pro). A run nothing has arrived
+  for in over an hour, with Continue, `st-stalled`.
   The Sets matrix, `sets*`, `viewer*` and `scope`; the Template editor, `tpl*` and `starter`; the template gallery,
   `gallery` and `gallery-elegant`, and a few of its templates rendered, `tpl-cinema`, `tpl-highlight-ar`,
   `tpl-market-de`, `tpl-poster-ja` and `tpl-swoosh-deco`; Captions, `cap*`
@@ -252,13 +253,16 @@ call.
     So does a fix the assistant marks `changesProject: true`, or one that doesn't read as a command
     (`AutopilotProblem.needsProjectChange`). The plan carries `preflight` checks (`AutopilotPreflight`: identifiers
     rather than visible titles, sample data in each language, no forced `-AppleLanguages`, no `VAR=value`) and a
-    `rehearsal` language (another script than the primary's, else German): `next_step` gives every screen on every
-    device in those two first (`phase: rehearsal`), then the rest. An open problem holds the same screen on the same
+    `rehearsal` language (another script than the primary's, else German): `next_step` gives each screen on each
+    device in those two first (`phase: rehearsal`), then its other languages, so a screen or device that can't go on
+    holds back only its own languages, never the rest of the run. An open problem holds the same screen on the same
     device in the other languages, so one cause is reported once; problems with one cause share a card
     (`AutopilotProblemGroup`), and reusing the primary capture for a change to the project covers the screen's other
     languages (`primaryCaptureTargets`). A device this Mac can't run is reported once with `affectsDevice: true`: it
     holds every screen on that device, the other devices keep going, and its card installs the simulator or leaves
-    the device out (`AutopilotCenter.leaveOut`, never iPhone); the assistant never downloads a runtime itself.
+    the device out (`AutopilotCenter.leaveOut`, never iPhone); the assistant never downloads a runtime itself. A
+    problem reported on a screen already captured (out of date) and retried is captured again, and the new capture
+    replaces the old ones.
     `next_step` says what to do next (capture, wait, design, revise, write captions, done). `get_design_brief`,
     `report_design_source`, `propose_direction` and `revise_direction` carry the design stage, and
     `propose_captions` with the run's id shortens captions while localizing. The person plans, picks, chooses and
@@ -304,7 +308,15 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
   device has a simulator (`SimulatorInventory`, `SimulatorStatus`): ready, one to make, a runtime to install (iPhone
   Duo needs iOS 27.1 or later; Xcode 27.2 may come with only iOS 27.0), or a newer Xcode. "Install the iOS
   Simulator" downloads the platform, then makes the simulator (`MacSimulators`). Starting with a device still
-  missing reports it as one problem for the device (`ScreenshotStudioModel.reportMissingSimulators`).
+  missing reports it as one problem for the device (`AutopilotCenter.reportMissingSimulators`), and so does looking
+  at a run that's capturing, or continuing it.
+- **Keeping a run going** (`Managers/Autopilot/Continuation/`): when the Claude Code AppLocalizer started for a run
+  ends with work left and sent something since it started, AppLocalizer starts it again with the prompt that
+  continues the run (`AutopilotContinuation`, through `ClaudeCodeLauncher.onRunEnded`); one that sent nothing isn't,
+  so it can't loop. A run nobody works on says so in the sheet (`AutopilotStall`: Claude Code ended, with its last
+  words; AppLocalizer was closed; or nothing arrived for 30 minutes after a paste), with Continue. Answering a
+  problem continues the run too, when AppLocalizer started Claude Code for it. A version 2 helper still starts
+  Claude Code (`minimumRunVersion`) and asks to be saved again for the simulator modes.
 - **Each run** (`ClaudeCodeInvocation`) is `claude -p --output-format stream-json --verbose --restricted
   --strict-mcp-config --mcp-config … --settings … --permission-mode dontAsk --tools …`. It knows only AppLocalizer's
   server, with a token made for that run that acts as the paired Claude Code and stops working when the run ends
@@ -343,7 +355,8 @@ no new entitlement is needed (`Managers/ClaudeCodeLauncher/`).
     Live/New set summaries; Apple Watch and Apple Vision Pro (their screens, layouts, checks, previews and pushes to
     the visionOS version), iPhone Duo (its sizes, checks, canvas, row and plan) and the project's new languages;
     this Mac's simulators (reading `simctl`'s list, what each device needs, installing and making one, a device-wide
-    problem, leaving a device out);
+    problem, leaving a device out); keeping a run going (the rehearsal per screen and device, starting Claude Code
+    again only after progress, a run nobody works on, recapturing a screen reported out of date);
   - Claude Code started by AppLocalizer: the helper's answers and exit line, each run's arguments and permissions,
     reading the stream, failures, the Terminal link, runs through a pretend helper (folders, run tokens, Stop, Try
     Again, login and server problems), and setup's test run.

@@ -31,21 +31,61 @@ extension ScreenshotStudioModel {
     }
 
     /// With no folder chosen nothing starts, so it's back to the plan; if
-    /// the helper went away, it's the paste after all.
+    /// the helper went away, it's the paste after all. AppLocalizer starts
+    /// Claude Code again if it stops with work left.
     private func launch(_ prompt: String, with launcher: ClaudeCodeLauncher) async {
+        // Marked first: the session can end before `start` returns.
+        autopilot?.update(app.id) { $0.startsClaudeCode = true }
         if let id = await launcher.start(.autopilot, appID: app.id, appName: app.name, prompt: prompt) {
             launchedRunID = id
-        } else if launcher.canStart {
+            return
+        }
+        autopilot?.update(app.id) { $0.startsClaudeCode = nil }
+        if launcher.canStart {
             stop()
         } else {
             copyPrompt()
         }
     }
 
-    /// The run AppLocalizer started, while this Autopilot run lasts.
+    /// The newest Claude Code AppLocalizer started for this Autopilot run:
+    /// the first, or one that continued it.
     var launchedRun: ClaudeCodeRun? {
-        guard run != nil else { return nil }
-        return launcher?.run(launchedRunID)
+        guard let run, let launcher else { return nil }
+        return launcher.latestRun(appID: app.id, purpose: .autopilot, since: run.startedAt) ?? launcher.run(launchedRunID)
+    }
+
+    // MARK: - Keeping it going
+
+    /// Why nobody is working on the run although the assistant has work,
+    /// or nil.
+    var stall: AutopilotStall? {
+        guard let run else { return nil }
+        return AutopilotContinuation.stall(of: run, session: launchedRun, now: autopilot?.now() ?? .now)
+    }
+
+    /// Continue: AppLocalizer starts Claude Code where the run stopped;
+    /// without the helper, the prompt that continues it is copied.
+    func continueRun() {
+        guard let autopilot else { return }
+        guard let launcher, launcher.canStart else {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(AutopilotPrompt.continuing(appName: app.name, appID: app.id), forType: .string)
+            didCopyPrompt = true
+            return
+        }
+        let (appID, name) = (app.id, app.name)
+        Task { await AutopilotContinuation.start(appID: appID, appName: name, center: autopilot, launcher: launcher) }
+    }
+
+    /// After the person's answer: when AppLocalizer started Claude Code
+    /// for the run and none is working now, it continues with what the
+    /// answer left to do.
+    func keepGoing() async {
+        guard let autopilot, let launcher, let run, run.startsClaudeCode == true, run.assistantHasWork,
+              launchedRun?.isActive != true, launcher.canStart
+        else { return }
+        await AutopilotContinuation.start(appID: app.id, appName: app.name, center: autopilot, launcher: launcher)
     }
 
     /// Cancel on the plan: the sheet closes and the last run comes back.
@@ -66,24 +106,7 @@ extension ScreenshotStudioModel {
     /// What to paste into the assistant to start.
     var prompt: String {
         guard let run else { return "" }
-        let plan = run.plan
-        let count = plan.localeCodes.count
-        let languages = if count == 1 {
-            String(localized: "1 language")
-        } else if plan.includesNewLanguages {
-            String(localized: "all \(count) languages the app supports")
-        } else {
-            String(localized: "all \(count) languages")
-        }
-        let screens = plan.displayTypes.contains(where: \.hasOwnScreens)
-            ? String(localized: "every screen")
-            : String(localized: "the \(plan.screens.count) screens")
-        // The assistant picks the screens unless the person keeps theirs.
-        let work = plan.choosesScreens
-            ? String(localized: "decide which screens show \(app.name) best, build the app, capture them")
-            : String(localized: "build the app, capture \(screens)")
-        return String(localized: "Run \(app.name)’s screenshot plan from AppLocalizer: \(work) on \(plan.devicesTitle) in \(languages), and send the captures back.")
-            + " " + String(localized: "Start with get_capture_plan for app \(app.id), then ask next_step after each step.")
+        return AutopilotPrompt.start(appName: app.name, appID: app.id, plan: run.plan)
     }
 
     /// The prompt's shortcut in Claude Code.
@@ -107,7 +130,10 @@ extension ScreenshotStudioModel {
         let context = context
         let appID = app.id
         let ids = group.problems.map(\.id)
-        Task { await autopilot.resolveProblems(appID: appID, problemIDs: ids, with: resolution, context: context) }
+        Task {
+            await autopilot.resolveProblems(appID: appID, problemIDs: ids, with: resolution, context: context)
+            await keepGoing()
+        }
     }
 
     /// Upload One by Hand…: the PNG becomes the screen's capture.
@@ -121,6 +147,7 @@ extension ScreenshotStudioModel {
             let report = AutopilotCaptureReport(target: problem.target, notes: String(localized: "Uploaded by hand"))
             _ = try await autopilot.receiveCapture(appID: app.id, file: file, report: report, context: context)
             await autopilot.resolveProblem(appID: app.id, problemID: problem.id, with: .uploadedByHand, context: context)
+            await keepGoing()
         } catch {
             screenshots.notice = error.localizedDescription
         }

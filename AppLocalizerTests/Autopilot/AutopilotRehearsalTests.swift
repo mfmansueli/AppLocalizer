@@ -77,6 +77,32 @@ struct AutopilotRehearsalTests {
         #expect(run.nextTargets.map(\.locale) == Array(repeating: "de-DE", count: 4))
     }
 
+    @Test func aScreenRehearsedGoesOnInTheOtherLanguagesWhileTheRestRehearses() {
+        var run = AutopilotTestFixtures.run(.capture, plan: Self.plan)
+        run.captures = [
+            AutopilotTestFixtures.capture(target("week", .iPhone, "en-US")),
+            AutopilotTestFixtures.capture(target("week", .iPhone, "ja")),
+        ]
+        #expect(run.isRehearsing)
+        #expect(run.nextTargets.count == 7)
+        #expect(Array(run.nextTargets.prefix(6)).allSatisfy(run.plan.isRehearsal), "The rehearsal comes first")
+        #expect(run.nextTargets.last == target("week", .iPhone, "de-DE"))
+    }
+
+    /// A device the assistant can't capture, and doesn't report, holds back
+    /// only its own languages: the run's other devices go on.
+    @Test func aDeviceThatCantGoOnHoldsBackOnlyItsOwnLanguages() {
+        var run = AutopilotTestFixtures.run(.capture, plan: Self.plan)
+        let iPad = Set(run.plan.targets.filter { $0.displayType == .iPad })
+        AutopilotTestFixtures.captureAll(&run, except: iPad.union(run.plan.targets.filter { $0.locale == "de-DE" }))
+        #expect(run.isRehearsing)
+        #expect(Set(run.nextTargets) == Set([
+            target("today", .iPad, "en-US"), target("today", .iPad, "ja"), target("week", .iPad, "en-US"), target("week", .iPad, "ja"),
+            target("today", .iPhone, "de-DE"), target("week", .iPhone, "de-DE"),
+        ]))
+        #expect(!run.nextTargets.contains(target("today", .iPad, "de-DE")))
+    }
+
     // MARK: - Holds
 
     @Test func aProblemHoldsItsScreenOnItsDeviceInTheOtherLanguages() {

@@ -47,7 +47,10 @@ extension ScreenshotStudioModel {
         guard let autopilot else { return }
         let context = context
         let appID = app.id
-        Task { await autopilot.leaveOut(display, appID: appID, context: context) }
+        Task {
+            await autopilot.leaveOut(display, appID: appID, context: context)
+            await keepGoing()
+        }
     }
 
     /// Once the device can be captured, its device-wide problems are
@@ -57,22 +60,22 @@ extension ScreenshotStudioModel {
         let ids = run.openProblems.filter { $0.isDeviceWide && $0.target.displayType == display }.map(\.id)
         guard !ids.isEmpty else { return }
         await autopilot.resolveProblems(appID: app.id, problemIDs: ids, with: .retryWithFix, context: context)
+        await keepGoing()
     }
 
     /// At Start, a planned device this Mac can't run is one problem
     /// already, so the assistant doesn't try it screen by screen.
     func reportMissingSimulators() {
-        guard let run, let autopilot, let simulators else { return }
-        for display in simulators.missing(in: run.plan.displayTypes) {
-            guard let status = simulators.status(for: display), let target = run.plan.targets.first(where: { $0.displayType == display }) else {
-                continue
-            }
-            _ = try? autopilot.reportProblem(
-                appID: app.id, target: target,
-                what: String(localized: "This Mac can’t run the \(display.deviceName) simulator. \(status.detail)"),
-                proposedFix: status.platformToInstall.map { String(localized: "Install the \($0) simulator (xcodebuild -downloadPlatform \($0)).") },
-                affectsDevice: true
-            )
-        }
+        guard let autopilot, let simulators else { return }
+        autopilot.reportMissingSimulators(appID: app.id, simulators: simulators)
+    }
+
+    /// A run that's capturing is checked again when it's looked at: one
+    /// started before the check, or before a simulator went away, gets its
+    /// device's problem too, and the rest goes on.
+    func checkDevicesDuringRun() async {
+        guard let run, run.stage == .capture, let autopilot, let simulators else { return }
+        if simulators.inventory == nil { await simulators.check() }
+        autopilot.reportMissingSimulators(appID: app.id, simulators: simulators)
     }
 }

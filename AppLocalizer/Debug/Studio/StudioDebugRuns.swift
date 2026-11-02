@@ -219,6 +219,17 @@ enum StudioDebugRuns {
         return run
     }
 
+    /// Capturing, with the last capture over an hour before the scenes'
+    /// clock (14:32): nobody is working on it, so it says so with Continue.
+    static var stalled: AutopilotRun {
+        var run = run(.capture)
+        let hour: TimeInterval = 3600
+        for index in run.captures.indices { run.captures[index].receivedAt -= hour }
+        for index in run.log.indices { run.log[index].date -= hour }
+        run.startedAt = run.startedAt?.addingTimeInterval(-hour)
+        return run
+    }
+
     /// Choosing, after Ask for changes revised Quiet Indigo.
     static var revised: AutopilotRun {
         var run = run(.choose)
