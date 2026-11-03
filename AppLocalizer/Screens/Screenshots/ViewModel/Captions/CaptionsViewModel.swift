@@ -38,6 +38,8 @@ final class CaptionsViewModel {
 
     /// Translate Missing….
     @ObservationIgnored lazy var translation = CaptionTranslationViewModel(screenshots: screenshots)
+    /// The Search results and Header cells' editor.
+    @ObservationIgnored lazy var artworkEditor = ArtworkTextEditor(captions: self)
 
     init(screenshots: ScreenshotsViewModel) {
         self.screenshots = screenshots
@@ -80,7 +82,7 @@ final class CaptionsViewModel {
                 proposalClient: document?.proposal(locale: locale.code, slot: slot)?.client
             )
         }
-        return CaptionsRow(locale: locale, isPrimary: isPrimary, cells: cells)
+        return CaptionsRow(locale: locale, isPrimary: isPrimary, cells: cells, artworkCells: artworkCells(for: locale, isPrimary: isPrimary))
     }
 
     /// "12 locales × 5 slots · 1 overflow · 9 machine-translated · 0
@@ -104,6 +106,7 @@ final class CaptionsViewModel {
     func select(_ key: LocaleSlot?) {
         guard key != selection else { return }
         commitNow()
+        if key != nil { artworkEditor.close() }
         selection = key
         suggestion = nil
         suggestionMessage = nil

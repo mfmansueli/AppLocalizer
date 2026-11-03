@@ -12,9 +12,10 @@ import Observation
 /// running and opens it when it's closed (no command does: the helper
 /// presses Open in its window in Device Hub, which takes AppLocalizer being
 /// allowed in Accessibility, `DeviceHub`), and it restarts a stuck one (its
-/// SpringBoard crashed, or a spinner that doesn't go away). Once it's open,
-/// the run captures it without a Retry. It never restarts an open Duo:
-/// starting it again closes it.
+/// SpringBoard crashed, or a spinner that doesn't go away). Its closed
+/// screenshots come first, on the cover display, so it opens it only once
+/// those are done, and restarts an open one (which closes it) when a closed
+/// one comes back. Once it's open, the run captures it without a Retry.
 @MainActor
 @Observable
 final class DuoWatcher {
@@ -29,6 +30,8 @@ final class DuoWatcher {
         case askedForAccessibility
         /// Closed (or stuck) when it first looked, open now.
         case opened
+        /// Open while its closed screenshots were next: restarted, closed.
+        case closed
 
         var logText: String {
             switch self {
@@ -44,6 +47,8 @@ final class DuoWatcher {
                 String(localized: "AppLocalizer needs Accessibility to open iPhone Duo: macOS asked for it")
             case .opened:
                 String(localized: "iPhone Duo is open: its screens are captured next")
+            case .closed:
+                String(localized: "iPhone Duo was open and its closed screenshots are next: AppLocalizer restarted it, which closes it")
             }
         }
     }
@@ -57,6 +62,8 @@ final class DuoWatcher {
     @ObservationIgnored private var restarts = 0
     /// Tries at opening it since it last started or was seen open.
     @ObservationIgnored private var opens = 0
+    /// Tries at closing it since it was last seen closed.
+    @ObservationIgnored private var closes = 0
     /// Why the last try at opening it failed.
     @ObservationIgnored private var openFailure: String?
     /// The helper is from before it could open the Duo.
@@ -92,9 +99,16 @@ final class DuoWatcher {
     /// `.opened` comes once it's open after being closed or stuck; one
     /// already open when it starts is left alone, as whatever stopped the
     /// run there isn't the Duo being closed.
+    /// `wants`: how the screens captured now need it, asked before each
+    /// look; closed while the run's closed screenshots are left.
     func watch(mayStart: Bool, onEvent: (Event) async -> Void = { _ in }) async {
+        await watch(mayStart: mayStart, wants: { .open }, onEvent: onEvent)
+    }
+
+    /// Watches with the pose the run wants now (`wants`).
+    func watch(mayStart: Bool, wants: () -> AutopilotDuoPose?, onEvent: (Event) async -> Void) async {
         while !Task.isCancelled, simulators != nil {
-            if let event = await look(mayStart: mayStart) { await onEvent(event) }
+            if let event = await look(mayStart: mayStart, wants: wants()) { await onEvent(event) }
             // Less often while there's nothing to see: no helper that can
             // look, or no simulator yet.
             try? await Task.sleep(for: state.isWatched ? interval : interval * 3)
@@ -127,10 +141,32 @@ final class DuoWatcher {
     /// One look, and the step it calls for (`DuoStep`); nothing while
     /// another look is under way.
     @discardableResult
-    func look(mayStart: Bool) async -> Event? {
+    func look(mayStart: Bool, wants: AutopilotDuoPose? = .open) async -> Event? {
         guard let simulators, !isLooking else { return nil }
         isLooking = true
         defer { isLooking = false }
+        guard let device = await duo(in: simulators), let look = await look(at: device) else { return nil }
+        let opens = helperCantOpen ? DuoStep.maximumOpens : opens
+        switch DuoStep.next(after: look, restarts: restarts, opens: opens, closes: closes, mayStart: mayStart, wants: wants, now: now()) {
+        case .start:
+            return await start(device.udid)
+        case .open:
+            return await open(device)
+        case .close:
+            return await close(device.udid)
+        case let .restart(reason):
+            return await restart(device.udid, because: reason)
+        case let .giveUp(reason):
+            state = .stuck(reason)
+            return nil
+        case .wait:
+            return await settle(look.inner, wants: wants)
+        }
+    }
+
+    /// The iPhone Duo simulator; nil, with `state` saying why, without the
+    /// helper or the simulator.
+    private func duo(in simulators: MacSimulators) async -> SimulatorInventory.Device? {
         guard simulators.hasHelper else {
             state = .noHelper
             return nil
@@ -140,21 +176,7 @@ final class DuoWatcher {
             state = simulators.state == .oldHelper ? .oldHelper : .noSimulator
             return nil
         }
-        guard let look = await look(at: device) else { return nil }
-        let opens = helperCantOpen ? DuoStep.maximumOpens : opens
-        switch DuoStep.next(after: look, restarts: restarts, opens: opens, mayStart: mayStart, now: now()) {
-        case .start:
-            return await start(device.udid)
-        case .open:
-            return await open(device)
-        case let .restart(reason):
-            return await restart(device.udid, because: reason)
-        case let .giveUp(reason):
-            state = .stuck(reason)
-            return nil
-        case .wait:
-            return await settle(look.inner)
-        }
+        return device
     }
 
     /// What a running Duo's inner display shows, and whether its
@@ -185,10 +207,11 @@ final class DuoWatcher {
 
     /// Nothing to do: the state is what it shows. `.opened` once it's open
     /// after being seen closed or stuck.
-    private func settle(_ inner: DuoInnerDisplay?) async -> Event? {
+    private func settle(_ inner: DuoInnerDisplay?, wants: AutopilotDuoPose?) async -> Event? {
         let before = state
         let seen = inner.map(DuoState.init) ?? .notRunning
-        state = seen == .closed ? await closedState() : seen
+        if seen == .closed { closes = 0 }
+        state = await seen == .closed ? (wants == .closed ? .closedForScreens : closedState()) : seen
         guard state == .open else { return nil }
         restarts = 0
         opens = 0
@@ -249,6 +272,26 @@ final class DuoWatcher {
         }
         state = .closed
         return .restarted(reason)
+    }
+
+    /// Restarting it closes it (it always starts closed), for its closed
+    /// screenshots; it doesn't count as a stuck one's restart.
+    private func close(_ udid: String) async -> Event? {
+        guard let simulators else { return nil }
+        state = .closing
+        closes += 1
+        opens = 0
+        spinnerSince = nil
+        _ = await simulators.run(["shutdown-simulator", udid])
+        let answer = await simulators.run(["boot-simulator", udid])
+        inner = nil
+        await simulators.check()
+        guard answer.succeeded else {
+            state = .failed(answer.failure ?? String(localized: "iPhone Duo didn’t start again."))
+            return nil
+        }
+        state = .closedForScreens
+        return .closed
     }
 
     /// The helper shows the Duo's window in Device Hub and presses Open.

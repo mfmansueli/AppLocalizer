@@ -76,7 +76,9 @@ final class ScreenshotRenderQueue {
     func largeImage(for job: RenderJob, pixelWidth: Int) async -> CGImage? {
         if let cached = await cache.load(job.key, width: pixelWidth) { return cached }
         let capture = await loadCapture(for: job, pixelWidth: pixelWidth)
-        guard let image = ScreenshotImageRenderer.image(layout: job.layout, capture: capture, pixelWidth: pixelWidth) else { return nil }
+        let companion = await loadCompanion(for: job, pixelWidth: pixelWidth)
+        guard let image = ScreenshotImageRenderer.image(layout: job.layout, capture: capture, companion: companion, pixelWidth: pixelWidth)
+        else { return nil }
         cache.store(image, key: job.key, width: pixelWidth)
         return image
     }
@@ -98,8 +100,9 @@ final class ScreenshotRenderQueue {
                 batch[job.key] = image
             } else {
                 let capture = await loadCapture(for: job, pixelWidth: pixelWidth)
+                let companion = await loadCompanion(for: job, pixelWidth: pixelWidth)
                 if Task.isCancelled { return }
-                if let image = ScreenshotImageRenderer.image(layout: job.layout, capture: capture, pixelWidth: pixelWidth) {
+                if let image = ScreenshotImageRenderer.image(layout: job.layout, capture: capture, companion: companion, pixelWidth: pixelWidth) {
                     cache.store(image, key: job.key, width: pixelWidth)
                     batch[job.key] = image
                 }
@@ -115,6 +118,11 @@ final class ScreenshotRenderQueue {
     private func loadCapture(for job: RenderJob, pixelWidth: Int) async -> CGImage? {
         guard let capture = job.capture else { return nil }
         return await captureImage(capture, pixelWidth)
+    }
+
+    private func loadCompanion(for job: RenderJob, pixelWidth: Int) async -> CGImage? {
+        guard let companion = job.companion else { return nil }
+        return await captureImage(companion, pixelWidth)
     }
 
     private func flush() {

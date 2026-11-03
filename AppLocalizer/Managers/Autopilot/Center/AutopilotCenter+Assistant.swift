@@ -37,11 +37,11 @@ extension AutopilotCenter {
     func receiveCapture(
         appID: StoreApp.ID, file: CaptureFile, report: AutopilotCaptureReport, context: AutopilotContext
     ) async throws -> AutopilotCapture {
-        let target = report.target
         guard let run = runs[appID], run.stage == .capture || run.stage == .waiting else {
             throw AutopilotError(String(localized: "The run isn’t capturing now. Call next_step to see what AppLocalizer wants."))
         }
-        try Self.checkSize(file.pixelSize, for: target.displayType)
+        let target = run.plan.resolvedTarget(report.target, size: file.pixelSize)
+        try Self.checkSize(file.pixelSize, for: target.displayType, duoPose: run.plan.duoPose(for: target))
         var capture = AutopilotCapture(
             id: makeID(), target: target, attempt: max(1, report.attempt), score: min(max(report.score, 0), 1), notes: report.notes,
             captureID: file.id, pixelSize: file.pixelSize, receivedAt: now()
@@ -53,6 +53,12 @@ extension AutopilotCenter {
             let reported = run.problems.filter { $0.target == target && ($0.isOpen || $0.resolution == .retryWithFix) }.map(\.reportedAt).max()
             if let reported { run.captures.removeAll { $0.target == target && $0.receivedAt < reported } }
             run.captures.removeAll { $0.target == target && $0.attempt == capture.attempt }
+            // The Duo opened or folded since its last capture.
+            if let pose = run.plan.duoPose(for: target),
+               run.captures.last(where: { $0.target.displayType == .iPhoneDuo }).flatMap({ run.plan.duoPose(for: $0.target) }) != pose
+            {
+                run.appendLog(pose.launchLine(locale: target.locale), kind: .command, at: now())
+            }
             run.captures.append(capture)
             for index in run.problems.indices where run.problems[index].target == target && run.problems[index].resolution != .usePrimaryCapture {
                 run.problems[index].resolution = .captured
@@ -85,6 +91,10 @@ extension AutopilotCenter {
         guard let run = runs[appID], run.stage == .capture || run.stage == .waiting else {
             throw AutopilotError(String(localized: "The run isn’t capturing now. Call next_step to see what AppLocalizer wants."))
         }
+        // On iPhone Duo, a target sent without its pose takes its screen's
+        // first, as the plan's targets have it.
+        var target = target
+        if target.duoPose == nil { target.duoPose = run.plan.duoPose(for: target) }
         let problem = AutopilotProblem(
             id: "pr-" + makeID().prefix(8), target: target, what: what, proposedFix: proposedFix,
             refusedCommand: refusedCommand.flatMap { $0.isEmpty ? nil : $0 }, changesProject: changesProject,
@@ -155,22 +165,60 @@ extension AutopilotCenter {
         guard let run = runs[appID] else { return .noRun }
         switch run.stage {
         case .plan:
-            return .noRun
+            return planStep(run)
         case .waiting:
             pickUp(appID: appID, client: client, environment: environment)
-            return captureStep(runs[appID] ?? run)
+            // A run that only records for its App Preview starts recording.
+            return capturingStep(runs[appID] ?? run)
         case .capture:
-            if let environment { update(appID) { $0.environment = environment } }
-            return capturingStep(run)
-        case .pick, .choose:
+            return capturingStep(appID: appID, run, environment: environment)
+        case .pick:
             return .wait(reason: personStepReason(run.stage), seconds: 20)
+        case .choose:
+            return retakeStep(run) ?? .wait(reason: personStepReason(run.stage), seconds: 20)
         case .design:
-            return designStep(run)
+            return retakeStep(run) ?? designStep(run)
         case .localize:
             return localizeStep(run)
+        case .watchPreview:
+            return watchStep(run)
         case .ready:
-            return .done
+            // A variant the person asked for in Review & Push.
+            return run.variantRequest.map(AutopilotNextStep.designVariant) ?? .done
         }
+    }
+
+    /// Capturing, with the environment the assistant reports kept.
+    private func capturingStep(appID: StoreApp.ID, _ run: AutopilotRun, environment: AutopilotEnvironment?) -> AutopilotNextStep {
+        if let environment { update(appID) { $0.environment = environment } }
+        return capturingStep(run)
+    }
+
+    /// At the plan, only Suggest Screens asks the assistant something;
+    /// once its suggestions are in, its part is done.
+    private func planStep(_ run: AutopilotRun) -> AutopilotNextStep {
+        if let request = run.screenRequest { return .suggestScreens(request) }
+        return run.screenSuggestions != nil ? .done : .noRun
+    }
+
+    /// The moments the person asked to record again, before designing.
+    private func retakeStep(_ run: AutopilotRun) -> AutopilotNextStep? {
+        let ids = run.retakeTargets.map(\.screenID)
+        guard !ids.isEmpty else { return nil }
+        var seen: Set<String> = []
+        return .recordAgain(screenIDs: ids.filter { seen.insert($0).inserted })
+    }
+
+    /// Watching the App Preview: the person's changes for the design
+    /// source, else wait for them.
+    private func watchStep(_ run: AutopilotRun) -> AutopilotNextStep {
+        if let review = run.previewReview, review.remake != nil {
+            return .wait(reason: String(localized: "AppLocalizer is making the App Preview again."), seconds: 10)
+        }
+        if let review = run.previewReview, let request = review.request, run.designKind.usesDesignAI {
+            return .revisePreview(note: request.note, review: review)
+        }
+        return .wait(reason: String(localized: "The person is watching the App Preview."), seconds: 20)
     }
 
     private func personStepReason(_ stage: AutopilotStage) -> String {
@@ -179,6 +227,10 @@ extension AutopilotCenter {
 
     private func localizeStep(_ run: AutopilotRun) -> AutopilotNextStep {
         if !run.overflows.isEmpty { return .writeCaptions(run.overflows) }
+        if let needs = run.artworkTextNeeds, !needs.isEmpty { return .writeArtworkTexts(needs) }
+        if let extras = run.extrasProgress, !extras.isFinished {
+            return .wait(reason: String(localized: "AppLocalizer is making the header and search artwork and the App Preview."), seconds: 10)
+        }
         return .wait(reason: String(localized: "AppLocalizer is rendering and checking every screenshot."), seconds: 5)
     }
 
@@ -187,9 +239,11 @@ extension AutopilotCenter {
         .capture(targets: run.nextTargets, retries: run.retries)
     }
 
-    /// Capturing: what's left, else wait for a problem or the next stage.
+    /// Capturing: what's left, then the App Preview's recordings, else wait
+    /// for a problem or the next stage.
     private func capturingStep(_ run: AutopilotRun) -> AutopilotNextStep {
         if !run.remainingTargets.isEmpty || !run.retries.isEmpty { return captureStep(run) }
+        if !run.remainingRecordings.isEmpty { return .record(targets: run.remainingRecordings) }
         if let problem = run.openProblems.first {
             return .wait(reason: String(localized: "A problem waits for the person: \(problem.what)"), seconds: 15)
         }
@@ -218,8 +272,11 @@ extension AutopilotCenter {
         case .capture where run.isCaptureComplete:
             update(appID) { run in
                 run.pickBest()
-                run.appendLog(String(localized: "Captured \(run.capturedCount) of \(run.totalCaptures)"), kind: .event, at: now())
-                run.stage = run.plan.stopsToPick ? .pick : .design
+                if !run.plan.targets.isEmpty {
+                    run.appendLog(String(localized: "Captured \(run.capturedCount) of \(run.totalCaptures)"), kind: .event, at: now())
+                }
+                // A run with no new captures and no recording has nothing to pick.
+                run.stage = run.plan.stopsToPick && !run.skipsPick ? .pick : .design
             }
             if runs[appID]?.stage == .design { await beginDesign(appID, context: context) }
         case .design where run.hasAllDirections && run.revision == nil:
@@ -239,8 +296,9 @@ extension AutopilotCenter {
     /// The size a capture of `display` must have, either way up. Apple
     /// Watch takes an Ultra's screen; an Apple Vision Pro capture is the
     /// app's window, any shape at least 600 px on its short side; iPhone
-    /// Duo's is its inner display's, the size the template renders at.
-    static func checkSize(_ size: PixelSize, for display: ScreenshotDisplayType) throws {
+    /// Duo's is its inner display's for an open screen and its cover
+    /// display's for a closed one (`duoPose`).
+    static func checkSize(_ size: PixelSize, for display: ScreenshotDisplayType, duoPose: AutopilotDuoPose? = nil) throws {
         switch display {
         case .watch:
             guard !watchSizes.contains(size) else { return }
@@ -248,10 +306,17 @@ extension AutopilotCenter {
         case .visionPro:
             guard min(size.width, size.height) < 600 else { return }
             throw AutopilotError(String(localized: "A \(size.title) capture is too small for Apple Vision Pro. Capture the app’s window at its default size."))
+        case .iPhoneDuo where duoPose == .closed:
+            guard !CaptureSizeRules.isDuoOuterDisplay(size) else { return }
+            let cover = CaptureSizeRules.duoOuterSize
+            throw AutopilotError(String(localized: """
+            A \(size.title) capture isn’t iPhone Duo’s cover display. This screen is one of its closed screenshots: capture it \
+            closed, on the \(cover.title) cover display (a UI test’s own screenshot is that display).
+            """))
         case .iPhoneDuo where CaptureSizeRules.isDuoOuterDisplay(size):
             throw AutopilotError(String(localized: """
-            A \(size.title) capture is iPhone Duo’s outer display. The template renders at the inner display’s \
-            \(display.portraitPixelSize.title): capture the inner one, unfolded (xcrun simctl io booted screenshot --display=<its ID>).
+            A \(size.title) capture is iPhone Duo’s cover display. This screen is one of its open screenshots: capture the \
+            inner display, \(display.portraitPixelSize.title) or \(display.portraitPixelSize.rotated.title), with the Duo open.
             """))
         default:
             break

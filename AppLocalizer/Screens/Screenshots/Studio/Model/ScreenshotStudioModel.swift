@@ -46,6 +46,43 @@ final class ScreenshotStudioModel {
     var uploadingProblem: AutopilotProblem?
     /// Copy Again's confirmation on Capture's waiting step.
     var didCopyPrompt = false
+    /// Plan's Show Screens / Hide Screens.
+    var showsPlanScreens = true
+    /// "+ Add a Screen…"'s form, while it's open.
+    var screenDraft: AutopilotScreenDraft?
+    /// What the person asks Suggest Screens for, e.g. "one that shows the
+    /// streak".
+    var screenAsk = ""
+    /// Suggest Screens copied its prompt (no helper to start Claude Code).
+    var didCopySuggestPrompt = false
+    /// The full-size viewer over the app or the Autopilot sheet, while
+    /// it's open.
+    var viewer: StudioViewer?
+    /// The viewer marks the part of the header iPhone shows.
+    var viewerShowsGuide = false
+    /// "Ask for changes" on Watch the App Preview.
+    var previewNote = ""
+    /// The App Preview Watch the App Preview plays; nil is the primary
+    /// language on the first device.
+    var watchedLocale: String?
+    var watchedDevice: ScreenshotDisplayType?
+    /// Why the music file the person chose can't be used.
+    var musicError: String?
+    /// Plays the App Preview at Watch the App Preview and in the viewer.
+    let previewPlayer = AppPreviewPlayerModel()
+    /// The plan's Expected result box is open.
+    var showsArtworkDirection = false
+    /// Why the last reference couldn't be added.
+    var referenceError: String?
+    /// Pick's tab; nil is the first the run has.
+    var pickTab: AutopilotPickTab?
+    /// Pick's device on the Screenshots tab; nil is the first.
+    var pickDevice: AutopilotPickDevice?
+    /// The recording Pick plays; nil is the first device in the primary
+    /// language.
+    var pickRecording: AutopilotRecordingTarget?
+    /// Plays the raw App Preview recording at Pick and in the viewer.
+    let recordingPlayer = AppPreviewPlayerModel()
     /// The Claude Code run AppLocalizer started for this Autopilot run.
     var launchedRunID: ClaudeCodeRun.ID?
     /// Starts Claude Code when its helper is saved; the Autopilot sheet
@@ -107,7 +144,7 @@ final class ScreenshotStudioModel {
     var builder: StudioPreviewBuilder {
         let document = screenshots.document
         var ownSlotNames: [ScreenshotDisplayType: [String]] = [:]
-        for display in ScreenshotDisplayType.ownScreens {
+        for display in ScreenshotDisplayType.studio where display.mayHaveOwnScreens {
             if let screens = document?.screens(on: display) { ownSlotNames[display] = screens.map(\.name) }
         }
         return StudioPreviewBuilder(
@@ -136,7 +173,8 @@ final class ScreenshotStudioModel {
             preview: builder,
             templateVersion: screenshots.document?.history?.currentNumber,
             captureCount: screenshots.document?.captures.captures.count ?? 0,
-            devices: devices
+            devices: devices,
+            extras: screenshots.document?.extras
         ).summary()
     }
 
@@ -222,12 +260,18 @@ final class ScreenshotStudioModel {
     /// Steps the run has reached can be looked at again.
     func canView(_ step: AutopilotStage) -> Bool {
         guard let run else { return step == .plan }
+        // Nothing to watch in a run without an App Preview.
+        if step == .watchPreview, run.plan.previewDisplays.isEmpty { return false }
         return step.number <= run.stage.number
     }
 
     /// The run reached Ready: the new set shows.
     func runDidChange(from old: AutopilotStage?, to new: AutopilotStage?) {
         guard old != new else { return }
+        // The App Previews Localize made, to watch.
+        if new == .watchPreview {
+            Task { [screenshots] in await screenshots.reloadDocument() }
+        }
         if new == .ready {
             // Held strongly: the task may run after the section closes.
             Task { [screenshots] in

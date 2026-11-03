@@ -16,6 +16,8 @@ struct StudioSetSummaryBuilder {
     var devices: [ScreenshotDisplayType] = ScreenshotDisplayType.rendered
     /// What "2 hours ago" is relative to.
     var now: Date = .now
+    /// The new set's header, search artwork and App Previews.
+    var extras: ScreenshotExtras?
 
     func summary() -> StudioSetSummary {
         preview.effectiveChoice == .new ? newSummary() : liveSummary()
@@ -111,8 +113,29 @@ struct StudioSetSummaryBuilder {
                 .init(label: String(localized: "Captures"), value: captures),
                 .init(label: String(localized: "Screenshots"), value: screenshots.filter { !$0.isEmpty }.joined(separator: " · ")),
                 .init(label: String(localized: "Checks"), value: checksValue(shortened: run?.shortenings.count ?? 0)),
-            ]
+            ] + extrasLines
         )
+    }
+
+    /// "Header, search: 21:9 and 3:2 · still · 15 languages" and "App Preview: 0:24
+    /// · 15 languages" (or "0:24 · English (U.S.); others show it").
+    private var extrasLines: [StudioSetSummary.Line] {
+        guard let extras else { return [] }
+        var lines: [StudioSetSummary.Line] = []
+        let languages = { (count: Int) in count == 1 ? String(localized: "1 language") : String(localized: "\(count) languages") }
+        if let size = extras.artworkSize, extras.hasArtwork {
+            let count = Set(extras.artwork.map(\.locale)).count
+            let motion = extras.artworkMotion == .loop ? String(localized: "20 s loops") : String(localized: "still")
+            lines.append(.init(label: String(localized: "Header, search"), value: "\(size.shortTitle) · \(motion) · \(languages(count))"))
+        }
+        if let first = extras.previews.first {
+            let locales = Set(extras.previews.map(\.locale))
+            let value = extras.previewLanguages == .all || locales.count > 1
+                ? "\(first.lengthTitle) · \(languages(locales.count))"
+                : String(localized: "\(first.lengthTitle) · \(StoreLocaleCatalog.locale(code: first.locale)?.name ?? first.locale); others show it")
+            lines.append(.init(label: String(localized: "App Preview"), value: value))
+        }
+        return lines
     }
 
     /// "2 hours ago"; a date past `now` (another Mac's clock) reads "now".

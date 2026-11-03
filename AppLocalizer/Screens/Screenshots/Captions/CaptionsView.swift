@@ -31,6 +31,10 @@ struct CaptionsView: View {
                     Divider()
                     CaptionEditorPanel(model: model)
                         .frame(width: 320)
+                } else if model.artworkEditor.selection != nil {
+                    Divider()
+                    ArtworkTextEditorPanel(editor: model.artworkEditor)
+                        .frame(width: 320)
                 }
             }
         }

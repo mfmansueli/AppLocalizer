@@ -38,13 +38,22 @@ final class MockLumenCaptureRenderer {
             renderer.isOpaque = true
             return renderer.cgImage
         }
-        let isTablet = capture.pixelSize.aspectRatio < 1.7
+        // iPhone Duo's cover display is a phone's.
+        let isTablet = capture.pixelSize.aspectRatio < 1.7 && !CaptureSizeRules.isDuoOuterDisplay(capture.pixelSize)
         let logical = MockLumenScreen.logicalSize(isTablet: isTablet)
-        let screen = MockLumenScreen(kind: MockLumenScreenKind(slot: capture.slot), locale: capture.locale, isTablet: isTablet)
+        let screen = MockLumenScreen(kind: MockLumenScreenKind(slot: Self.screenSlot(of: capture)), locale: capture.locale, isTablet: isTablet)
         let renderer = ImageRenderer(content: screen)
         renderer.scale = max(0.1, width / logical.width)
         renderer.isOpaque = true
         return renderer.cgImage
+    }
+
+    /// The set slot a capture shows: on iPhone Duo with screens of its own
+    /// (inner then cover), the screen its file is named after.
+    private static func screenSlot(of capture: ScreenshotCapture) -> Int {
+        guard capture.displayType == .iPhoneDuo else { return capture.slot }
+        let name = (capture.fileName as NSString).deletingPathExtension.replacingOccurrences(of: "_cover", with: "")
+        return ScreenshotsSampleData.slotNames.firstIndex { name.hasSuffix("_" + $0) } ?? capture.slot
     }
 }
 #endif

@@ -55,6 +55,43 @@ enum MCPDirectionTemplate {
         }
     }
 
+    /// `extrasTemplates.artwork` and `extrasTemplates.appPreview`: template
+    /// fields (as get_template returns them) and/or `ops`, laid on the
+    /// extra's look so far (`bases`), else the direction's template. Nil
+    /// for one that isn't sent.
+    static func extrasTemplates(
+        _ arguments: MCPToolArguments, over template: ScreenshotTemplate,
+        bases: (artwork: ScreenshotTemplate?, preview: ScreenshotTemplate?) = (nil, nil), fonts: ScreenshotFontCatalog
+    ) throws -> (artwork: ScreenshotTemplate?, preview: ScreenshotTemplate?) {
+        guard let extras = try arguments.optionalObject("extrasTemplates") else { return (nil, nil) }
+        func look(_ key: String, base: ScreenshotTemplate) throws -> ScreenshotTemplate? {
+            guard let value = extras[key], case let .object(fields) = value else { return nil }
+            var operations = operations(from: .object(fields), over: base)
+            if let ops = fields["ops"] {
+                operations += try TemplateOperation.mcpOperations(from: ops, argument: "extrasTemplates.\(key).ops")
+            }
+            switch TemplateOperationApplier(fonts: fonts).applying(operations, to: base) {
+            case let .success(look): return look
+            case let .failure(refusals): throw MCPToolError.invalidArgument(name: "extrasTemplates.\(key)", expected: refusals.summary)
+            }
+        }
+        return try (look("artwork", base: bases.artwork ?? template), look("appPreview", base: bases.preview ?? template))
+    }
+
+    /// The `extrasTemplates` argument's schema.
+    static let extrasSchema: JSONValue = [
+        "type": "object",
+        "description": """
+        Optional looks for the run's extras, each template fields (as get_template returns them) and/or ops laid on \
+        this direction's template: artwork (the product page header and search results images) and appPreview (its \
+        captions and end card). Leave out to use the screenshots' look.
+        """,
+        "properties": [
+            "artwork": ["type": "object"],
+            "appPreview": ["type": "object"],
+        ],
+    ]
+
     /// The starter named `base`, sized for the run, or Above.
     static func starter(_ arguments: MCPToolArguments, app: StoreApp, slotCount: Int) throws -> ScreenshotTemplate {
         let name = try arguments.optionalString("base") ?? TemplateStarter.above.rawValue

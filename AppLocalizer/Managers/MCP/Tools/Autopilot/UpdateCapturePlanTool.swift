@@ -21,7 +21,9 @@ struct UpdateCapturePlanTool: MCPTool {
         and caption it shows. Match existing screens by id or name; new screens can be added only before the \
         first capture. When the plan says chooseScreens, decide which screens show the app best and send them \
         with replace: true: on each device you send screens for, they become the plan's screens in that order \
-        (strongest first, each with a caption: App Store search results show the first three), and the others there are dropped. Also takes the file the steps \
+        (strongest first, each with a caption: App Store search results show the first three), and the others there are dropped, \
+        except the screens the person added (addedBy in get_capture_plan): they stay, after yours, unless you send them. \
+        With iPhone Duo in the plan, send at least 6 screens: its set has 3 open and 3 closed at least. Also takes the file the steps \
         came from (writtenFrom, e.g. LumenUITests/ScreenshotTests.swift) and the app's sample-data switch.
         """,
         inputSchema: MCPToolDefinition.schema(
@@ -67,15 +69,8 @@ struct UpdateCapturePlanTool: MCPTool {
             return .refused(refusal, target: session.target)
         }
         var plan = session.run.plan
-        let previous = plan
         let sent = Set(items.map(Self.display(of:)))
-        if replaces {
-            for display in sent where !display.hasOwnScreens || plan.displayTypes.contains(display) { plan.setScreens([], on: display) }
-        }
-        var refused: [JSONValue] = []
-        for item in items {
-            if let refusal = Self.apply(item, to: &plan, canAdd: canAdd, previous: previous) { refused.append(refusal) }
-        }
+        let refused = Self.write(items, to: &plan, replaces: replaces, canAdd: canAdd)
         // Apple Vision Pro's windows follow iPhone's screens when the
         // moments theirs showed are gone and none were sent.
         let phoneIDs = Set(plan.screens.map(\.id))
@@ -149,9 +144,37 @@ struct UpdateCapturePlanTool: MCPTool {
         }
         screens.append(AutopilotScreen(
             id: newID, name: name, steps: steps, caption: caption ?? (display.hasCaptions ? kept?.caption ?? "" : ""),
-            sourceScreenID: display == .visionPro ? source ?? kept?.sourceScreenID ?? sameName : nil
+            sourceScreenID: display == .visionPro ? source ?? kept?.sourceScreenID ?? sameName : nil, origin: kept?.origin
         ))
         return nil
+    }
+
+    /// Writes the screens sent into `plan`; with `replace` they take the
+    /// place of each sent device's screens, and the ones the person added
+    /// stay after them. Returns the refusals.
+    private static func write(_ items: [JSONValue], to plan: inout AutopilotPlan, replaces: Bool, canAdd: Bool) -> [JSONValue] {
+        let previous = plan
+        let sent = Set(items.map(display(of:)))
+        if replaces {
+            for display in sent where !display.hasOwnScreens || plan.displayTypes.contains(display) { plan.setScreens([], on: display) }
+        }
+        var refused: [JSONValue] = []
+        for item in items {
+            if let refusal = apply(item, to: &plan, canAdd: canAdd, previous: previous) { refused.append(refusal) }
+        }
+        if replaces, sent.contains(.iPhone) { keepAddedScreens(of: previous, in: &plan) }
+        return refused
+    }
+
+    /// After `replace`: the screens the person added by hand or from a
+    /// suggestion stay, after the chosen ones, unless they were sent.
+    static func keepAddedScreens(of previous: AutopilotPlan, in plan: inout AutopilotPlan) {
+        var screens = plan.screens
+        for screen in previous.screens where screen.origin != nil && screens.count < ScreenshotTemplate.maximumSlots {
+            let sent = screens.contains { $0.id == screen.id || $0.name.localizedCaseInsensitiveCompare(screen.name) == .orderedSame }
+            if !sent { screens.append(screen) }
+        }
+        plan.screens = screens
     }
 
     /// Why a screen wasn't added.

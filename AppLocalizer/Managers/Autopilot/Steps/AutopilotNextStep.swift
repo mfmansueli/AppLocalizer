@@ -12,14 +12,29 @@ enum AutopilotNextStep: Hashable, Sendable {
     /// Capture these, and capture again the problems the person retried
     /// with their fix.
     case capture(targets: [AutopilotCaptureTarget], retries: [AutopilotProblem])
+    /// Every screen is captured: record the App Preview's walkthroughs.
+    case record(targets: [AutopilotRecordingTarget])
     /// Nothing to do yet; ask again later.
     case wait(reason: String, seconds: Int)
+    /// Record these App Preview moments again (`rerecord_moment`), before
+    /// the design step: the person asked at Pick.
+    case recordAgain(screenIDs: [String])
     /// Design the directions (`get_design_brief`, then `propose_direction`).
     case design(remaining: Int)
     /// "Ask for changes": revise with `revise_direction`.
     case revise(note: String)
+    /// "Ask for changes" on the App Preview: send the new cut with
+    /// `revise_app_preview`.
+    case revisePreview(note: String, review: AutopilotPreviewReview)
     /// Write or shorten these captions (`propose_captions` with the run).
     case writeCaptions([AutopilotOverflow])
+    /// The header's and search image's own texts to write or shorten.
+    case writeArtworkTexts([AutopilotArtworkTextNeed])
+    /// A second header or search image for a Product Page Optimization
+    /// test.
+    case designVariant(ArtworkVariantRequest)
+    /// Suggest screens the set is missing (`propose_screens`).
+    case suggestScreens(AutopilotScreenRequest)
     /// The set waits in Review & Push.
     case done
 }

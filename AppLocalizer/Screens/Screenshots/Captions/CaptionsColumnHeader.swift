@@ -30,6 +30,14 @@ struct CaptionsColumnHeader: View {
                 .lineLimit(1)
                 .frame(width: cellWidth, alignment: .leading)
             }
+            // The header and search artwork's own texts.
+            ForEach(model.artworkRoles, id: \.self) { role in
+                Text(role.title)
+                    .foregroundStyle(Palette.label3)
+                    .lineLimit(1)
+                    .frame(width: cellWidth, alignment: .leading)
+                    .accessibilityIdentifier("screenshots.captions.column.\(role.rawValue)")
+            }
         }
         .font(.caption.weight(.medium))
         .foregroundStyle(Palette.label2)

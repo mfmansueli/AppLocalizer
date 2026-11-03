@@ -15,7 +15,7 @@ struct AutopilotToolboxTests {
     private static let tools = [
         "get_capture_plan", "update_capture_plan", "report_capture", "report_capture_problem", "next_step",
         "get_design_brief", "propose_direction", "revise_direction", "report_design_source", "start_display_recording",
-        "finish_display_recording",
+        "finish_display_recording", "propose_screens", "revise_app_preview", "set_app_preview_music",
     ]
 
     private static var promptText: String {
@@ -27,10 +27,12 @@ struct AutopilotToolboxTests {
         #expect(toolbox.toolNames.isSuperset(of: Self.tools))
         #expect(toolbox.tool(named: "propose_direction")?.definition.proposalKind == .screenshots)
         #expect(toolbox.tool(named: "revise_direction")?.definition.proposalKind == .screenshots)
+        #expect(toolbox.tool(named: "revise_app_preview")?.definition.proposalKind == .screenshots)
+        #expect(toolbox.tool(named: "set_app_preview_music")?.definition.proposalKind == .screenshots)
         // Picking a run up and reporting change state, without proposing.
         for name in [
             "get_capture_plan", "next_step", "update_capture_plan", "report_capture", "report_capture_problem", "report_design_source",
-            "start_display_recording", "finish_display_recording",
+            "start_display_recording", "finish_display_recording", "propose_screens",
         ] {
             let definition = toolbox.tool(named: name)?.definition
             #expect(definition?.isReadOnly == false, "\(name)")
@@ -56,7 +58,9 @@ struct AutopilotToolboxTests {
         #expect(prompt.slashCommand == "/mcp__applocalizer__run_screenshots")
         #expect(prompt.json["name"] == "run_screenshots")
         #expect(MCPToolbox.standard.toolNames.isSuperset(of: prompt.requiredTools))
-        #expect(prompt.requiredTools.isSuperset(of: ["list_apps", "propose_captions"] + Self.tools.filter { $0 != "report_design_source" }))
+        // Music is the person's choice; the assistant changes it only when asked.
+        let optional: Set = ["report_design_source", "set_app_preview_music"]
+        #expect(prompt.requiredTools.isSuperset(of: ["list_apps", "propose_captions"] + Self.tools.filter { !optional.contains($0) }))
     }
 
     @Test func thePromptWalksThroughEveryTool() {

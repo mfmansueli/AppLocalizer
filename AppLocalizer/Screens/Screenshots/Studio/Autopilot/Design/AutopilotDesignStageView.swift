@@ -50,6 +50,9 @@ struct AutopilotDesignStageView: View {
                     }
                 }
                 AutopilotLogView(entries: Array(run.log.suffix(8)))
+                if run.plan.alsoMakes.makesArtwork, run.designKind.usesDesignAI {
+                    AutopilotArtworkBriefBox(run: run)
+                }
             }
             .padding(Spacing.xLarge)
         }

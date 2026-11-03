@@ -25,6 +25,12 @@ struct ScreenshotsDocument: Codable, Hashable, Sendable {
     /// Apple Watch's and Apple Vision Pro's own screens; nil when the set
     /// has only iPhone and iPad (and in documents from before them).
     var deviceScreens: [DeviceScreenSet]?
+    /// The search results headline and the header's line per language;
+    /// nil in documents from before them.
+    var artworkTexts: ArtworkTextBook?
+    /// The header and search artwork and App Previews Autopilot made; nil
+    /// when it made none (and in documents from before them).
+    var extras: ScreenshotExtras?
 
     init(
         history: TemplateHistory? = nil,

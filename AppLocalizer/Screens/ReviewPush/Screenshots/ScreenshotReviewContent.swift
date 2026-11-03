@@ -6,10 +6,18 @@
 import SwiftUI
 
 /// The screenshot part of Review & Push, under the text changes: what a
-/// restore queued, each app's sets, then the notes.
+/// restore queued, each app's sets, its Autopilot extras, then the notes.
 struct ScreenshotReviewContent: View {
     let viewModel: ReviewPushViewModel
     let onShowInCaptions: (ScreenshotPlanExclusion) -> Void
+
+    @Bindable private var extras: ExtrasPushController
+
+    init(viewModel: ReviewPushViewModel, onShowInCaptions: @escaping (ScreenshotPlanExclusion) -> Void) {
+        self.viewModel = viewModel
+        self.onShowInCaptions = onShowInCaptions
+        extras = viewModel.extras
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.small) {
@@ -29,6 +37,9 @@ struct ScreenshotReviewContent: View {
             ForEach(viewModel.screenshotPlans.filter { !$0.groups.isEmpty }, id: \.appID) { plan in
                 ScreenshotReviewSection(plan: plan, viewModel: viewModel)
             }
+            ForEach(viewModel.extrasPlans, id: \.appID) { plan in
+                ExtrasReviewSection(plan: plan, viewModel: viewModel)
+            }
             if viewModel.screenshots.isLoading, !viewModel.showsScreenshots {
                 HStack(spacing: Spacing.small) {
                     ProgressView()
@@ -44,11 +55,14 @@ struct ScreenshotReviewContent: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("review.shots")
+        .sheet(item: $extras.test) { model in
+            ProductPageTestSheet(model: model, center: viewModel.screenshots.workspace?.screenshots.autopilot)
+        }
     }
 
     /// Whether there's anything to show at all.
     static func hasContent(_ viewModel: ReviewPushViewModel) -> Bool {
-        viewModel.showsScreenshots || viewModel.screenshots.notice != nil
+        viewModel.showsScreenshots || viewModel.showsExtras || viewModel.screenshots.notice != nil
             || !viewModel.screenshots.loadErrors.isEmpty || viewModel.screenshots.isLoading
     }
 }

@@ -5,9 +5,10 @@
 
 import SwiftUI
 
-/// Plan: the screens and how to reach each, then devices, languages,
-/// simulator setup, the design source and checkpoints. Editable until the
-/// run starts.
+/// Plan: what this run makes (screenshots, App Preview, header and search,
+/// per device, the languages, captures reused or not), the screens and how
+/// to reach each, then the simulator setup, the design source and
+/// checkpoints. Editable until the run starts.
 struct AutopilotPlanStageView: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -17,6 +18,26 @@ struct AutopilotPlanStageView: View {
     @Environment(ClaudeCodeLauncher.self) private var launcher: ClaudeCodeLauncher?
 
     var body: some View {
+        ScrollViewReader { proxy in
+            scrollView
+                // What opens under the screens comes into view.
+                .onChange(of: studio.screenDraft != nil) { _, isOpen in
+                    if isOpen { scroll(proxy, to: .form, anchor: .bottom) }
+                }
+                .onChange(of: run.screenRequest != nil) { _, isAsking in
+                    if isAsking { scroll(proxy, to: .busy, anchor: .bottom) }
+                }
+                .onChange(of: run.screenSuggestions?.receivedAt) { _, received in
+                    if received != nil { scroll(proxy, to: .suggestions, anchor: .top) }
+                }
+        }
+    }
+
+    private func scroll(_ proxy: ScrollViewProxy, to target: AutopilotAddScreensFooter.ScrollTarget, anchor: UnitPoint) {
+        withAnimation { proxy.scrollTo(target, anchor: anchor) }
+    }
+
+    private var scrollView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.medium) {
                 VStack(alignment: .leading, spacing: Spacing.xSmall) {
@@ -24,10 +45,12 @@ struct AutopilotPlanStageView: View {
                         Text(found)
                             .accessibilityIdentifier("autopilot.plan.found")
                     }
-                    Text(studio.planCaptureText(run.plan))
-                        .fontWeight(.medium)
-                        .accessibilityIdentifier("autopilot.plan.captures")
-                    if let rehearsal = studio.planRehearsalText(run.plan) {
+                    if run.plan.makesScreenshots {
+                        Text(studio.planCaptureText(run.plan))
+                            .fontWeight(.medium)
+                            .accessibilityIdentifier("autopilot.plan.captures")
+                    }
+                    if !run.plan.targets.isEmpty, let rehearsal = studio.planRehearsalText(run.plan) {
                         Text(rehearsal)
                             .accessibilityIdentifier("autopilot.plan.rehearsal")
                     }
@@ -39,43 +62,88 @@ struct AutopilotPlanStageView: View {
                 .padding(.vertical, Spacing.small)
                 .background(Palette.accentTint, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
                 // A device this Mac can't capture comes first, before Start.
-                if let simulators = macSimulators, !simulators.missing(in: run.plan.displayTypes).isEmpty {
+                if let simulators = macSimulators, !simulators.missing(in: run.plan.runDisplays).isEmpty {
                     AutopilotMacCheckView(studio: studio, plan: run.plan, simulators: simulators)
                 }
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Plan").font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    Text(source).font(.callout).foregroundStyle(Palette.label2)
-                }
-                AutopilotOptionRow(
-                    title: String(localized: "\(client) picks the screens"),
-                    detail: String(localized: "It reads the project and replaces these with the screens that show \(studio.app.name) best, before capturing. Off, it keeps yours and writes their steps."),
-                    isOn: planBinding(\.choosesScreens)
-                )
-                .disabled(!isEditable)
-                .accessibilityIdentifier("autopilot.plan.choosesScreens")
-                AutopilotPlanTable(studio: studio, plan: run.plan, client: client, isEditable: isEditable)
-                if let simulators = macSimulators, simulators.missing(in: run.plan.displayTypes).isEmpty {
-                    AutopilotMacCheckView(studio: studio, plan: run.plan, simulators: simulators)
-                }
-                Grid(alignment: .topLeading, horizontalSpacing: Spacing.medium, verticalSpacing: Spacing.medium) {
-                    GridRow {
-                        AutopilotOptionGroup(title: String(localized: "Devices")) { devices }
-                        AutopilotOptionGroup(title: String(localized: "Languages")) { languages }
-                    }
-                    GridRow {
-                        AutopilotOptionGroup(title: String(localized: "Simulator")) { simulator }
-                        AutopilotOptionGroup(title: String(localized: "Design and checkpoints")) { checkpoints }
-                    }
-                }
-                .disabled(!isEditable)
+                AutopilotRunChoiceCard(studio: studio, plan: run.plan, client: client)
+                    .disabled(!isEditable)
+                capturingPlan
             }
             .padding(Spacing.xLarge)
         }
         .accessibilityIdentifier("autopilot.plan")
     }
 
+    /// The screens, the simulator and the design.
+    @ViewBuilder
+    private var capturingPlan: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Plan").font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
+            Spacer()
+            Text(source).font(.callout).foregroundStyle(Palette.label2)
+            Button(studio.showsPlanScreens ? "Hide Screens" : "Show Screens") { studio.showsPlanScreens.toggle() }
+                .buttonStyle(.borderless)
+                .font(.callout)
+                .accessibilityValue(Text(studio.showsPlanScreens ? "Shown" : "Hidden"))
+                .accessibilityIdentifier("autopilot.plan.toggleScreens")
+        }
+        if studio.showsPlanScreens {
+            screens
+        } else {
+            HStack(spacing: Spacing.small) {
+                Text(studio.planScreensSummary(run, client: client))
+                    .foregroundStyle(Palette.label2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if isEditable {
+                    Button("Add a Screen…") { studio.openScreenForm() }
+                        .disabled(studio.plansMaximumScreens)
+                        .accessibilityIdentifier("autopilot.plan.summary.addScreen")
+                    Button {
+                        studio.suggestScreens()
+                    } label: {
+                        Label("Suggest Screens", systemImage: "sparkles")
+                    }
+                    .disabled(studio.plansMaximumScreens || run.screenRequest != nil)
+                    .accessibilityIdentifier("autopilot.plan.summary.suggestScreens")
+                }
+            }
+            .font(.callout)
+            .controlSize(.small)
+            .padding(.horizontal, Spacing.medium)
+            .padding(.vertical, Spacing.small)
+            .background(Palette.raised, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.banner, style: .continuous).strokeBorder(Palette.separator, lineWidth: 0.5))
+            .accessibilityIdentifier("autopilot.plan.screensSummary")
+        }
+        if let simulators = macSimulators, simulators.missing(in: run.plan.runDisplays).isEmpty, !run.plan.runDisplays.isEmpty {
+            AutopilotMacCheckView(studio: studio, plan: run.plan, simulators: simulators)
+        }
+        Grid(alignment: .topLeading, horizontalSpacing: Spacing.medium, verticalSpacing: Spacing.medium) {
+            GridRow {
+                AutopilotOptionGroup(title: String(localized: "Simulator")) { simulator }
+                AutopilotOptionGroup(title: String(localized: "Design and checkpoints")) { checkpoints }
+            }
+        }
+        .disabled(!isEditable)
+    }
+
     private var client: String { run.clientName(assistant: assistant) }
+
+    /// Whether the assistant picks the screens, and the screens themselves.
+    /// The table keeps its height however long the plan gets.
+    @ViewBuilder
+    private var screens: some View {
+        AutopilotOptionRow(
+            title: String(localized: "\(client) picks the screens"),
+            detail: String(localized: "It reads the project and replaces these with the screens that show \(studio.app.name) best, before capturing. Off, it keeps yours and writes their steps."),
+            isOn: planBinding(\.choosesScreens)
+        )
+        .disabled(!isEditable)
+        .accessibilityIdentifier("autopilot.plan.choosesScreens")
+        AutopilotPlanTable(studio: studio, plan: run.plan, client: client, isEditable: isEditable)
+            .fixedSize(horizontal: false, vertical: true)
+    }
 
     /// This Mac's simulators, checked while the plan can change.
     private var macSimulators: MacSimulators? { isEditable ? launcher?.simulators : nil }
@@ -93,47 +161,14 @@ struct AutopilotPlanStageView: View {
         return String(localized: "From your set’s slots. \(client) writes the steps; edit anything.")
     }
 
-    private var devices: some View {
-        ForEach(studio.planDevices(run.plan), id: \.self) { display in
-            AutopilotOptionRow(
-                title: display.title,
-                detail: studio.planDeviceDetail(display, plan: run.plan),
-                isOn: display == .iPhone ? .constant(true) : deviceBinding(display),
-                isLocked: display == .iPhone
-            )
-            .accessibilityIdentifier("autopilot.plan.\(display == .iPad ? "iPad" : display.mcpValue)")
-        }
-    }
-
     @ViewBuilder
-    private var languages: some View {
-        AutopilotOptionRow(title: studio.storeLanguagesTitle(run.plan), detail: nil, isOn: .constant(true), isLocked: true)
-        if let new = studio.newLanguagesTitle(run.plan) {
-            AutopilotOptionRow(
-                title: new,
-                detail: studio.newLanguagesDetail,
-                isOn: Binding { run.plan.includesNewLanguages } set: { studio.setIncludesNewLanguages($0) }
-            )
-            .accessibilityIdentifier("autopilot.plan.newLanguages")
-        }
+    private var simulator: some View {
         AutopilotOptionRow(
             title: String(localized: "Capture the app in each language"),
             detail: String(localized: "Launches with -AppleLanguages; otherwise \(studio.primaryLocale.shortName) captures are reused under translated captions"),
             isOn: planBinding(\.capturesEachLanguage)
         )
         .accessibilityIdentifier("autopilot.plan.eachLanguage")
-    }
-
-    private func deviceBinding(_ display: ScreenshotDisplayType) -> Binding<Bool> {
-        Binding {
-            run.plan.displayTypes.contains(display)
-        } set: { planned in
-            studio.setPlans(display, planned)
-        }
-    }
-
-    @ViewBuilder
-    private var simulator: some View {
         AutopilotOptionRow(
             title: String(localized: "Status bar at 9:41, full battery and signal"),
             detail: "xcrun simctl status_bar override",
@@ -192,7 +227,24 @@ struct AutopilotPlanStageView: View {
             .accessibilityIdentifier("autopilot.plan.stopsToPick")
         AutopilotOptionRow(title: String(localized: "Stop for me to choose the direction"), detail: nil, isOn: planBinding(\.stopsToChoose))
             .accessibilityIdentifier("autopilot.plan.stopsToChoose")
+        AutopilotOptionRow(
+            title: String(localized: "Stop for me to watch the App Preview"),
+            detail: run.plan.alsoMakes.makesAppPreview
+                ? watchDetail
+                : String(localized: "Only when the run makes an App Preview"),
+            isOn: Binding { run.plan.alsoMakes.makesAppPreview && run.plan.stopsToWatchPreview } set: { value in
+                studio.updatePlan { $0.stopsToWatchPreview = value }
+            },
+            isLocked: !run.plan.alsoMakes.makesAppPreview
+        )
+        .accessibilityIdentifier("autopilot.plan.stopsToWatch")
         AutopilotOptionRow(title: String(localized: "Review & Push always asks"), detail: nil, isOn: .constant(true), isLocked: true)
+    }
+
+    /// "Approve it, or ask Claude Design for changes".
+    private var watchDetail: String {
+        guard let project = studio.designProject, project.kind.usesDesignAI else { return String(localized: "Play it, then approve it") }
+        return String(localized: "Approve it, or ask \(project.kind.title) for changes")
     }
 
     private func planBinding(_ keyPath: WritableKeyPath<AutopilotPlan, Bool>) -> Binding<Bool> {

@@ -17,7 +17,22 @@ struct CaptureIndex: Codable, Hashable, Sendable {
 
     /// The capture `locale` has of its own, if any.
     func ownCapture(locale: String, displayType: ScreenshotDisplayType, slot: Int) -> ScreenshotCapture? {
-        captures.first { $0.locale == locale && $0.displayType == displayType && $0.slot == slot }
+        captures.first { $0.locale == locale && $0.displayType == displayType && $0.slot == slot && $0.isCompanion != true }
+    }
+
+    /// iPhone Duo's cover display beside the slot's inner one: `locale`'s
+    /// own, else the primary locale's.
+    func companion(locale: String, displayType: ScreenshotDisplayType, slot: Int, primary: String) -> ScreenshotCapture? {
+        let find = { (code: String) in
+            captures.first { $0.locale == code && $0.displayType == displayType && $0.slot == slot && $0.isCompanion == true }
+        }
+        return find(locale) ?? find(primary)
+    }
+
+    /// Takes every companion off `displayType`: its screenshots show one
+    /// display again.
+    mutating func removeCompanions(on displayType: ScreenshotDisplayType) {
+        captures.removeAll { $0.displayType == displayType && $0.isCompanion == true }
     }
 
     /// `locale`'s own capture, else the primary locale's.
@@ -40,8 +55,12 @@ struct CaptureIndex: Codable, Hashable, Sendable {
         Set(captures.filter { displayType == nil || $0.displayType == displayType }.map(\.locale)).sorted()
     }
 
+    /// Adds a capture in place of the slot's (or its companion's).
     mutating func add(_ capture: ScreenshotCapture) {
-        captures.removeAll { $0.locale == capture.locale && $0.displayType == capture.displayType && $0.slot == capture.slot }
+        let isCompanion = capture.isCompanion == true
+        captures.removeAll {
+            $0.locale == capture.locale && $0.displayType == capture.displayType && $0.slot == capture.slot && ($0.isCompanion == true) == isCompanion
+        }
         captures.append(capture)
     }
 }

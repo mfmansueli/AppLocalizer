@@ -42,6 +42,11 @@ enum ScreenshotDisplayType: String, Codable, Hashable, Sendable, CaseIterable, I
 
     var hasOwnScreens: Bool { Self.ownScreens.contains(self) }
 
+    /// A device whose set can list screens of its own: Apple Watch, Apple
+    /// Vision Pro, and iPhone Duo when its inner and cover displays are
+    /// separate screenshots (each carrying its screen's caption).
+    var mayHaveOwnScreens: Bool { hasOwnScreens || self == .iPhoneDuo }
+
     /// Screenshots of this device carry a caption. Apple Watch's are the
     /// captures themselves: the watch screen is too small for one.
     var hasCaptions: Bool { self != .watch }

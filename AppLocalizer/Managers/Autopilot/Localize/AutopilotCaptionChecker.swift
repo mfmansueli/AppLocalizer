@@ -15,6 +15,8 @@ struct AutopilotCaptionChecker {
     let slotCount: Int
     let primaryLocale: String
     let catalog: ScreenshotFontCatalog
+    /// iPhone Duo's closed slots, laid out on its cover display.
+    var duoClosedSlots: Set<Int> = []
 
     func check(locale code: String) -> AutopilotLocaleCheck {
         guard let locale = StoreLocaleCatalog.locale(code: code) else {
@@ -61,7 +63,8 @@ struct AutopilotCaptionChecker {
             }
             return
         }
-        let layout = engine.layout(template, slot: slot, locale: locale, displayType: display, caption: caption)
+        let cover = display == .iPhoneDuo && duoClosedSlots.contains(slot) ? CaptureSizeRules.duoOuterSize : nil
+        let layout = engine.layout(template, slot: slot, locale: locale, displayType: display, caption: caption, captureSize: cover)
         if layout.headlineFont.isFallback { measured.fallbackFont = layout.headlineFont.fontName }
         measured.isMirrored = measured.isMirrored || layout.isMirrored
         if !layout.headline.fits || layout.subhead?.fits == false {

@@ -25,6 +25,7 @@ struct ReviseDirectionTool: MCPTool {
                 "ops": ["type": "array", "items": ["type": "object"], "description": "{op: \"replace\", path, value} changes."],
                 "rationale": MCPToolDefinition.string("What changed, in a sentence."),
                 "sourceLink": MCPToolDefinition.string("Where to refine it."),
+                "extrasTemplates": MCPDirectionTemplate.extrasSchema,
             ],
             required: ["appId", "run", "direction"]
         ),
@@ -39,9 +40,13 @@ struct ReviseDirectionTool: MCPTool {
             return .refused(String(localized: "No direction “\(wanted)” in this run; it has \(ids)."), target: session.target)
         }
         do {
-            let template = try MCPDirectionTemplate.template(arguments, base: direction.template, fonts: session.context.services.fonts)
+            let fonts = session.context.services.fonts
+            let template = try MCPDirectionTemplate.template(arguments, base: direction.template, fonts: fonts)
+            let extras = try MCPDirectionTemplate.extrasTemplates(
+                arguments, over: template, bases: (direction.artworkTemplate, direction.previewTemplate), fonts: fonts
+            )
             try await session.center.reviseDirection(
-                direction.id, template: template, rationale: arguments.optionalString("rationale"),
+                direction.id, template: template, extras: extras, rationale: arguments.optionalString("rationale"),
                 link: arguments.optionalString("sourceLink"), appID: session.app.id, context: session.context
             )
         } catch {

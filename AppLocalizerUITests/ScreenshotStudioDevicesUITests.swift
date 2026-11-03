@@ -66,8 +66,9 @@ final class ScreenshotStudioDevicesUITests: XCTestCase {
     func testWatchPicksApplyToEveryLanguage() {
         launch(scene: "st-pick-all")
         XCTAssertTrue(element("autopilot.pick.note").waitForExistence(timeout: 15))
-        XCTAssertTrue(text(of: element("autopilot.pick.note")).contains("Apple Vision Pro use the same moments as iPhone"))
-        XCTAssertTrue(element("autopilot.pick.watch").exists)
+        XCTAssertTrue(text(of: element("autopilot.pick.note")).contains("Picks apply to every language; iPad and Apple Vision Pro use the same moments."))
+        element("autopilot.pick.device").radioButtons["Apple Watch"].click()
+        XCTAssertTrue(element("autopilot.pick.watch.0").waitForExistence(timeout: 5))
     }
 
     func testEachDirectionShowsTheVisionProWindowAndTheWatch() {

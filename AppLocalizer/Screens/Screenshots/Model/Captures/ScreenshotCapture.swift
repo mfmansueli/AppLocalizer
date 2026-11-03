@@ -22,4 +22,7 @@ struct ScreenshotCapture: Codable, Hashable, Sendable, Identifiable {
     var pixelSize: PixelSize
     /// When it was imported; nil for captures imported before it was kept.
     var importedAt: Date?
+    /// iPhone Duo's cover display, shown beside the inner display's
+    /// capture of the same slot (both, side by side); nil otherwise.
+    var isCompanion: Bool?
 }

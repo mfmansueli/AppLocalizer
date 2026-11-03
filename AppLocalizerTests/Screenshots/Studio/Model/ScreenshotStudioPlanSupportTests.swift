@@ -65,7 +65,7 @@ struct ScreenshotStudioPlanSupportTests {
         let model = await Self.model(StudioDebugRuns.run(.plan))
         var plan = try #require(model.studio.run?.plan)
         #expect(model.studio.planCaptureText(plan) == "Autopilot captures iPhone, iPhone Duo, and iPad in 12 languages. "
-            + "iPhone Duo is in every plan: Apple requires its screenshots from April 2027, at its inner display’s 2007 × 2853.")
+            + "iPhone Duo is in every plan: Apple requires its screenshots from April 2027.")
         plan.setPlans(.iPhoneDuo, false)
         plan.capturesEachLanguage = false
         let primary = model.studio.primaryLocale.shortName

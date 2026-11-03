@@ -36,6 +36,9 @@ struct ScreenshotLayout: Hashable, Sendable {
     var screenRim: CGFloat = 0
     /// The window bar under a visionOS window.
     var windowBar: CGRect?
+    /// iPhone Duo's folded cover display beside the inner one (both, side
+    /// by side), with the companion capture.
+    var companion: LayoutCompanion?
     /// Shapes, laurels and badges, behind or in front of the device.
     var decorations: [LayoutDecoration] = []
     var headline: CaptionFit
@@ -49,6 +52,11 @@ struct ScreenshotLayout: Hashable, Sendable {
     /// Where a capture of `size` is drawn: aspect-fill in the screen,
     /// centered horizontally and top-aligned, clipped to the screen.
     func captureFrame(for size: PixelSize) -> CGRect {
+        Self.captureFrame(for: size, in: screen)
+    }
+
+    /// Aspect-fill in `screen`, centered horizontally and top-aligned.
+    static func captureFrame(for size: PixelSize, in screen: CGRect) -> CGRect {
         guard size.width > 0, size.height > 0 else { return screen }
         let scale = max(screen.width / CGFloat(size.width), screen.height / CGFloat(size.height))
         let width = CGFloat(size.width) * scale

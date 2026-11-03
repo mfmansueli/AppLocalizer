@@ -75,6 +75,8 @@ struct DisplayRecorderTests {
         runner.statuses["record-display"] = 69
         runner.errorOutput = "The simulator's display stopped answering."
         let simulators = MacSimulators(runner: runner, helperURL: Self.helper)
+        // The helper's exit decides it, however busy the tests keep this Mac.
+        simulators.recorder.firstFrameLimit = .seconds(600)
         await #expect(throws: DisplayRecorder.Failure.didntStart("The simulator's display stopped answering.")) {
             try await simulators.recorder.start(udid: RecordingTestFixtures.udid, display: Self.display)
         }
@@ -88,6 +90,7 @@ struct DisplayRecorderTests {
         runner.losesExitLine = true
         runner.errorOutput = Self.usage
         let simulators = MacSimulators(runner: runner, helperURL: Self.helper)
+        simulators.recorder.firstFrameLimit = .seconds(600)
         await #expect(throws: DisplayRecorder.Failure.olderHelper) {
             try await simulators.recorder.start(udid: RecordingTestFixtures.udid, display: Self.display)
         }

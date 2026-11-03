@@ -19,7 +19,7 @@ import SwiftUI
 /// Ids it doesn't know go to each area's own list (`ConnectDebugScenes`,
 /// `SettingsDebugScenes`, `ReviewPushDebugScenes`, `PricingDebugScenes`,
 /// `StorePageDebugScenes`, `AppInformationDebugScenes`,
-/// `ScreenshotsDebugScenes`, `ScreenshotsPushDebugScenes`,
+/// `ScreenshotsDebugScenes`, `ScreenshotsPushDebugScenes`, `ExtrasPushDebugScenes`,
 /// `ScreenshotsProposalsDebugScenes`, `AssistantDebugScenes`,
 /// `SuggestionsDebugScenes`, `AssistDebugScenes`, `EverythingDebugScenes`,
 /// `NewLanguagesDebugScenes`, `StudioDebugScenes`, `ClaudeCodeDebugScenes`).
@@ -60,6 +60,7 @@ struct DebugSceneView: View {
             AppInformationDebugScenes.view(for:),
             ScreenshotsDebugScenes.view(for:),
             ScreenshotsPushDebugScenes.view(for:),
+            ExtrasPushDebugScenes.view(for:),
             ScreenshotsProposalsDebugScenes.view(for:),
             AssistantDebugScenes.view(for:),
             SuggestionsDebugScenes.view(for:),

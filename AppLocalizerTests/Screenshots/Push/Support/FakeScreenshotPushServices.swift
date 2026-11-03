@@ -14,6 +14,9 @@ final class FakeScreenshotPushServices: ScreenshotPushServices {
     let backupStore = InMemoryScreenshotBackupStore()
     let stateStore = InMemoryScreenshotPushStateStore()
     var screenshotsContext: ScreenshotsContext
+    /// Where Autopilot's extras go, and Product Page Optimization.
+    var extrasLibrary = FakeAssetLibrary()
+    var productPageTester = FakeProductPageTesting()
     private(set) var contextCount = 0
 
     init(transport: FakeScreenshotUploadTransport = FakeScreenshotUploadTransport(), context: ScreenshotsContext) {

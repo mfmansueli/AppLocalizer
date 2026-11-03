@@ -33,6 +33,9 @@ final class DebugScreenshotsServices: ScreenshotsServices {
     /// What reading each capture's text finds, by capture ID; the mock
     /// captures have no real text.
     var textReadings: [String: CaptureTextReading] = [:]
+    /// A change to the sample document before it's first opened, e.g. the
+    /// extras an Autopilot run saved.
+    var documentChange: (@Sendable (inout ScreenshotsDocument) -> Void)?
     private let store = InMemoryScreenshotsDocumentStore()
     private let captures = MockLumenCaptureRenderer()
 
@@ -51,7 +54,9 @@ final class DebugScreenshotsServices: ScreenshotsServices {
     func document(for app: StoreApp, primaryLocale: StoreLocale) async throws -> ScreenshotsDocument {
         if let saved = try store.load(appID: app.id) { return saved }
         guard app.id == DebugFixtures.AppID.lumen else { return .empty(primary: primaryLocale.code) }
-        return ScreenshotsDebugDocuments.document(for: scenario)
+        var document = ScreenshotsDebugDocuments.document(for: scenario)
+        documentChange?(&document)
+        return document
     }
 
     func save(_ document: ScreenshotsDocument, for app: StoreApp) async throws {

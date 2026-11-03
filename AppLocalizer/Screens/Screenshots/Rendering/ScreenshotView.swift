@@ -12,10 +12,13 @@ import SwiftUI
 struct ScreenshotView: View {
     let layout: ScreenshotLayout
     let capture: CGImage?
+    /// iPhone Duo's cover display beside the inner one.
+    var companion: CGImage?
 
-    init(layout: ScreenshotLayout, capture: CGImage?) {
+    init(layout: ScreenshotLayout, capture: CGImage?, companion: CGImage? = nil) {
         self.layout = layout
         self.capture = capture
+        self.companion = companion
     }
 
     /// Lays the template out for one locale × display type × slot first.
@@ -35,7 +38,7 @@ struct ScreenshotView: View {
 
     var body: some View {
         Canvas(opaque: true, rendersAsynchronously: false) { context, _ in
-            ScreenshotPainter(layout: layout, capture: capture).draw(in: &context)
+            ScreenshotPainter(layout: layout, capture: capture, companion: companion).draw(in: &context)
         }
         .frame(width: layout.canvas.width, height: layout.canvas.height)
         .environment(\.layoutDirection, .leftToRight)

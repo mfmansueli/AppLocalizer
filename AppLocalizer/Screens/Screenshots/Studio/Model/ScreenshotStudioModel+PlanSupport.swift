@@ -34,9 +34,8 @@ extension ScreenshotStudioModel {
                 ? String(localized: "Autopilot captures \(devices) in 1 language.")
                 : String(localized: "Autopilot captures \(devices) in \(count) languages."))
             : String(localized: "Autopilot captures \(devices) in \(primaryLocale.shortName), and uses those captures under every language’s captions.")
-        let duo = ScreenshotDisplayType.iPhoneDuo
-        text += " " + (plan.displayTypes.contains(duo)
-            ? String(localized: "iPhone Duo is in every plan: Apple requires its screenshots from April 2027, at its inner display’s \(duo.portraitPixelSize.title).")
+        text += " " + (plan.displayTypes.contains(.iPhoneDuo)
+            ? String(localized: "iPhone Duo is in every plan: Apple requires its screenshots from April 2027.")
             : String(localized: "iPhone Duo is off, so its screenshots are left to upload by hand: Apple requires them from April 2027."))
         return text
     }
@@ -93,7 +92,7 @@ extension ScreenshotStudioModel {
         case .iPad where requiredReason(.iPad) == nil:
             parts.append(String(localized: "landscape"))
         case .iPhoneDuo:
-            parts.append(String(localized: "inner display"))
+            parts.append(Self.duoShowsTitle(plan))
         case .watch:
             parts.append(String(localized: "Ultra 3"))
         default:
@@ -108,6 +107,49 @@ extension ScreenshotStudioModel {
             detail += ". " + String(localized: "You’ll need to upload these by hand before submitting.")
         }
         return detail
+    }
+
+    /// Under "What this run makes"'s rows: each required device left out,
+    /// whose screenshots are uploaded by hand.
+    func planDeviceNotes(_ plan: AutopilotPlan) -> [String] {
+        guard plan.makesScreenshots else { return [] }
+        var notes: [String] = []
+        for display in planDevices(plan) where display != .iPhone && !plan.displayTypes.contains(display) {
+            guard let reason = requiredReason(display) else { continue }
+            let required = display == .iPhoneDuo ? String(localized: "required \(reason)") : String(localized: "required: \(reason)")
+            notes.append(String(localized: "\(display.title) is left out (\(required)). You’ll need to upload these by hand before submitting."))
+        }
+        return notes
+    }
+
+    /// "inner display", "cover display", "both displays side by side",
+    /// "inner and cover, separately".
+    static func duoShowsTitle(_ plan: AutopilotPlan) -> String {
+        switch (plan.duoScreens, plan.duoBoth) {
+        case (.inner, _): String(localized: "inner display")
+        case (.cover, _): String(localized: "cover display")
+        case (.both, .sideBySide): String(localized: "both displays side by side")
+        case (.both, .separate): String(localized: "inner and cover, separately")
+        }
+    }
+
+    /// The iPhone Duo row's note: what each choice shows and costs.
+    static func duoNote(_ plan: AutopilotPlan) -> String {
+        let size = AutopilotDuoPose.open.portraitPixelSize.title
+        let count = plan.duoShots.count
+        switch (plan.duoScreens, plan.duoBoth) {
+        case (.inner, _):
+            return String(localized: "Unfolded, as Apple requires: the inner display at \(size). AppLocalizer opens the Duo in Device Hub for each capture.")
+        case (.cover, _):
+            return String(localized: "Folded: the app on the cover display, placed on the \(size) canvas. Faster, since the Duo never opens, but people don’t see the big screen.")
+        case (.both, .separate):
+            guard plan.screens.count * 2 > AutopilotPlan.duoShotLimit else {
+                return String(localized: "Each screen unfolded, then folded: \(count) screenshots per language.")
+            }
+            return String(localized: "Each screen unfolded, then folded: \(count) screenshots per language. Apple allows 10, so only the first \(plan.duoSeparateCovers) screens get a folded one.")
+        case (.both, .sideBySide):
+            return String(localized: "Each screenshot shows the Duo unfolded with the folded cover beside it: \(count) per language, both states in one image.")
+        }
     }
 
     /// Plans a device or leaves it out; Apple Vision Pro starts with the

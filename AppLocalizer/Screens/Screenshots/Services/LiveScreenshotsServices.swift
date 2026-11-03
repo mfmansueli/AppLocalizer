@@ -67,6 +67,21 @@ struct LiveScreenshotsServices: ScreenshotsServices {
         return file
     }
 
+    /// Keeps a Simulator recording in the app's `Recordings` folder.
+    func storeRecording(_ data: Data, for app: StoreApp) async throws -> RecordingFile {
+        try await RecordingFileReader.store(data, in: capturesRoot.appending(path: "\(app.id)/Recordings", directoryHint: .isDirectory))
+    }
+
+    func recordingURL(_ fileID: String, for app: StoreApp) -> URL {
+        capturesRoot.appending(path: "\(app.id)/Recordings/\(fileID).mov")
+    }
+
+    /// The header and search artwork and App Previews, in the app's `Extras`
+    /// folder.
+    func extrasFolder(for app: StoreApp) -> URL {
+        capturesRoot.appending(path: "\(app.id)/Extras", directoryHint: .isDirectory)
+    }
+
     /// Copies each file (or downloads each live screenshot at full size)
     /// into the app's `Captures` folder, named by its checksum.
     func importCaptures(_ items: [CaptureImportItem], for app: StoreApp) async throws -> [ScreenshotCapture] {

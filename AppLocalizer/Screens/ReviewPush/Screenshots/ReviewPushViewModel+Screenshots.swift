@@ -61,9 +61,11 @@ extension ReviewPushViewModel {
     /// Renders waiting for a localization, in scope.
     var unlocalizedRenders: [ScreenshotPlanExclusion] { screenshotPlans.flatMap(\.missingLocalizations) }
 
+    /// Images, and Autopilot's extras, waiting to go.
     func imageCount(thisAppOnly: Bool) -> Int {
-        guard thisAppOnly else { return screenshots.imageCount }
-        return selectedAppID.flatMap { screenshots.plans[$0] }?.items.count ?? 0
+        guard thisAppOnly else { return screenshots.imageCount + extras.itemCount }
+        let extrasCount = selectedAppID.flatMap { extras.plans[$0] }?.items.count ?? 0
+        return (selectedAppID.flatMap { screenshots.plans[$0] }?.items.count ?? 0) + extrasCount
     }
 
     /// "40 images in 8 sets", or nil without images.
@@ -110,6 +112,12 @@ extension ReviewPushViewModel {
     func discardImage(_ item: ScreenshotPlanItem) {
         uncheckedImages.remove(item.id)
         screenshots.discard([item])
+    }
+
+    /// Whether Discard All has anything to discard: changes, images or
+    /// extras.
+    var canDiscardAll: Bool {
+        !visibleChanges.isEmpty || !visibleImages.isEmpty || !visibleExtras.isEmpty
     }
 
     /// Discard All's part for images.

@@ -89,10 +89,7 @@ struct AutopilotStripContent: Hashable, Sendable {
                 Double(run.directions.count) / Double(AutopilotRun.directionCount)
             )
         default:
-            (
-                String(localized: "Localizing and checking · \(run.checkedScreenshots) of \(run.totalScreenshots)"),
-                run.totalScreenshots > 0 ? Double(run.checkedScreenshots) / Double(run.totalScreenshots) : 0
-            )
+            localizingText(run)
         }
         let problems = run.problemGroups.count
         return AutopilotStripContent(
@@ -103,6 +100,23 @@ struct AutopilotStripContent: Hashable, Sendable {
             text: text,
             progress: min(max(progress, 0.02), 1),
             primary: .open
+        )
+    }
+
+    /// "Localizing and checking · 31 of 40", or for the header and search
+    /// only, "Header and search · 4 of 8 languages".
+    private static func localizingText(_ run: AutopilotRun) -> (String, Double) {
+        if !run.plan.makesScreenshots {
+            let extras = run.extrasProgress
+            let artwork = !run.plan.artworkKinds.isEmpty
+            let done = artwork ? extras?.artworkDone ?? 0 : extras?.previewsDone ?? 0
+            let total = artwork ? run.plan.localeCodes.count : run.plan.previewDisplays.count * run.plan.previewLocales.count
+            let what = artwork ? String(localized: "Header and search") : String(localized: "App Preview")
+            return (String(localized: "\(what) · \(done) of \(total)"), Double(done) / Double(max(total, 1)))
+        }
+        return (
+            String(localized: "Localizing and checking · \(run.checkedScreenshots) of \(run.totalScreenshots)"),
+            run.totalScreenshots > 0 ? Double(run.checkedScreenshots) / Double(run.totalScreenshots) : 0
         )
     }
 
@@ -121,9 +135,13 @@ struct AutopilotStripContent: Hashable, Sendable {
     private static func yourTurn(_ run: AutopilotRun, stage: AutopilotStage) -> AutopilotStripContent {
         let client = run.client ?? String(localized: "The assistant")
         let screens = run.plan.screens.count
-        let text = stage == .pick
-            ? String(localized: "Pick the best captures for \(screens) screens. \(client)’s picks are already selected.")
-            : String(localized: "Choose one of \(run.directions.count) directions from \(designer(run)).")
+        let text = switch stage {
+        case .pick: String(localized: "Pick the best captures for \(screens) screens. \(client)’s picks are already selected.")
+        case .watchPreview where run.designKind.usesDesignAI:
+            String(localized: "Watch the App Preview, then approve it or ask \(designer(run)) for changes.")
+        case .watchPreview: String(localized: "Watch the App Preview, then approve it.")
+        default: String(localized: "Choose one of \(run.directions.count) directions from \(designer(run)).")
+        }
         return AutopilotStripContent(
             kind: .yourTurn,
             title: String(localized: "Autopilot is waiting for you"),
@@ -135,6 +153,18 @@ struct AutopilotStripContent: Hashable, Sendable {
     }
 
     private static func ready(_ run: AutopilotRun) -> AutopilotStripContent {
+        if !run.plan.makesScreenshots {
+            let what = run.plan.extrasTitle ?? String(localized: "the extras")
+            return AutopilotStripContent(
+                kind: .ready,
+                title: String(localized: "Ready for review"),
+                pill: String(localized: "Not pushed"),
+                pillStyle: .accent,
+                text: String(localized: "\(what.prefix(1).uppercased() + what.dropFirst()) in \(run.plan.localeCodes.count) languages · waiting in Review & Push"),
+                primary: .reviewPush,
+                secondary: .open
+            )
+        }
         var parts = [String(localized: "\(run.totalScreenshots) screenshots")]
         if let direction = run.chosenDirection { parts[0] += " " + String(localized: "in \(direction.name)") }
         let shortened = run.shortenings.count

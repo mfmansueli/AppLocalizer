@@ -6,7 +6,8 @@
 import Foundation
 
 /// Using a direction: the set is saved, every language checked, and the
-/// captions that don't fit go to the assistant.
+/// captions that don't fit go to the assistant. Once they all fit, the
+/// extras are made.
 extension AutopilotCenter {
     /// Use This Direction: saves it as the next template version with the
     /// picked captures, then checks every language.
@@ -22,6 +23,11 @@ extension AutopilotCenter {
             run.appendLog(String(localized: "Using \(direction.name)"), kind: .event, at: now())
         }
         guard !holdsStages, let current = runs[appID] else { return }
+        // Without screenshots the set stays as it is: only the extras.
+        guard current.plan.makesScreenshots else {
+            await checkExtrasOnly(appID, context: context)
+            return
+        }
         let localizer = AutopilotLocalizer(context: context, now: now())
         do {
             let version = try await localizer.apply(direction, of: current)
@@ -60,7 +66,12 @@ extension AutopilotCenter {
     }
 
     /// Checks every language, one at a time; ready when every caption fits.
-    private func check(_ appID: StoreApp.ID, with localizer: AutopilotLocalizer) async {
+    func check(_ appID: StoreApp.ID, with localizer: AutopilotLocalizer) async {
+        // The set's captions stay as they are: only the artwork's texts.
+        if runs[appID]?.plan.makesScreenshots == false {
+            await checkExtrasOnly(appID, context: localizer.context)
+            return
+        }
         guard let run = runs[appID], let document = await localizer.document() else { return }
         var overflows: [AutopilotOverflow] = []
         for locale in run.plan.localeCodes {
@@ -72,14 +83,24 @@ extension AutopilotCenter {
         }
         update(appID) { run in
             run.overflows = overflows
-            if overflows.isEmpty {
-                run.stage = .ready
-                run.finishedAt = now()
-                run.appendLog(String(localized: "\(run.totalScreenshots) screenshots ready in Review & Push"), kind: .event, at: now())
-            } else {
-                let client = run.client ?? String(localized: "the assistant")
-                run.appendLog(String(localized: "Sent to \(client): \(AutopilotCaptionWork(overflows).summary)"), kind: .command, at: now())
-            }
+            guard !overflows.isEmpty else { return }
+            let client = run.client ?? String(localized: "the assistant")
+            run.appendLog(String(localized: "Sent to \(client): \(AutopilotCaptionWork(overflows).summary)"), kind: .command, at: now())
         }
+        guard overflows.isEmpty else { return }
+        // Every caption fits: then each placement's own text.
+        let needs = artworkTextNeeds(of: run, in: document, context: localizer.context)
+        update(appID) { run in
+            run.artworkTextNeeds = needs.isEmpty ? nil : needs
+            guard !needs.isEmpty else { return }
+            let client = run.client ?? String(localized: "the assistant")
+            run.appendLog(String(localized: "Sent to \(client): \(AutopilotArtworkTextWork(needs).summary)"), kind: .command, at: now())
+        }
+        guard needs.isEmpty else { return }
+        // The header, search artwork and App Preview are made with them,
+        // then the person watches the App Preview, or the set is ready.
+        let extras = await makeExtras(appID, context: localizer.context)
+        let total = runs[appID]?.totalScreenshots ?? 0
+        finishMaking(appID, extras: extras, readyLine: String(localized: "\(total) screenshots ready in Review & Push"))
     }
 }

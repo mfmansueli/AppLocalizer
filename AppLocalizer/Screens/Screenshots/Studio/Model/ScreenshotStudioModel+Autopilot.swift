@@ -17,17 +17,39 @@ extension ScreenshotStudioModel {
 
     /// Start Autopilot: AppLocalizer starts Claude Code when its helper is
     /// saved; otherwise the prompt goes on the clipboard for the assistant.
+    /// A run with nothing to capture goes straight to Design, and Claude
+    /// Code starts only when something is left for it there.
     func start() {
         autopilot?.start(appID: app.id)
         reportMissingSimulators()
         viewedStep = nil
         launchedRunID = nil
+        if let run, run.remainingTargets.isEmpty, run.remainingRecordings.isEmpty {
+            startWithoutCapturing()
+            return
+        }
         guard let launcher, launcher.canStart else {
             copyPrompt()
             return
         }
         let prompt = prompt
         Task { await launch(prompt, with: launcher) }
+    }
+
+    private func startWithoutCapturing() {
+        guard let autopilot else { return }
+        let context = context
+        let appID = app.id
+        let prompt = prompt
+        Task {
+            await autopilot.skipCapturingIfDone(appID, context: context)
+            guard autopilot.run(for: appID)?.assistantHasWork == true else { return }
+            guard let launcher, launcher.canStart else {
+                copyPrompt()
+                return
+            }
+            await launch(prompt, with: launcher)
+        }
     }
 
     /// With no folder chosen nothing starts, so it's back to the plan; if
@@ -80,7 +102,8 @@ extension ScreenshotStudioModel {
         guard let autopilot else { return }
         guard let launcher, launcher.canStart else {
             NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(AutopilotPrompt.continuing(appName: app.name, appID: app.id), forType: .string)
+            let prompt = run.map { AutopilotPrompt.continuing($0, appName: app.name) } ?? AutopilotPrompt.continuing(appName: app.name, appID: app.id)
+            NSPasteboard.general.setString(prompt, forType: .string)
             didCopyPrompt = true
             return
         }

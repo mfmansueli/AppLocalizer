@@ -21,7 +21,9 @@ struct ProposeCaptionsTool: MCPTool {
         until the person accepts them, and accepted captions read "Proposed by" you until someone edits them. \
         Keep brand names and the glossary's terms untranslated. During a Screenshot Autopilot run, when \
         next_step asks for write_captions, pass the run's ID as run: the captions are saved right away instead \
-        of queued, and the run checks them again.
+        of queued, and the run checks them again. When it asks for write_artwork_texts, send items {locale, \
+        placement: search or header, headline} with run instead of slots: the search results image's and the \
+        header's own texts (an empty header headline removes its line).
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -32,8 +34,12 @@ struct ProposeCaptionsTool: MCPTool {
                         "type": "object",
                         "properties": [
                             "locale": ["type": "string"], "slot": ["type": "integer"], "headline": ["type": "string"], "subhead": ["type": "string"],
+                            "placement": [
+                                "type": "string", "enum": ["search", "header"],
+                                "description": "With run, during write_artwork_texts: the placement's own text, instead of a slot.",
+                            ],
                         ],
-                        "required": ["locale", "slot", "headline"],
+                        "required": ["locale", "headline"],
                     ],
                 ],
                 "reason": MCPToolDefinition.string("Why, in a sentence or two the person reads before accepting."),

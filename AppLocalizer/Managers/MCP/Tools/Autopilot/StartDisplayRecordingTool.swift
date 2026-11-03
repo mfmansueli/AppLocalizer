@@ -15,7 +15,8 @@ struct StartDisplayRecordingTool: MCPTool {
         name: "start_display_recording",
         title: "Record iPhone Duo’s inner display",
         description: """
-        Call this right before running a UI test on iPhone Duo. A UI test's screenshot there (XCUIScreen.main) is the \
+        Call this right before running a UI test for iPhone Duo's open screens (not its closed ones: closed, the test's \
+        own screenshot is the cover display they need). A UI test's screenshot there (XCUIScreen.main) is the \
         cover display, and the test closes the app right after it, too soon to screenshot the inner display yourself. \
         AppLocalizer opens the Duo if it's closed, then records its inner display at full size. Run the test on the \
         simulator it names, with -resultBundlePath (one screen or several, in any language), then call \
@@ -43,6 +44,13 @@ struct StartDisplayRecordingTool: MCPTool {
         }
         guard session.run.plan.displayTypes.contains(.iPhoneDuo) else {
             throw MCPToolError.notFound(String(localized: "The plan doesn’t capture iPhone Duo."))
+        }
+        // Closed screens come first, on the cover display the test captures itself.
+        if session.run.duoPoseWanted == .closed {
+            return .refused(String(localized: """
+            iPhone Duo’s closed screens come first, and closed, the UI test’s own screenshot is the cover display they need: \
+            run the test without recording and report its screenshots. Call this once next_step gives only open iPhone Duo screens.
+            """), target: session.target)
         }
         guard let simulators = context.simulators, simulators.hasHelper else {
             return .refused(String(localized: """

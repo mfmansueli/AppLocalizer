@@ -40,6 +40,7 @@ extension AutopilotCenter {
                 ? String(localized: "Brief ready for \(run.designName ?? run.designKind.title): \(run.plan.screens.count) captures, \(run.plan.localeCodes.count) languages")
                 : String(localized: "Making directions from AppLocalizer’s starters")
             run.appendLog(what, kind: .command, at: now())
+            for line in run.plan.briefExtrasLines { run.appendLog(line, kind: .command, at: now()) }
         }
         guard !run.designKind.usesDesignAI, !holdsStages else { return }
         let directions = await StarterDirectionMaker(context: context, now: now).directions(for: run)
@@ -114,6 +115,7 @@ extension AutopilotCenter {
     func reviseDirection(
         _ directionID: String,
         template: ScreenshotTemplate,
+        extras: (artwork: ScreenshotTemplate?, preview: ScreenshotTemplate?) = (nil, nil),
         rationale: String?,
         link: String?,
         appID: StoreApp.ID,
@@ -130,6 +132,8 @@ extension AutopilotCenter {
         update(appID) { run in
             guard let index = run.directions.firstIndex(where: { $0.id == directionID }) else { return }
             run.directions[index].template = template
+            if let artwork = extras.artwork { run.directions[index].artworkTemplate = artwork }
+            if let preview = extras.preview { run.directions[index].previewTemplate = preview }
             run.directions[index].isRevised = true
             run.directions[index].checks = checks
             run.directions[index].receivedAt = now()

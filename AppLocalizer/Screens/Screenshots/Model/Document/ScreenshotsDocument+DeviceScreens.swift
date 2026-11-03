@@ -12,15 +12,16 @@ extension ScreenshotsDocument {
         ScreenshotDisplayType.rendered + ScreenshotDisplayType.ownScreens.filter { !(screens(on: $0)?.isEmpty ?? true) }
     }
 
-    /// A device's own screens; nil for iPhone and iPad.
+    /// A device's own screens; nil for iPhone and iPad, and for iPhone Duo
+    /// unless its displays are separate screenshots.
     func screens(on display: ScreenshotDisplayType) -> [DeviceScreen]? {
-        guard display.hasOwnScreens else { return nil }
+        guard display.mayHaveOwnScreens else { return nil }
         return deviceScreens?.first { $0.displayType == display }?.screens
     }
 
     /// Replaces a device's own screens; empty removes them.
     mutating func setScreens(_ screens: [DeviceScreen], on display: ScreenshotDisplayType) {
-        guard display.hasOwnScreens else { return }
+        guard display.mayHaveOwnScreens else { return }
         var sets = (deviceScreens ?? []).filter { $0.displayType != display }
         if !screens.isEmpty { sets.append(DeviceScreenSet(displayType: display, screens: screens)) }
         let order = ScreenshotDisplayType.ownScreens
@@ -40,8 +41,8 @@ extension ScreenshotsDocument {
     }
 
     /// The set slot whose caption a screenshot carries: the slot itself on
-    /// iPhone and iPad, the screen's on Apple Vision Pro, none on Apple
-    /// Watch.
+    /// iPhone and iPad, the screen's on Apple Vision Pro (and on iPhone Duo
+    /// with screens of its own), none on Apple Watch.
     func captionSlot(_ slot: Int, on display: ScreenshotDisplayType) -> Int? {
         guard display.hasCaptions else { return nil }
         guard let screens = screens(on: display) else { return slot }

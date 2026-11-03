@@ -9,8 +9,9 @@ import Foundation
 /// something: what keeps a run going when Claude Code stops early.
 extension AutopilotRun {
     /// The assistant has a step it can take now: picking the plan up,
-    /// capturing what's left or retried, designing, revising, or writing
-    /// captions. Not when the run waits on the person or is done.
+    /// capturing what's left or retried, designing, revising (a direction
+    /// or the App Preview), or writing captions. Not when the run waits on
+    /// the person or is done.
     var assistantHasWork: Bool {
         switch stage {
         case .waiting:
@@ -20,8 +21,14 @@ extension AutopilotRun {
         case .design:
             designKind.usesDesignAI && (revision != nil || directions.count < Self.directionCount)
         case .localize:
-            !overflows.isEmpty
-        case .plan, .pick, .choose, .ready:
+            !overflows.isEmpty || artworkTextNeeds?.isEmpty == false
+        case .watchPreview:
+            designKind.usesDesignAI && previewReview?.request != nil && previewReview?.remake == nil
+        case .ready:
+            variantRequest != nil
+        case .plan:
+            screenRequest != nil
+        case .pick, .choose:
             false
         }
     }
@@ -37,9 +44,11 @@ extension AutopilotRun {
         max(Self.directionCount - directions.count, 0)
     }
 
-    /// The last time the assistant sent a capture, a problem or a direction.
+    /// The last time the assistant sent a capture, a problem, a direction
+    /// or an App Preview revision.
     var lastNewsAt: Date? {
         let dates = captures.map(\.receivedAt) + problems.map(\.reportedAt) + directions.map(\.receivedAt)
+            + (previewReview?.revisions.map(\.madeAt) ?? [])
         return dates.max()
     }
 

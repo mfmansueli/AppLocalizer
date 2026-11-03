@@ -7,7 +7,7 @@ import SwiftUI
 
 /// Ready for review: what was made, the five new screenshots, and what to
 /// check — shortened captions, languages that are new, the template
-/// version it saved.
+/// version it saved. For the header and search only: just the artwork.
 struct AutopilotReadyStageView: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -20,8 +20,10 @@ struct AutopilotReadyStageView: View {
                 Text(summary)
                     .foregroundStyle(Palette.label2)
                     .accessibilityIdentifier("autopilot.ready.summary")
-                if let direction = run.chosenDirection {
-                    AutopilotDirectionThumbnails(studio: studio, direction: direction, width: 98, stacksDevices: stacksDevices)
+                if run.plan.makesScreenshots, let direction = run.chosenDirection {
+                    AutopilotDirectionThumbnails(studio: studio, direction: direction, width: 98, stacksDevices: stacksDevices) { slot in
+                        studio.openDirection(direction, at: slot, asNewSet: true)
+                    }
                 }
                 VStack(spacing: 0) {
                     ForEach(Array(notes.enumerated()), id: \.offset) { index, note in
@@ -49,11 +51,20 @@ struct AutopilotReadyStageView: View {
     private var summary: String {
         let languages = run.plan.localeCodes.count == 1 ? String(localized: "1 language") : String(localized: "\(run.plan.localeCodes.count) languages")
         let name = run.chosenDirection?.name ?? String(localized: "the new template")
-        return String(localized: "\(run.totalScreenshots) screenshots for \(run.plan.devicesTitle) in \(languages), in \(name). They’re in Review & Push; nothing is uploaded yet.")
+        if !run.plan.makesScreenshots {
+            let what = run.plan.extrasTitle ?? String(localized: "the extras")
+            return String(localized: """
+            \(what.prefix(1).uppercased() + what.dropFirst()) in \(languages), in \(name). The live screenshots stay as they \
+            are. Everything is in Review & Push; nothing is uploaded yet.
+            """)
+        }
+        return String(localized: "\(run.totalScreenshots) screenshots for \(run.plan.devicesTitle) in \(languages)\(extrasSummaryPart), in \(name). They’re in Review & Push; nothing is uploaded yet.")
     }
 
     private var notes: [AutopilotReadyNote] {
-        var notes: [AutopilotReadyNote] = []
+        var notes = extrasNotes(direction: run.chosenDirection?.name ?? String(localized: "the new template"))
+        // Nothing else was made or changed.
+        guard run.plan.makesScreenshots else { return notes }
         let toCheck = run.capturesToCheck
         if let first = toCheck.first {
             let more = toCheck.count - 1

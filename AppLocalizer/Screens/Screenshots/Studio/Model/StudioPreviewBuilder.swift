@@ -192,13 +192,14 @@ struct StudioPreviewBuilder {
         preview.displayType = display
         preview.shots = cells.map { cell in
             StudioShot(
-                slot: cell.key.slot, name: slotName(cell.key.slot), image: cell.image,
+                slot: cell.key.slot, name: slotName(cell.key.slot, on: display), image: cell.image,
                 pixelSize: cell.layout?.canvas.pixelSize ?? display.defaultPixelSize,
                 chip: newChip(for: cell, fellBack: rowLocale != locale)
             )
         }
         var note = [String(localized: "New set")]
         if let name = newSetName { note.append(name) }
+        if display == .iPhoneDuo, let plan = run?.plan, plan.plansDuo { note.append(Self.duoFaceTitle(plan)) }
         note.append(String(localized: "not pushed"))
         if rowLocale != locale { note.append(String(localized: "\(primaryLocale.shortName) until this language is localized")) }
         preview.note = note.joined(separator: " · ")
@@ -251,12 +252,23 @@ struct StudioPreviewBuilder {
     }
 
     private func slotName(_ slot: Int, on display: ScreenshotDisplayType) -> String {
-        guard display.hasOwnScreens else { return slotName(slot) }
+        guard display.hasOwnScreens || ownSlotNames[display] != nil else { return slotName(slot) }
         let names = ownSlotNames[display] ?? []
         return names.indices.contains(slot) ? names[slot] : String(localized: "Screen \(slot + 1)")
     }
 
     func localeInfo(_ code: String) -> StoreLocale? {
         storeTexts.locales.first { $0.code == code } ?? StoreLocaleCatalog.locale(code: code)
+    }
+
+    /// "inner display", "cover display", "inner and cover, side by side",
+    /// "inner and cover, separate".
+    static func duoFaceTitle(_ plan: AutopilotPlan) -> String {
+        switch (plan.duoScreens, plan.duoBoth) {
+        case (.inner, _): String(localized: "inner display")
+        case (.cover, _): String(localized: "cover display")
+        case (.both, .sideBySide): String(localized: "inner and cover, side by side")
+        case (.both, .separate): String(localized: "inner and cover, separate")
+        }
     }
 }

@@ -18,21 +18,27 @@ final class DebugScreenshotPushServices: ScreenshotPushServices {
     let images: DebugScreenshotImages
     let backups: any ScreenshotBackupStore
     let state: any ScreenshotPushStateStore = InMemoryScreenshotPushStateStore()
+    /// How the extras push and Product Page Optimization answer.
+    let extrasScript: DebugExtrasScript
     private var autoPush: Bool
     private var restoreOnOpen: ScreenshotRestorePresentation?
+    private var opensTest: ProductPageTestPlacement?
     private let storePage = DebugStorePageServices()
 
     init(
         script: DebugScreenshotUploadScript = DebugScreenshotUploadScript(),
         images: DebugScreenshotImages,
         autoPush: Bool = false,
-        restoreOnOpen: ScreenshotRestorePresentation? = nil
+        restoreOnOpen: ScreenshotRestorePresentation? = nil,
+        extrasScript: DebugExtrasScript = DebugExtrasScript()
     ) {
         transport = DebugScreenshotUploadTransport(live: ScreenshotsDebugDocuments.live, script: script)
         self.images = images
         backups = DebugKeptScreenshots(images: images, prefills: true)
         self.autoPush = autoPush
         self.restoreOnOpen = restoreOnOpen
+        self.extrasScript = extrasScript
+        opensTest = extrasScript.opensTest
     }
 
     var uploads: any ScreenshotUploadTransport { transport }
@@ -70,6 +76,13 @@ final class DebugScreenshotPushServices: ScreenshotPushServices {
     func consumeAutoPush() -> Bool {
         defer { autoPush = false }
         return autoPush
+    }
+
+    /// “Test with Product Page Optimization…”, once, for a scene that opens
+    /// on it.
+    func consumeOpenTest() -> ProductPageTestPlacement? {
+        defer { opensTest = nil }
+        return opensTest
     }
 
     /// Restore Previous Screenshots…, once, for a scene that opens on it.

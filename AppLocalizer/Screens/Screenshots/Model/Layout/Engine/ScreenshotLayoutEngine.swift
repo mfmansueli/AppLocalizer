@@ -41,11 +41,16 @@ struct ScreenshotLayoutEngine {
         locale: StoreLocale,
         displayType: ScreenshotDisplayType,
         caption: ScreenshotCaption?,
-        captureSize: PixelSize? = nil
+        captureSize: PixelSize? = nil,
+        companionSize: PixelSize? = nil
     ) -> ScreenshotLayout {
         let resolved = template.resolved(forSlot: slot)
         let orientation = resolved.canvas.following(captureSize, on: displayType).orientation(for: displayType)
-        let canvas = ScreenshotCanvas(display: displayType, orientation: orientation)
+        // iPhone Duo's closed screenshots frame the folded phone; with a
+        // companion, the folded one stands beside the unfolded one.
+        let isCover = displayType == .iPhoneDuo && captureSize.map(CaptureSizeRules.isDuoOuterDisplay) == true
+        let pair = displayType == .iPhoneDuo && !isCover ? companionSize : nil
+        let canvas = ScreenshotCanvas(display: displayType, orientation: orientation, isCoverDisplay: isCover)
         let script = ScreenshotScript(locale: locale)
         let isRightToLeft = locale.isRTL || script.isRightToLeft
         let isMirrored = isRightToLeft && resolved.rightToLeft.mirror
@@ -94,16 +99,22 @@ struct ScreenshotLayoutEngine {
             result.band = CGRect(x: 0, y: bandY, width: width, height: bandHeight)
             result.bandColor = TemplateColor(resolved.caption.band.color)
             result.captionBox = CGRect(x: frame.boxX, y: bandY + padding, width: frame.boxWidth, height: captionHeight)
-            result.screen = CGRect(origin: .zero, size: canvas.size)
-            result.isFullBleed = true
+            if isCover || pair != nil {
+                // A folded phone (or both) can't fill the canvas: it stands
+                // under the band, or over it.
+                placeDevice(in: &result, context: context, captionTop: bandY, captionHeight: atTop ? bandHeight : 0, below: !atTop, companion: pair)
+            } else {
+                result.screen = CGRect(origin: .zero, size: canvas.size)
+                result.isFullBleed = true
+            }
         case .above:
             let top = safe.top * height
             result.captionBox = CGRect(x: frame.boxX, y: top, width: frame.boxWidth, height: captionHeight)
-            placeDevice(in: &result, context: context, captionTop: top, captionHeight: captionHeight, below: false)
+            placeDevice(in: &result, context: context, captionTop: top, captionHeight: captionHeight, below: false, companion: pair)
         case .below:
             let top = height - max(safe.bottom, Self.belowMinimumBottom) * height - captionHeight
             result.captionBox = CGRect(x: frame.boxX, y: top, width: frame.boxWidth, height: captionHeight)
-            placeDevice(in: &result, context: context, captionTop: top, captionHeight: captionHeight, below: true)
+            placeDevice(in: &result, context: context, captionTop: top, captionHeight: captionHeight, below: true, companion: pair)
         }
         result.lines = lines(fitted, box: result.captionBox, context: context)
         result.decorations = decorations(context: context, fontName: fitted.headlineFont.fontName)
@@ -141,7 +152,11 @@ struct ScreenshotLayoutEngine {
     /// The device under a caption at the top, or over one at the bottom,
     /// leaning out of the top edge then: its bottom sits a gap above the
     /// caption, raised by however far its angle makes it stick out.
-    private func placeDevice(in layout: inout ScreenshotLayout, context: Context, captionTop: CGFloat, captionHeight: CGFloat, below: Bool) {
+    /// iPhone Duo closed: the folded phone, its cover display's shape. With
+    /// a `companion` (both, side by side), the pair instead.
+    private func placeDevice(
+        in layout: inout ScreenshotLayout, context: Context, captionTop: CGFloat, captionHeight: CGFloat, below: Bool, companion: PixelSize?
+    ) {
         let template = context.template
         let canvas = layout.canvas
         let width = canvas.width
@@ -154,10 +169,16 @@ struct ScreenshotLayoutEngine {
             layout.screen = CGRect(x: side, y: top, width: width - 2 * side, height: max(0, screenHeight))
             layout.screenCornerRadius = 0.05 * width
             layout.screenHasShadow = true
+            if let companion { placeFloatingPair(in: &layout, companion: companion) }
             return
         }
-        let shape = Self.deviceShape(for: canvas.display)
-        let screenAspect = height / width
+        if let companion {
+            let span = DuoPairSpan(top: top, captionTop: captionTop, gap: gap, below: below)
+            placeDevicePair(in: &layout, context: context, span: span, companion: companion)
+            return
+        }
+        let shape = canvas.isCoverDisplay ? Self.coverShape : Self.deviceShape(for: canvas.display)
+        let screenAspect = canvas.isCoverDisplay ? Self.coverAspect : height / width
         let bezelRatio = shape.bezel
         var deviceWidth = template.device.width * width * (context.isHero ? 0.96 : 1)
         var deviceHeight = deviceWidth * (1 - 2 * bezelRatio) * screenAspect + 2 * bezelRatio * deviceWidth

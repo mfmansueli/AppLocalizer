@@ -280,27 +280,34 @@ struct IPhoneDuoTests {
 
     @Test func autopilotSaysHowToCaptureTheInnerDisplay() throws {
         // Open, the inner display is wider than tall; both ways are taken.
-        #expect(AutopilotRun.capturePixelSize(.iPhoneDuo) == "2853 × 2007 or 2007 × 2853 (the inner display, open)")
+        // Closed, the cover display.
+        #expect(AutopilotRun.capturePixelSize(.iPhoneDuo)
+            == "open: 2853 × 2007 or 2007 × 2853 (the inner display); closed: 1398 × 2034 (the cover display)")
         let how = try #require(AutopilotRun.howToCapture(.iPhoneDuo))
         #expect(how.contains("1398 × 2034"))
-        // A UI test's screenshot is the cover display, even with the Duo
-        // open, and the test closes the app too soon for simctl: AppLocalizer
-        // records the inner display during the test (`DisplayRecorder`).
-        #expect(how.contains("A UI test's screenshot (XCUIScreen.main) is the cover display, and the test closes the app right after it"))
-        #expect(how.contains("call start_display_recording (it opens the Duo and records the inner display)"))
+        // Closed screens come first and are the test's own screenshot.
+        #expect(how.contains("next_step gives the closed ones first"))
+        #expect(how.contains("a UI test's own screenshot (XCUIScreen.main) is that display, so capture the closed ones like iPhone's"))
+        // Open, a UI test's screenshot is still the cover display, and the
+        // test closes the app too soon for simctl: AppLocalizer records the
+        // inner display during the test (`DisplayRecorder`).
+        #expect(how.contains("Open, a UI test's screenshot is still the cover display, and the test closes the app right after it"))
+        #expect(how.contains("call start_display_recording (it records the inner display)"))
         #expect(how.contains("then call finish_display_recording with that path"))
         #expect(how.contains("with an upload ID for report_capture; the project needs no change"))
         // Without a UI test, simctl still captures it.
         #expect(how.contains("xcrun simctl io <udid> screenshot --display=<the 2007 × 2853 display's ID from xcrun simctl io <udid> enumerate>"))
     }
 
-    /// Its simulator starts closed and no command opens it: AppLocalizer
-    /// does, in Device Hub, so the assistant never opens it itself, and
-    /// reports a Duo AppLocalizer couldn't open once and goes on.
+    /// Its simulator starts closed, for the closed screens, and no command
+    /// opens it: AppLocalizer does, in Device Hub, once only open screens
+    /// are left, so the assistant never opens it itself, and reports a Duo
+    /// AppLocalizer couldn't open once and goes on.
     @Test func autopilotSaysTheSimulatorStartsClosedAndAppLocalizerOpensIt() throws {
         let how = try #require(AutopilotRun.howToCapture(.iPhoneDuo))
-        #expect(how.contains("It starts closed"))
-        #expect(how.contains("no command opens it: AppLocalizer opens it itself (it presses Open in the Duo's window in Device Hub)"))
+        #expect(how.contains("the Duo starts closed"))
+        #expect(how.contains("once only open ones are left, AppLocalizer opens it itself (it presses Open in the Duo's window in Device Hub)"))
+        #expect(how.contains("it closes it again (by restarting it) if a closed one comes back"))
         #expect(how.contains("Don't open Device Hub, press anything there, or shut down, reboot or erase the Duo yourself"))
         #expect(!how.contains("the person opens it"))
         #expect(how.contains("If start_display_recording says the Duo isn't open"))
@@ -323,8 +330,7 @@ struct IPhoneDuoTests {
         #expect(how.contains("Never change its displays with xcrun simctl io … screenConfig, which crashes its SpringBoard on every start"))
         #expect(how.contains("or its inner display shows only a spinner, or SpringBoard crashed and xcrun simctl launch hangs (stuck)"))
         #expect(how.contains("with \"AppLocalizer opens iPhone Duo\" as proposedFix, and go on with the other devices"))
-        #expect(how.contains("and restarts a stuck one"))
-        #expect(how.contains("next_step gives you its screens again once it's open"))
+        #expect(how.contains("next_step gives you its screens again once it's ready"))
         #expect(!how.contains("Restart iPhone Duo in Device Hub"))
         // By hand only when the helper can't look at it.
         #expect(DeviceHub.restartSteps.hasPrefix("If its inner display shows only a spinner, shut it down there"))
@@ -335,8 +341,10 @@ struct IPhoneDuoTests {
         try AutopilotCenter.checkSize(Self.inner, for: .iPhoneDuo)
         try AutopilotCenter.checkSize(Self.inner.rotated, for: .iPhoneDuo)
         let outer = #expect(throws: AutopilotError.self) { try AutopilotCenter.checkSize(Self.outer, for: .iPhoneDuo) }
-        #expect(outer?.message.hasPrefix("A 1398 × 2034 capture is iPhone Duo’s outer display.") == true)
-        #expect(outer?.message.contains("capture the inner one, unfolded") == true)
+        #expect(outer?.message.hasPrefix("A 1398 × 2034 capture is iPhone Duo’s cover display. This screen is one of its open screenshots") == true)
+        #expect(outer?.message.contains("capture the inner display, 2007 × 2853 or 2853 × 2007, with the Duo open") == true)
+        // A closed screen takes it.
+        try AutopilotCenter.checkSize(Self.outer, for: .iPhoneDuo, duoPose: .closed)
         let phone = #expect(throws: AutopilotError.self) { try AutopilotCenter.checkSize(PixelSize(width: 1320, height: 2868), for: .iPhoneDuo) }
         #expect(phone?.message == "A 1320 × 2868 capture doesn’t fit iPhone Duo, which takes 2007 × 2853 or 2853 × 2007. Capture on iPhone Duo.")
     }

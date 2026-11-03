@@ -18,6 +18,12 @@ struct AutopilotDirection: Codable, Hashable, Sendable, Identifiable {
     /// The assistant that sent it; nil for a starter.
     var client: String?
     var template: ScreenshotTemplate
+    /// The header and search artwork's look, when the design AI sent one of
+    /// its own (`extrasTemplates.artwork`); nil uses `template`'s.
+    var artworkTemplate: ScreenshotTemplate?
+    /// The App Preview's captions and end card look, when sent
+    /// (`extrasTemplates.appPreview`); nil uses `template`'s.
+    var previewTemplate: ScreenshotTemplate?
     /// Where to refine it, e.g. the Claude Design project's link.
     var link: String?
     /// Changed after "Ask for changes".
@@ -25,6 +31,12 @@ struct AutopilotDirection: Codable, Hashable, Sendable, Identifiable {
     /// Language checks with the captions: too long, mirrors, fits.
     var checks: [AutopilotDirectionCheck] = []
     var receivedAt: Date
+
+    /// The artwork's look: its own, else the screenshots'.
+    var artworkLook: ScreenshotTemplate { artworkTemplate ?? template }
+
+    /// The App Preview's look: its own, else the screenshots'.
+    var previewLook: ScreenshotTemplate { previewTemplate ?? template }
 
     /// The badge's label: "Claude Design" or "Starter".
     var sourceTitle: String {

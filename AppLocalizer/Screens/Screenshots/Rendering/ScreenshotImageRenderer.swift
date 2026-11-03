@@ -15,11 +15,11 @@ import UniformTypeIdentifiers
 enum ScreenshotImageRenderer {
     /// The render at `pixelWidth` pixels wide (the canvas width for the
     /// upload), flattened to opaque RGB.
-    static func image(layout: ScreenshotLayout, capture: CGImage?, pixelWidth: Int? = nil) -> CGImage? {
+    static func image(layout: ScreenshotLayout, capture: CGImage?, companion: CGImage? = nil, pixelWidth: Int? = nil) -> CGImage? {
         let canvas = layout.canvas
         let width = pixelWidth ?? canvas.pixelSize.width
         let scale = CGFloat(width) / canvas.width
-        let renderer = ImageRenderer(content: ScreenshotView(layout: layout, capture: capture))
+        let renderer = ImageRenderer(content: ScreenshotView(layout: layout, capture: capture, companion: companion))
         renderer.scale = scale
         renderer.isOpaque = true
         renderer.proposedSize = ProposedViewSize(canvas.size)
@@ -29,8 +29,8 @@ enum ScreenshotImageRenderer {
     }
 
     /// The upload PNG: exactly the canvas's pixel size, RGB, no alpha.
-    static func pngData(layout: ScreenshotLayout, capture: CGImage?) -> Data? {
-        image(layout: layout, capture: capture).flatMap(ScreenshotPNG.data)
+    static func pngData(layout: ScreenshotLayout, capture: CGImage?, companion: CGImage? = nil) -> Data? {
+        image(layout: layout, capture: capture, companion: companion).flatMap(ScreenshotPNG.data)
     }
 
     /// Redraws `image` into an opaque sRGB bitmap of exactly `width` ×

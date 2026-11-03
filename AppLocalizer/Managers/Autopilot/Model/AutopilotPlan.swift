@@ -34,11 +34,28 @@ struct AutopilotPlan: Codable, Hashable, Sendable {
     var stopsToPick = true
     /// Stop for the person to choose the direction.
     var stopsToChoose = true
+    /// Stop for the person to watch the App Preview; nil (runs from
+    /// before) counts as yes. Use `stopsToWatchPreview`.
+    var stopsToWatch: Bool?
     /// Where the steps came from, e.g. `LumenUITests/ScreenshotTests.swift`.
     var writtenFrom: String?
     /// Whether the assistant picks the screens; nil (runs from before)
     /// counts as yes. Use `choosesScreens`.
     var assistantChoosesScreens: Bool?
+    /// "Also make · optional": header and search artwork, an App Preview.
+    /// Nil in runs from before, which made neither. Use `alsoMakes`.
+    var extras: AutopilotExtras?
+    /// "What this run makes": screenshots or not, captures reused or not,
+    /// the App Preview's devices, the languages. Nil in runs from before,
+    /// which made screenshots. Use `runChoice`.
+    var choice: AutopilotRunChoice?
+
+    /// Stop for the person to watch the App Preview before Review & Push,
+    /// when the run makes one.
+    var stopsToWatchPreview: Bool {
+        get { stopsToWatch ?? true }
+        set { stopsToWatch = newValue }
+    }
 
     /// The assistant reads the project and replaces the screens with the
     /// ones that show the app best before capturing; off, it keeps the
@@ -53,11 +70,17 @@ struct AutopilotPlan: Codable, Hashable, Sendable {
         capturesEachLanguage ? localeCodes : [primaryLocale]
     }
 
-    /// Everything to capture: each device, language and screen.
+    /// Everything to capture: each device, language and screen; without
+    /// screenshots, only the iPhone screens the artwork shows.
     var targets: [AutopilotCaptureTarget] {
-        displayTypes.flatMap { display in
+        guard makesScreenshots else { return artworkTargets }
+        return displayTypes.flatMap { display in
             capturedLocales.flatMap { locale in
-                screens(on: display).map { AutopilotCaptureTarget(screenID: $0.id, displayType: display, locale: locale) }
+                screens(on: display).flatMap { screen in
+                    display == .iPhoneDuo
+                        ? duoTargets(screenID: screen.id, locale: locale)
+                        : [AutopilotCaptureTarget(screenID: screen.id, displayType: display, locale: locale)]
+                }
             }
         }
     }
@@ -84,7 +107,8 @@ struct AutopilotPlan: Codable, Hashable, Sendable {
 
     /// Screenshots per language: every device's screens.
     var screensPerLanguage: Int {
-        displayTypes.reduce(0) { $0 + screens(on: $1).count }
+        guard makesScreenshots else { return 0 }
+        return displayTypes.reduce(0) { $0 + ($1 == .iPhoneDuo ? duoShots.count : screens(on: $1).count) }
     }
 
     /// The languages the plan adds to the App Store.
@@ -160,8 +184,10 @@ struct AutopilotPlan: Codable, Hashable, Sendable {
         screen(id: screenID)?.sourceScreenID.flatMap { source in screens.contains { $0.id == source } ? source : nil } ?? screenID
     }
 
-    /// The screens picks are made for: the set's, then Apple Watch's.
+    /// The screens picks are made for: the set's, then Apple Watch's;
+    /// without screenshots, the ones the artwork shows.
     var pickedScreens: [AutopilotScreen] {
-        screens + (displayTypes.contains(.watch) ? screens(on: .watch) : [])
+        guard makesScreenshots else { return artworkScreens }
+        return screens + (displayTypes.contains(.watch) ? screens(on: .watch) : [])
     }
 }

@@ -37,13 +37,16 @@ import SwiftUI
 /// - `cap-translate`, `cap-translating`: Finnish, Polish, Swedish and
 ///   Turkish added with no captions; the Translate sheet, and its batch
 ///   held at "7 of 20 · Polish · slot 3".
+/// - `cap-artwork`: the Search results and Header columns, with search
+///   headlines in English, German (too long) and French, and the header
+///   line only in English.
 enum ScreenshotsDebugScenes {
     static let ids = [
         "sets", "sets-ipad", "sets-fallback", "sets-rendering", "sets-failed", "viewer", "viewer-fail", "scope",
         "sets-empty", "sets-notpl", "sets-noversion",
         "tpl", "tpl-ipad", "tpl-glyph", "tpl-pano", "tpl-history", "starter",
         "gallery", "gallery-elegant", "tpl-cinema", "tpl-highlight-ar", "tpl-market-de", "tpl-poster-ja", "tpl-swoosh-deco",
-        "cap", "cap-edit", "cap-translate", "cap-translating",
+        "cap", "cap-edit", "cap-translate", "cap-translating", "cap-artwork",
     ]
 
     /// The locales `cap-translate` adds, with no captions.
@@ -150,6 +153,13 @@ enum ScreenshotsDebugScenes {
     private static func captionsScene(_ id: String) -> AnyView? {
         switch id {
         case "cap": scene { $0.tab = .captions }
+        case "cap-artwork":
+            scene { model in
+                guard var document = model.document else { return }
+                document.artworkTexts = artworkTexts
+                await model.commit(document)
+                model.tab = .captions
+            }
         case "cap-edit": scene { $0.editCaption(at: LocaleSlot(locale: "de-DE", slot: 2)) }
         case "cap-translate":
             scene { model in
@@ -167,6 +177,22 @@ enum ScreenshotsDebugScenes {
             }
         default: nil
         }
+    }
+
+    /// `cap-artwork`'s texts: search headlines (German's too long for its
+    /// image) and one header line.
+    private static var artworkTexts: ArtworkTextBook {
+        var book = ArtworkTextBook()
+        let search = [
+            "en-US": "Your calm daily journal",
+            "de-DE": "Dein ruhiges tägliches Tagebuch für jeden einzelnen Moment deines Lebens",
+            "fr-FR": "Votre journal calme",
+        ]
+        for (locale, headline) in search {
+            book.set(ScreenshotCaption(headline: headline, subhead: nil, provenance: .written), role: .search, locale: locale)
+        }
+        book.set(ScreenshotCaption(headline: "Write every day", subhead: nil, provenance: .written), role: .header, locale: "en-US")
+        return book
     }
 
     /// Settings → Translation's glossary in the design.

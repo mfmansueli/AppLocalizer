@@ -12,6 +12,8 @@ struct RenderJob: Hashable, Sendable, Identifiable {
     var key: RenderKey
     var layout: ScreenshotLayout
     var capture: ScreenshotCapture?
+    /// iPhone Duo's cover display beside the inner one (both, side by side).
+    var companion: ScreenshotCapture?
 
     var id: RenderKey { key }
 }

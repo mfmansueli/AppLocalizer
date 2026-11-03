@@ -39,6 +39,19 @@ extension AutopilotPlan {
         setScreens(screens(on: display) + [screen], on: display)
     }
 
+    /// An id from `name` no screen uses yet: `insights`, `insights-2`; on
+    /// Apple Watch and Apple Vision Pro, prefixed with the device.
+    func newScreenID(named name: String, on display: ScreenshotDisplayType) -> String {
+        let base = (display.hasOwnScreens ? "\(display.mcpValue)-" : "") + AutopilotScreen.identifier(for: name)
+        var id = base
+        var number = 2
+        while screen(id: id) != nil {
+            id = "\(base)-\(number)"
+            number += 1
+        }
+        return id
+    }
+
     /// The caption a screen goes with: its own, or for an Apple Vision Pro
     /// window, its iPhone screen's.
     func caption(of screen: AutopilotScreen) -> String {

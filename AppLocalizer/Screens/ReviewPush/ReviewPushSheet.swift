@@ -153,6 +153,9 @@ struct ReviewPushSheet: View {
 
     private func discardAll() {
         viewModel.discardVisibleImages()
+        if !viewModel.visibleExtras.isEmpty {
+            Task { await viewModel.discardVisibleExtras() }
+        }
         guard !viewModel.visibleChanges.isEmpty else { return }
         if preferences.confirmsDiscarding {
             isConfirmingDiscard = true

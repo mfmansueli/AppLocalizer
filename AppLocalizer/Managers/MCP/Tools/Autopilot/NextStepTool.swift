@@ -15,8 +15,9 @@ struct NextStepTool: MCPTool {
         Says what the app's Screenshot Autopilot run wants from you now: capture (with the targets left and \
         problems to retry with their fix), wait (the person is picking or choosing; ask again after \
         retryAfterSeconds), design (get_design_brief then propose_direction), revise_direction (the person's \
-        note), write_captions (missing or too long, then propose_captions with run), or done. Call it after \
-        each step until it says done.
+        note), write_captions (missing or too long, then propose_captions with run), revise_app_preview (the \
+        person's note on the App Preview, then revise_app_preview), or done. Call it after each step until it \
+        says done.
         """,
         inputSchema: MCPToolDefinition.schema(
             [

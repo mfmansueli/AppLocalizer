@@ -5,15 +5,24 @@
 
 import SwiftUI
 
-/// A titled box of plan options: Devices, Languages, Simulator, Design and
-/// checkpoints.
+/// A titled box of plan options: Devices, Languages, Also make, Simulator,
+/// Design and checkpoints. A note can follow the title.
 struct AutopilotOptionGroup<Content: View>: View {
     let title: String
+    var note: String?
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.small) {
-            Text(title).font(.headline)
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.small) {
+                Text(title).font(.headline)
+                if let note {
+                    Text(note)
+                        .font(.caption)
+                        .foregroundStyle(Palette.label2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             content()
         }
         .padding(Spacing.medium)

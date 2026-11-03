@@ -7,7 +7,7 @@ import SwiftUI
 
 /// Screenshots → Preview: the header, the Autopilot strip, the App Store
 /// preview, search results and the Live set / New set card, with the
-/// Autopilot and Connect a Design Project sheets.
+/// Autopilot and Connect a Design Project sheets and the full-size viewer.
 struct ScreenshotStudioView: View {
     @Bindable var screenshots: ScreenshotsViewModel
     @Environment(MCPServerController.self) private var assistants: MCPServerController?
@@ -31,7 +31,7 @@ struct ScreenshotStudioView: View {
                         studio.isDesignProjectPresented = true
                     }
                 }
-                StoreProductPreviewCard(app: screenshots.app, preview: preview, appearance: $studio.appearance, image: studio.image(for:))
+                StoreProductPreviewCard(app: screenshots.app, preview: preview, appearance: $studio.appearance, image: studio.image(for:), studio: studio)
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .top, spacing: Spacing.large) { bottomCards(preview) }
                     VStack(alignment: .leading, spacing: Spacing.large) { bottomCards(preview) }
@@ -43,6 +43,12 @@ struct ScreenshotStudioView: View {
             // scroll view itself.
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("studio.root")
+        }
+        .overlay {
+            // Over the sheet instead, while it's open.
+            if let viewer = studio.viewer, !studio.isAutopilotPresented {
+                FullSizeViewer(studio: studio, viewer: viewer)
+            }
         }
         .task(id: preview) { studio.loadImages(for: preview) }
         .onChange(of: studio.run?.stage) { old, new in studio.runDidChange(from: old, to: new) }
@@ -56,7 +62,7 @@ struct ScreenshotStudioView: View {
 
     @ViewBuilder
     private func bottomCards(_ preview: StudioPreview) -> some View {
-        StudioSearchCard(app: screenshots.app, preview: preview, appearance: studio.appearance, image: studio.image(for:))
+        StudioSearchCard(app: screenshots.app, preview: preview, appearance: studio.appearance, image: studio.image(for:), studio: studio)
             .frame(minWidth: 340)
         StudioSetCard(summary: studio.summary, canReview: studio.builder.effectiveChoice == .new) {
             studio.openSets()

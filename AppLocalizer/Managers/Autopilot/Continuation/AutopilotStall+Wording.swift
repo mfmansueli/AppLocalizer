@@ -66,6 +66,8 @@ extension AutopilotStall {
             String(localized: "Continue starts Claude Code again where the run is: the directions that arrived stay.")
         case .localize:
             String(localized: "Continue starts Claude Code again where the run is: it writes the captions that are missing or too long.")
+        case .watchPreview:
+            String(localized: "Continue starts Claude Code again where the run is: it makes the App Preview changes you asked for.")
         default:
             String(localized: """
             Continue starts Claude Code again where the run is: what’s captured stays, and a device this Mac can’t run \
@@ -82,6 +84,10 @@ extension AutopilotStall {
             if run.revision != nil { return String(localized: "your changes still to make") }
             let left = run.directionsLeft
             return left == 1 ? String(localized: "1 direction still to design") : String(localized: "\(left) directions still to design")
+        case .watchPreview:
+            return String(localized: "your App Preview changes still to make")
+        case .localize where run.overflows.isEmpty && run.artworkTextNeeds?.isEmpty == false:
+            return String(localized: "\(AutopilotArtworkTextWork(run.artworkTextNeeds ?? []).summary) still")
         case .localize:
             return String(localized: "\(AutopilotCaptionWork.captions(run.overflows.count)) still to write")
         default:

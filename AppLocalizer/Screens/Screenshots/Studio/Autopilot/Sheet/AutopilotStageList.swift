@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-/// The seven stages, who does each, and where the run is; then what's
+/// The eight stages, who does each, and where the run is; then what's
 /// connected. The stages scroll when the sheet is short, so a long name
 /// never makes the sheet taller than its window.
 struct AutopilotStageList: View {
@@ -67,18 +67,35 @@ struct AutopilotStageList: View {
     private func who(_ step: AutopilotStage) -> String {
         switch step {
         case .plan: String(localized: "You and \(client)")
-        case .waiting, .capture: String(localized: "\(run.clientName(assistant: assistant, startsSentence: true)) · Simulator")
-        case .pick, .choose: String(localized: "You")
-        case .design:
-            if design.kind.usesDesignAI {
-                [design.kind.title, design.name].compactMap(\.self).joined(separator: " · ")
-            } else {
-                String(localized: "AppLocalizer’s starters")
-            }
+        case .waiting, .capture: captureWho
+        case .pick: run.pickSkipNote ?? String(localized: "You")
+        case .choose: String(localized: "You")
+        case .design: designWho
         case .localize: String(localized: "AppLocalizer, \(client)")
+        case .watchPreview: watchWho
         case .ready:
             if run.stage == .ready { String(localized: "You · everything is waiting there") } else { String(localized: "You") }
         }
+    }
+
+    /// "Claude Design · Northpier Brand", "AppLocalizer’s starters".
+    private var designWho: String {
+        guard design.kind.usesDesignAI else { return String(localized: "AppLocalizer’s starters") }
+        return [design.kind.title, design.name].compactMap(\.self).joined(separator: " · ")
+    }
+
+    /// "Skipped · no App Preview", "You · ask Claude Design for changes".
+    private var watchWho: String {
+        if let skipped = run.watchSkipNote { return skipped }
+        return run.designKind.usesDesignAI ? String(localized: "You · ask \(run.designKind.title) for changes") : String(localized: "You")
+    }
+
+    /// "Skipped · reuses the Oct 28 captures", "Claude Code · records the
+    /// App Preview", "Claude Code · Simulator".
+    private var captureWho: String {
+        if let skipped = run.captureSkipNote { return skipped }
+        let client = run.clientName(assistant: assistant, startsSentence: true)
+        return run.onlyRecords ? String(localized: "\(client) · records the App Preview") : String(localized: "\(client) · Simulator")
     }
 
     private func state(of step: AutopilotStage) -> AutopilotStageRow.State {

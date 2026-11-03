@@ -15,13 +15,15 @@ struct MCPAutopilotSession {
 
     /// The app's current run; `run` in the arguments, when given, must be
     /// it.
-    static func load(_ arguments: MCPToolArguments, in context: MCPToolContext) async throws -> MCPAutopilotSession {
+    /// `atPlan`: a tool the plan uses before the run starts (Suggest
+    /// Screens).
+    static func load(_ arguments: MCPToolArguments, in context: MCPToolContext, atPlan: Bool = false) async throws -> MCPAutopilotSession {
         let app = try await context.workspace.app(matching: arguments.string("appId"))
         let services = context.workspace.services.screenshots
         guard let center = services.autopilot else {
             throw MCPToolError.unavailable(String(localized: "Screenshot Autopilot isn’t available here."))
         }
-        guard let run = center.run(for: app.id), run.stage != .plan else {
+        guard let run = center.run(for: app.id), run.stage != .plan || atPlan else {
             throw MCPToolError.notFound(String(localized: "\(app.name) has no Autopilot run waiting. Ask the person to open AppLocalizer → Screenshots → Run Autopilot… and press Start Autopilot."))
         }
         if let wanted = try arguments.optionalString("run"), !wanted.isEmpty, wanted != run.id {
@@ -60,7 +62,15 @@ struct MCPAutopilotSession {
         guard let locale = StoreLocaleCatalog.resolve(code).locale, run.plan.localeCodes.contains(locale.code) else {
             throw MCPToolError.invalidArgument(name: "locale", expected: String(localized: "one of the plan’s locales: \(run.plan.localeCodes.joined(separator: ", "))"))
         }
-        return AutopilotCaptureTarget(screenID: screen.id, displayType: display, locale: locale.code)
+        var target = AutopilotCaptureTarget(screenID: screen.id, displayType: display, locale: locale.code)
+        if display == .iPhoneDuo {
+            // iPhone Duo's open or closed: as sent, else the screen's first
+            // (a capture with both is placed by its size when it arrives).
+            let poses = run.plan.slot(of: screen.id).map(run.plan.duoPoses(forSlot:)) ?? []
+            let sent = try arguments.optionalString("pose").flatMap(AutopilotDuoPose.init(rawValue:))
+            target.duoPose = sent.flatMap { poses.contains($0) ? $0 : nil } ?? poses.first
+        }
+        return target
     }
 
     /// A screen by its ID, its name or its slot number.

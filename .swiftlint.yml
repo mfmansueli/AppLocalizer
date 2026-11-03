@@ -52,6 +52,7 @@ identifier_name:
   excluded:
     - id
     - vm   # view model
+    - ui   # AutopilotArtworkShow: the app, no device
     - x
     - y
     - i

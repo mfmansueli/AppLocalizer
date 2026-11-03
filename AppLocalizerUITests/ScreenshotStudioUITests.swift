@@ -138,8 +138,13 @@ final class ScreenshotStudioUITests: XCTestCase {
         // "Lumen Journal 1.4 · iPhone, iPhone Duo, and iPad · 12 languages · 5 screens"
         XCTAssertTrue(text(of: scope).contains("iPhone Duo"), text(of: scope))
         XCTAssertTrue(text(of: scope).contains("iPad"), text(of: scope))
-        // The devices sit under the screens table.
-        element("autopilot.plan").scroll(byDeltaX: 0, deltaY: -600)
+        // The devices are cells of "What this run makes", under This Mac's
+        // check while iPhone Duo's simulator is missing.
+        var tries = 0
+        while !iPad.isHittable, tries < 6 {
+            element("autopilot.plan").scroll(byDeltaX: 0, deltaY: -200)
+            tries += 1
+        }
         iPad.click()
         let deadline = Date.now.addingTimeInterval(5)
         while Date.now < deadline, text(of: scope).contains("iPad") {
@@ -218,13 +223,21 @@ final class ScreenshotStudioUITests: XCTestCase {
 
     func testPickingAnotherCaptureThenUsingThePicksStartsDesign() {
         launch(scene: "st-pick")
-        let picked = element("autopilot.pick.picked.0")
-        XCTAssertTrue(picked.waitForExistence(timeout: 15))
-        let before = picked.label
-        let other = app.buttons["autopilot.pick.other.0.2"]
+        let badge = element("autopilot.pick.badge.0")
+        XCTAssertTrue(badge.waitForExistence(timeout: 15))
+        let other = element("autopilot.pick.attempt.0.2")
         XCTAssertTrue(other.exists)
+        let pick = element("autopilot.pick")
+        for _ in 0..<12 where other.frame.maxY > pick.frame.maxY {
+            pick.scroll(byDeltaX: 0, deltaY: -200)
+        }
         other.click()
-        XCTAssertTrue(waitForLabel(of: picked, toChangeFrom: before))
+        // Full size, where Use This Capture picks it.
+        let use = element("studio.viewer.action")
+        XCTAssertTrue(use.waitForExistence(timeout: 5))
+        use.click()
+        element("studio.viewer.close").click()
+        XCTAssertTrue(waitForText(of: badge, toBe: "Your pick"), text(of: badge))
         app.buttons["autopilot.usePicks"].click()
         XCTAssertTrue(element("autopilot.design").waitForExistence(timeout: 5))
     }
@@ -273,15 +286,6 @@ final class ScreenshotStudioUITests: XCTestCase {
         let deadline = Date.now.addingTimeInterval(timeout)
         while Date.now < deadline {
             if text(of: element) == expected { return true }
-            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
-        }
-        return false
-    }
-
-    private func waitForLabel(of element: XCUIElement, toChangeFrom old: String, timeout: TimeInterval = 5) -> Bool {
-        let deadline = Date.now.addingTimeInterval(timeout)
-        while Date.now < deadline {
-            if element.label != old { return true }
             RunLoop.current.run(until: .now.addingTimeInterval(0.2))
         }
         return false

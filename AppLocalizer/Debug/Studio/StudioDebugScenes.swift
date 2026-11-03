@@ -57,7 +57,8 @@ enum StudioDebugScenes {
         "st-stalled", "st-cap-page",
         "st-pick", "st-pick-page", "st-des", "st-des-paused", "st-choose", "st-choose-rev", "st-nodesign", "st-loc", "st-loc-captions", "st-ready-sheet",
         "st-ready", "st-ready-de", "st-ready-ar", "st-ready-ipad", "st-asc-watch", "st-plan-link",
-    ] + everyDeviceIDs
+    ] + everyDeviceIDs + StudioDebugExtras.ids + StudioDebugRunChoice.ids + StudioDebugAddScreens.ids + StudioDebugPreviewReview.ids
+        + StudioDebugDuoStates.ids + StudioDebugPick.ids + StudioDebugArtMotion.ids
 
     static let everyDeviceIDs = [
         "st-plan-all", "st-cap-watch", "st-cap-vision", "st-pick-all", "st-choose-all", "st-loc-all", "st-ready-sheet-all",
@@ -73,6 +74,17 @@ enum StudioDebugScenes {
         }
         if let run = duoRun(for: id) {
             return scene(run: run, project: StudioDebugRuns.northpier, sheet: true)
+        }
+        if let extras = StudioDebugExtras.scene(for: id) ?? StudioDebugRunChoice.scene(for: id) ?? StudioDebugAddScreens.scene(for: id)
+            ?? StudioDebugPreviewReview.scene(for: id) ?? StudioDebugDuoStates.scene(for: id) ?? StudioDebugPick.scene(for: id)
+            ?? StudioDebugArtMotion.scene(for: id)
+        {
+            let saved = extras.savesExtras ? StudioDebugExtras.extras(for: extras.run) : nil
+            let change = extras.documentChange
+            return scene(run: extras.run, sheet: extras.sheet, setUp: extras.setUp, documentChange: { document in
+                if let saved { document.extras = saved }
+                change?(&document)
+            })
         }
         if id == "st-plan-link" {
             return scene(run: StudioDebugRuns.linkedPlan, project: StudioDebugRuns.unreadLink, sheet: true)
@@ -199,7 +211,8 @@ enum StudioDebugScenes {
         assistants: AssistantsDebugState = .paired,
         everyDevice: Bool = false,
         buildHasWatchApp: Bool = false,
-        setUp: (@MainActor (ScreenshotsViewModel) -> Void)? = nil
+        setUp: (@MainActor (ScreenshotsViewModel) -> Void)? = nil,
+        documentChange: (@Sendable (inout ScreenshotsDocument) -> Void)? = nil
     ) -> AnyView {
         let center = AutopilotCenter()
         center.holdsStages = true
@@ -212,6 +225,7 @@ enum StudioDebugScenes {
         })
         screenshots.initialTab = .preview
         screenshots.autopilot = center
+        screenshots.documentChange = documentChange
         var storePage = DebugStorePageServices()
         storePage.buildHasWatchApp = buildHasWatchApp
         if everyDevice {

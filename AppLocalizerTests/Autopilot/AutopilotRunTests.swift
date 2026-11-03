@@ -144,13 +144,15 @@ struct AutopilotRunTests {
         (.capture, .capture, 2, true),
         (.pick, .pick, 3, false),
         (.choose, .choose, 5, false),
-        (.ready, .ready, 7, false),
+        (.localize, .localize, 6, true),
+        (.watchPreview, .watchPreview, 7, false),
+        (.ready, .ready, 8, false),
     ])
     func stagesShowAsTheSheetsSteps(stage: AutopilotStage, step: AutopilotStage, number: Int, isRunning: Bool) {
         #expect(stage.step == step)
         #expect(stage.number == number)
         #expect(stage.isRunning == isRunning)
-        #expect(stage.waitsForPerson == (stage == .pick || stage == .choose))
+        #expect(stage.waitsForPerson == [.pick, .choose, .watchPreview].contains(stage))
     }
 }
 #endif

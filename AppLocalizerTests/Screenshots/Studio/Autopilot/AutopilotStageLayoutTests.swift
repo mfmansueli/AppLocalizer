@@ -8,22 +8,11 @@ import Foundation
 import Testing
 @testable import AppLocalizer
 
-/// The sizes the Autopilot sheet's stages lay out with: Pick's columns,
-/// Capture's device frame and its thumbnails.
+/// The sizes the Autopilot sheet's stages lay out with: Capture's device
+/// frame and its thumbnails (Pick's cards share a grid now).
 @MainActor
 @Suite("Autopilot stage layout")
 struct AutopilotStageLayoutTests {
-    @Test(arguments: [
-        (CGFloat(1000), 5, CGFloat(168)), // plenty of room: capped
-        (600, 5, 107), // (600 − 4 × 16) ÷ 5, rounded down
-        (300, 5, 104), // too narrow: the row scrolls
-        (150, 0, 150), // no screens counts as one
-        (900, 1, 168),
-    ])
-    func pickColumnsShareTheRow(rowWidth: CGFloat, screens: Int, width: CGFloat) {
-        #expect(AutopilotPickStageView.columnWidth(for: rowWidth, screens: screens, spacing: 16) == width)
-    }
-
     @Test func withoutACaptureTheFrameIsAPortraitPhone() {
         let size = AutopilotSimulatorFrame.frameSize(for: .iPhone, pixelSize: ScreenshotDisplayType.iPhone.portraitPixelSize)
         #expect(size.width == 166)

@@ -34,7 +34,7 @@ struct CaptionsTable: View {
                         CaptionsColumnHeader(model: model, cellWidth: cellWidth)
                     }
                 }
-                .frame(width: Self.localeColumnWidth + CGFloat(model.slotCount) * (cellWidth + 4) + 24, alignment: .leading)
+                .frame(width: Self.localeColumnWidth + CGFloat(columnCount) * (cellWidth + 4) + 24, alignment: .leading)
             }
         }
         .background(Palette.content)
@@ -43,8 +43,11 @@ struct CaptionsTable: View {
         .accessibilityIdentifier("screenshots.captions.table")
     }
 
+    /// The slots, then Search results and Header.
+    private var columnCount: Int { model.slotCount + model.artworkRoles.count }
+
     private func cellWidth(for width: CGFloat) -> CGFloat {
-        let available = width - Self.localeColumnWidth - 24 - CGFloat(model.slotCount) * 4
-        return max(Self.minimumCellWidth, (available / CGFloat(max(1, model.slotCount))).rounded(.down))
+        let available = width - Self.localeColumnWidth - 24 - CGFloat(columnCount) * 4
+        return max(Self.minimumCellWidth, (available / CGFloat(max(1, columnCount))).rounded(.down))
     }
 }

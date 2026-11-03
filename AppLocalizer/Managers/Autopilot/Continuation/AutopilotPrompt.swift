@@ -10,6 +10,7 @@ import Foundation
 enum AutopilotPrompt {
     /// Start Autopilot's prompt.
     static func start(appName: String, appID: StoreApp.ID, plan: AutopilotPlan) -> String {
+        guard plan.makesScreenshots else { return withoutScreenshots(appName: appName, appID: appID, plan: plan) }
         let count = plan.localeCodes.count
         let languages = if count == 1 {
             String(localized: "1 language")
@@ -28,6 +29,35 @@ enum AutopilotPrompt {
         return String(localized: "Run \(appName)’s screenshot plan from AppLocalizer: \(work) on \(plan.devicesTitle) in \(languages), and send the captures back.")
             + " " + String(localized: "Start with get_capture_plan for app \(appID), then ask next_step after each step.")
             + " " + keepGoing
+    }
+
+    /// A run without screenshots: the header and search artwork, the App
+    /// Preview, or both.
+    static func withoutScreenshots(appName: String, appID: StoreApp.ID, plan: AutopilotPlan) -> String {
+        var work: [String] = []
+        if !plan.targets.isEmpty { work.append(String(localized: "build the app, capture the screens the header and search artwork show")) }
+        if !plan.recordingTargets.isEmpty { work.append(String(localized: "record the App Preview walkthrough")) }
+        let what = plan.extrasTitle ?? String(localized: "its extras")
+        let list = work.formatted(.list(type: .and))
+        let steps = list.prefix(1).uppercased() + list.dropFirst()
+        let lead = work.isEmpty
+            ? String(localized: "Run \(appName)’s Autopilot run from AppLocalizer: it makes \(what) from the last captures, and no screenshots.")
+            : String(localized: "Run \(appName)’s Autopilot run from AppLocalizer: it makes \(what), and no screenshots. \(steps), and send them back.")
+        return lead + " " + String(localized: "Start with get_capture_plan for app \(appID), then ask next_step after each step.") + " " + keepGoing
+    }
+
+    /// Suggest Screens: the assistant suggests screens for the plan; the
+    /// person adds the ones they want.
+    static func suggestScreens(appName: String, appID: StoreApp.ID, ask: String) -> String {
+        let ask = ask.trimmingCharacters(in: .whitespacesAndNewlines)
+        let what = ask.isEmpty ? "" : " " + String(localized: "The person asks for: “\(ask)”.")
+        return String(localized: "Suggest new screens for \(appName)’s screenshot plan in AppLocalizer.") + what + " "
+            + String(localized: "Call next_step for app \(appID) and do what it says; the person adds the ones they want.")
+    }
+
+    /// What picks `run` up where it is.
+    static func continuing(_ run: AutopilotRun, appName: String) -> String {
+        continuing(appName: appName, appID: run.appID)
     }
 
     /// The prompt that picks a stopped run up where it is.

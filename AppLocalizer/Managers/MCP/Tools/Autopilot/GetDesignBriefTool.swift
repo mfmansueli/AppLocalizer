@@ -18,8 +18,9 @@ struct GetDesignBriefTool: MCPTool {
         The brief for designing the Autopilot run's screenshot set: the picked capture of each screen (images \
         attached), every caption in every language with its length, the longest caption per slot, canvas sizes \
         and safe areas per device, right-to-left languages, the design project to use, the starters you can \
-        base a direction on, and the template fields you can set. Design around the real captures; never draw \
-        the interface. Send each direction with propose_direction.
+        base a direction on, and the template fields you can set. When the run also makes product page header and \
+        search results artwork or an App Preview, extras says which canvases and what each direction brings for \
+        them. Design around the real captures; never draw the interface. Send each direction with propose_direction.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -69,6 +70,8 @@ struct GetDesignBriefTool: MCPTool {
             App Store rating. Right-to-left languages mirror automatically.
             """,
         ]
+        let app = session.app
+        if let extras = run.mcpBriefExtras(referenceURL: { services.referenceURL($0, for: app) }) { result["extras"] = extras }
         if let project = session.center.designProject(for: session.app.id) {
             result["designProject"] = designProject(project)
         }
@@ -134,8 +137,16 @@ struct GetDesignBriefTool: MCPTool {
         template.canvas = AutopilotLocalizer.canvas(template.canvas, matching: run)
         let engine = ScreenshotLayoutEngine(catalog: session.context.services.fonts)
         // Apple Watch's screenshots are the captures themselves: nothing to design.
-        return run.plan.displayTypes.filter(\.hasCaptions).map { display in
-            let layout = engine.layout(template, slot: 0, locale: session.context.primaryLocale, displayType: display, caption: nil)
+        // iPhone Duo has one for each pose the plan uses: the unfolded Duo's
+        // and the folded phone's (its cover display framed on the same canvas).
+        let items = run.plan.displayTypes.filter(\.hasCaptions).flatMap { display -> [(ScreenshotDisplayType, AutopilotDuoPose?)] in
+            display == .iPhoneDuo
+                ? Self.duoPoses(run.plan).map { (display, $0) }
+                : [(display, nil)]
+        }
+        return items.map { display, pose in
+            let cover = pose == .closed ? CaptureSizeRules.duoOuterSize : nil
+            let layout = engine.layout(template, slot: 0, locale: session.context.primaryLocale, displayType: display, caption: nil, captureSize: cover)
             let safe = layout.safeArea
             var canvas: [String: JSONValue] = [
                 "displayType": .string(display.mcpValue),
@@ -143,6 +154,11 @@ struct GetDesignBriefTool: MCPTool {
                 "orientation": .string(layout.canvas.isLandscape ? "landscape" : "portrait"),
                 "safeArea": ["x": .int(Int(safe.minX)), "y": .int(Int(safe.minY)), "width": .int(Int(safe.width)), "height": .int(Int(safe.height))],
             ]
+            if let pose {
+                canvas["pose"] = .string(pose.rawValue)
+                canvas["slots"] = .array(run.plan.duoSlots(pose).map { .int($0 + 1) })
+                canvas["note"] = .string(Self.duoNote(pose, plan: run.plan))
+            }
             if display == .visionPro {
                 canvas["note"] = """
                 AppLocalizer lays Apple Vision Pro out itself: the template's background and headline style, the headline centered at the \
@@ -150,6 +166,25 @@ struct GetDesignBriefTool: MCPTool {
                 """
             }
             return .object(canvas)
+        }
+    }
+
+    /// The poses that get a canvas of their own: a side-by-side image is
+    /// one (the unfolded Duo's).
+    static func duoPoses(_ plan: AutopilotPlan) -> [AutopilotDuoPose] {
+        if plan.duoScreens == .both, plan.duoBoth == .sideBySide { return [.open] }
+        return AutopilotDuoPose.allCases.filter { !plan.duoSlots($0).isEmpty }
+    }
+
+    /// What iPhone Duo's screenshots in `pose` look like, for the designer.
+    static func duoNote(_ pose: AutopilotDuoPose, plan: AutopilotPlan) -> String {
+        switch (plan.duoScreens, plan.duoBoth, pose) {
+        case (.both, .sideBySide, _):
+            "Each screenshot shows the unfolded Duo with the folded phone (its cover display, 1398 × 2034) beside it; AppLocalizer places both."
+        case (_, _, .closed):
+            "The folded phone on its cover display (1398 × 2034), framed on this canvas; every iPhone Duo screenshot is 2007 × 2853."
+        case (_, _, .open):
+            "The unfolded Duo's inner display, as Apple requires: 2007 × 2853."
         }
     }
 }

@@ -7,13 +7,16 @@ import SwiftUI
 
 /// "APP STORE PREVIEW": the product page as the App Store shows it, in the
 /// chosen language and appearance, with the screenshots at real
-/// proportions scrolling like the store. Right-to-left languages run
-/// right to left.
+/// proportions scrolling like the store; a click on one opens it full
+/// size. Right-to-left languages run right to left.
 struct StoreProductPreviewCard: View {
     let app: StoreApp
     let preview: StudioPreview
     @Binding var appearance: StoreAppearance
     let image: (StudioShot) -> CGImage?
+    /// For the new set's header and App Preview; nil shows neither.
+    var studio: ScreenshotStudioModel?
+    @State private var pageWidth: CGFloat = 640
 
     var body: some View {
         VStack(spacing: 0) {
@@ -55,6 +58,9 @@ struct StoreProductPreviewCard: View {
 
     private var page: some View {
         VStack(alignment: .leading, spacing: Spacing.large) {
+            if let studio, let header = studio.extrasPreview?.header {
+                StudioHeaderArtwork(studio: studio, item: header, width: pageWidth)
+            }
             StoreProductHeader(app: app, preview: preview)
             if let empty = preview.emptyText, preview.shots.isEmpty {
                 Text(empty)
@@ -77,8 +83,22 @@ struct StoreProductPreviewCard: View {
             } else {
                 ScrollView(.horizontal) {
                     HStack(alignment: .top, spacing: Spacing.small) {
-                        ForEach(preview.shots) { shot in
-                            StudioShotView(shot: shot, image: image(shot), width: shotWidth, cornerFraction: preview.displayType == .watch ? 0.24 : 0.05)
+                        let tile = studio?.extrasPreview?.appPreview
+                        if let studio, let tile {
+                            StudioPreviewTileView(studio: studio, tile: tile, width: shotWidth)
+                        }
+                        ForEach(Array(preview.shots.enumerated()), id: \.element.id) { index, shot in
+                            let view = StudioShotView(
+                                shot: shot, image: image(shot), width: shotWidth, cornerFraction: preview.displayType == .watch ? 0.24 : 0.05
+                            )
+                            if let studio {
+                                Button { studio.openGallery(at: index + (tile == nil ? 0 : 1)) } label: { view }
+                                    .buttonStyle(.plain)
+                                    .help(Text("Click to view larger"))
+                                    .accessibilityIdentifier("studio.shot.\(shot.slot)")
+                            } else {
+                                view
+                            }
                         }
                     }
                     .padding(.bottom, Spacing.xxSmall)
@@ -89,6 +109,7 @@ struct StoreProductPreviewCard: View {
             }
         }
         .padding(Spacing.large)
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { pageWidth = max(200, $0 - Spacing.large * 2) })
         .environment(\.layoutDirection, preview.isRightToLeft ? .rightToLeft : .leftToRight)
         .environment(\.colorScheme, appearance.colorScheme)
         .background(appearance == .dark ? Color(white: 0.07) : Color.white)

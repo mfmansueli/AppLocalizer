@@ -22,10 +22,23 @@ struct DisplayRecordingToolsTests {
     private static let start: [String: JSONValue] = ["run": "run-1", "displayType": "iphone_duo"]
     private static let finish: [String: JSONValue] = ["run": "run-1", "resultBundle": .string(RecordingTestFixtures.bundle)]
 
+    /// A run past iPhone Duo's closed screens: only its open ones are
+    /// left, the ones recorded from the inner display.
     private static var fixtures: MCPAutopilotFixtures {
+        var run = closedFirstRun
+        let closed = run.plan.targets.filter { run.plan.duoPose(for: $0) == .closed }
+        AutopilotTestFixtures.captureAll(&run, except: Set(run.plan.targets).subtracting(closed))
+        return MCPAutopilotFixtures(run)
+    }
+
+    /// A run that hasn't captured iPhone Duo's closed screens yet: both
+    /// displays, side by side.
+    private static var closedFirstRun: AutopilotRun {
         var plan = AutopilotTestFixtures.smallPlan
         plan.displayTypes = [.iPhone, .iPhoneDuo]
-        return MCPAutopilotFixtures(AutopilotTestFixtures.run(.capture, plan: plan))
+        plan.runChoice.duoScreens = .both
+        plan.runChoice.duoBoth = .sideBySide
+        return AutopilotTestFixtures.run(.capture, plan: plan)
     }
 
     private static func runner(shots: [DuoInnerDisplay] = [.showing]) -> FakeUnixScriptRunner {
@@ -89,6 +102,20 @@ struct DisplayRecordingToolsTests {
         #expect(outcome.result["status"] == "refused")
         #expect(outcome.result["duo"] == .string(DuoState.needsAccessibility.summary))
         #expect(outcome.result["reason"]?.stringValue?.contains("report_capture_problem (displayType iphone_duo, affectsDevice true)") == true)
+        #expect(!simulators.recorder.isRecording)
+    }
+
+    /// Closed screens come first, and closed the test's own screenshot is
+    /// the cover display: nothing to record yet.
+    @Test func closedScreensAreNotRecorded() async throws {
+        let fixtures = MCPAutopilotFixtures(Self.closedFirstRun)
+        #expect(fixtures.run?.duoPoseWanted == .closed)
+        let runner = Self.runner()
+        let simulators = Self.simulators(runner)
+        let outcome = try await fixtures.call(StartDisplayRecordingTool(), Self.start, simulators: simulators)
+        #expect(outcome.result["status"] == "refused")
+        #expect(outcome.result["reason"]?.stringValue?.hasPrefix("iPhone Duo’s closed screens come first") == true)
+        #expect(!runner.recordedArguments.contains { $0.first == "record-display" })
         #expect(!simulators.recorder.isRecording)
     }
 

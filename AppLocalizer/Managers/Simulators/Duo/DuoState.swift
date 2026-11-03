@@ -20,6 +20,11 @@ enum DuoState: Hashable, Sendable {
     case starting
     /// Its inner display is black: AppLocalizer opens it during a run.
     case closed
+    /// Closed for its closed screenshots, on the cover display.
+    case closedForScreens
+    /// Open while its closed screenshots are next: AppLocalizer is
+    /// restarting it, which closes it.
+    case closing
     /// AppLocalizer is opening it in Device Hub.
     case opening
     /// Closed, and AppLocalizer needs Accessibility to open it.
@@ -50,7 +55,7 @@ enum DuoState: Hashable, Sendable {
     /// AppLocalizer is starting, opening or restarting it.
     var isWorking: Bool {
         switch self {
-        case .starting, .opening, .restarting: true
+        case .starting, .opening, .closing, .restarting: true
         default: false
         }
     }
@@ -90,6 +95,10 @@ enum DuoState: Hashable, Sendable {
             String(localized: "Starting iPhone Duo…")
         case .closed:
             String(localized: "Closed: AppLocalizer opens it in Device Hub.")
+        case .closedForScreens:
+            String(localized: "Closed, for its closed screenshots on the cover display; AppLocalizer opens it for the open ones.")
+        case .closing:
+            String(localized: "Its closed screenshots are next: AppLocalizer is restarting it, which closes it…")
         case .opening:
             String(localized: "Opening iPhone Duo in Device Hub…")
         case .needsAccessibility:

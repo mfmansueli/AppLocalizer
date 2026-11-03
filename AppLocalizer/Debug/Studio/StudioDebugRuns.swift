@@ -122,13 +122,13 @@ enum StudioDebugRuns {
         if stage.number > AutopilotStage.design.number || stage == .design {
             run.directions = Array(directions(design: design, of: run).prefix(stage == .design ? 1 : AutopilotRun.directionCount))
         }
-        if stage == .localize || stage == .ready {
+        if [.localize, .watchPreview, .ready].contains(stage) {
             run.chosenDirectionID = run.directions.first?.id
             run.shortenings = [AutopilotShortening(
                 locale: "de-DE", slot: 2, before: "Durchsuche jahrelange Tagebucheinträge in Sekunden",
                 after: "Einträge aus Jahren in Sekunden finden", client: client
             )]
-            run.localeStatus = localeStatus(of: run.plan, done: stage == .ready ? run.plan.localeCodes.count : 6)
+            run.localeStatus = localeStatus(of: run.plan, done: stage == .localize ? 6 : run.plan.localeCodes.count)
         }
         if stage == .ready {
             run.templateVersion = (ScreenshotsDebugDocuments.document(for: .standard).history?.currentNumber ?? 4)
@@ -240,6 +240,16 @@ enum StudioDebugRuns {
     private static func duoProblem(what: String, log: String) -> AutopilotRun {
         var run = run(.capture)
         run.plan.setPlans(.iPhoneDuo, true)
+        // Its closed screens are in, from the cover display: only the open
+        // ones are left, so AppLocalizer opens it.
+        let closed = run.plan.targets.filter { run.plan.duoPose(for: $0) == .closed }
+        for (index, target) in closed.enumerated() {
+            run.captures.append(AutopilotCapture(
+                id: "cap-duo-closed-\(index)", target: target, attempt: 1, score: 0.9, notes: "The cover display, closed",
+                captureID: "autopilot-duo-closed-\(index)", pixelSize: AutopilotDuoPose.closed.portraitPixelSize,
+                receivedAt: date(day: 31, month: 10, hour: 14, minute: 5, second: index % 60)
+            ))
+        }
         let reported = date(day: 31, month: 10, hour: 14, minute: 6, second: 40)
         let target = AutopilotCaptureTarget(screenID: run.plan.screens[0].id, displayType: .iPhoneDuo, locale: run.plan.primaryLocale)
         run.problems = [AutopilotProblem(
@@ -297,7 +307,7 @@ enum StudioDebugRuns {
 
     // MARK: - Pieces
 
-    private static func captures(of plan: AutopilotPlan, count: Int) -> [AutopilotCapture] {
+    static func captures(of plan: AutopilotPlan, count: Int) -> [AutopilotCapture] {
         var captures: [AutopilotCapture] = []
         let notes = [
             ["Prompt card and three moods; no keyboard", "Keyboard covers the prompt", "No entries yet"],
@@ -320,6 +330,7 @@ enum StudioDebugRuns {
                 let size = switch target.displayType {
                 case .iPad: target.displayType.portraitPixelSize.rotated
                 case .visionPro: DebugEveryDevice.visionCaptureSize
+                case .iPhoneDuo: (plan.duoPose(for: target) ?? .open).portraitPixelSize
                 default: target.displayType.portraitPixelSize
                 }
                 let note = target.displayType == .watch ? watchNotes[slot % watchNotes.count] : notes[slot % notes.count]
@@ -327,7 +338,8 @@ enum StudioDebugRuns {
                     id: "cap-\(target.locale)-\(target.displayType.rawValue)-\(target.screenID)-\(attempt)",
                     target: target, attempt: attempt, score: [0.94, 0.61, 0.42][attempt - 1],
                     notes: note[attempt - 1],
-                    captureID: "autopilot-\(target.locale)-\(target.displayType.rawValue)-\(slot)-\(attempt)",
+                    captureID: "autopilot-\(target.locale)-\(target.displayType.rawValue)-\(slot)-\(attempt)"
+                        + (plan.duoPose(for: target) == .closed ? "-closed" : ""),
                     pixelSize: size, receivedAt: date(day: 31, month: 10, hour: 14, minute: 3, second: index * 3 + attempt),
                     text: text(of: target, slot: slot, attempt: attempt)
                 ))

@@ -34,9 +34,9 @@ struct ScreenshotMatrix: Hashable, Sendable {
     }
 
     /// The set's slots on iPhone and iPad; Apple Watch's and Apple Vision
-    /// Pro's own screens.
+    /// Pro's own screens, and iPhone Duo's when it has some.
     func slotCount(on display: ScreenshotDisplayType) -> Int {
-        display.hasOwnScreens ? ownSlotCounts[display] ?? 0 : slotCount
+        ownSlotCounts[display] ?? (display.hasOwnScreens ? 0 : slotCount)
     }
 
     /// iPhone and iPad, then the devices with screens of their own.

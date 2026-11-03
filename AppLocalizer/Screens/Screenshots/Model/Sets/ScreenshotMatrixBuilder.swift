@@ -21,9 +21,9 @@ struct ScreenshotMatrixBuilder {
             slotCount: document.slotCount, cells: [:], localizedLocales: localized, restoredLocales: restored,
             fallbackLocales: fallback, hasTemplate: document.template != nil, hasCaptures: !document.captures.isEmpty
         )
-        for display in ScreenshotDisplayType.ownScreens {
-            let count = document.slotCount(on: display)
-            if count > 0 { matrix.ownSlotCounts[display] = count }
+        for display in ScreenshotDisplayType.studio where display.mayHaveOwnScreens {
+            guard let count = document.screens(on: display)?.count, count > 0 else { continue }
+            matrix.ownSlotCounts[display] = count
         }
         let engine = ScreenshotLayoutEngine(catalog: snapshot.fonts)
         for display in document.displays {
@@ -59,6 +59,9 @@ struct ScreenshotMatrixBuilder {
             return cell
         }
         let capture = document.captures.capture(locale: key.locale, displayType: key.displayType, slot: key.slot, primary: document.scope.primary)
+        let companion = capture == nil ? nil : document.captures.companion(
+            locale: key.locale, displayType: key.displayType, slot: key.slot, primary: document.scope.primary
+        )
         // Turned the way an iPhone Duo capture is, in the render key too.
         template.canvas = template.canvas.following(capture?.capture.pixelSize, on: key.displayType)
         let captionSlot = document.captionSlot(key.slot, on: key.displayType)
@@ -66,17 +69,17 @@ struct ScreenshotMatrixBuilder {
         let templateSlot = min(captionSlot ?? key.slot, max(0, template.slots.count - 1))
         let layout = engine.layout(
             template, slot: templateSlot, locale: locale, displayType: key.displayType, caption: caption,
-            captureSize: capture?.capture.pixelSize
+            captureSize: capture?.capture.pixelSize, companionSize: companion?.pixelSize
         )
         let renderKey = RenderKey(
             templateHash: template.contentHash, locale: key.locale, displayType: key.displayType, slot: key.slot,
-            caption: caption, captureID: capture?.capture.id
+            caption: caption, captureID: capture.map { [$0.capture.id, companion?.id].compactMap(\.self).joined(separator: "+") }
         )
         cell.caption = caption
         cell.capture = capture
         cell.showsPrimaryInterface = capture.map { !$0.isInterfaceLocalized } ?? false
         cell.checks = ScreenshotChecker.checks(for: layout, capture: capture, primaryLocaleName: snapshot.primaryLocale.name, ratings: snapshot.ratings)
-        cell.image = .render(RenderJob(key: renderKey, layout: layout, capture: capture?.capture))
+        cell.image = .render(RenderJob(key: renderKey, layout: layout, capture: capture?.capture, companion: companion))
         cell.state = state(of: cell, renderKey: renderKey, pushed: document.pushedRender(for: key))
         return cell
     }

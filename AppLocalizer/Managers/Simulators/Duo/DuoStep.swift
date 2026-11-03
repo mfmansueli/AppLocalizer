@@ -18,6 +18,9 @@ enum DuoStep: Hashable, Sendable {
     case start
     /// It's closed: open it.
     case open
+    /// It's open and its closed screenshots are next: restart it, which
+    /// closes it.
+    case close
     /// It's stuck: shut it down and start it again.
     case restart(Reason)
     /// Still stuck after `maximumRestarts` restarts.
@@ -39,6 +42,9 @@ enum DuoStep: Hashable, Sendable {
     /// Tries at opening it before it's left to the person.
     static let maximumOpens = 2
 
+    /// Tries at closing it before it's left as it is.
+    static let maximumCloses = 2
+
     /// What one look found. `inner` is nil when it isn't running or the
     /// inner display couldn't be read; `spinnerSince`, when the spinner was
     /// first seen.
@@ -51,10 +57,15 @@ enum DuoStep: Hashable, Sendable {
 
     /// The step after `look`. `mayStart`: AppLocalizer may start and open it
     /// (during a run, or when the person asks, not while the plan is only
-    /// being looked at); `opens`: its tries at opening it since it started.
-    static func next(after look: Look, restarts: Int, opens: Int = 0, mayStart: Bool, now: Date) -> DuoStep {
+    /// being looked at); `opens` and `closes`: its tries at opening and
+    /// closing it since it was last seen so; `wants`: how the screens
+    /// captured now need it (closed for the cover display's), nil when none
+    /// are.
+    static func next(
+        after look: Look, restarts: Int, opens: Int = 0, closes: Int = 0, mayStart: Bool, wants: AutopilotDuoPose? = .open, now: Date
+    ) -> DuoStep {
         guard look.isBooted else { return mayStart ? .start : .wait }
-        guard look.inner != .showing else { return .wait }
+        guard look.inner != .showing else { return wants == .closed && mayStart && closes < maximumCloses ? .close : .wait }
         let reason: Reason? = if look.crashedSinceStart {
             .springBoardCrashed
         } else if look.inner == .spinner, let since = look.spinnerSince, now.timeIntervalSince(since) >= spinnerLimit {
@@ -63,6 +74,6 @@ enum DuoStep: Hashable, Sendable {
             nil
         }
         if let reason { return restarts < maximumRestarts ? .restart(reason) : .giveUp(reason) }
-        return look.inner == .black && mayStart && opens < maximumOpens ? .open : .wait
+        return look.inner == .black && mayStart && wants == .open && opens < maximumOpens ? .open : .wait
     }
 }

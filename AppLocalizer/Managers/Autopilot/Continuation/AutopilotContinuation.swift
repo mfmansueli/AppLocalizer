@@ -68,8 +68,8 @@ enum AutopilotContinuation {
             await launcher.simulators.check()
             center.reportMissingSimulators(appID: appID, simulators: launcher.simulators)
         }
-        guard center.run(for: appID)?.assistantHasWork == true else { return nil }
-        let prompt = AutopilotPrompt.continuing(appName: appName, appID: appID)
+        guard let current = center.run(for: appID), current.assistantHasWork else { return nil }
+        let prompt = AutopilotPrompt.continuing(current, appName: appName)
         // Marked first: the session can end before `start` returns.
         let before = center.run(for: appID)?.startsClaudeCode
         center.update(appID) { $0.startsClaudeCode = true }

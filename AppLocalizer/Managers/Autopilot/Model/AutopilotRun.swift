@@ -52,14 +52,47 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     var directions: [AutopilotDirection] = []
     var revision: AutopilotRevisionRequest?
     var chosenDirectionID: String?
+    /// The Simulator recordings for the App Preview; nil in runs from
+    /// before, and until the first arrives.
+    var recordings: [AutopilotRecording]?
+    /// Recordings the assistant couldn't make; nil when there are none.
+    var recordingSkips: [AutopilotRecordingSkip]?
+    /// The moments the person chose for the App Preview at Pick, by screen
+    /// ID, in every recording; nil keeps Claude Code's suggestions.
+    var previewMomentIDs: [String]?
+    /// Moments the person asked to record again (screen IDs), until the
+    /// new takes arrive; nil when there are none.
+    var momentRetakes: [String]?
+    /// The new takes of single moments, standing in for those moments of
+    /// their device's recording; nil when there are none.
+    var retakes: [AutopilotRecording]?
+    /// How the header, search and App Preview are coming along while
+    /// localizing; nil before, and in runs from before.
+    var extrasProgress: AutopilotExtrasProgress?
+    /// Watch the App Preview: the version shown, how it's cut, the design
+    /// source's revisions; nil before the checkpoint, and in runs from
+    /// before it.
+    var previewReview: AutopilotPreviewReview?
     /// Captions to write or shorten before the set is ready.
     var overflows: [AutopilotOverflow] = []
+    /// The placements' texts Localize waits for; nil when none (and in
+    /// runs from before them).
+    var artworkTextNeeds: [AutopilotArtworkTextNeed]?
+    /// A Product Page Optimization variant asked of the assistant once the
+    /// set is ready; nil when none is.
+    var variantRequest: ArtworkVariantRequest?
     var shortenings: [AutopilotShortening] = []
     var localeStatus: [String: AutopilotLocaleStatus] = [:]
     /// The template version the chosen direction became.
     var templateVersion: Int?
     /// Captures carried over from the last run.
     var keptCaptureCount = 0
+    /// The last run's captures this one can reuse; nil when there are none.
+    var keptFrom: AutopilotKeptCaptures?
+    /// Suggest Screens, waiting for the assistant.
+    var screenRequest: AutopilotScreenRequest?
+    /// The assistant's suggested screens, shown at Plan.
+    var screenSuggestions: AutopilotScreenSuggestions?
     var createdAt: Date
     var startedAt: Date?
     var finishedAt: Date?
@@ -74,7 +107,7 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     /// Captured, or settled by the person (the primary language's capture
     /// reused, or one uploaded by hand).
     func isSettled(_ target: AutopilotCaptureTarget) -> Bool {
-        captures.contains { $0.target == target }
+        captures.contains { $0.target == target && plan.fits($0) }
             || primaryCaptureTargets?.contains(target) == true
             || problems.contains { $0.target == target && ($0.resolution == .usePrimaryCapture || $0.resolution == .uploadedByHand) }
     }
@@ -91,11 +124,16 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     /// What the assistant captures now: each screen on each device in the
     /// rehearsal's languages before its other languages, the rehearsal
     /// first. A screen or a device that can't go on holds back only its
-    /// own other languages, never the rest of the run.
+    /// own other languages, never the rest of the run. iPhone Duo's closed
+    /// screens come before its open ones: it starts closed.
     var nextTargets: [AutopilotCaptureTarget] {
         let remaining = remainingTargets
         let rehearsing = Set(remaining.filter(plan.isRehearsal).map { Self.place(of: $0) })
-        return remaining.filter { plan.isRehearsal($0) || !rehearsing.contains(Self.place(of: $0)) }
+        let closedLeft = remaining.contains { plan.duoPose(for: $0) == .closed }
+        return remaining.filter { target in
+            if closedLeft, plan.duoPose(for: target) == .open { return false }
+            return plan.isRehearsal(target) || !rehearsing.contains(Self.place(of: target))
+        }
     }
 
     /// A screen on a device, whatever the language.
@@ -114,10 +152,15 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     /// the same way (every screen on it, for a device-wide problem). A
     /// retry holds them until its capture arrives. A problem in another
     /// language doesn't hold the primary language's.
-    var heldTargets: Set<AutopilotCaptureTarget> {
-        var held = Set(openProblems.map(\.target))
+    var heldTargets: Set<AutopilotCaptureTarget> { heldTargets(byDevices: true) }
+
+    /// `heldTargets`; without `byDevices`, only what problems with one
+    /// screen hold.
+    func heldTargets(byDevices: Bool) -> Set<AutopilotCaptureTarget> {
+        var held = Set(openProblems.filter { byDevices || !$0.isDeviceWide }.map(\.target))
         for problem in problems where problem.isOpen || isPendingRetry(problem) {
             if problem.isDeviceWide {
+                guard byDevices else { continue }
                 // Every screen in every language, but a retry's own.
                 held.formUnion(plan.targets.filter { $0.displayType == problem.target.displayType && $0 != problem.target })
                 continue
@@ -165,13 +208,15 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     /// Every target settled, nothing waiting on the person, and nothing to
     /// capture again.
     var isCaptureComplete: Bool {
-        !plan.targets.isEmpty && plan.targets.allSatisfy(isSettled) && openProblems.isEmpty && retries.isEmpty
+        // A run that only records for its App Preview has no targets.
+        let hasWork = !plan.targets.isEmpty || !plan.recordingTargets.isEmpty
+        return hasWork && plan.targets.allSatisfy(isSettled) && openProblems.isEmpty && retries.isEmpty && remainingRecordings.isEmpty
     }
 
     /// A target's captures, best first: clean text before an issue, then
     /// by score.
     func captures(for target: AutopilotCaptureTarget) -> [AutopilotCapture] {
-        captures.filter { $0.target == target }
+        captures.filter { $0.target == target && plan.fits($0) }
             .map { (capture: $0, isClean: textIssues(of: $0).isEmpty) }
             .sorted { first, second in
                 if first.isClean != second.isClean { return first.isClean }
@@ -179,6 +224,12 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
                 return one.score > other.score || (one.score == other.score && one.attempt < other.attempt)
             }
             .map(\.capture)
+    }
+
+    /// The plan's targets with a capture that fits: what a new run keeps.
+    var keptTargetCount: Int {
+        let targets = Set(plan.targets)
+        return Set(captures.filter { targets.contains($0.target) && plan.fits($0) }.map(\.target)).count
     }
 
     var latestCapture: AutopilotCapture? {
@@ -218,6 +269,14 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     /// The assistant's ranking: the best capture of every screen.
     mutating func pickBest() {
         for screen in plan.pickedScreens {
+            if let best = candidates(for: screen.id).first { picks[screen.id] = best.id }
+        }
+    }
+
+    /// The best capture for each screen without a pick yet: reused picks
+    /// stay.
+    mutating func pickMissing() {
+        for screen in plan.pickedScreens where !candidates(for: screen.id).contains(where: { $0.id == picks[screen.id] }) {
             if let best = candidates(for: screen.id).first { picks[screen.id] = best.id }
         }
     }

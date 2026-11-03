@@ -35,6 +35,17 @@ struct CaptionsRowView: View {
                 }
                 .frame(width: cellWidth)
             }
+            ForEach(row.artworkCells) { cell in
+                ArtworkTextCellView(
+                    cell: cell,
+                    localeName: row.locale.name,
+                    isRightToLeft: ScreenshotScript(locale: row.locale).isRightToLeft,
+                    isSelected: model.artworkEditor.selection == cell.key
+                ) {
+                    model.artworkEditor.select(cell.key)
+                }
+                .frame(width: cellWidth)
+            }
         }
         .padding(.horizontal, Spacing.medium)
         .padding(.vertical, 2)

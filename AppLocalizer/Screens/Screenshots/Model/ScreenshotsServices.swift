@@ -82,6 +82,17 @@ protocol ScreenshotsServices {
     /// its checksum. By default it keeps nothing and only reads the size.
     func storeCapture(_ data: Data, for app: StoreApp) async throws -> CaptureFile
 
+    /// Keeps a Simulator recording the assistant sent for the App Preview,
+    /// named by its checksum. By default it's kept in a temporary folder.
+    func storeRecording(_ data: Data, for app: StoreApp) async throws -> RecordingFile
+
+    /// Where a kept recording is.
+    func recordingURL(_ fileID: String, for app: StoreApp) -> URL
+
+    /// The folder the app's header and search artwork and App Previews are
+    /// made in. By default a temporary one.
+    func extrasFolder(for app: StoreApp) -> URL
+
     /// The text in a capture, read in `locale`'s language and the ones an
     /// app falls back to (`primary`, English). By default nothing is read.
     func readText(of capture: ScreenshotCapture, for app: StoreApp, locale: StoreLocale, primary: StoreLocale) async -> CaptureTextReading?

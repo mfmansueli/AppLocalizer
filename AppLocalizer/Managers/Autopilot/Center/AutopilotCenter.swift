@@ -22,6 +22,8 @@ final class AutopilotCenter {
     @ObservationIgnored private var replaced: [StoreApp.ID: AutopilotRun] = [:]
     /// PNGs sent to the upload link, waiting for `report_capture`.
     @ObservationIgnored var uploads: [String: AutopilotUpload] = [:]
+    /// Recordings sent to the upload link, waiting for `report_recording`.
+    @ObservationIgnored var recordingUploads: [String: AutopilotRecordingUpload] = [:]
     @ObservationIgnored private let persistence: (any AutopilotPersistence)?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored var now: () -> Date = { .now }
@@ -34,8 +36,8 @@ final class AutopilotCenter {
         let archive = persistence?.load() ?? AutopilotArchive()
         // A plan left open follows the rules made since it was saved.
         let saved = archive.runs.mapValues { run in
+            var run = run.withDuoPoses()
             guard run.stage == .plan else { return run }
-            var run = run
             run.plan = AutopilotPlanner.applyingRules(to: run.plan)
             return run
         }
@@ -90,8 +92,7 @@ final class AutopilotCenter {
         if var current = runs[appID], current.stage != .ready {
             guard current.stage == .plan else { return current }
             current.plan = AutopilotPlanner.applyingRules(to: current.plan)
-            let targets = Set(current.plan.targets)
-            current.keptCaptureCount = Set(current.captures.map(\.target).filter(targets.contains)).count
+            current.keptCaptureCount = current.keptTargetCount
             runs[appID] = current
             scheduleSave()
             return current
@@ -107,7 +108,17 @@ final class AutopilotCenter {
             replaced[appID] = previous
             let targets = Set(plan.targets)
             run.captures = previous.captures.filter { targets.contains($0.target) }
-            run.keptCaptureCount = Set(run.captures.map(\.target)).count
+            run.keptCaptureCount = run.keptTargetCount
+            // Kept for "Reuse … captures"; Start drops them otherwise.
+            let kept = previous.captures.filter { targets.contains($0.target) }
+            if let latest = kept.map(\.receivedAt).max() {
+                run.picks = previous.picks.filter { plan.screen(id: $0.key) != nil }
+                run.keptFrom = AutopilotKeptCaptures(
+                    versionString: previous.versionString, capturedAt: latest,
+                    displayTypes: plan.displayTypes.filter { display in kept.contains { $0.target.displayType == display } },
+                    localeCount: Set(kept.map(\.target.locale)).count, hasPicks: !run.picks.isEmpty
+                )
+            }
             run.environment = previous.environment
             run.client = previous.client
         }
@@ -120,8 +131,7 @@ final class AutopilotCenter {
     func updatePlan(for appID: StoreApp.ID, _ change: (inout AutopilotPlan) -> Void) {
         guard var run = runs[appID], run.stage == .plan else { return }
         change(&run.plan)
-        let targets = Set(run.plan.targets)
-        run.keptCaptureCount = Set(run.captures.map(\.target).filter(targets.contains)).count
+        run.keptCaptureCount = run.keptTargetCount
         runs[appID] = run
         scheduleSave()
     }
@@ -144,6 +154,7 @@ final class AutopilotCenter {
         let project = designProjects[appID]
         run.designKind = project?.kind ?? .none
         run.designName = project?.displayName
+        applyCaptureChoice(to: &run)
         run.stage = .waiting
         run.startedAt = now()
         run.finishedAt = nil
@@ -158,7 +169,7 @@ final class AutopilotCenter {
         guard var run = runs[appID], run.stage == .waiting || run.stage == .capture else { return }
         run.stage = .plan
         run.problems.removeAll(where: \.isOpen)
-        run.keptCaptureCount = Set(run.captures.map(\.target)).count
+        run.keptCaptureCount = run.keptTargetCount
         runs[appID] = run
         scheduleSave()
     }

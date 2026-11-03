@@ -6,9 +6,9 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The Screenshot Autopilot sheet: the seven stages on the left, the one
-/// shown on the right, and its buttons underneath. Closing it doesn't stop
-/// anything.
+/// The Screenshot Autopilot sheet: the eight stages on the left, the one
+/// shown on the right, and its buttons underneath, with the full-size
+/// viewer over it. Closing it doesn't stop anything.
 struct AutopilotSheet: View {
     @Bindable var studio: ScreenshotStudioModel
     /// The connected assistant that can run Xcode.
@@ -46,6 +46,9 @@ struct AutopilotSheet: View {
             }
         }
         .frame(minWidth: 960, idealWidth: 1100, minHeight: 640, idealHeight: 760)
+        .overlay {
+            if let viewer = studio.viewer { FullSizeViewer(studio: studio, viewer: viewer) }
+        }
         .fileImporter(isPresented: isUploading, allowedContentTypes: [.png]) { result in
             guard let problem = studio.uploadingProblem, case let .success(url) = result else { return }
             studio.uploadingProblem = nil
@@ -54,6 +57,7 @@ struct AutopilotSheet: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("autopilot.sheet")
         .onAppear { studio.launcher = launcher }
+        .onDisappear { studio.closeViewer() }
     }
 
     @ViewBuilder
@@ -75,6 +79,8 @@ struct AutopilotSheet: View {
             AutopilotChooseStageView(studio: studio, run: run, isEditable: run.stage == .choose)
         case .localize:
             AutopilotLocalizeStageView(studio: studio, run: run)
+        case .watchPreview:
+            AutopilotWatchStageView(studio: studio, run: run, isEditable: run.stage == .watchPreview)
         case .ready:
             AutopilotReadyStageView(studio: studio, run: run)
         }

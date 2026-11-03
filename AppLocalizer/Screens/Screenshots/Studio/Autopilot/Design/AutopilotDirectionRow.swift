@@ -5,8 +5,9 @@
 
 import SwiftUI
 
-/// One direction: five screenshots, name with its source badge, the
-/// rationale, language checks and its buttons.
+/// One direction: five screenshots (and, when the run makes them, its
+/// header, search artwork and App Preview poster), name with its source
+/// badge, the rationale, language checks and its buttons.
 struct AutopilotDirectionRow: View {
     @Bindable var studio: ScreenshotStudioModel
     let direction: AutopilotDirection
@@ -16,7 +17,14 @@ struct AutopilotDirectionRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: Spacing.medium) {
-            AutopilotDirectionThumbnails(studio: studio, direction: direction, stacksDevices: stacksDevices)
+            VStack(alignment: .leading, spacing: Spacing.small) {
+                AutopilotDirectionThumbnails(studio: studio, direction: direction, stacksDevices: stacksDevices) { index in
+                    studio.openDirection(direction, at: index)
+                }
+                if let run = studio.run, !run.plan.alsoMakes.isEmpty {
+                    AutopilotDirectionExtras(studio: studio, run: run, direction: direction)
+                }
+            }
             VStack(alignment: .leading, spacing: Spacing.xSmall) {
                 HStack(spacing: Spacing.small) {
                     Text(direction.name).font(.headline)

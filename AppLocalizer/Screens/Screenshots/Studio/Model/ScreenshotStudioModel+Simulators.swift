@@ -67,18 +67,20 @@ extension ScreenshotStudioModel {
     }
 
     /// While the run captures and has iPhone Duo screens left, AppLocalizer
-    /// starts the Duo when it isn't running, opens it when it's closed and
-    /// restarts it when it's stuck, all in the run's log, so it's ready
+    /// starts the Duo when it isn't running, keeps it closed for its closed
+    /// screenshots, opens it for the open ones and restarts it when it's
+    /// stuck, all in the run's log, so it's ready
     /// when the assistant gets to it. When it was stopped there (its card),
     /// its screens are tried again once it's open, without a Retry.
     func watchDuo() async {
         guard let simulators, let autopilot else { return }
         let appID = app.id
-        await simulators.duo.watch(mayStart: true) { event in
+        // Closed while its closed screenshots are left, then open.
+        await simulators.duo.watch(mayStart: true, wants: { self.run?.duoPoseWanted }, onEvent: { event in
             autopilot.update(appID) { $0.appendLog(event.logText, kind: .event, at: autopilot.now()) }
             // Only the Duo's open problems are retried.
-            if event == .opened, self.run?.stage == .capture { await self.retryDeviceProblems(on: .iPhoneDuo) }
-        }
+            if event == .opened || event == .closed, self.run?.stage == .capture { await self.retryDeviceProblems(on: .iPhoneDuo) }
+        })
     }
 
     /// Once the device can be captured, its device-wide problems are

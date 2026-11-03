@@ -7,7 +7,7 @@ import Foundation
 
 /// Screenshot Autopilot's upload link: the assistant sends each capture's
 /// PNG with `curl --data-binary`, then names the returned upload in
-/// `report_capture`. AppLocalizer is sandboxed, so it can't read the
+/// `report_capture` (an App Preview's recording, in `report_recording`). AppLocalizer is sandboxed, so it can't read the
 /// assistant's files by path. The link's secret is the run's token, which
 /// only `get_capture_plan` hands out to a paired assistant.
 extension MCPServerController {
@@ -27,6 +27,19 @@ extension MCPServerController {
         }
         do {
             let app = try await workspace.app(matching: run.appID)
+            // An App Preview's Simulator recording, named in report_recording.
+            if RecordingFileReader.isMovie(request.body) {
+                let file = try await workspace.services.screenshots.storeRecording(request.body, for: app)
+                let upload = center.registerRecordingUpload(file, for: run)
+                let result: JSONValue = [
+                    "upload": .string(upload.id),
+                    "checksum": .string(file.id),
+                    "pixelSize": .string(file.pixelSize.title),
+                    "seconds": .double((file.seconds * 10).rounded() / 10),
+                    "then": "report_recording with the returned upload ID and when each screen appears (rerecord_moment for a moment recorded again)",
+                ]
+                return .json(result)
+            }
             let file = try await workspace.services.screenshots.storeCapture(request.body, for: app)
             let upload = center.registerUpload(file, for: run)
             let result: JSONValue = [

@@ -12,6 +12,7 @@ struct StudioStoreTexts: Hashable, Sendable {
     var locales: [StoreLocale] = []
     var names: [String: String] = [:]
     var subtitles: [String: String] = [:]
+    var keywords: [String: String] = [:]
 
     init() {}
 
@@ -21,6 +22,7 @@ struct StudioStoreTexts: Hashable, Sendable {
         for (locale, texts) in content.texts {
             names[locale.code] = texts[.name]
             subtitles[locale.code] = texts[.subtitle]
+            keywords[locale.code] = texts[.keywords]
         }
         if names[primary.code] == nil { names[primary.code] = content.appName }
     }

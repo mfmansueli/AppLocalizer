@@ -11,11 +11,22 @@ import SwiftUI
 /// a highlight, on a marker bar as wide as its text plus the padding,
 /// turned about the bar's center with the text on it.
 struct CaptionLinePainter {
-    let layout: ScreenshotLayout
+    let lines: [LayoutTextLine]
+    let fonts: ScreenshotFontCatalog
+
+    init(layout: ScreenshotLayout) {
+        self.init(lines: layout.lines, fonts: layout.fonts)
+    }
+
+    /// Lines laid out elsewhere: the header and search artwork's.
+    init(lines: [LayoutTextLine], fonts: ScreenshotFontCatalog) {
+        self.lines = lines
+        self.fonts = fonts
+    }
 
     func draw(in context: inout GraphicsContext) {
-        for line in layout.lines {
-            let font = layout.fonts.font(named: line.fontName, weight: line.weight, size: line.pixelSize, italic: line.isItalic)
+        for line in lines {
+            let font = fonts.font(named: line.fontName, weight: line.weight, size: line.pixelSize, italic: line.isItalic)
                 ?? NSFont.systemFont(ofSize: line.pixelSize, weight: ScreenshotFontCatalog.weight(line.weight)) as CTFont
             let text = Text(verbatim: line.text)
                 .font(Font(font))

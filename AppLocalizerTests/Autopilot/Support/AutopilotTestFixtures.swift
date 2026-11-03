@@ -93,18 +93,23 @@ enum AutopilotTestFixtures {
         AutopilotCaptureTarget(screenID: screenID, displayType: display, locale: locale)
     }
 
-    static func capture(_ target: AutopilotCaptureTarget, attempt: Int = 1, score: Double = 0.9, second: Int = 0) -> AutopilotCapture {
+    /// A capture of `target`; on iPhone Duo, `plan` sizes it for its pose
+    /// (the cover display for a closed screen).
+    static func capture(
+        _ target: AutopilotCaptureTarget, in plan: AutopilotPlan? = nil, attempt: Int = 1, score: Double = 0.9, second: Int = 0
+    ) -> AutopilotCapture {
         let name = "\(target.screenID)-\(target.displayType.mcpValue)-\(target.locale)-\(attempt)"
+        let size = plan?.duoPose(for: target)?.portraitPixelSize ?? target.displayType.portraitPixelSize
         return AutopilotCapture(
             id: "cap-\(name)", target: target, attempt: attempt, score: score, notes: "", captureID: "png-\(name)",
-            pixelSize: target.displayType.portraitPixelSize, receivedAt: now.addingTimeInterval(Double(second))
+            pixelSize: size, receivedAt: now.addingTimeInterval(Double(second))
         )
     }
 
     /// One capture of each of the plan's targets, but `except`.
     static func captureAll(_ run: inout AutopilotRun, except: Set<AutopilotCaptureTarget> = []) {
         for (index, target) in run.plan.targets.enumerated() where !except.contains(target) {
-            run.captures.append(capture(target, second: index))
+            run.captures.append(capture(target, in: run.plan, second: index))
         }
     }
 

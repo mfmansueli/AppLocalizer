@@ -13,6 +13,14 @@ struct HTTPRequestParser {
     static let maximumHeaderSize = 16 * 1024
     /// Room for an Autopilot capture: a 13″ iPad PNG can pass 20 MB.
     static let maximumBodySize = 40 * 1024 * 1024
+    /// Room for an App Preview's Simulator recording, sent to Autopilot's
+    /// upload link only.
+    static let maximumUploadBodySize = 512 * 1024 * 1024
+
+    /// The largest body a request to `target` may carry.
+    static func maximumBodySize(for target: String) -> Int {
+        target.hasPrefix(MCPEndpoint.autopilotPath) ? maximumUploadBodySize : maximumBodySize
+    }
 
     private(set) var buffer = Data()
 
@@ -32,16 +40,17 @@ struct HTTPRequestParser {
         guard let headText = String(bytes: buffer[buffer.startIndex..<headerEnd.lowerBound], encoding: .utf8) else { throw .malformed }
         let head = try Self.head(headText)
         let bodyStart = headerEnd.upperBound
+        let limit = Self.maximumBodySize(for: head.target)
 
         let body: Data
         let requestEnd: Data.Index
         if let encoding = head.headers["transfer-encoding"]?.lowercased() {
             guard encoding == "chunked" else { throw .unsupportedTransferEncoding }
-            guard let (decoded, end) = try Self.chunkedBody(in: buffer, from: bodyStart) else { return nil }
+            guard let (decoded, end) = try Self.chunkedBody(in: buffer, from: bodyStart, limit: limit) else { return nil }
             body = decoded
             requestEnd = end
         } else {
-            let length = try Self.contentLength(head.headers["content-length"])
+            let length = try Self.contentLength(head.headers["content-length"], limit: limit)
             guard buffer.endIndex - bodyStart >= length else { return nil }
             body = Data(buffer[bodyStart..<bodyStart + length])
             requestEnd = bodyStart + length
@@ -76,16 +85,16 @@ struct HTTPRequestParser {
         return Head(method: String(requestLine[0]), target: String(requestLine[1]), version: String(requestLine[2]), headers: headers)
     }
 
-    private static func contentLength(_ value: String?) throws(HTTPParseError) -> Int {
+    private static func contentLength(_ value: String?, limit: Int) throws(HTTPParseError) -> Int {
         guard let value else { return 0 }
         guard let length = Int(value), length >= 0 else { throw .malformed }
-        guard length <= maximumBodySize else { throw .bodyTooLarge }
+        guard length <= limit else { throw .bodyTooLarge }
         return length
     }
 
     /// The decoded body and where the request ends, or nil while the last
     /// chunk hasn't arrived. Chunk extensions and trailers are ignored.
-    private static func chunkedBody(in buffer: Data, from start: Data.Index) throws(HTTPParseError) -> (Data, Data.Index)? {
+    private static func chunkedBody(in buffer: Data, from start: Data.Index, limit: Int) throws(HTTPParseError) -> (Data, Data.Index)? {
         var body = Data()
         var cursor = start
         while true {
@@ -101,7 +110,7 @@ struct HTTPRequestParser {
                 guard let trailersEnd = buffer[cursor...].range(of: headerTerminator) else { return nil }
                 return (body, trailersEnd.upperBound)
             }
-            guard body.count + size <= maximumBodySize else { throw .bodyTooLarge }
+            guard body.count + size <= limit else { throw .bodyTooLarge }
             guard buffer.endIndex - cursor >= size + 2 else { return nil }
             body.append(buffer[cursor..<cursor + size])
             cursor += size

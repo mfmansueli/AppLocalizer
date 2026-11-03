@@ -36,6 +36,9 @@ final class ScreenshotPushController {
     /// Restore Previous Screenshots… for Activity to open when it appears
     /// (DEBUG scenes).
     var pendingRestore: ScreenshotRestorePresentation?
+    /// Autopilot's header, search image and App Previews, planned from the
+    /// same documents (`+Extras`).
+    let extras = ExtrasPushController()
 
     private(set) var workspace: ScreenshotPushWorkspace?
     /// The app names Activity records carry.
@@ -73,6 +76,7 @@ final class ScreenshotPushController {
             liveSets = [:]
             renderQueues = [:]
             backupThumbnails = [:]
+            extras.removeAll()
         }
         self.workspace = workspace
         #if DEBUG
@@ -123,6 +127,13 @@ final class ScreenshotPushController {
         #if DEBUG
         // Push scenes start sending once the plans are in.
         if let debug = workspace.pushing as? DebugScreenshotPushServices, debug.consumeAutoPush() { push(orderedPlans) }
+        if let debug = workspace.pushing as? DebugScreenshotPushServices, let placement = debug.consumeOpenTest(),
+           let plan = extras.orderedPlans.first
+        {
+            let model = testModel(for: plan, placement: placement)
+            extras.test = model
+            if debug.extrasScript.createsTest { model?.createTest() }
+        }
         #endif
     }
 
@@ -139,11 +150,21 @@ final class ScreenshotPushController {
             let document = try await screenshots.document(for: app, primaryLocale: guess)
             var state = pushing.state.state(appID: app.id)
             if state.pruneRestores(keeping: { document.scope.isPinned($0) }) { try? pushing.state.save(state, appID: app.id) }
-            guard document.template != nil || !state.restores.isEmpty else {
+            // A run that makes only extras leaves the set as it is, so an
+            // app without one can still have extras waiting.
+            let hasSet = document.template != nil || !state.restores.isEmpty
+            guard hasSet || document.extras != nil else {
                 plans[app.id] = nil
+                extras.setPlan(nil, for: app.id)
                 return
             }
             let context = try await context(for: app, pushing: pushing)
+            planExtras(for: app, document: document, context: context)
+            guard hasSet else {
+                plans[app.id] = nil
+                loadErrors[app.id] = nil
+                return
+            }
             let live = try await live(for: app, context: context, screenshots: screenshots)
             // Ratings are checked before every push, so a laurel that's no
             // longer true is caught.

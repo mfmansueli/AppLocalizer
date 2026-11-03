@@ -78,7 +78,7 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         case .runScreenshots: [
                 "list_apps", "get_capture_plan", "update_capture_plan", "report_capture", "report_capture_problem", "next_step",
                 "get_design_brief", "propose_direction", "revise_direction", "propose_captions", "report_app_support",
-                "start_display_recording", "finish_display_recording",
+                "start_display_recording", "finish_display_recording", "propose_screens", "revise_app_preview",
             ]
         }
     }
@@ -236,7 +236,9 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         of the watch app's, and 3 Apple Vision Pro windows. Send them with update_capture_plan replace: true, \
         each with the steps to reach it and a short caption. Otherwise keep the plan's screens; if they lack \
         steps, write them from the project's UI tests, deep links or launch arguments and send them with \
-        update_capture_plan. List the watch app's screens and the Apple Vision Pro windows there too \
+        update_capture_plan. A screen whose steps are "auto" was added by the person by name: work out how to \
+        reach it, add it to the UI tests and send its steps; screens addedBy the person stay when you replace. \
+        List the watch app's screens and the Apple Vision Pro windows there too \
         (device watch or vision) when the plan has those devices. If you haven't told AppLocalizer what the \
         project supports, call report_app_support first (targets, devices, and every language in its string \
         catalogs). Go through the plan's preflight checks in the project and fix what fails before capturing \
@@ -253,8 +255,12 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         language and one other, before the rest. After each step call next_step and do \
         what it says: capture, wait (ask again after retryAfterSeconds), design (get_design_brief, then \
         propose_direction with templates in AppLocalizer's format, designed with the connected design project; \
-        report what you find in it with report_design_source), revise_direction, or write_captions (then \
-        propose_captions with run). Stop when it says done. Never draw the interface; use the real captures. \
+        report what you find in it with report_design_source), revise_direction, write_captions (then \
+        propose_captions with run), revise_app_preview (the person's note on the App Preview, then \
+        revise_app_preview with the new cut), or suggest_screens (then propose_screens with run). Stop when it \
+        says done. \
+        The App Preview's music is the person's choice: change it with set_app_preview_music only when they ask. \
+        Never draw the interface; use the real captures. \
         Nothing is uploaded to App Store Connect until the person pushes in AppLocalizer.
         """
     }

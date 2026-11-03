@@ -60,6 +60,13 @@ struct MCPToolArguments: Hashable, Sendable {
     }
 
     /// nil when absent or null.
+    func optionalDouble(_ name: String) throws -> Double? {
+        guard let value = values[name], !value.isNull else { return nil }
+        guard let double = value.doubleValue else { throw MCPToolError.invalidArgument(name: name, expected: String(localized: "a number")) }
+        return double
+    }
+
+    /// nil when absent or null.
     func optionalBool(_ name: String) throws -> Bool? {
         guard let value = values[name], !value.isNull else { return nil }
         guard let bool = value.boolValue else { throw MCPToolError.invalidArgument(name: name, expected: String(localized: "true or false")) }

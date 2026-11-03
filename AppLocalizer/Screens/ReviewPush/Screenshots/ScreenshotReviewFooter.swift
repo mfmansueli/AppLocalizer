@@ -19,8 +19,8 @@ struct ScreenshotReviewFooter: View {
         HStack(spacing: Spacing.small) {
             Button("Discard All", role: .destructive, action: onDiscardAll)
                 .buttonStyle(.borderless)
-                .foregroundStyle(Palette.danger)
-                .disabled(viewModel.visibleChanges.isEmpty && viewModel.visibleImages.isEmpty)
+                .foregroundStyle(viewModel.canDiscardAll ? Palette.danger : Palette.label3)
+                .disabled(!viewModel.canDiscardAll)
                 .accessibilityIdentifier("review.discardAll")
             Spacer()
             ForEach(viewModel.optionFootnotes, id: \.self) { footnote in

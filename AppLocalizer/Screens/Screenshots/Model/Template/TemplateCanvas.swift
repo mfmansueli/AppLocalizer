@@ -29,12 +29,16 @@ struct TemplateCanvas: Codable, Hashable, Sendable {
     /// The canvas for a capture of `captureSize`: iPhone Duo without an
     /// orientation of its own lies the way its capture does (the
     /// simulator's inner display captures landscape, 2853 × 2007), so the
-    /// capture isn't cropped into a Wrong size render. A set orientation,
-    /// and every other device's, stays.
+    /// capture isn't cropped into a Wrong size render. A closed screenshot
+    /// frames the folded phone inside the set's canvas, so the cover
+    /// display's capture leaves it as it is. A set orientation, and every
+    /// other device's, stays.
     func following(_ captureSize: PixelSize?, on display: ScreenshotDisplayType) -> TemplateCanvas {
-        guard display == .iPhoneDuo, duo == nil, captureSize?.isLandscape == true else { return self }
+        guard display == .iPhoneDuo, let captureSize, !CaptureSizeRules.isDuoOuterDisplay(captureSize) else { return self }
         var canvas = self
-        canvas.duo = .landscape
+        if duo == nil, captureSize.isLandscape {
+            canvas.duo = .landscape
+        }
         return canvas
     }
 

@@ -53,10 +53,15 @@ extension ScreenshotPushController {
         switch item.content {
         case let .render(job):
             var capture: CGImage?
+            var companion: CGImage?
             if let file = job.capture {
                 capture = await workspace.screenshots.captureImage(file, for: app, pixelWidth: job.layout.canvas.pixelSize.width)
             }
-            guard let data = ScreenshotImageRenderer.pngData(layout: job.layout, capture: capture) else { throw ScreenshotPushFailure.image }
+            if let file = job.companion {
+                companion = await workspace.screenshots.captureImage(file, for: app, pixelWidth: job.layout.canvas.pixelSize.width)
+            }
+            guard let data = ScreenshotImageRenderer.pngData(layout: job.layout, capture: capture, companion: companion)
+            else { throw ScreenshotPushFailure.image }
             return data
         case let .restore(image):
             return try pushing.backups.data(for: image, appID: item.appID)
