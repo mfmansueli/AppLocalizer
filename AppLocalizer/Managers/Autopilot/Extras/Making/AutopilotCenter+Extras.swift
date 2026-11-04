@@ -19,33 +19,39 @@ extension AutopilotCenter {
     }
 
     private func makeEveryExtra(_ appID: StoreApp.ID, context: AutopilotContext) async -> ScreenshotExtras? {
-        guard let run = runs[appID], run.stage == .localize, !run.plan.alsoMakes.isEmpty, let direction = run.chosenDirection else { return nil }
+        guard let run = runs[appID], Self.makesExtras(run) else { return nil }
+        let direction = run.chosenDirection
         let plan = run.plan
         var progress = AutopilotExtrasProgress()
         progress.artworkTotal = plan.artworkKinds.isEmpty ? 0 : plan.localeCodes.count
-        progress.previewsTotal = plan.previewDisplays.count * plan.previewLocales.count
+        progress.previewsTotal = direction == nil ? 0 : plan.previewDisplays.count * plan.previewLocales.count
         update(appID) { $0.extrasProgress = progress }
         let services = context.services
         guard var document = try? await services.loadDocument(for: context.app, primaryLocale: context.primaryLocale) else { return nil }
+        let look = run.artworkLook(live: document.template) ?? Self.fallbackLook(for: context)
         var extras = ScreenshotExtras(
-            directionName: direction.name, madeAt: now(), artworkSize: plan.artworkKinds.isEmpty ? nil : plan.alsoMakes.artworkSize,
-            artworkTemplate: plan.artworkKinds.isEmpty ? nil : direction.artworkLook, searchSlot: plan.searchSlot,
+            directionName: run.artworkName ?? direction?.name ?? "", madeAt: now(),
+            artworkSize: plan.artworkKinds.isEmpty ? nil : plan.alsoMakes.artworkSize,
+            artworkTemplate: plan.artworkKinds.isEmpty ? nil : look, searchSlot: plan.searchSlot,
             previewLanguages: plan.previewDisplays.isEmpty ? nil : plan.alsoMakes.previewLanguages,
-            previewTemplate: plan.previewDisplays.isEmpty ? nil : direction.previewLook,
+            previewTemplate: plan.previewDisplays.isEmpty ? nil : direction?.previewLook,
             pushedChecksums: document.extras?.pushedChecksums
         )
-        extras.artworkDesign = plan.artworkKinds.isEmpty ? nil : direction.artworkDesign
+        extras.artworkDesign = plan.artworkKinds.isEmpty ? nil : run.madeArtworkDesign
         // What was discarded stays out while it's the same file.
         extras.discardedChecksums = document.extras?.discardedChecksums
-        if !plan.artworkKinds.isEmpty {
+        if !plan.artworkKinds.isEmpty, let look {
             extras.artworkShows = plan.alsoMakes.artworkShows
             extras.artworkMotion = plan.alsoMakes.makesMotion ? .loop : .still
             guard let artwork = await makeArtwork(
-                appID, run: run, direction: direction, texts: document.artworkTexts, live: document.template, context: context
+                appID, run: run, look: look, texts: document.artworkTexts, live: document.template, context: context
             ) else {
                 return nil
             }
             extras.artwork = artwork
+            // Only the header or only search results: the other place keeps
+            // what it shows.
+            extras.keepOtherPlace(from: document.extras, making: plan.alsoMakes.artworkSize)
         } else if let made = document.extras {
             // The artwork made before and not in this run stays.
             extras.artwork = made.artwork
@@ -54,9 +60,10 @@ extension AutopilotCenter {
             extras.artworkDesign = made.artworkDesign
             extras.artworkShows = made.artworkShows
             extras.artworkMotion = made.artworkMotion
+            extras.keptPlace = made.keptPlace
         }
         guard !Task.isCancelled else { return nil }
-        if !plan.previewDisplays.isEmpty {
+        if !plan.previewDisplays.isEmpty, let direction {
             extras.previews = await makePreviews(appID, run: run, direction: direction, captions: document.captions, context: context)
             extras.previewMusic = plan.alsoMakes.previewMusic
         } else if let made = document.extras {
@@ -79,16 +86,22 @@ extension AutopilotCenter {
         return saved
     }
 
+    /// Localize makes extras with a direction chosen, or (a run with
+    /// concepts may have none) the header chosen.
+    static func makesExtras(_ run: AutopilotRun) -> Bool {
+        run.stage == .localize && !run.plan.alsoMakes.isEmpty && (run.chosenDirection != nil || run.chosenConcept != nil)
+    }
+
     /// The header and search artwork in every language, said in the log;
     /// empty when it couldn't be made, nil when Cancel Run stopped it.
-    private func makeArtwork(
-        _ appID: StoreApp.ID, run: AutopilotRun, direction: AutopilotDirection, texts: ArtworkTextBook?, live: ScreenshotTemplate?,
+    func makeArtwork(
+        _ appID: StoreApp.ID, run: AutopilotRun, look: ScreenshotTemplate, texts: ArtworkTextBook?, live: ScreenshotTemplate?,
         context: AutopilotContext
     ) async -> [ExtrasArtworkFile]? {
         let plan = run.plan
         do {
             let artwork = try await AutopilotArtworkMaker(context: context, liveTemplate: live).make(
-                for: run, look: direction.artworkLook, design: direction.artworkDesign, texts: texts ?? ArtworkTextBook()
+                for: run, look: look, design: run.madeArtworkDesign, texts: texts ?? ArtworkTextBook()
             ) { done in
                 update(appID) { $0.extrasProgress?.artworkDone = done }
             }
@@ -136,7 +149,7 @@ extension AutopilotCenter {
 
     /// "Header and search rendered in 15 languages · headline fits in all".
     static func artworkLogLine(plan: AutopilotPlan, tooLong: [String]) -> String {
-        let what = plan.alsoMakes.artworkSize == .wide ? String(localized: "Header and search image") : String(localized: "Header and search artwork")
+        let what = plan.alsoMakes.artworkSize.artworkTitle
         let count = plan.localeCodes.count
         guard !tooLong.isEmpty else {
             return String(localized: "\(what) rendered in \(count) languages · headline fits in all")

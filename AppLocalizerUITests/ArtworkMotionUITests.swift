@@ -42,6 +42,33 @@ final class ArtworkMotionUITests: XCTestCase {
         attachScreenshot("Plan · still scene")
     }
 
+    /// The plan can make only the header or only search results. The
+    /// header alone has no search image, so "What the search artwork
+    /// shows" goes; either one alone can still move.
+    func testOnlyTheHeaderOrOnlySearchResults() {
+        app.launch(debugScene: "st-plan-motion")
+        let size = element("autopilot.plan.artworkSize")
+        XCTAssertTrue(size.waitForExistence(timeout: 20))
+        XCTAssertTrue(element("autopilot.plan.artworkShows").exists)
+        reveal(size)
+        size.click()
+        let headerOnly = app.menuItems["Header 21:9 only"]
+        XCTAssertTrue(headerOnly.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.menuItems["Search results 3:2 only"].exists)
+        headerOnly.click()
+        XCTAssertTrue(waitUntil { !self.element("autopilot.plan.artworkShows").exists }, "No search image to show anything")
+        XCTAssertFalse(element("autopilot.plan.artworkShowsNote").exists)
+        XCTAssertTrue(element("autopilot.plan.artworkMotion.loop").isSelected, "The header alone still moves")
+        attachScreenshot("Plan · header only")
+
+        reveal(size)
+        size.click()
+        app.menuItems["Search results 3:2 only"].click()
+        XCTAssertTrue(element("autopilot.plan.artworkShows").waitForExistence(timeout: 5))
+        XCTAssertTrue(element("autopilot.plan.artworkMotion.loop").isSelected)
+        attachScreenshot("Plan · search results only")
+    }
+
     /// A run back at the plan after Cancel Run (it started once) can still
     /// change what the header and search show, still or motion, and the
     /// expected result, like a new one.

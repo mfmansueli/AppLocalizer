@@ -19,11 +19,12 @@ extension AutopilotRun {
         case .capture:
             !remainingTargets.isEmpty || !retries.isEmpty
         case .design:
-            designKind.usesDesignAI && (revision != nil || directions.count < Self.directionCount)
+            designKind.usesDesignAI && (revision != nil || directions.count < expectedDirections || conceptsLeft > 0)
         case .localize:
-            !overflows.isEmpty || artworkTextNeeds?.isEmpty == false
+            !overflows.isEmpty || artworkTextNeeds?.isEmpty == false || loopReview?.isAnimating == true
         case .watchPreview:
-            designKind.usesDesignAI && previewReview?.request != nil && previewReview?.remake == nil
+            designKind.usesDesignAI && (previewReview?.request != nil && previewReview?.remake == nil
+                || loopReview?.request != nil && loopReview?.isRemaking == false)
         case .ready:
             variantRequest != nil
         case .plan:
@@ -41,14 +42,14 @@ extension AutopilotRun {
     /// Directions still to design: none while revising, which changes the
     /// ones that arrived.
     var directionsLeft: Int {
-        max(Self.directionCount - directions.count, 0)
+        max(expectedDirections - directions.count, 0)
     }
 
     /// The last time the assistant sent a capture, a problem, a direction
     /// or an App Preview revision.
     var lastNewsAt: Date? {
         let dates = captures.map(\.receivedAt) + problems.map(\.reportedAt) + directions.map(\.receivedAt)
-            + (previewReview?.revisions.map(\.madeAt) ?? [])
+            + conceptList.map(\.receivedAt) + (previewReview?.revisions.map(\.madeAt) ?? []) + (loopReview?.revisions.map(\.madeAt) ?? [])
         return dates.max()
     }
 

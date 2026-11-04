@@ -39,16 +39,17 @@ extension ScreenshotStudioModel {
     /// what a still is.
     static func artworkMotionNote(_ extras: AutopilotExtras) -> String {
         if extras.makesMotion {
-            let float = switch extras.artworkShows {
+            // The header alone shows no phone or screen to float.
+            let float = switch extras.artworkSize.searchKind == nil ? .scene : extras.artworkShows {
             case .scene: ""
             case .ui: String(localized: ", a gentle float of the screen")
             case .phone: String(localized: ", a gentle float of the phone")
             }
             return String(localized: "Claude Design animates its artwork into a 20-second silent loop: slow light and scene")
                 + float
-                + String(localized: "; the name and headline stay still. The first frame is the poster. Apple plays it on repeat, muted, at 21:9 and 3:2.")
+                + String(localized: "; the name and headline stay still. The first frame is the poster. Apple plays it on repeat, muted, at \(extras.artworkSize.shortTitle).")
         }
-        if extras.artworkSize == .wide {
+        if !extras.artworkSize.allowsMotion {
             return String(localized: "Apple takes motion only at 21:9 and 3:2. Choose Motion loop to switch to those sizes.")
         }
         return String(localized: "One PNG per place and language. Apple shows it as is wherever the motion version would play.")

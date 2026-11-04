@@ -14,8 +14,10 @@ struct NextStepTool: MCPTool {
         description: """
         Says what the app's Screenshot Autopilot run wants from you now: capture (with the targets left and \
         problems to retry with their fix), wait (the person is picking or choosing; ask again after \
-        retryAfterSeconds), design (get_design_brief then propose_direction), revise_direction (the person's \
-        note), write_captions (missing or too long, then propose_captions with run), revise_app_preview (the \
+        retryAfterSeconds), design (get_design_brief then propose_direction; with prompts, the header and search \
+        concepts with propose_artwork_concept), revise_direction or revise (the person's note; revise_artwork_concept \
+        for concepts), animate_header and revise_loop (the chosen header's loop, with revise_artwork_concept), \
+        write_captions (missing or too long, then propose_captions with run), revise_app_preview (the \
         person's note on the App Preview, then revise_app_preview), or done. Call it after each step until it \
         says done.
         """,
@@ -51,6 +53,17 @@ struct NextStepTool: MCPTool {
         if let run = center.run(for: app.id) {
             result["run"] = .string(run.id)
             result["stage"] = .string(run.stage.rawValue)
+            let session = MCPAutopilotSession(
+                app: app, center: center, context: MCPAutopilotSession.context(app: app, run: run, in: context), run: run
+            )
+            let prompts = await Self.prompts(for: step, session: session, context: context)
+            if !prompts.isEmpty {
+                result["prompts"] = .array(prompts.map(\.mcpJSON))
+                result["promptsHow"] = """
+                Follow each prompt as written: its text is the whole instruction (version and id are for the log). \
+                get_design_brief attaches the picks and the icon they refer to.
+                """
+            }
         }
         return .read(.object(result), target: String(localized: "\(app.name) · Autopilot"))
     }

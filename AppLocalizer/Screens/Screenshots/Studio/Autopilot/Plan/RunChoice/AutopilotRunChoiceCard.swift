@@ -43,6 +43,9 @@ struct AutopilotRunChoiceCard: View {
             if plan.makesScreenshots, plan.plansDuo {
                 AutopilotDuoChoiceRow(studio: studio, plan: plan)
             }
+            if plan.makesScreenshots {
+                AutopilotShotStyleRow(studio: studio, plan: plan)
+            }
             if plan.alsoMakes.makesArtwork {
                 AutopilotArtworkChoiceRow(studio: studio, plan: plan)
             }

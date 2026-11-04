@@ -18,6 +18,8 @@ struct AutopilotStageRow: View {
     }
 
     let step: AutopilotStage
+    /// The step's title in this run ("Choose a header").
+    var title: String?
     let who: String
     let note: String?
     /// The note is a problem (red), not a pause.
@@ -31,7 +33,7 @@ struct AutopilotStageRow: View {
             HStack(alignment: .top, spacing: Spacing.small) {
                 badge
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(step.title)
+                    Text(title ?? step.title)
                         .font(.callout.weight(isSelected ? .semibold : .regular))
                         .foregroundStyle(state == .upcoming ? Palette.label2 : Palette.label)
                     Text(note ?? who)
@@ -48,7 +50,7 @@ struct AutopilotStageRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("\(step.number). \(step.title), \(note ?? who), \(stateText)"))
+        .accessibilityLabel(Text("\(step.number). \(title ?? step.title), \(note ?? who), \(stateText)"))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("autopilot.stage.\(step.rawValue)")
     }

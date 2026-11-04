@@ -20,6 +20,7 @@ struct AutopilotStageList: View {
                     ForEach(AutopilotStage.steps, id: \.self) { step in
                         AutopilotStageRow(
                             step: step,
+                            title: run.title(of: step, design: design.kind),
                             who: who(step),
                             note: step == run.stage.step ? note?.text : nil,
                             noteIsProblem: note?.isProblem ?? true,
@@ -69,13 +70,20 @@ struct AutopilotStageList: View {
         case .plan: String(localized: "You and \(client)")
         case .waiting, .capture: captureWho
         case .pick: run.pickSkipNote ?? String(localized: "You")
-        case .choose: String(localized: "You")
+        case .choose: chooseWho
         case .design: designWho
         case .localize: String(localized: "AppLocalizer, \(client)")
         case .watchPreview: watchWho
         case .ready:
             if run.stage == .ready { String(localized: "You · everything is waiting there") } else { String(localized: "You") }
         }
+    }
+
+    /// "You", or "Skipped: Claude’s recommendation" when the run doesn't
+    /// stop to choose.
+    private var chooseWho: String {
+        if run.plan.stopsToChoose { return String(localized: "You") }
+        return String(localized: "Skipped: Claude’s recommendation")
     }
 
     /// "Claude Design · Northpier Brand", "AppLocalizer’s starters".
@@ -86,7 +94,7 @@ struct AutopilotStageList: View {
 
     /// "Skipped · no App Preview", "You · ask Claude Design for changes".
     private var watchWho: String {
-        if let skipped = run.watchSkipNote { return skipped }
+        if let skipped = run.watchSkipNote(design: design.kind) { return skipped }
         return run.designKind.usesDesignAI ? String(localized: "You · ask \(run.designKind.title) for changes") : String(localized: "You")
     }
 

@@ -63,7 +63,7 @@ struct GetDesignBriefTool: MCPTool {
             "captions": .array(captions(run: run, document: document)),
             "canvases": .array(canvases(run: run, session: session)),
             "rightToLeft": .array(run.plan.localeCodes.filter { StoreLocaleCatalog.locale(code: $0)?.isRTL == true }.map(JSONValue.string)),
-            "directions": .int(AutopilotRun.directionCount),
+            "directions": .int(run.expectedDirections),
             "bases": .array(TemplateStarter.allCases.map {
                 ["base": .string($0.rawValue), "style": .string($0.style.rawValue), "what": .string($0.summary)]
             }),
@@ -94,11 +94,36 @@ struct GetDesignBriefTool: MCPTool {
             result["designProject"] = designProject(project)
         }
         if let revision = run.revision { result["revisionNote"] = .string(revision.note) }
+        Self.addScreenshotStyle(&result, run: run)
         if !run.directions.isEmpty {
             result["directionsSoFar"] = .array(run.directions.map { ["id": .string($0.id), "name": .string($0.name)] })
         }
         session.center.noteBriefRead(appID: session.app.id, by: context.clientName)
         return MCPToolOutcome(result: .object(result), isError: false, logLines: [.init(target: session.target, outcome: .read)], images: images)
+    }
+
+    /// The Screenshot style: the design source's own directions, one per
+    /// picked template ("<Template> · for <App>"), or the current template
+    /// kept (nothing to design for the screenshots).
+    static func addScreenshotStyle(_ result: inout [String: JSONValue], run: AutopilotRun) {
+        let plan = run.plan
+        guard plan.makesScreenshots else { return }
+        result["shot_style"] = .string(plan.screenshotStyle.rawValue)
+        switch plan.screenshotStyle {
+        case .free:
+            break
+        case .templates:
+            result["shot_templates"] = .array(plan.screenshotTemplates.map { .string($0) })
+            result["shotStyleSays"] = .string("""
+            Make one direction per template in shot_templates, adapting that gallery template (its base and layout) to \
+            the app and the design project, named “<Template> · for \(result["app"]?.stringValue ?? "the app")”.
+            """)
+        case .keep:
+            result["shotStyleSays"] = """
+            The person keeps their current screenshot template: AppLocalizer adds it as the only direction, so design no \
+            screenshot direction.
+            """
+        }
     }
 
     /// A run without screenshots: no screenshot canvases, and no template
@@ -113,7 +138,9 @@ struct GetDesignBriefTool: MCPTool {
         if !stylesPreview {
             for key in ["captions", "bases", "templateFields", "contract"] { result[key] = nil }
         }
-        result["noScreenshots"] = .string(noScreenshots(makesArtwork: plan.alsoMakes.makesArtwork, stylesPreview: stylesPreview))
+        result["noScreenshots"] = .string(noScreenshots(
+            makesArtwork: plan.alsoMakes.makesArtwork, stylesPreview: stylesPreview, places: plan.alsoMakes.artworkSize.mcpPlaces
+        ))
         if plan.alsoMakes.makesArtwork, let live {
             result["liveScreenshots"] = [
                 "background": .array(live.background.stops.map(JSONValue.string)),
@@ -127,18 +154,18 @@ struct GetDesignBriefTool: MCPTool {
     }
 
     /// What a direction is when the run makes no screenshots.
-    static func noScreenshots(makesArtwork: Bool, stylesPreview: Bool) -> String {
+    static func noScreenshots(makesArtwork: Bool, stylesPreview: Bool, places: String = "the header and search") -> String {
         switch (makesArtwork, stylesPreview) {
         case (true, false):
             """
-            This run makes no screenshots: the live set and its template stay as they are. Design only the header and \
-            search: send each direction with propose_direction's artworkDesign, one page per canvas, and leave base, \
-            template and ops out.
+            This run makes no screenshots: the live set and its template stay as they are. Design only \(places): send \
+            each direction with propose_direction's artworkDesign, one page per canvas, and leave base, template and ops \
+            out.
             """
         case (true, true):
             """
-            This run makes no screenshots: the live set stays as it is. Design the header and search as artworkDesign \
-            pages; a direction's base, template and ops only style the App Preview's captions and end card.
+            This run makes no screenshots: the live set stays as it is. Design \(places) as artworkDesign pages; a \
+            direction's base, template and ops only style the App Preview's captions and end card.
             """
         default:
             """

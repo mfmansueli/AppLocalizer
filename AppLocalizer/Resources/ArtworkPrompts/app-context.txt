@@ -1,0 +1,22 @@
+WHAT THE PERSON ASKED FOR (comes first; it outranks the role advice below; each concept must say how it follows it)
+- Request: {{art_direction_text_or_none}}
+- References (take the feel, never the content; never copy a reference's subject, layout or brand): {{art_direction_references_or_none}}
+
+APP CONTEXT (from App Store Connect and the Xcode project; the only truth about the app; don't invent features)
+- App Store name in each run language (this is what data-al="appName" shows; the longest is "{{longest_app_name}}"): {{app_names_by_locale}}
+- Subtitle: {{subtitle}} · Categories: {{categories}}
+- Description summary: {{description_summary}}
+- Keywords in each language: {{keywords_by_locale}}
+- Main features, as the screenshot plan shows them:
+{{screen_list_with_captions}}
+- Who it's for: {{audience_hint}} · Age rating: {{age_rating}}
+- When and where people use it, if the description or screens suggest it: {{usage_moment_hint}}
+- App icon: {{app_icon_image}}. In words: {{icon_description}}. Colors: {{icon_colors}}.
+- Theme in the code: accent {{accent_color}}; other colors {{theme_colors}}; fonts {{app_fonts}}; dark mode: {{supports_dark}}
+- Brand or design system: {{design_system_summary}}
+- Run languages: {{run_locales}} (right-to-left: {{rtl_locales}})
+
+THIS RUN MAKES: {{places_sentence}}
+- Canvases and safe areas:
+{{canvases_with_safe_areas}}
+- A place this run doesn't make keeps what it shows now: {{kept_places_or_none}}

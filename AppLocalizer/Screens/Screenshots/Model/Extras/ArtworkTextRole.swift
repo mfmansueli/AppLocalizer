@@ -67,8 +67,8 @@ enum ArtworkTextRole: String, Codable, Hashable, Sendable, CaseIterable {
     }
 
     /// The roles a size has text for: one 16:9 image carries only the
-    /// search headline.
+    /// search headline, the header alone only its line.
     static func roles(for size: AutopilotArtworkSize) -> [ArtworkTextRole] {
-        size == .wide ? [.search] : [.search, .header]
+        size.roles
     }
 }

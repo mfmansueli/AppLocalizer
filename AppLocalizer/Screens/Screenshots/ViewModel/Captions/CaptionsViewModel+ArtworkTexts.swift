@@ -36,7 +36,7 @@ extension CaptionsViewModel {
     var artworkPhraseDesign: AutopilotArtworkDesign? {
         guard artworkSize != nil else { return nil }
         if let made = screenshots.document?.extras?.artworkDesign, !made.allPhrases().isEmpty { return made }
-        return screenshots.studio.run?.chosenDirection?.artworkDesign
+        return screenshots.studio.run?.madeArtworkDesign
     }
 
     /// The pages' phrases in the primary language, a column each.
@@ -95,7 +95,7 @@ extension CaptionsViewModel {
     /// The Claude Design page the texts go on for `kind`: the artwork's
     /// own, else the chosen direction's.
     func artworkPage(for kind: AutopilotArtworkKind) -> String? {
-        screenshots.document?.extras?.artworkDesign?.page(for: kind) ?? screenshots.studio.run?.chosenDirection?.artworkDesign?.page(for: kind)
+        screenshots.document?.extras?.artworkDesign?.page(for: kind) ?? screenshots.studio.run?.madeArtworkDesign?.page(for: kind)
     }
 
     /// The headline laid out on its artwork; nil without a look. On a

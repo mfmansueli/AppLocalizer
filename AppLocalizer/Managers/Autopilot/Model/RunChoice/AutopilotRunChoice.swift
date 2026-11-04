@@ -32,4 +32,11 @@ struct AutopilotRunChoice: Codable, Hashable, Sendable {
     /// With both: side by side in each screenshot, or separate ones; nil
     /// is side by side.
     var duoBoth: AutopilotDuoBoth?
+    /// Screenshot style: the design source's own directions, one from each
+    /// picked gallery template, or the current template kept; nil (plans
+    /// from before) is the design source's own.
+    var shotStyle: AutopilotShotStyle?
+    /// The gallery templates picked for Screenshot style's From templates,
+    /// by name, in order (up to 3).
+    var shotTemplates: [String]?
 }

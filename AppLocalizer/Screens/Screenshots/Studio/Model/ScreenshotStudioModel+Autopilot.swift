@@ -21,6 +21,7 @@ extension ScreenshotStudioModel {
     /// Code starts only when something is left for it there.
     func start() {
         noteStoreNames()
+        fillHeaderTemplates()
         autopilot?.start(appID: app.id)
         reportMissingSimulators()
         viewedStep = nil
@@ -260,8 +261,10 @@ extension ScreenshotStudioModel {
     /// artwork: what a note can change, and that the loops' motion is
     /// AppLocalizer's own.
     var revisionScopeNote: String? {
-        guard let plan = run?.plan, plan.alsoMakes.makesArtwork else { return nil }
+        guard let run, run.plan.alsoMakes.makesArtwork else { return nil }
+        let plan = run.plan
         let extras = plan.alsoMakes
+        if run.usesConcepts { return Self.conceptScopeNote(run) }
         let scope = plan.makesScreenshots
             ? String(localized: "A note changes the screenshots and the header and search images: colors, type, layout and what they show.")
             : String(localized: "A note changes the header and search images: colors, type, layout and what they show. The live screenshots stay as they are.")
@@ -275,7 +278,12 @@ extension ScreenshotStudioModel {
 
     /// Ask Claude Design: the note goes back to the design AI.
     func askForChanges() {
-        autopilot?.requestRevision(revisionNote, appID: app.id)
+        // With header concepts, the note is for every concept and direction.
+        if let run, run.usesConcepts {
+            autopilot?.requestConceptChanges(revisionNote, conceptIDs: run.conceptList.map(\.id), forDirections: true, appID: app.id)
+        } else {
+            autopilot?.requestRevision(revisionNote, appID: app.id)
+        }
         revisionNote = ""
         viewedStep = nil
         let goOn = goingOn()

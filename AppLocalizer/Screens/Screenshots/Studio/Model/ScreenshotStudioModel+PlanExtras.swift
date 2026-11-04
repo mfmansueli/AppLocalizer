@@ -32,7 +32,10 @@ extension ScreenshotStudioModel {
     static let shownOnNote = String(localized: "Shown on iOS 27 and iPadOS 27 and later; earlier versions show your screenshots.")
 
     /// Under the artwork size: why two images.
-    static let artworkSizeNote = String(localized: "Two images let each do its job; one image keeps them identical.")
+    static let artworkSizeNote = String(localized: """
+    Two images let each do its job; one image keeps them identical. Make only the header or only search results to \
+    leave the other place as it is.
+    """)
 
     func artworkDetail(client: String) -> String {
         let header = AutopilotArtworkKind.header.pixelSize.title
@@ -41,7 +44,8 @@ extension ScreenshotStudioModel {
         return String(localized: """
         \(extrasDesigner(client: client)) designs them from the same direction: search results show the app doing its core task with a \
         3–5 word headline in each language, the header one feeling or outcome with little or no text. Apple supports \(header) (21:9) \
-        for the header and \(search) (3:2) for search results, or one \(wide) (16:9) image for both.
+        for the header and \(search) (3:2) for search results, or one \(wide) (16:9) image for both. Make only one of them \
+        and the other place keeps what it shows now.
         """)
     }
 

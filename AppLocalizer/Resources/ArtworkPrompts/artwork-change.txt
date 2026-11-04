@@ -1,0 +1,5 @@
+A NOTE FROM THE PERSON: "{{user_request}}"
+It applies to: {{targets}} (one concept or several; send revise_artwork_concept for each, with last: false until the final one).
+- Change only what the note asks for. Keep the concept, the layer ids and the data-al marks.
+- The note outranks the role advice. It doesn't override the rules that always hold. If it conflicts with one, follow the rule and say why in "change_notes".
+- Call render_artwork again before sending. Return "change_notes": what changed, in plain words, for the person to read.

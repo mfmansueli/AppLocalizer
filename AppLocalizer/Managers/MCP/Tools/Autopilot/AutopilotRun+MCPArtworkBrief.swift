@@ -15,6 +15,7 @@ extension AutopilotRun {
     /// `referenceURL` says where each reference the person attached is.
     func mcpArtworkBrief(referenceURL: ((AutopilotArtworkReference) -> URL)? = nil) -> [String: JSONValue] {
         let wide = plan.alsoMakes.artworkSize == .wide
+        let both = plan.artworkKinds.count != 1 ? "both" : "it"
         let headerInsets = ArtworkSafeArea.percentInsets(for: .header)
         let wideInsets = ArtworkSafeArea.percentInsets(for: .wide)
         var json: [String: JSONValue] = [
@@ -46,9 +47,9 @@ extension AutopilotRun {
                 below it, which must deliver on that promise.\(plan.alsoMakes.artworkDirection.isEmpty ? "" : Self.askedFirst)
                 """),
             ],
-            "aboutTheApp": .string(Self.aboutTheAppRule),
+            "aboutTheApp": .string(Self.aboutTheAppRule(plan.artworkKinds)),
             "captures": plan.alsoMakes.artworkShows.needsCaptures
-                ? "The phones and screens in both are the real picked captures, never drawn interfaces."
+                ? .string("The phones and screens in \(both) are the real picked captures, never drawn interfaces.")
                 : "No app screens and no device: a scene in the brand's style, with the name and the headline.",
             "rules": """
             No prices or currency, discounts or percentages, URLs, ©, awards or claims that can't be verified, Apple \
@@ -90,12 +91,35 @@ extension AutopilotRun {
             search shows it whole).
             """)
         }
+        Self.keepOnlyMadePlacements(of: plan.alsoMakes.artworkSize, in: &json)
         return json
     }
 
-    /// The artwork is about this app.
-    static let aboutTheAppRule = """
-    Both are about this app, not its category: their idea, scene and colors come from aboutTheApp (its subtitle, \
-    description, keywords and icon colors) and the captures; the search headline names its core task in its own words.
-    """
+    /// Only the header or only search results: the brief leaves out the
+    /// other place and says it stays as it is.
+    static func keepOnlyMadePlacements(of size: AutopilotArtworkSize, in json: inout [String: JSONValue]) {
+        let left = [size.headerKind == nil ? "header" : nil, size.searchKind == nil ? "search" : nil].compactMap(\.self)
+        guard !left.isEmpty else { return }
+        if case var .object(roles)? = json["roles"] {
+            for key in left { roles[key] = nil }
+            json["roles"] = .object(roles)
+        }
+        for key in left { json[key] = nil }
+        let made = size == .headerOnly ? "the product page header" : "the search results image"
+        json["onlyThis"] = .string("""
+        This run makes only \(made). The other place keeps what it shows now: don't design it, and don't send a page \
+        for it.
+        """)
+    }
+
+    /// The artwork is about this app; the header alone has no search
+    /// headline.
+    static func aboutTheAppRule(_ kinds: [AutopilotArtworkKind]) -> String {
+        let (they, their) = kinds.count == 1 ? ("It is", "its") : ("Both are", "their")
+        let headline = kinds == [.header] ? "." : "; the search headline names its core task in its own words."
+        return """
+        \(they) about this app, not its category: \(their) idea, scene and colors come from aboutTheApp (its subtitle, \
+        description, keywords and icon colors) and the captures\(headline)
+        """
+    }
 }

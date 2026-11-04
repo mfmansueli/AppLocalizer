@@ -42,8 +42,18 @@ extension AutopilotCenter {
             run.appendLog(what, kind: .command, at: now())
             for line in run.plan.briefExtrasLines { run.appendLog(line, kind: .command, at: now()) }
         }
-        guard !run.designKind.usesDesignAI, !holdsStages else { return }
-        let directions = await StarterDirectionMaker(context: context, now: now).directions(for: run)
+        // Keep the current template: AppLocalizer adds it, nothing to design.
+        let maker = StarterDirectionMaker(context: context, now: now)
+        let keeps = run.plan.makesScreenshots && run.plan.screenshotStyle == .keep
+        if keeps, let kept = await maker.keptDirection(for: run) {
+            await addStarterDirection(checked(kept, of: run, context: context), appID: appID)
+        }
+        guard !holdsStages else { return }
+        guard !run.designKind.usesDesignAI else {
+            if keeps { await advance(appID, context: context) }
+            return
+        }
+        let directions = keeps ? [] : await maker.directions(for: run)
         for direction in directions {
             await addStarterDirection(checked(direction, of: run, context: context), appID: appID)
         }
@@ -94,7 +104,7 @@ extension AutopilotCenter {
         update(appID) { run in
             run.directions.append(direction)
             // Without screenshots, a direction is its header and search.
-            let sent = run.plan.directionTitle
+            let sent = run.directionTitle
             run.appendLog(String(localized: "Direction \(run.directions.count) · \(direction.name) → \(sent) sent to AppLocalizer"), kind: .event, at: now())
         }
         await advance(appID, context: context)
@@ -147,11 +157,13 @@ extension AutopilotCenter {
             if let rationale, !rationale.isEmpty { run.directions[index].rationale = rationale }
             if let link, !link.isEmpty { run.directions[index].link = link }
             let name = run.directions[index].name
-            let sent = run.plan.directionTitle
-            guard isLast else {
-                var revised = run.revision?.revisedIDs ?? []
-                if !revised.contains(directionID) { revised.append(directionID) }
-                run.revision?.revisedIDs = revised
+            let sent = run.directionTitle
+            var revised = run.revision?.revisedIDs ?? []
+            if !revised.contains(directionID) { revised.append(directionID) }
+            run.revision?.revisedIDs = revised
+            // A note for concepts too waits for them.
+            let conceptsLeft = (run.revision?.askedConcepts ?? []).filter { !revised.contains($0) }
+            guard isLast, conceptsLeft.isEmpty else {
                 run.appendLog(String(localized: "\(name) revised → \(sent) sent to AppLocalizer; more on the way"), kind: .event, at: now())
                 return
             }

@@ -55,30 +55,40 @@ struct AutopilotWithoutScreenshotsTests {
 
     // MARK: - Fitting the header and search
 
+    /// A run from before header concepts making `plan`: its directions
+    /// bring the header and search.
+    static func run(_ plan: AutopilotPlan) -> AutopilotRun {
+        var run = StudioDebugExtras.run(.choose)
+        run.plan = plan
+        run.proposesConcepts = nil
+        return run
+    }
+
     /// A card as narrow as Alba's (154 pt inside): side by side they'd be
     /// 38 pt tall.
     @Test func inANarrowCardTheHeaderTakesALineOfItsOwn() {
-        let fit = AutopilotDesignStageView.extrasFit(Self.headerAndSearch, cardWidth: 154)
+        let fit = AutopilotDesignStageView.extrasFit(Self.run(Self.headerAndSearch), cardWidth: 154)
         #expect(fit.stacks)
         #expect(fit.height == 66, "154 ÷ (3840 ÷ 1646)")
         #expect(fit.secondHeight == 96, "The search image, at most 96")
 
-        let wide = AutopilotDesignStageView.extrasFit(Self.headerAndSearch, cardWidth: 340)
+        let wide = AutopilotDesignStageView.extrasFit(Self.run(Self.headerAndSearch), cardWidth: 340)
         #expect(!wide.stacks, "Side by side they're big enough")
         #expect(wide.height == 86)
     }
 
     @Test func underTheScreenshotsTheyStaySmallAndOnOneLine() {
-        let plan = StudioDebugExtras.run(.choose).plan
-        let fit = AutopilotDesignStageView.extrasFit(plan, cardWidth: 154)
+        let run = StudioDebugExtras.run(.choose)
+        let plan = run.plan
+        let fit = AutopilotDesignStageView.extrasFit(run, cardWidth: 154)
         #expect(!fit.stacks)
         #expect(fit.height == AutopilotDirectionExtras.fittingHeight(in: 154, kinds: plan.artworkKinds, hasPreview: true))
-        #expect(AutopilotChooseStageView.extrasFit(plan, in: 900) == AutopilotDirectionExtras.Fit(height: 64))
+        #expect(AutopilotChooseStageView.extrasFit(run, in: 900) == AutopilotDirectionExtras.Fit(height: 64))
     }
 
     @Test func chooseGivesThemTheRoomBesideTheText() {
-        #expect(AutopilotChooseStageView.extrasFit(Self.headerAndSearch, in: 900) == AutopilotDirectionExtras.Fit(height: 120))
-        let narrow = AutopilotChooseStageView.extrasFit(Self.headerAndSearch, in: 700)
+        #expect(AutopilotChooseStageView.extrasFit(Self.run(Self.headerAndSearch), in: 900) == AutopilotDirectionExtras.Fit(height: 120))
+        let narrow = AutopilotChooseStageView.extrasFit(Self.run(Self.headerAndSearch), in: 700)
         #expect(!narrow.stacks, "A row stays one line")
         #expect(narrow.height == 87) // (700 − 320 − 36 − 8) ÷ (21:9 + 3:2)
     }

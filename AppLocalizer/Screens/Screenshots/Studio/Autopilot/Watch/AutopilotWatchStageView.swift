@@ -8,7 +8,9 @@ import SwiftUI
 /// Watch the App Preview, after Localize and check: the App Preview
 /// playing (a language and a device to switch to when there are more), what
 /// it is and its music, and Ask for changes, which goes to the design
-/// source. Looked at later, it plays but doesn't change.
+/// source; with a header loop from the chosen concept, the loop under it
+/// (or alone: Watch the header loop). Looked at later, it plays but doesn't
+/// change.
 struct AutopilotWatchStageView: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -16,6 +18,8 @@ struct AutopilotWatchStageView: View {
 
     /// The height the stage has, to fit the player and its controls.
     @State private var height: CGFloat = 640
+    /// The width inside the margins, for the header loop.
+    @State private var width: CGFloat = 800
 
     /// The languages shown as segments; the rest are in a menu.
     private static let segmentLanguages = 4
@@ -26,39 +30,31 @@ struct AutopilotWatchStageView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.medium) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Watch the App Preview").font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                    Text(run.watchTitle).font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("autopilot.watch.title")
                     Spacer()
-                    Text(subtitle)
-                        .font(.callout)
-                        .foregroundStyle(Palette.label2)
-                        .accessibilityIdentifier("autopilot.watch.subtitle")
+                    if run.watchesAppPreview {
+                        Text(subtitle)
+                            .font(.callout)
+                            .foregroundStyle(Palette.label2)
+                            .accessibilityIdentifier("autopilot.watch.subtitle")
+                    }
                 }
-                if let file = studio.watchedPreview {
-                    HStack(alignment: .top, spacing: Spacing.large) {
-                        VStack(spacing: Spacing.small) {
-                            pickers
-                            StudioAppPreviewPlayer(studio: studio, file: file, width: playerWidth(file))
-                        }
-                        .fixedSize(horizontal: true, vertical: false)
-                        VStack(alignment: .leading, spacing: Spacing.small) {
-                            AutopilotWatchInfoBox(studio: studio, file: file, isEditable: isEditable && review?.isBusy != true)
-                            AutopilotWatchAskBox(studio: studio, run: run, isEditable: isEditable)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                } else {
-                    HStack(spacing: Spacing.small) {
-                        ProgressView().controlSize(.small)
-                        Text("Opening the App Preview…").foregroundStyle(Palette.label2)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 200)
+                if run.watchesAppPreview {
+                    appPreview
+                }
+                if run.loopReview != nil, run.usesConcepts {
+                    AutopilotLoopReviewBox(studio: studio, run: run, isEditable: isEditable, width: width)
                 }
             }
             .padding(Spacing.xLarge)
         }
-        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: { height = $0 })
+        .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { height = $0.height; width = $0.width - Spacing.xLarge * 2 })
         // A new version or music is saved with the set: read it back.
-        .task(id: ReloadKey(version: review?.version, music: run.plan.alsoMakes.previewMusic, isRemaking: review?.remake != nil)) {
+        .task(id: ReloadKey(
+            version: review?.version, music: run.plan.alsoMakes.previewMusic, isRemaking: review?.remake != nil,
+            loop: run.loopReview?.version, isRemakingLoop: run.loopReview?.isRemaking == true
+        )) {
             await studio.screenshots.reloadDocument()
         }
         .alert(String(localized: "This music can’t be used"), isPresented: musicError) {
@@ -68,6 +64,30 @@ struct AutopilotWatchStageView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("autopilot.watch")
+    }
+
+    /// The App Preview playing, its switches, what it is and Ask.
+    @ViewBuilder private var appPreview: some View {
+        if let file = studio.watchedPreview {
+            HStack(alignment: .top, spacing: Spacing.large) {
+                VStack(spacing: Spacing.small) {
+                    pickers
+                    StudioAppPreviewPlayer(studio: studio, file: file, width: playerWidth(file))
+                }
+                .fixedSize(horizontal: true, vertical: false)
+                VStack(alignment: .leading, spacing: Spacing.small) {
+                    AutopilotWatchInfoBox(studio: studio, file: file, isEditable: isEditable && review?.isBusy != true)
+                    AutopilotWatchAskBox(studio: studio, run: run, isEditable: isEditable)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } else {
+            HStack(spacing: Spacing.small) {
+                ProgressView().controlSize(.small)
+                Text("Opening the App Preview…").foregroundStyle(Palette.label2)
+            }
+            .frame(maxWidth: .infinity, minHeight: 200)
+        }
     }
 
     private var review: AutopilotPreviewReview? { run.previewReview }
@@ -151,5 +171,7 @@ struct AutopilotWatchStageView: View {
         var version: Int?
         var music: AutopilotPreviewMusic
         var isRemaking: Bool
+        var loop: Int?
+        var isRemakingLoop: Bool
     }
 }

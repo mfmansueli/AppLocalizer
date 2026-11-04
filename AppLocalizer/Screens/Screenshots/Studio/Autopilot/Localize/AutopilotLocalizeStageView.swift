@@ -85,6 +85,17 @@ struct AutopilotLocalizeStageView: View {
             : String(localized: "\(progress.done) of \(progress.total) languages")
     }
 
+    /// "Every language has its search headline, and it fits": the header
+    /// alone has only its optional line.
+    static func headlinesDone(size: AutopilotArtworkSize, hasPhrases: Bool) -> String {
+        switch (size.roles.contains(.search), hasPhrases) {
+        case (true, true): String(localized: "Every language has its search headline and the pages’ phrases, and they fit")
+        case (true, false): String(localized: "Every language has its search headline, and it fits")
+        case (false, true): String(localized: "Every language has the page’s phrases and its header line, and they fit")
+        case (false, false): String(localized: "Every language’s header line fits")
+        }
+    }
+
     /// Each language's search headline (and header line): what the
     /// assistant still writes, or that they're all there.
     private var headlinesRow: some View {
@@ -93,9 +104,10 @@ struct AutopilotLocalizeStageView: View {
         return HStack(spacing: Spacing.medium) {
             Text("Headlines").frame(width: 170, alignment: .leading)
             Text(needs.isEmpty
-                ? (run.chosenDirection?.artworkDesign?.allPhrases(in: run.plan.artworkKinds).isEmpty == false
-                    ? String(localized: "Every language has its search headline and the pages’ phrases, and they fit")
-                    : String(localized: "Every language has its search headline, and it fits"))
+                ? Self.headlinesDone(
+                    size: run.plan.alsoMakes.artworkSize,
+                    hasPhrases: run.madeArtworkDesign?.allPhrases(in: run.plan.artworkKinds).isEmpty == false
+                )
                 : String(localized: "\(client) writes \(AutopilotArtworkTextWork(needs).summary): \(names.formatted(.list(type: .and)))"))
                 .font(.callout)
                 .foregroundStyle(needs.isEmpty ? Palette.label : Palette.label2)
@@ -135,6 +147,10 @@ struct AutopilotLocalizeStageView: View {
         if let checking = run.plan.localeCodes.first(where: { run.localeStatus[$0] == .checking }) {
             let name = StoreLocaleCatalog.locale(code: checking)?.name ?? checking
             return String(localized: "Checking \(name) on this Mac…")
+        }
+        // Every language is checked; the chosen header is being animated.
+        if let review = run.loopReview, review.waitsToMake, review.isAnimating, let name = run.chosenConcept?.name {
+            return String(localized: "\(run.designKind.title) is animating the \(name) header into a \(AutopilotArtworkMotion.loopSeconds)-second loop…")
         }
         if let extras = run.extrasProgress, !extras.isFinished {
             return extras.isArtworkDone

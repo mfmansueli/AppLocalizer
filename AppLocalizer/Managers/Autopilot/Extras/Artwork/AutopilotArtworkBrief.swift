@@ -23,13 +23,15 @@ struct AutopilotArtworkBrief: Hashable {
     init(_ extras: AutopilotExtras) {
         var rows: [Row] = []
         let shows = extras.artworkShows
-        if extras.artworkSize == .wide {
+        let size = extras.artworkSize
+        if size == .wide {
             let focal = shows == .scene ? String(localized: "the scene’s focal point") : String(localized: "the screen")
             rows.append(Row(
                 title: String(localized: "One image, two places"),
                 text: String(localized: "16:9 at \(AutopilotArtworkKind.wide.pixelSize.title). The App Store crops it differently for the header and for search, so the app name, the line and \(focal) sit in the middle.")
             ))
-        } else {
+        }
+        if size.kinds.contains(.header) {
             rows.append(Row(
                 title: String(localized: "Header · 21:9"),
                 text: String(localized: """
@@ -38,28 +40,33 @@ struct AutopilotArtworkBrief: Hashable {
                 sit over the top, so nothing important goes on the sides or the top.
                 """)
             ))
+        }
+        if size.kinds.contains(.search) {
             rows.append(Row(
                 title: String(localized: "Search results · 3:2"),
                 text: String(localized: "Say what the app does at a glance: a headline of 2 to 5 words on one side and \(Self.showsText(shows)) on the other. The whole image shows, small, next to the app name and Get.")
             ))
         }
         rows.append(Self.safeAreaRow(extras))
-        rows.append(Row(
-            title: String(localized: "One look for both"),
-            text: String(localized: """
-            The same colors, scene and type in each, so people know the app when they go from search to \
-            the product page. One clear focal point; nothing busy.
-            """)
-        ))
-        rows.append(Row(
-            title: String(localized: "About the app"),
-            text: String(localized: """
-            Its subtitle, categories, description, the keywords in each language and the icon’s colors, so the idea, \
-            the scene and the search headline are about what this app does, not any app in its category.
-            """)
-        ))
+        rows.append(size.kinds == [.header] || size.kinds == [.search]
+            ? Row(
+                title: String(localized: "The app’s own look"),
+                text: String(localized: """
+                The colors, scene and type of the icon and the screenshots, so people know the app at once. One clear \
+                focal point; nothing busy. The other place keeps what it shows now.
+                """)
+            )
+            : Row(
+                title: String(localized: "One look for both"),
+                text: String(localized: """
+                The same colors, scene and type in each, so people know the app when they go from search to \
+                the product page. One clear focal point; nothing busy.
+                """)
+            ))
+        rows.append(Self.aboutRow(size))
         if extras.makesMotion {
-            let float = switch shows {
+            // The header alone shows no phone or screen to float.
+            let float = switch size.searchKind == nil ? .scene : shows {
             case .ui: String(localized: ", a slight float of the screen")
             case .phone: String(localized: ", a slight float of the phone")
             case .scene: ""
@@ -71,14 +78,14 @@ struct AutopilotArtworkBrief: Hashable {
             ))
             rows.append(Row(
                 title: String(localized: "Poster, loop and sound"),
-                text: String(localized: "The first frame is the poster and must work as a still. The last frame matches the first, so the loop has no jump. Silent: search results can’t unmute. .mov, 30 fps, \(AutopilotArtworkKind.header.pixelSize.title) and \(AutopilotArtworkKind.search.pixelSize.title).")
+                text: String(localized: "The first frame is the poster and must work as a still. The last frame matches the first, so the loop has no jump. Silent: search results can’t unmute. .mov, 30 fps, \(size.pixelSizesTitle).")
             ))
         } else {
             rows.append(Row(
                 title: String(localized: "Still image"),
-                text: extras.artworkSize == .wide
+                text: size == .wide
                     ? String(localized: "PNG, no transparency.")
-                    : String(localized: "PNG, no transparency. \(AutopilotArtworkKind.header.pixelSize.title) and \(AutopilotArtworkKind.search.pixelSize.title).")
+                    : String(localized: "PNG, no transparency. \(size.pixelSizesTitle).")
             ))
         }
         let direction = extras.artworkDirection
@@ -93,6 +100,22 @@ struct AutopilotArtworkBrief: Hashable {
             """)
         ))
         self.rows = rows
+    }
+
+    /// What the artwork is about: the header alone has no search headline.
+    static func aboutRow(_ size: AutopilotArtworkSize) -> Row {
+        Row(
+            title: String(localized: "About the app"),
+            text: size.searchKind == nil
+                ? String(localized: """
+                Its subtitle, categories, description, the keywords in each language and the icon’s colors, so the idea \
+                and the scene are about what this app does, not any app in its category.
+                """)
+                : String(localized: """
+                Its subtitle, categories, description, the keywords in each language and the icon’s colors, so the idea, \
+                the scene and the search headline are about what this app does, not any app in its category.
+                """)
+        )
     }
 
     /// Where the text and the focal point go, from `ArtworkSafeArea`: the
@@ -110,10 +133,12 @@ struct AutopilotArtworkBrief: Hashable {
             )
         }
         let insets = ArtworkSafeArea.percentInsets(for: .header)
-        return Row(
-            title: String(localized: "Safe area"),
-            text: String(localized: "On the header, keep \(what) inside the middle \(100 - 2 * insets.side)% of the width and below the top \(insets.top)%; only the background runs to the edges. The search image shows whole, with rounded corners: keep text a little in from them. Every language goes in the same space, so leave room for longer lines.")
-        )
+        let header = String(localized: "On the header, keep \(what) inside the middle \(100 - 2 * insets.side)% of the width and below the top \(insets.top)%; only the background runs to the edges.")
+        let search = String(localized: "The search image shows whole, with rounded corners: keep text a little in from them.")
+        let room = String(localized: "Every language goes in the same space, so leave room for longer lines.")
+        let kinds = extras.artworkSize.kinds
+        let parts = (kinds.contains(.header) ? [header] : []) + (kinds.contains(.search) ? [search] : []) + [room]
+        return Row(title: String(localized: "Safe area"), text: parts.joined(separator: " "))
     }
 
     /// What the search artwork shows beside its headline.

@@ -65,6 +65,7 @@ struct AutopilotSheetFooter: View {
             }
         case .pick: studio.pickFooterText(run)
         case .design: String(localized: "Directions arrive one by one; then you choose one.")
+        case .choose where run.usesConcepts: chooseText
         case .choose where !run.plan.makesScreenshots:
             String(localized: "The direction you use styles \(run.plan.extrasTitle ?? String(localized: "the extras")); your template stays as it is.")
         case .choose: String(localized: "The direction you use becomes template v\((studio.screenshots.document?.history?.currentNumber ?? 0) + 1).")
@@ -81,6 +82,23 @@ struct AutopilotSheetFooter: View {
         }
     }
 
+    /// "Choose a screenshot direction and a header.", "Your direction
+    /// becomes template v5; the header goes into the new set."
+    private var chooseText: String {
+        let needsDirection = run.hasDirections && run.directionToUse == nil
+        let needsHeader = run.chosenConcept == nil
+        let direction = run.plan.makesScreenshots ? String(localized: "a screenshot direction") : String(localized: "the App Preview’s look")
+        switch (needsDirection, needsHeader) {
+        case (true, true): return String(localized: "Choose \(direction) and a header.")
+        case (true, false): return String(localized: "Choose \(direction).")
+        case (false, true): return String(localized: "Choose a header.")
+        case (false, false):
+            guard run.plan.makesScreenshots else { return String(localized: "The header goes into the new set.") }
+            let version = (studio.screenshots.document?.history?.currentNumber ?? 0) + 1
+            return String(localized: "Your direction becomes template v\(version); the header goes into the new set.")
+        }
+    }
+
     /// "Approving keeps this App Preview for English (U.S.); other
     /// languages show it."
     private var watchText: String {
@@ -88,11 +106,25 @@ struct AutopilotSheetFooter: View {
         if run.previewReview?.request != nil {
             return String(localized: "\(run.designKind.title) is making your changes; you approve the new version.")
         }
+        let loop = run.watchesHeaderLoop(design: run.designKind)
+        if loop, run.loopReview?.request != nil {
+            return String(localized: "\(run.designKind.title) is revising the loop; you approve the new version.")
+        }
+        if loop, run.loopReview?.isRemaking == true {
+            return String(localized: "AppLocalizer is making the header loop again.")
+        }
+        guard run.watchesAppPreview else {
+            return String(localized: "Approving keeps this loop for the header and search in every language.")
+        }
         if run.plan.alsoMakes.previewLanguages == .all {
-            return String(localized: "Approving applies this cut to every language’s App Preview.")
+            return loop
+                ? String(localized: "Approving applies this cut to every language’s App Preview, and keeps the header loop.")
+                : String(localized: "Approving applies this cut to every language’s App Preview.")
         }
         let primary = StoreLocaleCatalog.locale(code: run.plan.primaryLocale)?.name ?? run.plan.primaryLocale
-        return String(localized: "Approving keeps this App Preview for \(primary); other languages show it.")
+        return loop
+            ? String(localized: "Approving keeps this App Preview for \(primary); other languages show it. The header loop is kept too.")
+            : String(localized: "Approving keeps this App Preview for \(primary); other languages show it.")
     }
 
     @ViewBuilder
@@ -124,15 +156,23 @@ struct AutopilotSheetFooter: View {
                 .keyboardShortcut(.defaultAction)
                 .disabled(!studio.canUsePicks(run))
                 .accessibilityIdentifier("autopilot.usePicks")
+        case .choose where run.usesConcepts:
+            AutopilotCancelRunButton(studio: studio, run: run)
+            Button(run.hasDirections ? String(localized: "Use These") : String(localized: "Use This Header")) { studio.useChoices() }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .keyboardShortcut(.defaultAction)
+                .disabled(!run.canUseChoices)
+                .accessibilityIdentifier("autopilot.choose.useChoices")
         case .design, .choose, .localize:
             AutopilotCancelRunButton(studio: studio, run: run)
         case .watchPreview:
             AutopilotCancelRunButton(studio: studio, run: run)
-            Button("Approve App Preview") { studio.approvePreview() }
+            Button(run.approveTitle) { studio.approvePreview() }
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.capsule)
                 .keyboardShortcut(.defaultAction)
-                .disabled(run.previewReview?.isBusy == true)
+                .disabled(run.previewReview?.isBusy == true || AutopilotCenter.loopIsBusy(run))
                 .accessibilityIdentifier("autopilot.watch.approve")
         case .ready:
             Button("Review & Push…", action: onReview)

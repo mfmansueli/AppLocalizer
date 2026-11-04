@@ -19,7 +19,7 @@ extension AutopilotNextStep {
             ["action": "wait", "reason": .string(reason), "retryAfterSeconds": .int(seconds)]
         case .recordAgain, .design:
             beforeChoosingJSON(run: run)
-        case .revise, .revisePreview:
+        case .revise, .revisePreview, .animateHeader, .reviseLoop:
             revisionJSON(run: run)
         case let .writeCaptions(overflows):
             Self.writeCaptionsJSON(overflows)
@@ -29,6 +29,17 @@ extension AutopilotNextStep {
             Self.designVariantJSON(request, run: run)
         case let .suggestScreens(request):
             Self.suggestScreensJSON(request, run: run)
+        }
+    }
+
+    /// The chosen header's loop: animate it, or change it for the
+    /// person's note.
+    private func headerLoopJSON(run: AutopilotRun?) -> JSONValue {
+        guard let run else { return ["action": "none"] }
+        switch self {
+        case let .animateHeader(conceptID): return Self.animateHeaderJSON(conceptID: conceptID, run: run)
+        case let .reviseLoop(note): return Self.reviseLoopJSON(note: note, run: run)
+        default: return ["action": "none"]
         }
     }
 
@@ -47,11 +58,20 @@ extension AutopilotNextStep {
                 """,
             ]
         case let .design(remaining):
-            [
-                "action": "design",
-                "remaining": .int(remaining),
-                "how": .string(Self.designHow(plan: run?.plan)),
-            ]
+            if let run, run.usesConcepts {
+                [
+                    "action": "design",
+                    "remaining": .int(remaining),
+                    "how": .string(Self.directionsHow(run: run)),
+                    "concepts": Self.conceptsJSON(run: run),
+                ]
+            } else {
+                [
+                    "action": "design",
+                    "remaining": .int(remaining),
+                    "how": .string(Self.designHow(plan: run?.plan)),
+                ]
+            }
         default:
             ["action": "none"]
         }
@@ -63,8 +83,8 @@ extension AutopilotNextStep {
     static func designHow(plan: AutopilotPlan?) -> String {
         let lead = "Call get_design_brief, design with the person's design project, and send each direction with propose_direction: "
         let pages = """
-        the header and search as your own HTML pages (try them with render_artwork first) that show what the person \
-        asked, its askedByThePerson, first
+        \(plan?.alsoMakes.artworkSize.mcpPlaces ?? "the header and search") as your own HTML pages (try them with \
+        render_artwork first) that show what the person asked, its askedByThePerson, first
         """
         let end = " They arrive one by one; the person chooses one."
         guard let plan, !plan.makesScreenshots else {
@@ -86,8 +106,14 @@ extension AutopilotNextStep {
         switch self {
         case let .revisePreview(note, review):
             Self.revisePreviewJSON(note: note, review: review, run: run)
+        case .animateHeader, .reviseLoop:
+            headerLoopJSON(run: run)
         case let .revise(note):
-            Self.reviseDirectionJSON(note: note, run: run)
+            if let run, run.usesConcepts, !(run.revision?.askedConcepts ?? []).isEmpty {
+                Self.reviseConceptsJSON(note: note, run: run)
+            } else {
+                Self.reviseDirectionJSON(note: note, run: run)
+            }
         default:
             ["action": "none"]
         }

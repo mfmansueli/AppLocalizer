@@ -13,7 +13,11 @@ import Observation
 @MainActor
 @Observable
 final class AutopilotCenter {
-    static let shared = AutopilotCenter(persistence: FileAutopilotPersistence())
+    static let shared: AutopilotCenter = {
+        let center = AutopilotCenter(persistence: FileAutopilotPersistence())
+        center.promptLog = .shared
+        return center
+    }()
 
     /// Each app's current run, or its last one.
     private(set) var runs: [StoreApp.ID: AutopilotRun]
@@ -36,6 +40,9 @@ final class AutopilotCenter {
     /// How many uses of a direction or checks of every language are going
     /// for each app: a resume waits until none is (`resumeInterruptedWork`).
     @ObservationIgnored var localizing: [StoreApp.ID: Int] = [:]
+    /// Where the header and search prompts, answers and renders are
+    /// logged; nil logs nothing (tests, DEBUG scenes).
+    @ObservationIgnored var promptLog: ArtworkPromptLog?
 
     init(persistence: (any AutopilotPersistence)? = nil, runs: [StoreApp.ID: AutopilotRun] = [:], designProjects: [StoreApp.ID: DesignProject] = [:]) {
         self.persistence = persistence
@@ -161,6 +168,13 @@ final class AutopilotCenter {
         run.designKind = project?.kind ?? .none
         run.designName = project?.displayName
         applyCaptureChoice(to: &run)
+        // A design AI makes the header and search as concepts of their own.
+        run.proposesConcepts = AutopilotRun.proposesConcepts(plan: run.plan, design: run.designKind) ? true : nil
+        if run.proposesConcepts == true, run.plan.alsoMakes.artworkStyle == .templates, run.plan.alsoMakes.headerTemplates.isEmpty {
+            run.plan.alsoMakes.headerTemplates = AutopilotHeaderTemplate.defaultPicks(recommended: .night)
+        }
+        // Templates picked for the screenshots, or none: the design source's own.
+        if run.plan.screenshotStyle == .templates, run.plan.screenshotTemplates.isEmpty { run.plan.runChoice.shotStyle = .free }
         run.stage = .waiting
         run.startedAt = now()
         run.finishedAt = nil

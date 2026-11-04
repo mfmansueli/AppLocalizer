@@ -22,7 +22,11 @@ struct ReportAppSupportTool: MCPTool {
         its string catalogs (Localizable.xcstrings) with how many strings are translated, plus a note when it \
         matters ("Right to left; tested in LumenUITests"). AppLocalizer compares the languages with the App \
         Store page: the ones it doesn't have yet are suggested as new pages, and Autopilot plans each device. \
-        Each report replaces the last. AppLocalizer can't open the project itself.
+        With look, also what the project says of the app's look (accent and theme colors, fonts, dark mode), its \
+        icon in one sentence, who it's for and when they use it, and the header scene template you recommend from \
+        that (night, land, window, horizon, hero or pattern) with a one-sentence reason: AppLocalizer's plan shows \
+        it, and the header and search prompts use it. Each report replaces the last (the look stays until a report \
+        has one). AppLocalizer can't open the project itself.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -52,6 +56,7 @@ struct ReportAppSupportTool: MCPTool {
                     ],
                 ],
                 "languageSource": MCPToolDefinition.string("Where the languages come from, e.g. Localizable.xcstrings."),
+                "look": AppLookProfile.mcpSchema,
             ],
             required: ["appId", "languages"]
         ),
@@ -79,7 +84,8 @@ struct ReportAppSupportTool: MCPTool {
         }
         let profile = try AppSupportProfile(
             targets: arguments.optionalStrings("targets") ?? [], devices: devices, languages: languages,
-            languageSource: arguments.optionalString("languageSource"), reportedBy: context.clientName, updated: .now
+            languageSource: arguments.optionalString("languageSource"), reportedBy: context.clientName,
+            look: AppLookProfile.mcp(arguments.optionalObject("look")), updated: .now
         )
         center.report(profile, for: app.id)
         let storeLocales = await Self.storeLocales(of: app, in: context)

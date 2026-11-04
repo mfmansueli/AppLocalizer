@@ -79,7 +79,7 @@ extension ProposeCaptionsTool {
         else {
             return .failure(ProposeCaptionsPhraseRefusal(String(localized: "A text item needs a locale of the plan.")))
         }
-        let design = run.chosenDirection?.artworkDesign
+        let design = run.madeArtworkDesign
         let known = design?.allPhrases(in: run.plan.artworkKinds) ?? []
         let phrase = ArtworkTextBook.phraseKey(item["phrase"]?.stringValue ?? "")
         guard !phrase.isEmpty, known.isEmpty || known.contains(phrase) else {

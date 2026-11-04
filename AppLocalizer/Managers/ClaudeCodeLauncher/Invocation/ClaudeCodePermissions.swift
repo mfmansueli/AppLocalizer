@@ -100,7 +100,9 @@ enum ClaudeCodePermissions: Hashable, Sendable, CaseIterable {
                 "Claude Design and Figma can't be opened from here. When next_step says design, design the directions from "
                     + "get_design_brief (the picks, captions, canvases and the design project's summary when it has one) "
                     + "and send each with propose_direction (with the header and search pages when the brief has artworkDesign, "
-                    + "tried with render_artwork); don't stop because the design project can't be opened."
+                    + "tried with render_artwork); when next_step hands you prompts, follow them and send the header and search "
+                    + "concepts with propose_artwork_concept and their changes and loops with revise_artwork_concept; "
+                    + "don't stop because the design project can't be opened."
             )
         }
         return lines.joined(separator: "\n")

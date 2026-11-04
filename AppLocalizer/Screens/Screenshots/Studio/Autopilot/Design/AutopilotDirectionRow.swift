@@ -17,6 +17,9 @@ struct AutopilotDirectionRow: View {
     var stacksDevices = false
     /// How big the extras are (`AutopilotChooseStageView.extrasFit`).
     var extrasFit = AutopilotDirectionExtras.Fit(height: 64)
+    /// The header is chosen apart (header concepts): Choose picks this
+    /// direction and Use These goes on, instead of Use This Direction.
+    var choosesApart = false
 
     var body: some View {
         HStack(alignment: .center, spacing: Spacing.medium) {
@@ -62,12 +65,27 @@ struct AutopilotDirectionRow: View {
                         .buttonStyle(.bordered)
                         .accessibilityIdentifier("autopilot.direction.open")
                     }
-                    Button(isChosen ? String(localized: "Using This Direction") : String(localized: "Use This Direction")) {
-                        studio.useDirection(direction)
+                    if choosesApart {
+                        Group {
+                            if isChosen {
+                                Button("Chosen") { studio.pickDirection(direction) }
+                                    .buttonStyle(.borderedProminent)
+                            } else {
+                                Button("Choose") { studio.pickDirection(direction) }
+                                    .buttonStyle(.bordered)
+                            }
+                        }
+                        .disabled(!isEditable)
+                        .accessibilityAddTraits(isChosen ? .isSelected : [])
+                        .accessibilityIdentifier("autopilot.direction.use")
+                    } else {
+                        Button(isChosen ? String(localized: "Using This Direction") : String(localized: "Use This Direction")) {
+                            studio.useDirection(direction)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!isEditable)
+                        .accessibilityIdentifier("autopilot.direction.use")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!isEditable)
-                    .accessibilityIdentifier("autopilot.direction.use")
                 }
                 .buttonBorderShape(.capsule)
                 .controlSize(.small)

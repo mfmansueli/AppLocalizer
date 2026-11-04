@@ -78,10 +78,10 @@ extension AutopilotPlan {
         return parts.isEmpty ? nil : parts.formatted(.list(type: .and))
     }
 
-    /// "header and search artwork", "moving header and search artwork",
-    /// "one 16:9 header and search image".
+    /// "header and search artwork", "moving header artwork", "one 16:9
+    /// header and search image".
     var artworkMadeTitle: String {
-        alsoMakes.makesMotion ? String(localized: "moving header and search artwork") : alsoMakes.artworkSize.madeTitle
+        alsoMakes.makesMotion ? alsoMakes.artworkSize.movingTitle : alsoMakes.artworkSize.madeTitle
     }
 
     /// Design's log: "Brief also asks for a 21:9 header (3840 × 1646) and
@@ -90,11 +90,10 @@ extension AutopilotPlan {
     var briefExtrasLines: [String] {
         var lines: [String] = []
         if alsoMakes.makesArtwork {
-            lines.append(alsoMakes.artworkSize == .wide
-                ? String(localized: "Brief also asks for one 16:9 header and search image, \(AutopilotArtworkKind.wide.pixelSize.title), in each direction")
-                : alsoMakes.makesMotion
-                ? String(localized: "Brief also asks for a 21:9 header (\(AutopilotArtworkKind.header.pixelSize.title)) and 3:2 search artwork (\(AutopilotArtworkKind.search.pixelSize.title)), each as a 20-second loop with a still poster frame in each direction")
-                : String(localized: "Brief also asks for a 21:9 header (\(AutopilotArtworkKind.header.pixelSize.title)) and 3:2 search artwork (\(AutopilotArtworkKind.search.pixelSize.title)) in each direction"))
+            let what = alsoMakes.artworkSize.briefTitle
+            lines.append(alsoMakes.makesMotion
+                ? String(localized: "Brief also asks for \(what), each as a 20-second loop with a still poster frame in each direction")
+                : String(localized: "Brief also asks for \(what) in each direction"))
         }
         if !previewDisplays.isEmpty {
             lines.append(String(localized: "Brief also asks for App Preview captions, an end card and a poster frame from the recordings"))

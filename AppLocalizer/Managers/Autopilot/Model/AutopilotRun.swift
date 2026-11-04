@@ -52,6 +52,22 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     var directions: [AutopilotDirection] = []
     var revision: AutopilotRevisionRequest?
     var chosenDirectionID: String?
+    /// The header and search come as concepts of their own
+    /// (`propose_artwork_concept`), chosen apart from the screenshot
+    /// direction. Nil in runs started before, whose directions carry their
+    /// artwork (`AutopilotDirection.artworkDesign`).
+    var proposesConcepts: Bool?
+    /// The header and search concepts, in the order they arrived; nil
+    /// before the first, and in runs without them.
+    var concepts: [AutopilotArtworkConcept]?
+    /// The chosen concept's id: picked at Choose, used from Use These on.
+    var art: String?
+    /// The screenshot direction picked at Choose before Use These; nil
+    /// when none is.
+    var directionPick: String?
+    /// The header loop, from Use These in a run with a motion loop; nil
+    /// before, and in runs without one.
+    var loopReview: AutopilotLoopReview?
     /// The Simulator recordings for the App Preview; nil in runs from
     /// before, and until the first arrives.
     var recordings: [AutopilotRecording]?
@@ -293,7 +309,7 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     }
 
     /// Every direction has arrived.
-    var hasAllDirections: Bool { directions.count >= Self.directionCount }
+    var hasAllDirections: Bool { directions.count >= expectedDirections }
 
     // MARK: - Localize
 

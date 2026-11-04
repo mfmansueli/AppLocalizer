@@ -91,7 +91,11 @@ struct MCPArtworkPreview {
     /// doesn't allow or a capture that didn't load, or its words won't
     /// read in every run language (`wordProblems`; with `book`, a
     /// variant's phrases must already be in every language there).
-    func check(_ design: AutopilotArtworkDesign, screenshots: ScreenshotTemplate? = nil, book: ArtworkTextBook? = nil) async -> Checked {
+    /// A concept's pages need no headline: their words are the name and
+    /// their own phrases (`requiresHeadline` false).
+    func check(
+        _ design: AutopilotArtworkDesign, screenshots: ScreenshotTemplate? = nil, book: ArtworkTextBook? = nil, requiresHeadline: Bool = true
+    ) async -> Checked {
         var pages: [Page] = []
         var problems: [String] = []
         var read = design
@@ -104,7 +108,7 @@ struct MCPArtworkPreview {
                 pages.append(page)
                 read.setPhrases(page.render.measure.phraseSources, for: kind)
                 problems += page.checks.filter(\.isError).map(\.text)
-                if page.render.measure.elements(.headline).isEmpty {
+                if requiresHeadline, page.render.measure.elements(.headline).isEmpty {
                     problems.append(String(localized: "The \(kind.rawValue) page has no data-al=\"headline\" element for the placement’s text."))
                 }
                 problems += Self.wordProblems(

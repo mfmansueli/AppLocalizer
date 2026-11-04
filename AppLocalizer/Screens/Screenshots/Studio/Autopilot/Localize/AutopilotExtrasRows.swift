@@ -17,7 +17,7 @@ struct AutopilotExtrasRows: View {
         if !run.plan.artworkKinds.isEmpty {
             Divider()
             row(
-                title: run.plan.alsoMakes.artworkSize == .wide ? String(localized: "Header and search · 16:9") : String(localized: "Header and search"),
+                title: run.plan.alsoMakes.artworkSize.placeTitle,
                 detail: artworkDetail, state: artworkState, identifier: "autopilot.localize.artwork",
                 checks: progress?.isArtworkDone == true ? progress?.artworkChecks ?? [] : []
             )

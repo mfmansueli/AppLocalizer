@@ -10,7 +10,7 @@ extension AutopilotNextStep {
     /// needs, with one idea changed; the current page when the chosen
     /// direction's artwork is Claude Design's own.
     static func designVariantJSON(_ request: ArtworkVariantRequest, run: AutopilotRun? = nil) -> JSONValue {
-        let page = run?.chosenDirection?.artworkDesign?.page(for: request.kind)
+        let page = run?.madeArtworkDesign?.page(for: request.kind)
         var json: [String: JSONValue] = [
             "action": "design_variant",
             "placement": .string(request.role.rawValue),
@@ -29,7 +29,7 @@ extension AutopilotNextStep {
             "how": .string(variantHow(hasPage: page != nil)),
         ]
         if let page { json["currentPage"] = .string(page) }
-        if let phrases = run?.chosenDirection?.artworkDesign?.phrases(for: request.kind), !phrases.isEmpty {
+        if let phrases = run?.madeArtworkDesign?.phrases(for: request.kind), !phrases.isEmpty {
             json["translatedPhrases"] = .array(phrases.map { .string($0) })
         }
         return .object(json)

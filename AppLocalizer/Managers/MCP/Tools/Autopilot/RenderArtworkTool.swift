@@ -26,6 +26,10 @@ struct RenderArtworkTool: MCPTool {
                 "kind": MCPToolDefinition.string("header, search or wide."),
                 "html": MCPToolDefinition.string("The page to try."),
                 "direction": MCPToolDefinition.string("A direction's id or name: its page for kind, when html isn't sent."),
+                "concept": MCPToolDefinition.string("""
+                A header concept's id or name: the page you're making for it (its own, or its loop's, when html isn't \
+                sent). While Design waits for its pages, a page that passes shows on its row.
+                """),
                 "locale": MCPToolDefinition.string("A plan locale, e.g. de-DE; the primary one by default."),
                 "headline": MCPToolDefinition.string("The words to try; the placement's own text by default."),
             ],
@@ -47,6 +51,10 @@ struct RenderArtworkTool: MCPTool {
             )
         }
         var html = try arguments.optionalString("html")
+        let concept = try arguments.optionalString("concept").flatMap { session.run.concept($0) }
+        if html == nil, let concept {
+            html = (concept.motion ?? concept.design ?? concept.drafts)?.page(for: kind)
+        }
         if html == nil, let wanted = try arguments.optionalString("direction") {
             let direction = session.run.directions.first { $0.id == wanted || $0.name.localizedCaseInsensitiveCompare(wanted) == .orderedSame }
             html = direction?.artworkDesign?.page(for: kind)
@@ -71,6 +79,14 @@ struct RenderArtworkTool: MCPTool {
             if !words.isEmpty, case var .object(object) = result {
                 object["wouldBeRefused"] = .array(words.map { .string($0) })
                 result = .object(object)
+            }
+            let checks = page.checks.map { "\($0.isError ? "Error" : "Advice"): \($0.text)" } + words
+            session.center.logRender(
+                (kind, locale.code), html: html, about: concept?.id, checks: checks, run: session.run, provider: context.clientName
+            )
+            // A page that passes shows on its concept's Design row meanwhile.
+            if let concept, words.isEmpty, !page.checks.contains(where: \.isError) {
+                session.center.noteConceptDraft(html, kind: kind, conceptID: concept.id, appID: session.app.id)
             }
             return MCPToolOutcome(
                 result: result, isError: false, logLines: [.init(target: "\(session.target) · \(kind.title)", outcome: .read)],

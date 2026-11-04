@@ -31,7 +31,7 @@ struct AutopilotDirectionExtras: View {
     }
 
     var body: some View {
-        let count = run.plan.artworkKinds.count + (hasPreview ? 1 : 0)
+        let count = run.directionArtworkKinds.count + (hasPreview ? 1 : 0)
         Group {
             if let second = fit.secondHeight, count > 1 {
                 VStack(alignment: .leading, spacing: Spacing.small) {
@@ -61,7 +61,7 @@ struct AutopilotDirectionExtras: View {
     private func item(_ index: Int, height: CGFloat) -> some View {
         let plan = run.plan
         let primary = plan.primaryLocale
-        let kinds = plan.artworkKinds
+        let kinds = run.directionArtworkKinds
         if kinds.indices.contains(index) {
             let kind = kinds[index]
             let page = direction.artworkDesign?.page(for: kind)

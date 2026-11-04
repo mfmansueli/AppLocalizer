@@ -30,9 +30,11 @@ extension AutopilotCenter {
         guard !isBusy else { return nil }
         switch run.stage {
         case .localize:
-            guard run.overflows.isEmpty, (run.artworkTextNeeds ?? []).isEmpty else { return nil }
+            // The header loop's animated pages are the design AI's to send.
+            guard run.overflows.isEmpty, (run.artworkTextNeeds ?? []).isEmpty, run.loopReview?.waitsToMake != true else { return nil }
             return run.plan.makesScreenshots && run.templateVersion == nil ? .chooseAgain : .localize
         case .watchPreview:
+            if run.loopReview?.isRemaking == true { return .reviseAgain }
             guard let remake = run.previewReview?.remake else { return nil }
             if case .music = remake.reason { return .remix }
             return .reviseAgain
@@ -73,6 +75,7 @@ extension AutopilotCenter {
         case .reviseAgain:
             update(appID) { run in
                 run.previewReview?.remake = nil
+                run.loopReview?.isRemaking = false
                 let line = String(localized: "AppLocalizer closed while it was making the App Preview; your note goes to the design source again")
                 run.appendLog(line, kind: .event, at: now())
             }

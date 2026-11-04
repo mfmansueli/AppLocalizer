@@ -12,14 +12,33 @@ import Foundation
 /// and approves it.
 extension AutopilotCenter {
     /// Localize made the extras: the person watches the App Preview when
-    /// the plan stops for it and one was made; otherwise the set is ready.
+    /// the plan stops for it and one was made, and the header loop when one
+    /// was made and the plan stops for it or a check didn't pass (an
+    /// unattended run approves a loop that passes every check); otherwise
+    /// the set is ready.
     func finishMaking(_ appID: StoreApp.ID, extras: ScreenshotExtras?, readyLine: String) {
         update(appID) { run in
             guard run.stage == .localize else { return }
-            if run.plan.stopsToWatchPreview, !run.plan.previewDisplays.isEmpty, extras?.hasPreviews == true {
+            let watchesPreview = run.plan.stopsToWatchPreview && !run.plan.previewDisplays.isEmpty && extras?.hasPreviews == true
+            let loopMade = run.loopReview != nil && extras?.artwork.isEmpty == false
+            let passes = Self.loopPasses(run, extras: extras)
+            let watchesLoop = loopMade && (run.plan.stopsToWatchPreview || !passes)
+            if loopMade, !watchesLoop {
+                run.loopReview?.approvedAt = now()
+                run.appendLog(String(localized: "Header loop v\(run.loopReview?.version ?? 1) approved: every check passed"), kind: .event, at: now())
+            }
+            if watchesPreview || watchesLoop {
                 run.stage = .watchPreview
-                if run.previewReview == nil { run.previewReview = AutopilotPreviewReview() }
-                run.appendLog(String(localized: "App Preview v\(run.previewReview?.version ?? 1) ready to watch"), kind: .event, at: now())
+                if watchesPreview, run.previewReview == nil { run.previewReview = AutopilotPreviewReview() }
+                if watchesPreview {
+                    run.appendLog(String(localized: "App Preview v\(run.previewReview?.version ?? 1) ready to watch"), kind: .event, at: now())
+                }
+                if watchesLoop {
+                    let line = run.plan.stopsToWatchPreview
+                        ? String(localized: "Header loop v\(run.loopReview?.version ?? 1) ready to watch")
+                        : String(localized: "Header loop v\(run.loopReview?.version ?? 1) needs a look: a check didn’t pass, so it isn’t approved as made")
+                    run.appendLog(line, kind: run.plan.stopsToWatchPreview ? .event : .problem, at: now())
+                }
             } else {
                 run.stage = .ready
                 run.finishedAt = now()
@@ -28,15 +47,33 @@ extension AutopilotCenter {
         }
     }
 
-    /// Approve App Preview: on to Review & Push.
+    /// Approve App Preview, Approve Header Loop or Approve Both: on to
+    /// Review & Push.
     func approvePreview(appID: StoreApp.ID) {
         update(appID) { run in
-            guard run.stage == .watchPreview, run.previewReview?.isBusy != true else { return }
+            guard run.stage == .watchPreview, run.previewReview?.isBusy != true, !Self.loopIsBusy(run) else { return }
             run.stage = .ready
             run.finishedAt = now()
-            let version = run.previewReview?.version ?? 1
-            run.appendLog(String(localized: "App Preview v\(version) approved · everything is in Review & Push"), kind: .event, at: now())
+            let preview = run.previewReview.map { "App Preview v\($0.version)" }
+            var loop: String?
+            if run.loopReview != nil, run.loopReview?.approvedAt == nil {
+                run.loopReview?.approvedAt = now()
+                loop = "header loop v\(run.loopReview?.version ?? 1)"
+            }
+            let line = switch (preview, loop) {
+            case let (preview?, loop?): String(localized: "\(preview) and \(loop) approved · everything is in Review & Push")
+            case (nil, _?): String(localized: "Header loop v\(run.loopReview?.version ?? 1) approved · everything is in Review & Push")
+            case let (preview?, nil): String(localized: "\(preview) approved · everything is in Review & Push")
+            case (nil, nil): String(localized: "Approved · everything is in Review & Push")
+            }
+            run.appendLog(line, kind: .event, at: now())
         }
+    }
+
+    /// The header loop waits for its new version, or is being made again.
+    static func loopIsBusy(_ run: AutopilotRun) -> Bool {
+        guard let review = run.loopReview, review.approvedAt == nil else { return false }
+        return review.isBusy
     }
 
     /// Ask for changes: the note goes to the design source through

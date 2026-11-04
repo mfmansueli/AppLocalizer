@@ -23,7 +23,7 @@ enum AutopilotDirectionCard: Hashable, Sendable {
     }
 
     static func cards(of run: AutopilotRun, isWorking: Bool) -> [AutopilotDirectionCard] {
-        (0..<AutopilotRun.directionCount).map { index in
+        (0..<run.expectedDirections).map { index in
             if run.directions.indices.contains(index) { return .arrived(run.directions[index]) }
             guard isWorking else { return .waiting }
             return index == run.directions.count ? .designing(since: designingSince(in: run)) : .upNext

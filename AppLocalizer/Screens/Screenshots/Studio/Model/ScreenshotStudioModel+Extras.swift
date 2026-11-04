@@ -84,26 +84,9 @@ extension ScreenshotStudioModel {
         let locale = selectedLocale
         var result = StudioExtrasPreview()
         if let size = extras.artworkSize {
-            let headerKind: AutopilotArtworkKind = size == .wide ? .wide : .header
-            let searchKind: AutopilotArtworkKind = size == .wide ? .wide : .search
-            let look = extras.artworkTemplate ?? template
-            let shows = extras.artworkShows ?? .phone
-            let isMotion = extras.artworkMotion == .loop
-            // The header shows no phone; the 16:9 image and search the search
-            // screen's. A Claude Design page shows the screens it names.
-            let headerPage = extras.artworkDesign?.page(for: headerKind)
-            let searchPage = extras.artworkDesign?.page(for: searchKind)
-            let headerSlots = headerPage.map(AutopilotArtworkPages.slots) ?? (size == .wide && shows.needsCaptures ? [extras.searchSlot] : [])
-            result.header = StudioArtworkItem(
-                kind: headerKind, template: look, locale: locale, headline: artworkHeadline(ArtworkTextRole.role(for: headerKind), locale: locale),
-                slots: headerSlots, captures: setCaptures(headerSlots, locale: locale), shows: shows, isMotion: isMotion, page: headerPage
-            )
-            let searchSlots = searchPage.map(AutopilotArtworkPages.slots) ?? (shows.needsCaptures ? [extras.searchSlot] : [])
-            result.search = StudioArtworkItem(
-                kind: searchKind, template: look, locale: locale,
-                headline: artworkHeadline(.search, locale: locale),
-                slots: searchSlots, captures: setCaptures(searchSlots, locale: locale), shows: shows, isMotion: isMotion, page: searchPage
-            )
+            // A run that made only one of them leaves the other place empty.
+            result.header = size.headerKind.map { artworkItem(extras.place($0), template: template, locale: locale) }
+            result.search = size.searchKind.map { artworkItem(extras.place($0), template: template, locale: locale) }
         }
         if let file = extras.preview(on: device, locale: locale, primary: primaryLocale.code) {
             let language = StoreLocaleCatalog.locale(code: file.locale)?.name ?? file.locale
@@ -115,5 +98,18 @@ extension ScreenshotStudioModel {
             )
         }
         return result
+    }
+
+    /// A place's image as it was drawn. The header shows no phone; the 16:9
+    /// image and search the search screen's. A Claude Design page shows the
+    /// screens it names.
+    private func artworkItem(_ place: ExtrasArtworkPlace, template: ScreenshotTemplate, locale: String) -> StudioArtworkItem {
+        let shows = place.shows ?? .phone
+        let slots = place.page.map(AutopilotArtworkPages.slots) ?? (place.kind != .header && shows.needsCaptures ? [place.searchSlot] : [])
+        return StudioArtworkItem(
+            kind: place.kind, template: place.template ?? template, locale: locale,
+            headline: artworkHeadline(ArtworkTextRole.role(for: place.kind), locale: locale), slots: slots,
+            captures: setCaptures(slots, locale: locale), shows: shows, isMotion: place.motion == .loop, page: place.page
+        )
     }
 }

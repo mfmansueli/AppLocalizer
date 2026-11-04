@@ -1,0 +1,21 @@
+Animate the chosen pages for {{app_name}} into seamless, silent loops of {{loop_seconds}} seconds.
+
+{{block:reference-headers}}
+
+INPUT: the concept {{concept_json}} and its pages {{page_files}}.
+
+HOW
+- Add CSS animations only. No JavaScript timing, no randomness, no video.
+- Every animation's duration divides {{loop_seconds}} s evenly, so the whole page repeats exactly every {{loop_seconds}} s. AppLocalizer records it by setting the animations' time, at 30 fps.
+- Time 0 is the still you made (the poster). At {{loop_seconds}} s everything is back where it started.
+- Movement: slow and ambient.
+  - Each layer moves at most 6% of the width per loop; nearer layers move more than farther ones.
+  - Clouds, haze, water, stars, birds or a passing thing may drift. Something passing leaves and re-enters off-canvas.
+  - Light and sky colors move through the cycle states.
+- Easing is continuous at the loop point (ease-in-out with alternate, or symmetric keyframes).
+- Never animate data-al elements (the name, phrases, capture) or their boxes. If a cycle state makes them hard to read, change that state's colors, not the text.
+- No cuts, flashes, zooms, camera shake or fast moves. Nothing new appears in the top 22% of the header.
+- prefers-reduced-motion is ignored here: AppLocalizer records the motion.
+
+BEFORE YOU PROPOSE
+- Call render_artwork for each page with motion. Fix every failed check. The checks include: frame 0 equals the still; the last frame leads back to frame 0; the data-al elements are still in every frame; no frame-to-frame jump.

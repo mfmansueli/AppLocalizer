@@ -79,6 +79,7 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
                 "list_apps", "get_capture_plan", "update_capture_plan", "report_capture", "report_capture_problem", "next_step",
                 "get_design_brief", "propose_direction", "revise_direction", "propose_captions", "report_app_support",
                 "start_display_recording", "finish_display_recording", "propose_screens", "revise_app_preview", "render_artwork",
+                "propose_artwork_concept", "revise_artwork_concept",
             ]
         }
     }
@@ -256,8 +257,11 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         what it says: capture, wait (ask again after retryAfterSeconds), design (get_design_brief, then \
         propose_direction with templates in AppLocalizer's format, designed with the connected design project, \
         and the header and search as your own HTML pages when the brief has artworkDesign, tried with \
-        render_artwork, only the pages when it says noScreenshots; report what you find in it with \
-        report_design_source), revise_direction, write_captions (then \
+        render_artwork, only the pages when it says noScreenshots; when it hands you prompts, the header and search \
+        come as concepts instead: send each with propose_artwork_concept, its pages with it or after; report what \
+        you find in it with report_design_source), revise_direction (and revise_artwork_concept for the concepts \
+        the note is for), animate_header and revise_loop (the chosen header's animated pages, with \
+        revise_artwork_concept), write_captions (then \
         propose_captions with run), revise_app_preview (the person's note on the App Preview, then \
         revise_app_preview with the new cut), or suggest_screens (then propose_screens with run). Stop when it \
         says done. \

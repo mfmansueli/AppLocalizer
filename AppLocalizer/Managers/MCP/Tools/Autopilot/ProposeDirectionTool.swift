@@ -21,7 +21,9 @@ struct ProposeDirectionTool: MCPTool {
         and returns the images, so look at them. When the person said what they expect (artworkDesign.askedByThePerson), \
         the images must show it, and followsTheRequest says how. extrasTemplates.appPreview can give the App Preview's captions a \
         look of their own. When the run makes no screenshots (get_design_brief's noScreenshots), leave base, template \
-        and ops out unless they style its App Preview. Refused, with what failed, for unknown template fields, values out of range, fonts that \
+        and ops out unless they style its App Preview. In a run whose next_step hands you prompts, the header and \
+        search are concepts sent with propose_artwork_concept instead, and artworkDesign is refused here. Refused, \
+        with what failed, for unknown template fields, values out of range, fonts that \
         can't draw a language, a missing page, a page that doesn't render or breaks Apple's rules, words written \
         outside data-al (they'd read the same in every language), or a missing followsTheRequest. Pass \
         sourceLink to the direction in the design project so the person can open it there.
@@ -55,7 +57,17 @@ struct ProposeDirectionTool: MCPTool {
         let template: ScreenshotTemplate
         let extras: (artwork: ScreenshotTemplate?, preview: ScreenshotTemplate?)
         let design: AutopilotArtworkDesign?
-        let kinds = session.run.plan.artworkKinds
+        // With header concepts, the header and search come apart from the directions.
+        let kinds = session.run.usesConcepts ? [] : session.run.plan.artworkKinds
+        if session.run.usesConcepts, arguments.values["artworkDesign"] != nil {
+            return .refused(
+                String(localized: """
+                In this run the header and search are concepts of their own: send them with propose_artwork_concept, \
+                and the direction without artworkDesign.
+                """),
+                target: session.target
+            )
+        }
         do {
             // Without screenshots, nothing uses a template unless the App Preview does.
             template = try MCPDirectionTemplate.template(
@@ -105,7 +117,7 @@ struct ProposeDirectionTool: MCPTool {
             "status": "received",
             "direction": .string(direction.id),
             "received": .int(session.run.directions.count),
-            "of": .int(AutopilotRun.directionCount),
+            "of": .int(session.run.expectedDirections),
             "checks": .array((stored?.checks ?? []).map { .string($0.title) }),
         ]
         if !previews.isEmpty {

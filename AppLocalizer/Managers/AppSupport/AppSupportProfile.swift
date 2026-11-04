@@ -19,6 +19,8 @@ struct AppSupportProfile: Codable, Hashable, Sendable {
     var languageSource: String?
     /// The assistant that read the project, e.g. "Claude Code".
     var reportedBy: String?
+    /// The app's look as the project has it; nil until reported.
+    var look: AppLookProfile?
     var updated: Date
 
     /// The device the app supports, if it does.

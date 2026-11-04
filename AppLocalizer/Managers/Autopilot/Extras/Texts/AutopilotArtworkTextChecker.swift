@@ -40,17 +40,25 @@ struct AutopilotArtworkTextChecker {
             var phrasesSeen: Set<String> = []
             for role in ArtworkTextRole.roles(for: size) {
                 let headline = texts.headline(role, locale: code)
-                if headline.isEmpty, !role.isOptional { needs.append(AutopilotArtworkTextNeed(locale: code, role: role, problem: .missing)) }
+                let missing = AutopilotArtworkTextNeed(locale: code, role: role, problem: .missing)
                 let kind = role.kind(for: size)
                 guard let html = design.page(for: kind) else {
+                    if headline.isEmpty, !role.isOptional { needs.append(missing) }
                     let layout = engine.layout(template, kind: kind, locale: locale, headline: headline, slots: [0], shows: shows)
                     if !headline.isEmpty, !layout.headlineFits {
                         needs.append(AutopilotArtworkTextNeed(locale: code, role: role, problem: .tooLong, headline: headline))
                     }
                     continue
                 }
-                guard let measured = await measure(html, kind, locale, headline, texts.phraseTexts(locale: code)) else { continue }
-                if !headline.isEmpty, !measured.headlineFits {
+                guard let measured = await measure(html, kind, locale, headline, texts.phraseTexts(locale: code)) else {
+                    if headline.isEmpty, !role.isOptional { needs.append(missing) }
+                    continue
+                }
+                // A page with no place for the placement's text (a concept's
+                // page writes only the name and its phrases) needs none.
+                let hasHeadline = !measured.elements(.headline).isEmpty
+                if headline.isEmpty, !role.isOptional, hasHeadline { needs.append(missing) }
+                if hasHeadline, !headline.isEmpty, !measured.headlineFits {
                     needs.append(AutopilotArtworkTextNeed(locale: code, role: role, problem: .tooLong, headline: headline))
                 }
                 needs += phraseNeeds(measured, locale: code, role: role, seen: &phrasesSeen)

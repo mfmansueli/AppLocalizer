@@ -56,7 +56,14 @@ struct ProposeArtworkVariantTool: MCPTool {
         guard let request = session.run.variantRequest else {
             return .refused(String(localized: "No variant was asked for. Call next_step to see what AppLocalizer wants."), target: session.target)
         }
-        guard let base = session.run.chosenDirection?.artworkLook else {
+        // A run with header concepts may have no direction: the live set's look, else a plain one.
+        let live = session.run.usesConcepts
+            ? try? await session.context.services.loadDocument(for: session.app, primaryLocale: session.context.primaryLocale).template
+            : nil
+        let look = session.run.usesConcepts
+            ? session.run.artworkLook(live: live) ?? AutopilotCenter.fallbackLook(for: session.context)
+            : session.run.chosenDirection?.artworkLook
+        guard let base = look else {
             return .refused(String(localized: "The run has no chosen direction to vary."), target: session.target)
         }
         var texts: [String: String] = [:]
@@ -82,7 +89,7 @@ struct ProposeArtworkVariantTool: MCPTool {
             if let refusal = checked.refusal { return .refused(refusal, target: session.target) }
             design = checked.design
             previews = checked.pages
-        } else if session.run.chosenDirection?.artworkDesign?.page(for: request.kind) != nil {
+        } else if session.run.madeArtworkDesign?.page(for: request.kind) != nil {
             return .refused(
                 String(localized: "Send html: the variant’s whole \(request.kind.rawValue) page, next_step’s currentPage with one idea changed."),
                 target: session.target

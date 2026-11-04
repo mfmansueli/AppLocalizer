@@ -1,0 +1,33 @@
+Make the App Store artwork pages for {{app_name}} from this concept:
+{{concept_json}}
+
+{{block:app-context}}
+
+MAKE ONE SELF-CONTAINED HTML PAGE PER PLACE: {{places_list}}
+- The stage is exactly the canvas size (header 3840 × 1646 · search 3840 × 2560 · 16:9 5244 × 2950). No scrolling, no external requests; inline SVG and CSS only.
+- Build the scene from the concept's layers, as separate elements (one per layer id), so they can move later.
+- Marks AppLocalizer fills in:
+  - the name: one element with data-al="appName", styled as name_style. AppLocalizer puts each language's App Store name in it. Lay it out so "{{longest_app_name}}" fits on one line in every script of the run. Size it with CSS (for example clamp or container units), never by counting letters.
+  - phrases: elements with data-al="text" and data-phrase="1", data-phrase="2"…, holding the concept's phrases in {{primary_locale}}. Give each a box that fits 140% of its length, with text-wrap: balance and a two-line maximum.
+  - the capture: on the search page when art_show is "phone" or "ui", one element with data-al="capture" in the frame the concept describes. Use {{search_capture}}.
+- Right-to-left: the page reads dir from the html element. Mirror the search layout with logical properties (inset-inline-start, text-align: start); never flip the scene.
+- Still or motion ({{art_motion}}): make the still now. The page shows the concept's poster_moment and has no animation yet.
+
+LAYOUT
+- Header:
+  - The name is centered, its middle at about 55% of the height, and 45–65% of the safe-area width.
+  - The header phrase, if any, sits under the name.
+  - Everything to be read stays inside the header's safe area; the top 22% is calm.
+- Search:
+  - The phrase is on the inline-start side, up to 2 lines. The screen or the scene's focal point is on the other side.
+  - The small app icon and name sit at the bottom of the phrase side.
+- 16:9: everything centered, so both crops work.
+- Contrast: the name and phrases are readable at 390 pt wide against what's behind them.
+
+BEFORE YOU PROPOSE
+- Call render_artwork for each page, in {{primary_locale}} and in {{hardest_locale}} (the longest name or a right-to-left script).
+- Fix every failed check. Don't propose a page that would be refused.
+
+STYLE
+- {{design_system_summary}}. Match the icon's colors and rendering style. One focal point, soft depth, gentle light, simple silhouettes.
+- No interface in the header. No faces, other brands, Apple badges, prices, awards or URLs. Suitable for 4+.

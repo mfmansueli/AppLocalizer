@@ -30,8 +30,11 @@ final class AppSupportCenter {
         profiles[appID]
     }
 
-    /// The assistant read the project again: its report replaces the last.
+    /// The assistant read the project again: its report replaces the last,
+    /// but for the look, which stays until a report has one.
     func report(_ profile: AppSupportProfile, for appID: StoreApp.ID) {
+        var profile = profile
+        if profile.look == nil { profile.look = profiles[appID]?.look }
         profiles[appID] = profile
         save()
     }

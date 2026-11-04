@@ -219,6 +219,12 @@ extension AutopilotCenter {
     /// Watching the App Preview: the person's changes for the design
     /// source, else wait for them.
     private func watchStep(_ run: AutopilotRun) -> AutopilotNextStep {
+        if let review = run.loopReview, review.approvedAt == nil {
+            if review.isRemaking {
+                return .wait(reason: String(localized: "AppLocalizer is making the header loop again."), seconds: 10)
+            }
+            if let request = review.request, run.designKind.usesDesignAI { return .reviseLoop(note: request.note) }
+        }
         if let review = run.previewReview, review.remake != nil {
             return .wait(reason: String(localized: "AppLocalizer is making the App Preview again."), seconds: 10)
         }
@@ -235,6 +241,9 @@ extension AutopilotCenter {
     private func localizeStep(_ run: AutopilotRun) -> AutopilotNextStep {
         if !run.overflows.isEmpty { return .writeCaptions(run.overflows) }
         if let needs = run.artworkTextNeeds, !needs.isEmpty { return .writeArtworkTexts(needs) }
+        if let review = run.loopReview, review.waitsToMake, review.isAnimating, run.designKind.usesDesignAI {
+            return .animateHeader(conceptID: review.conceptID)
+        }
         if let extras = run.extrasProgress, !extras.isFinished {
             return .wait(reason: String(localized: "AppLocalizer is making the header and search artwork and the App Preview."), seconds: 10)
         }
@@ -263,7 +272,8 @@ extension AutopilotCenter {
             return .wait(reason: String(localized: "AppLocalizer is making directions from its starters."), seconds: 5)
         }
         if let revision = run.revision { return .revise(note: revision.note) }
-        let remaining = AutopilotRun.directionCount - run.directions.count
+        let remaining = max(run.expectedDirections - run.directions.count, 0)
+        if run.usesConcepts, run.conceptsLeft > 0 || remaining > 0 { return .design(remaining: remaining) }
         guard remaining > 0 else { return .wait(reason: String(localized: "Every direction has arrived."), seconds: 5) }
         return .design(remaining: remaining)
     }
@@ -286,14 +296,31 @@ extension AutopilotCenter {
                 run.stage = run.plan.stopsToPick && !run.skipsPick ? .pick : .design
             }
             if runs[appID]?.stage == .design { await beginDesign(appID, context: context) }
-        case .design where run.hasAllDirections && run.revision == nil:
-            if run.plan.stopsToChoose {
-                update(appID) { $0.stage = .choose }
-            } else if let first = run.directions.first {
-                await useDirection(first.id, appID: appID, context: context)
-            }
+        case .design where run.hasAllDirections && run.hasAllConcepts && run.revision == nil:
+            await finishDesign(run, context: context)
         default:
             break
+        }
+    }
+
+    /// Everything designed: on to Choose, or straight on when there's
+    /// nothing to choose (a kept template) or the run doesn't stop for it.
+    private func finishDesign(_ run: AutopilotRun, context: AutopilotContext) async {
+        let appID = run.appID
+        // A kept template and no header to choose: nothing to choose.
+        if !run.choosesDirection, !run.usesConcepts, let only = run.directions.first {
+            await useDirection(only.id, appID: appID, context: context)
+        } else if run.plan.stopsToChoose {
+            update(appID) { $0.stage = .choose }
+        } else if run.usesConcepts {
+            // Unattended: the recommended header and the first direction.
+            takeRecommendedConcept(appID)
+            update(appID) { run in
+                if run.directionPick == nil { run.directionPick = run.directions.first?.id }
+            }
+            await useChoices(appID: appID, context: context)
+        } else if let first = run.directions.first {
+            await useDirection(first.id, appID: appID, context: context)
         }
     }
 

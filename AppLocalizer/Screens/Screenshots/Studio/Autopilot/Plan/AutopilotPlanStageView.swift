@@ -208,7 +208,7 @@ struct AutopilotPlanStageView: View {
         if let project = studio.designProject {
             AutopilotOptionRow(
                 title: String(localized: "Design with \(project.kind.title) · \(project.displayName)"),
-                detail: String(localized: "\(AutopilotRun.directionCount) directions"),
+                detail: run.designDetail(design: project.kind),
                 isOn: .constant(true), isLocked: true
             )
         } else {

@@ -41,6 +41,9 @@ struct ScreenshotExtras: Codable, Hashable, Sendable {
     /// Discarded in Review & Push, by item ID: the checksum that stays off
     /// App Store Connect. A file made again comes back to review.
     var discardedChecksums: [String: String]?
+    /// The place a run that made only the header or only search results
+    /// left as it was, drawn as before; its files are in `artwork`.
+    var keptPlace: ExtrasArtworkPlace?
 
     var hasArtwork: Bool { artworkSize != nil && !artwork.isEmpty }
     var hasPreviews: Bool { !previews.isEmpty }

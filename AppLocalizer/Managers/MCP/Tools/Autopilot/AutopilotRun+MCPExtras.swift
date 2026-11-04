@@ -73,9 +73,9 @@ extension AutopilotRun {
         var how: [String] = []
         if plan.alsoMakes.makesArtwork {
             how.append("""
-            Design each direction's header and search yourself, for the roles above, as the HTML pages artworkDesign \
-            describes, and send them with propose_direction's artworkDesign (required: the direction is refused without \
-            them). Try them with render_artwork first. AppLocalizer fills in each language's text, the app's name and icon \
+            Design \(plan.alsoMakes.artworkSize.mcpPlaces) of each direction yourself, for the roles above, as the HTML \
+            pages artworkDesign describes, and send them with propose_direction's artworkDesign (required: the direction \
+            is refused without them). Try them with render_artwork first. AppLocalizer fills in each language's text, the app's name and icon \
             and the real captures, and draws exactly your page: no layout of its own.
             """)
         }

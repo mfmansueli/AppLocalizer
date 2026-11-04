@@ -10,8 +10,9 @@ import Foundation
 /// extras are made.
 extension AutopilotCenter {
     /// Use This Direction: saves it as the next template version with the
-    /// picked captures, then checks every language.
-    func useDirection(_ directionID: String, appID: StoreApp.ID, context: AutopilotContext) async {
+    /// picked captures, then checks every language. `logs` is false when
+    /// Use These already said what's used.
+    func useDirection(_ directionID: String, appID: StoreApp.ID, context: AutopilotContext, logs: Bool = true) async {
         guard let run = runs[appID], run.stage == .choose || run.stage == .design,
               let direction = run.directions.first(where: { $0.id == directionID }) else { return }
         update(appID) { run in
@@ -20,7 +21,7 @@ extension AutopilotCenter {
             run.handedBackAt = now()
             run.overflows = []
             run.localeStatus = Dictionary(uniqueKeysWithValues: run.plan.localeCodes.map { ($0, AutopilotLocaleStatus.waiting) })
-            run.appendLog(String(localized: "Using \(direction.name)"), kind: .event, at: now())
+            if logs { run.appendLog(String(localized: "Using \(direction.name)"), kind: .event, at: now()) }
         }
         guard !holdsStages, let current = runs[appID] else { return }
         // Without screenshots the set stays as it is: only the extras.
@@ -110,10 +111,9 @@ extension AutopilotCenter {
             run.appendLog(String(localized: "Sent to \(client): \(AutopilotArtworkTextWork(needs).summary)"), kind: .command, at: now())
         }
         guard needs.isEmpty else { return }
-        // The header, search artwork and App Preview are made with them,
-        // then the person watches the App Preview, or the set is ready.
-        let extras = await makeExtras(appID, context: localizer.context)
-        let total = runs[appID]?.totalScreenshots ?? 0
-        finishMaking(appID, extras: extras, readyLine: String(localized: "\(total) screenshots ready in Review & Push"))
+        // The header, search artwork and App Preview are made with them
+        // (once a header loop's animated pages are here), then the person
+        // watches, or the set is ready.
+        await finishLocalizing(appID, context: localizer.context)
     }
 }

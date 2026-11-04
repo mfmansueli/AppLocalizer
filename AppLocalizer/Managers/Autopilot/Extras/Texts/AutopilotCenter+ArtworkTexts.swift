@@ -14,15 +14,15 @@ extension AutopilotCenter {
     /// they're all there and fit. The chosen direction's phrases are read
     /// off its pages first (`readPhrases`).
     func artworkTextNeeds(of run: AutopilotRun, in document: ScreenshotsDocument, context: AutopilotContext) async -> [AutopilotArtworkTextNeed] {
-        guard run.plan.alsoMakes.makesArtwork, run.chosenDirection != nil else { return [] }
+        guard run.plan.alsoMakes.makesArtwork, run.chosenDirection != nil || run.chosenConcept != nil else { return [] }
         let (run, document) = await readPhrases(of: run, in: document, context: context)
-        guard let direction = run.chosenDirection else { return [] }
+        guard let look = run.artworkLook(live: document.template) ?? Self.fallbackLook(for: context) else { return [] }
         let checker = AutopilotArtworkTextChecker(
-            template: direction.artworkLook, texts: document.artworkTexts ?? ArtworkTextBook(),
+            template: look, texts: document.artworkTexts ?? ArtworkTextBook(),
             size: run.plan.alsoMakes.artworkSize, catalog: context.services.fonts, shows: run.plan.alsoMakes.artworkShows,
             primaryLocale: run.plan.primaryLocale
         )
-        guard let design = direction.artworkDesign, !design.isEmpty else { return checker.needs(locales: run.plan.localeCodes) }
+        guard let design = run.madeArtworkDesign, !design.isEmpty else { return checker.needs(locales: run.plan.localeCodes) }
         let pages = AutopilotArtworkPages(context: context)
         return await checker.needs(locales: run.plan.localeCodes, design: design) { html, kind, locale, headline, phrases in
             // Only the text's fit: the page without its captures or icon.
@@ -31,6 +31,11 @@ extension AutopilotCenter {
             )
             return try? await ArtworkWebRenderer.shared.measure(request)
         }
+    }
+
+    /// A starter's look, for a run with no direction and no live template.
+    static func fallbackLook(for context: AutopilotContext) -> ScreenshotTemplate? {
+        ScreenshotTemplate.starter(.above, id: context.app.id, title: context.app.name, slotCount: 1)
     }
 
     /// Texts the assistant sent: saved at once, then every language is

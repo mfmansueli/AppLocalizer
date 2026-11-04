@@ -22,7 +22,8 @@ struct StudioSearchCard: View {
             VStack(alignment: .leading, spacing: Spacing.small) {
                 StoreProductHeader(app: app, preview: preview, iconSize: 40, compact: true)
                 if let studio, let artwork = studio.extrasPreview?.search {
-                    Button { studio.openArtwork(at: artwork.kind == .wide ? 0 : 1) } label: {
+                    // Second after the header, first when it's the only one.
+                    Button { studio.openArtwork(at: artwork.kind == .wide || studio.extrasPreview?.header == nil ? 0 : 1) } label: {
                         ArtworkThumbnail(
                             studio: studio, kind: artwork.kind, template: artwork.template, locale: artwork.locale,
                             headline: artwork.headline, slots: artwork.slots, captures: artwork.captures, width: 300,

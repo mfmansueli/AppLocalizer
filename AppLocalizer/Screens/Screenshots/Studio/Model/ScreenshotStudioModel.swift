@@ -78,6 +78,9 @@ final class ScreenshotStudioModel {
     var showsArtworkDirection = false
     /// Why the last reference couldn't be added.
     var referenceError: String?
+    /// The app icon's colors, for the header templates' previews on the
+    /// plan; nil until read (`loadHeaderColors`).
+    var headerColors: IconPalette?
     /// Pick's tab; nil is the first the run has.
     var pickTab: AutopilotPickTab?
     /// Pick's device on the Screenshots tab; nil is the first.

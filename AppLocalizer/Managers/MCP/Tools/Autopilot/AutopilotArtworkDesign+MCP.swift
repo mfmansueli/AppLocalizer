@@ -106,7 +106,41 @@ extension AutopilotArtworkDesign {
         }
         json["motion"] = .string(mcpMotion(makesMotion: extras.makesMotion))
         if !asked.isEmpty { json["askedByThePerson"] = mcpAsked(asked, referenceURL: referenceURL) }
+        if run.usesConcepts { conceptContract(&json, run: run) }
         return .object(json)
+    }
+
+    /// A run with header concepts: the pages come with each concept
+    /// (`propose_artwork_concept`, the prompts next_step hands out), their
+    /// words are the name and their phrases, and motion comes after the
+    /// person chose, from the motion prompt.
+    static func conceptContract(_ json: inout [String: JSONValue], run: AutopilotRun) {
+        let extras = run.plan.alsoMakes
+        json["youDesignIt"] = .string("""
+        The header and search images are yours, completely, and come as concepts apart from the screenshot directions: \
+        follow the prompts next_step hands you, and send each concept and its pages with propose_artwork_concept \
+        (never in propose_direction). AppLocalizer renders each page in every language at Apple's exact size, fills in \
+        what you mark and checks it.
+        """)
+        json["style"] = .string(extras.artworkStyle.rawValue)
+        if extras.artworkStyle == .templates { json["templates"] = .array(extras.headerTemplates.map { .string($0.rawValue) }) }
+        json["show"] = .string(extras.artworkShows.rawValue)
+        json["motionHow"] = json["motion"]
+        json["motion"] = .string(extras.makesMotion ? "loop" : "still")
+        if extras.makesMotion {
+            json["motionHow"] = .string("""
+            Make the stills first, with no animation. Once the person chose a header, next_step says animate_header: the \
+            motion prompt turns that concept's pages into a \(AutopilotArtworkMotion.loopSeconds)-second loop.
+            """)
+        }
+        json["marks"] = .array(["appName", "text", "capture", "icon"].map { .string($0) })
+        var fillIns = mcpFillIns.objectValue ?? [:]
+        fillIns["headline"] = nil
+        fillIns["text"] = """
+        data-al="text" with data-phrase="1", data-phrase="2"…: the concept's phrases, written once in the primary \
+        language. AppLocalizer translates each at Localize like the captions and fits it.
+        """
+        json["fillIns"] = .object(fillIns)
     }
 
     /// The plan's "Expected result", as the first thing the pages answer:

@@ -126,7 +126,12 @@ struct StudioSetSummaryBuilder {
         if let size = extras.artworkSize, extras.hasArtwork {
             let count = Set(extras.artwork.map(\.locale)).count
             let motion = extras.artworkMotion == .loop ? String(localized: "20 s loops") : String(localized: "still")
-            lines.append(.init(label: String(localized: "Header, search"), value: "\(size.shortTitle) · \(motion) · \(languages(count))"))
+            let label = switch size {
+            case .headerOnly: String(localized: "Header")
+            case .searchOnly: String(localized: "Search results")
+            case .headerAndSearch, .wide: String(localized: "Header, search")
+            }
+            lines.append(.init(label: label, value: "\(size.shortTitle) · \(motion) · \(languages(count))"))
         }
         if let first = extras.previews.first {
             let locales = Set(extras.previews.map(\.locale))

@@ -62,8 +62,6 @@ extension AutopilotCenter {
             run.appendLog(String(localized: "Sent to \(client): \(AutopilotArtworkTextWork(needs).summary)"), kind: .command, at: now())
         }
         guard needs.isEmpty else { return }
-        let extras = await makeExtras(appID, context: context)
-        let what = runs[appID]?.plan.extrasTitle ?? String(localized: "the extras")
-        finishMaking(appID, extras: extras, readyLine: String(localized: "Ready in Review & Push: \(what); the live screenshots stay as they are"))
+        await finishLocalizing(appID, context: context)
     }
 }

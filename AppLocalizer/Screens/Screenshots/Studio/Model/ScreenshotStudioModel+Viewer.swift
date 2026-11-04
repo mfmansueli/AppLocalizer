@@ -32,7 +32,7 @@ extension ScreenshotStudioModel {
     }
 
     /// The header (0) and search results (1) artwork; one item when it's
-    /// one 16:9 image for both.
+    /// one 16:9 image for both, or only one of them was made.
     func openArtwork(at index: Int) {
         guard let extras = extrasPreview else { return }
         var items: [StudioViewerItem] = []
@@ -90,7 +90,7 @@ extension ScreenshotStudioModel {
         let plan = run.plan
         let primary = plan.primaryLocale
         let language = StoreLocaleCatalog.locale(code: primary)?.name ?? primary
-        var items: [StudioViewerItem] = plan.artworkKinds.map { kind in
+        var items: [StudioViewerItem] = run.directionArtworkKinds.map { kind in
             let page = direction.artworkDesign?.page(for: kind)
             let slots = page.map(AutopilotArtworkPages.slots) ?? AutopilotArtworkMaker.slots(for: kind, plan: plan)
             let artwork = StudioArtworkItem(
@@ -171,7 +171,7 @@ extension ScreenshotStudioModel {
 
     /// "Product page header · 21:9 · 3840 × 1646 · motion", "20-second
     /// loop · plays muted on repeat · English (U.S.) · New set · not pushed".
-    private func artworkItem(_ item: StudioArtworkItem, title: String, subtitle: String? = nil) -> StudioViewerItem {
+    func artworkItem(_ item: StudioArtworkItem, title: String, subtitle: String? = nil) -> StudioViewerItem {
         let language = StoreLocaleCatalog.locale(code: item.locale)?.name ?? item.locale
         let subtitle = subtitle ?? [language, String(localized: "New set"), String(localized: "not pushed")].joined(separator: " · ")
         return StudioViewerItem(

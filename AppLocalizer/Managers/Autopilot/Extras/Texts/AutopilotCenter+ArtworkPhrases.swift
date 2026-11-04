@@ -16,15 +16,26 @@ extension AutopilotCenter {
     /// where it has none, as the design source wrote them, so the person
     /// reviews them in Captions like the rest. The run and document as they
     /// are after.
+    /// Who wrote the pages' phrases: the chosen concept's or direction's
+    /// designer.
+    static func phraseProvenance(of run: AutopilotRun) -> CaptionProvenance {
+        if run.usesConcepts, let concept = run.chosenConcept {
+            return .assistant(client: concept.client ?? concept.source.title, date: concept.receivedAt)
+        }
+        let direction = run.chosenDirection
+        return .assistant(client: direction?.client ?? direction?.sourceTitle ?? "", date: direction?.receivedAt ?? .now)
+    }
+
     func readPhrases(
         of run: AutopilotRun, in document: ScreenshotsDocument, context: AutopilotContext
     ) async -> (run: AutopilotRun, document: ScreenshotsDocument) {
-        guard let direction = run.chosenDirection, var design = direction.artworkDesign, !design.isEmpty,
+        guard let made = run.madeArtworkDesign, !made.isEmpty,
               let primary = StoreLocaleCatalog.locale(code: run.plan.primaryLocale)
         else { return (run, document) }
+        var design = made
         var book = document.artworkTexts ?? ArtworkTextBook()
         let pages = AutopilotArtworkPages(context: context)
-        let provenance = CaptionProvenance.assistant(client: direction.client ?? direction.sourceTitle, date: direction.receivedAt)
+        let provenance = Self.phraseProvenance(of: run)
         for kind in run.plan.artworkKinds {
             guard let html = design.page(for: kind) else { continue }
             let request = await pages.request(html: html, kind: kind, locale: primary, headline: "", run: run, icon: nil, withCaptures: false)
@@ -35,9 +46,9 @@ extension AutopilotCenter {
             }
         }
         var updated = run
-        if design != direction.artworkDesign, let index = run.directions.firstIndex(where: { $0.id == direction.id }) {
-            update(run.appID) { $0.directions[index].artworkDesign = design }
-            updated.directions[index].artworkDesign = design
+        if design != made {
+            update(run.appID) { $0.setMadeArtworkDesign(design) }
+            updated.setMadeArtworkDesign(design)
         }
         var saved = document
         if book != (document.artworkTexts ?? ArtworkTextBook()) {

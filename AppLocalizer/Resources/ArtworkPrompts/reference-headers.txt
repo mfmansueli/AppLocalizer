@@ -1,0 +1,13 @@
+WHAT GREAT LOOKS LIKE (three real App Store headers, described)
+1. A hiking app: a large letter-spaced name with a small pine emblem, centered over layered forest hills in the greens of its icon. Flat illustration with soft gradients and haze between layers. The layers drift slowly at different speeds.
+2. A travel app: the view through an airplane window. The dark rounded frame fills the header; the bold name runs across the middle. Behind the glass the sky turns from day blue to sunset orange, to night, to dawn, and back.
+3. A coastal game: a shore with a lighthouse cottage, a passing ship and drifting clouds. The sky cycles from day to a warm sunset, to night with stars and a moon, to a pink dawn.
+
+What they share:
+- One place or viewpoint that IS the app's world.
+- Only the name (and at most one small emblem) as text; no interface and no devices.
+- Colors taken from the icon, so the header and the icon read as one brand.
+- 3 to 5 depth layers.
+- A slow natural cycle of about 20–30 seconds that returns to its start.
+- The name large and centered, readable on a phone.
+- Calm enough to sit behind the App Store's Back and Share buttons.

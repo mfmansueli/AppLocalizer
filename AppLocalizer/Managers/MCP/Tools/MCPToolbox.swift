@@ -55,6 +55,8 @@ struct MCPToolbox {
             RenderArtworkTool(),
             ProposeDirectionTool(),
             ReviseDirectionTool(),
+            ProposeArtworkConceptTool(),
+            ReviseArtworkConceptTool(),
             ReviseAppPreviewTool(),
             SetAppPreviewMusicTool(),
             ReportDesignSourceTool(),

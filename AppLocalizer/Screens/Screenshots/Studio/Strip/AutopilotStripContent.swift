@@ -84,10 +84,7 @@ struct AutopilotStripContent: Hashable, Sendable {
         case .capture:
             (captureText(run), total > 0 ? Double(run.capturedCount) / Double(total) : 0)
         case .design:
-            (
-                String(localized: "\(designer(run)) is designing · \(run.directions.count) of \(AutopilotRun.directionCount) directions"),
-                Double(run.directions.count) / Double(AutopilotRun.directionCount)
-            )
+            designText(run)
         default:
             localizingText(run)
         }
@@ -101,6 +98,17 @@ struct AutopilotStripContent: Hashable, Sendable {
             progress: min(max(progress, 0.02), 1),
             primary: .open
         )
+    }
+
+    /// "Claude Design is designing · 1 of 3 directions · 2 of 3 headers".
+    private static func designText(_ run: AutopilotRun) -> (String, Double) {
+        var parts = [String(localized: "\(designer(run)) is designing")]
+        let directions = run.expectedDirections
+        if directions > 0 { parts.append(String(localized: "\(min(run.directions.count, directions)) of \(directions) directions")) }
+        let concepts = run.expectedConcepts
+        if concepts > 0 { parts.append(String(localized: "\(min(run.designedConcepts.count, concepts)) of \(concepts) headers")) }
+        let done = min(run.directions.count, directions) + min(run.designedConcepts.count, concepts)
+        return (parts.joined(separator: " · "), Double(done) / Double(max(directions + concepts, 1)))
     }
 
     /// "Localizing and checking · 31 of 40", or for the header and search
@@ -137,9 +145,14 @@ struct AutopilotStripContent: Hashable, Sendable {
         let screens = run.plan.screens.count
         let text = switch stage {
         case .pick: String(localized: "Pick the best captures for \(screens) screens. \(client)’s picks are already selected.")
+        case .watchPreview where run.watchesAppPreview && run.watchesHeaderLoop(design: run.designKind):
+            String(localized: "Watch the App Preview and the header loop, then approve them or ask for changes.")
+        case .watchPreview where run.watchesHeaderLoop(design: run.designKind):
+            String(localized: "Watch the header loop, then approve it or ask \(designer(run)) for changes.")
         case .watchPreview where run.designKind.usesDesignAI:
             String(localized: "Watch the App Preview, then approve it or ask \(designer(run)) for changes.")
         case .watchPreview: String(localized: "Watch the App Preview, then approve it.")
+        case .choose where run.usesConcepts: String(localized: "Choose \(run.choicesTitle) from \(designer(run)).")
         default: String(localized: "Choose one of \(run.directions.count) directions from \(designer(run)).")
         }
         return AutopilotStripContent(

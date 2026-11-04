@@ -25,7 +25,7 @@ struct AutopilotDesignStageView: View {
                         Text("Design").font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
                         Spacer()
                         if run.revision == nil {
-                            Text("\(run.directions.count) of \(AutopilotRun.directionCount)")
+                            Text("\(arrived) of \(expected)")
                                 .monospacedDigit()
                                 .foregroundStyle(Palette.label2)
                                 .accessibilityIdentifier("autopilot.design.count")
@@ -38,8 +38,20 @@ struct AutopilotDesignStageView: View {
                         .accessibilityIdentifier("autopilot.design.subtitle")
                 }
                 if run.revision == nil {
-                    ProgressView(value: Double(run.directions.count), total: Double(AutopilotRun.directionCount))
-                        .accessibilityLabel(Text("\(run.directions.count) of \(AutopilotRun.directionCount) directions arrived"))
+                    ProgressView(value: Double(arrived), total: Double(max(expected, 1)))
+                        .accessibilityLabel(Text(run.usesConcepts ? "\(arrived) of \(expected) arrived" : "\(arrived) of \(expected) directions arrived"))
+                }
+                // What comes next, before anything arrives.
+                if let next = run.nextChoiceLine {
+                    Text(next)
+                        .font(.callout)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, Spacing.medium)
+                        .padding(.vertical, Spacing.small)
+                        .background(Palette.accentTint, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
+                        .accessibilityAddTraits(.isStaticText)
+                        .accessibilityIdentifier("autopilot.design.next")
                 }
                 if let revision = run.revision {
                     Label("Asked for changes: “\(revision.note)”", systemImage: "arrow.uturn.backward")
@@ -47,10 +59,15 @@ struct AutopilotDesignStageView: View {
                         .accessibilityIdentifier("autopilot.design.revision")
                 }
                 AutopilotAssistantStatus(studio: studio, run: run, launchNote: launchNote)
-                AutopilotDesignCardsLayout(spacing: Spacing.medium) {
-                    let cards = AutopilotDirectionCard.cards(of: run, isWorking: studio.assistantIsWorking)
-                    ForEach(cards.indices, id: \.self) { index in
-                        card(cards[index], index: index)
+                if run.usesConcepts {
+                    AutopilotConceptsBox(studio: studio, run: run)
+                }
+                if run.hasDirections {
+                    AutopilotDesignCardsLayout(spacing: Spacing.medium) {
+                        let cards = AutopilotDirectionCard.cards(of: run, isWorking: studio.assistantIsWorking)
+                        ForEach(cards.indices, id: \.self) { index in
+                            card(cards[index], index: index)
+                        }
                     }
                 }
                 AutopilotLogView(entries: Array(run.log.suffix(8)))
@@ -149,9 +166,14 @@ struct AutopilotDesignStageView: View {
         .accessibilityIdentifier("autopilot.design.direction.\(index)")
     }
 
-    /// The width inside one of the three cards.
+    /// What arrived of what Design waits for: the directions, and the
+    /// concepts with their pages.
+    private var arrived: Int { run.directions.count + run.designedConcepts.count }
+    private var expected: Int { run.expectedDirections + run.expectedConcepts }
+
+    /// The width inside one of the cards.
     private var cardWidth: CGFloat {
-        Self.cardWidth(in: contentWidth, cards: AutopilotRun.directionCount)
+        Self.cardWidth(in: contentWidth, cards: max(run.expectedDirections, 1))
     }
 
     static func cardWidth(in width: CGFloat, cards: Int) -> CGFloat {
@@ -173,8 +195,8 @@ struct AutopilotDesignStageView: View {
                     studio.openDirection(direction, at: index)
                 }
             }
-            if !plan.alsoMakes.isEmpty {
-                AutopilotDirectionExtras(studio: studio, run: run, direction: direction, fit: Self.extrasFit(plan, cardWidth: cardWidth))
+            if !plan.alsoMakes.isEmpty, !run.usesConcepts || !plan.previewDisplays.isEmpty {
+                AutopilotDirectionExtras(studio: studio, run: run, direction: direction, fit: Self.extrasFit(run, cardWidth: cardWidth))
             }
         }
     }
@@ -182,9 +204,10 @@ struct AutopilotDesignStageView: View {
     /// The extras under the screenshots, at most 64 pt tall; without
     /// screenshots they're the whole direction, up to 96 pt, the header on
     /// a line of its own when the card is narrow.
-    static func extrasFit(_ plan: AutopilotPlan, cardWidth: CGFloat) -> AutopilotDirectionExtras.Fit {
-        AutopilotDirectionExtras.fit(
-            in: cardWidth, kinds: plan.artworkKinds, hasPreview: !plan.previewDisplays.isEmpty,
+    static func extrasFit(_ run: AutopilotRun, cardWidth: CGFloat) -> AutopilotDirectionExtras.Fit {
+        let plan = run.plan
+        return AutopilotDirectionExtras.fit(
+            in: cardWidth, kinds: run.directionArtworkKinds, hasPreview: !plan.previewDisplays.isEmpty,
             maximum: plan.makesScreenshots ? 64 : 96, stacking: !plan.makesScreenshots
         )
     }

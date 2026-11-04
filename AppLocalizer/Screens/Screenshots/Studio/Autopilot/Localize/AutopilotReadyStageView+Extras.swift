@@ -18,20 +18,17 @@ extension AutopilotReadyStageView {
         var notes: [AutopilotReadyNote] = []
         let extras = studio.screenshots.document?.extras
         if !run.plan.artworkKinds.isEmpty {
-            let wide = run.plan.alsoMakes.artworkSize == .wide
-            let header = AutopilotArtworkKind.header.pixelSize.title
-            let search = AutopilotArtworkKind.search.pixelSize.title
-            var detail = wide
-                ? String(localized: "One \(AutopilotArtworkKind.wide.pixelSize.title) image per language for both places, in \(direction). Shown in the preview.")
-                : run.plan.alsoMakes.artworkMotion == .loop
-                ? String(localized: "Header \(header) and search \(search) in each language, as 20-second silent loops (.mov, 30 fps) with a still poster frame, in \(direction). Shown in the preview.")
-                : String(localized: "Header \(header) and search \(search) in each language, in \(direction). Shown in the preview.")
+            let size = run.plan.alsoMakes.artworkSize
+            let sizes = size.sizesDetail
+            var detail = run.plan.alsoMakes.makesMotion
+                ? String(localized: "\(sizes) in each language, as 20-second silent loops (.mov, 30 fps) with a still poster frame, in \(direction). Shown in the preview.")
+                : String(localized: "\(sizes) in each language, in \(direction). Shown in the preview.")
             if let tooLong = extras?.tooLongLocales, !tooLong.isEmpty {
                 let names = tooLong.map { StoreLocaleCatalog.locale(code: $0)?.shortName ?? $0 }.formatted(.list(type: .and))
                 detail += " " + String(localized: "The headline is too long for it in \(names): shorten that caption and run Autopilot again, or leave the artwork out there.")
             }
             notes.append(AutopilotReadyNote(
-                title: wide ? String(localized: "Header and search image · 16:9") : String(localized: "Header and search results artwork"),
+                title: size.artworkTitle + (size == .wide ? " · 16:9" : ""),
                 detail: detail, button: String(localized: "See in Preview"), identifier: "autopilot.ready.artwork",
                 checks: AutopilotCenter.checks(of: extras?.artwork ?? [])
             ) {

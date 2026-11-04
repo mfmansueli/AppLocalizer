@@ -23,6 +23,12 @@ enum AutopilotNextStep: Hashable, Sendable {
     case design(remaining: Int)
     /// "Ask for changes": revise with `revise_direction`.
     case revise(note: String)
+    /// Localize and check is done: animate the chosen header into the
+    /// loop (the motion prompt), then `revise_artwork_concept`.
+    case animateHeader(conceptID: String)
+    /// "Ask for changes" on the header loop: its new version with
+    /// `revise_artwork_concept`.
+    case reviseLoop(note: String)
     /// "Ask for changes" on the App Preview: send the new cut with
     /// `revise_app_preview`.
     case revisePreview(note: String, review: AutopilotPreviewReview)

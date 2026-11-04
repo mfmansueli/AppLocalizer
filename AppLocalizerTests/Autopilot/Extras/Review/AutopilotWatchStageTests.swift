@@ -38,7 +38,7 @@ struct AutopilotWatchStageTests {
         run.plan.stopsToWatchPreview = false
         #expect(run.watchSkipNote == "Skipped: approved as made")
         run.plan.alsoMakes.makesAppPreview = false
-        #expect(run.watchSkipNote == "Skipped · no App Preview")
+        #expect(run.watchSkipNote == "Skipped · nothing moves in this run")
     }
 
     @Test func plansFromBeforeStopToWatch() throws {

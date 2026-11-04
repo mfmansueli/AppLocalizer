@@ -54,11 +54,22 @@ extension AutopilotRun {
         return String(localized: "Skipped · no new screenshots")
     }
 
-    /// "Skipped · no App Preview", "Skipped: approved as made"; nil when
-    /// the person watches it.
-    var watchSkipNote: String? {
-        if plan.previewDisplays.isEmpty { return String(localized: "Skipped · no App Preview") }
-        if !plan.stopsToWatchPreview { return String(localized: "Skipped: approved as made") }
+    /// "Skipped · no App Preview", "Skipped · nothing moves in this run",
+    /// "Skipped: approved as made"; nil when the person watches it.
+    var watchSkipNote: String? { watchSkipNote(design: designKind) }
+
+    /// At Plan, with the design project Start will use: with it, a motion
+    /// header becomes a loop to watch.
+    func watchSkipNote(design: DesignProjectKind) -> String? {
+        let loop = watchesHeaderLoop(design: design)
+        if plan.previewDisplays.isEmpty, !loop {
+            // A loop AppLocalizer animates itself (no design AI) moves but
+            // isn't watched.
+            return plan.alsoMakes.makesArtwork && plan.alsoMakes.makesMotion
+                ? String(localized: "Skipped · no App Preview")
+                : String(localized: "Skipped · nothing moves in this run")
+        }
+        if !plan.stopsToWatchPreview, stage != .watchPreview { return String(localized: "Skipped: approved as made") }
         return nil
     }
 
