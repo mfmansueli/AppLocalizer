@@ -53,11 +53,11 @@ struct ArtworkTextEditorPanel: View {
 
     private var field: some View {
         VStack(alignment: .leading, spacing: Spacing.xSmall) {
-            Text("Headline")
+            Text(editor.isPhrase ? String(localized: "Words") : String(localized: "Headline"))
                 .font(.callout.weight(.semibold))
             TextField(
                 "", text: Binding { editor.headline } set: { editor.setHeadline($0) },
-                prompt: Text(editor.selection?.role.isOptional == true ? String(localized: "None") : String(localized: "3–5 words")),
+                prompt: Text(editor.prompt),
                 axis: .vertical
             )
             .lineLimit(1...3)
@@ -73,7 +73,7 @@ struct ArtworkTextEditorPanel: View {
                     )
             )
             .environment(\.layoutDirection, editor.isRightToLeft ? .rightToLeft : .leftToRight)
-            .accessibilityLabel(Text("Headline"))
+            .accessibilityLabel(Text(editor.isPhrase ? String(localized: "Words") : String(localized: "Headline")))
             .accessibilityIdentifier("screenshots.captions.artworkEditor.headline")
         }
     }

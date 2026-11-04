@@ -26,7 +26,7 @@ struct StudioSearchCard: View {
                         ArtworkThumbnail(
                             studio: studio, kind: artwork.kind, template: artwork.template, locale: artwork.locale,
                             headline: artwork.headline, slots: artwork.slots, captures: artwork.captures, width: 300,
-                            shows: artwork.shows, isMotion: artwork.isMotion
+                            shows: artwork.shows, isMotion: artwork.isMotion, page: artwork.page
                         )
                     }
                     .buttonStyle(.plain)

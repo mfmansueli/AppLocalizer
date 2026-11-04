@@ -6,8 +6,9 @@
 import SwiftUI
 
 /// The raw recording playing in a phone or iPad frame (click it to play or
-/// pause), Play or Pause, where it is, "RAW", and the bar of its moments
-/// to jump to. At Pick and in the viewer.
+/// pause), back and forward 5 seconds, Play or Pause, where it is, "RAW",
+/// the bar to click or drag through it, and the bar of its moments to jump
+/// to. At Pick and in the viewer.
 struct AutopilotRecordingPlayer: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -30,19 +31,12 @@ struct AutopilotRecordingPlayer: View {
             .accessibilityLabel(Text(player.isPlaying ? "Pause the recording" : "Play the recording"))
             .accessibilityIdentifier("autopilot.recording.video")
             VStack(alignment: .leading, spacing: 7) {
-                HStack(spacing: Spacing.small) {
-                    Button(player.isPlaying ? "Pause" : "Play") { player.toggle() }
-                        .controlSize(.small)
-                        .frame(minWidth: 64)
-                        .disabled(!player.canPlay)
-                        .accessibilityLabel(Text(player.isPlaying ? "Pause the recording" : "Play the recording"))
-                        .accessibilityIdentifier("autopilot.recording.play")
-                    Text(studio.recordingTimeTitle(run))
-                        .font(.callout.monospacedDigit())
-                        .foregroundStyle(Palette.label2)
-                        .lineLimit(1)
-                        .accessibilityIdentifier("autopilot.recording.time")
-                    Spacer(minLength: 0)
+                PlayerControls(
+                    identifier: "autopilot.recording", isPlaying: player.isPlaying, canPlay: player.canPlay, seconds: player.seconds,
+                    duration: recording?.seconds ?? player.duration, timeTitle: studio.recordingTimeTitle(run),
+                    playLabel: Text("Play the recording"), pauseLabel: Text("Pause the recording"), toggle: player.toggle,
+                    seek: player.seek(to:), scrubbing: player.scrub
+                ) {
                     Text("RAW")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.white)

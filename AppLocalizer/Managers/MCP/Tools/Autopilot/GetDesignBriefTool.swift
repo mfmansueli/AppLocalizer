@@ -21,8 +21,12 @@ struct GetDesignBriefTool: MCPTool {
         and safe areas per device, right-to-left languages, the design project to use, the starters you can \
         base a direction on, the template fields you can set, and aboutTheApp: its subtitle, categories, \
         description, keywords per language and icon colors, so each direction is about what this app does. When the run also makes product page header and \
-        search results artwork or an App Preview, extras says which canvases and what each direction brings for \
-        them. Design around the real captures; never draw the interface. Send each direction with propose_direction.
+        search results artwork or an App Preview, extras says which canvases and what each is for, and artworkDesign \
+        says how you design the header and search yourself, as HTML pages AppLocalizer renders in every language \
+        (the app's icon is attached after the picks); its askedByThePerson, when there, is what the person asked \
+        those images to be, and comes first. When the run makes no screenshots, noScreenshots says what to design \
+        instead and the screenshot canvases are left out. Design around the real captures; never draw the interface. \
+        Send each direction with propose_direction.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -72,10 +76,19 @@ struct GetDesignBriefTool: MCPTool {
             App Store rating. Right-to-left languages mirror automatically.
             """,
         ]
+        Self.leaveOutTheScreenshots(&result, run: run, live: document?.template)
         let app = session.app
         if let extras = run.mcpBriefExtras(referenceURL: { services.referenceURL($0, for: app) }) { result["extras"] = extras }
+        if run.plan.alsoMakes.makesArtwork {
+            result["artworkDesign"] = AutopilotArtworkDesign.mcpContract(for: run) { services.referenceURL($0, for: app) }
+            if let icon = await AutopilotArtworkPages(context: session.context).icon() {
+                images.append(.init(data: icon, mimeType: "image/png"))
+                result["icon"] = "The app's icon is the last image attached, after the picks: the header and search continue it."
+            }
+        }
         if let profile = await AutopilotAppProfile.load(app: app, locales: run.plan.localeCodes, in: context.workspace) {
             result["aboutTheApp"] = profile.mcpJSON
+            session.center.noteStoreNames(profile.names, appID: app.id)
         }
         if let project = session.center.designProject(for: session.app.id) {
             result["designProject"] = designProject(project)
@@ -86,6 +99,53 @@ struct GetDesignBriefTool: MCPTool {
         }
         session.center.noteBriefRead(appID: session.app.id, by: context.clientName)
         return MCPToolOutcome(result: .object(result), isError: false, logLines: [.init(target: session.target, outcome: .read)], images: images)
+    }
+
+    /// A run without screenshots: no screenshot canvases, and no template
+    /// unless it styles the App Preview; `noScreenshots` says what to design
+    /// instead, and `liveScreenshots` what the header sits above. A run
+    /// with screenshots keeps everything.
+    static func leaveOutTheScreenshots(_ result: inout [String: JSONValue], run: AutopilotRun, live: ScreenshotTemplate?) {
+        let plan = run.plan
+        guard !plan.makesScreenshots else { return }
+        let stylesPreview = !plan.previewDisplays.isEmpty
+        result["canvases"] = nil
+        if !stylesPreview {
+            for key in ["captions", "bases", "templateFields", "contract"] { result[key] = nil }
+        }
+        result["noScreenshots"] = .string(noScreenshots(makesArtwork: plan.alsoMakes.makesArtwork, stylesPreview: stylesPreview))
+        if plan.alsoMakes.makesArtwork, let live {
+            result["liveScreenshots"] = [
+                "background": .array(live.background.stops.map(JSONValue.string)),
+                "headlineFont": .string(live.caption.headline.font),
+                "says": """
+                The live screenshots stay, and the header sits above the first of them: continue these colors and this \
+                typeface (AppLocalizer checks the header against them).
+                """,
+            ]
+        }
+    }
+
+    /// What a direction is when the run makes no screenshots.
+    static func noScreenshots(makesArtwork: Bool, stylesPreview: Bool) -> String {
+        switch (makesArtwork, stylesPreview) {
+        case (true, false):
+            """
+            This run makes no screenshots: the live set and its template stay as they are. Design only the header and \
+            search: send each direction with propose_direction's artworkDesign, one page per canvas, and leave base, \
+            template and ops out.
+            """
+        case (true, true):
+            """
+            This run makes no screenshots: the live set stays as it is. Design the header and search as artworkDesign \
+            pages; a direction's base, template and ops only style the App Preview's captions and end card.
+            """
+        default:
+            """
+            This run makes no screenshots, only the App Preview: the live set stays as it is, and a direction's base, \
+            template and ops are the look of the App Preview's captions and end card.
+            """
+        }
     }
 
     /// The connected design project, what was found in it, and what to do

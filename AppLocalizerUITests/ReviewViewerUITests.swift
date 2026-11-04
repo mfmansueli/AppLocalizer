@@ -93,11 +93,30 @@ final class ReviewViewerUITests: XCTestCase {
         app.typeKey(.space, modifierFlags: [])
         XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout: 5), "Space pauses it")
 
+        // Forward 5 seconds, then drag back to the start.
+        let time = element("appPreview.time")
+        let before = text(of: time)
+        app.buttons["appPreview.forward"].click()
+        XCTAssertTrue(waitUntil { self.text(of: time) != before }, "Forward moves it: \(before)")
+        element("appPreview.scrubber").coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5)).click()
+        XCTAssertTrue(waitUntil { self.text(of: time).contains("0:00 /") }, text(of: time))
+        XCTAssertTrue(app.buttons["Play"].exists, "Still paused")
+        attach("App Preview controls")
+
         app.buttons["review.viewer.close"].click()
         XCTAssertTrue(element("review.viewer").waitForNonExistence(timeout: 5))
     }
 
     // MARK: - Helpers
+
+    private func waitUntil(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
+        let deadline = Date.now.addingTimeInterval(timeout)
+        while Date.now < deadline {
+            if condition() { return true }
+            RunLoop.current.run(until: .now.addingTimeInterval(0.3))
+        }
+        return condition()
+    }
 
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier]

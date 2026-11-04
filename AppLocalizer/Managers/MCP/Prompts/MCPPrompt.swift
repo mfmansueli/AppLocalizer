@@ -78,7 +78,7 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         case .runScreenshots: [
                 "list_apps", "get_capture_plan", "update_capture_plan", "report_capture", "report_capture_problem", "next_step",
                 "get_design_brief", "propose_direction", "revise_direction", "propose_captions", "report_app_support",
-                "start_display_recording", "finish_display_recording", "propose_screens", "revise_app_preview",
+                "start_display_recording", "finish_display_recording", "propose_screens", "revise_app_preview", "render_artwork",
             ]
         }
     }
@@ -254,8 +254,10 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         change to the project), and go on. next_step gives the rehearsal first: every screen in the primary \
         language and one other, before the rest. After each step call next_step and do \
         what it says: capture, wait (ask again after retryAfterSeconds), design (get_design_brief, then \
-        propose_direction with templates in AppLocalizer's format, designed with the connected design project; \
-        report what you find in it with report_design_source), revise_direction, write_captions (then \
+        propose_direction with templates in AppLocalizer's format, designed with the connected design project, \
+        and the header and search as your own HTML pages when the brief has artworkDesign, tried with \
+        render_artwork, only the pages when it says noScreenshots; report what you find in it with \
+        report_design_source), revise_direction, write_captions (then \
         propose_captions with run), revise_app_preview (the person's note on the App Preview, then \
         revise_app_preview with the new cut), or suggest_screens (then propose_screens with run). Stop when it \
         says done. \

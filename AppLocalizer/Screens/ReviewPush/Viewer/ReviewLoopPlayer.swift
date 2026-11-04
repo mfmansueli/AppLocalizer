@@ -7,7 +7,8 @@ import SwiftUI
 
 /// A motion header or search image in Review & Push's viewer: its poster
 /// until it plays, then the loop on repeat and muted, the way the App
-/// Store plays it. Click it or Play to play or pause; pinch to zoom.
+/// Store plays it. Click it or Play to play or pause, skip or drag
+/// through it under it; pinch to zoom.
 struct ReviewLoopPlayer: View {
     let model: AppPreviewPlayerModel
     let url: URL
@@ -31,22 +32,17 @@ struct ReviewLoopPlayer: View {
                 .accessibilityIdentifier("review.viewer.loop")
             }
             .frame(width: width, height: height)
-            HStack(spacing: Spacing.small) {
-                Button(model.isPlaying ? "Pause" : "Play") { model.toggle() }
-                    .controlSize(.small)
-                    .frame(minWidth: 64)
-                    .disabled(!model.canPlay)
-                    .accessibilityIdentifier("review.viewer.loop.play")
-                Text(model.timeTitle)
-                    .font(.callout.monospacedDigit())
-                    .foregroundStyle(Palette.label2)
-                    .accessibilityIdentifier("review.viewer.loop.time")
+            PlayerControls(
+                identifier: "review.viewer.loop", isPlaying: model.isPlaying, canPlay: model.canPlay, seconds: model.seconds,
+                duration: model.duration, timeTitle: model.timeTitle, toggle: model.toggle, seek: model.seek(to:),
+                scrubbing: model.scrub
+            ) {
                 Text(note)
                     .font(.caption)
                     .foregroundStyle(Palette.label2)
                     .lineLimit(1)
             }
-            .frame(height: ReviewViewerContentView.loopControlsHeight - Spacing.small)
+            .frame(width: max(width, 300), height: ReviewViewerContentView.loopControlsHeight - Spacing.small)
         }
         .task(id: url) {
             model.loops = true

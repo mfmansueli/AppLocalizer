@@ -265,7 +265,6 @@ struct AutopilotRunChoiceCard: View {
                 identifier: "autopilot.plan.music"
             )
             .fixedSize()
-            .disabled(studio.run?.startedAt != nil)
             Text(Self.musicNote)
                 .font(.caption)
                 .foregroundStyle(Palette.label2)

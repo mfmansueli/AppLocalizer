@@ -8,6 +8,10 @@ import Foundation
 /// `get_design_brief`'s header and search artwork: the canvases, and what
 /// each placement is for, so the design source gives them different jobs.
 extension AutopilotRun {
+    /// After AppLocalizer's own advice on a role, when the person said what
+    /// they expect.
+    static let askedFirst = " What the person asked (artworkDesign.askedByThePerson) comes before this advice."
+
     /// `referenceURL` says where each reference the person attached is.
     func mcpArtworkBrief(referenceURL: ((AutopilotArtworkReference) -> URL)? = nil) -> [String: JSONValue] {
         let wide = plan.alsoMakes.artworkSize == .wide
@@ -35,11 +39,11 @@ extension AutopilotRun {
                 """,
                 "header": .string("""
                 People who already tapped into the app, seeing it first (Apple: it "sets the tone", "focus on a single, \
-                clear idea", design for a first-time visitor). Brand first: the app name and one short line (at most \
-                about 3 words, none by default), centered, with no phone; on iPhone only the middle shows (\(headerInsets.side)% is \
+                clear idea", design for a first-time visitor). Brand first: usually the app name and at most one short \
+                line (about 3 words, often none); a device is optional. On iPhone only the middle shows (\(headerInsets.side)% is \
                 cut on each side) and the status bar, Back and Share sit over the top \(headerInsets.top)%, so the name and line \
-                sit in the safe area's middle, never at the top. Visually continuous with the app icon and the first \
-                screenshot below it, which must deliver on that promise.
+                sit in the safe area, never at the top. Visually continuous with the app icon and the first screenshot \
+                below it, which must deliver on that promise.\(plan.alsoMakes.artworkDirection.isEmpty ? "" : Self.askedFirst)
                 """),
             ],
             "aboutTheApp": .string(Self.aboutTheAppRule),
@@ -55,8 +59,8 @@ extension AutopilotRun {
             "video": plan.alsoMakes.makesMotion
                 ? """
                 Each is a 20-second silent loop (.mov, 30 fps): slow, ambient movement only, the name and headline still. \
-                AppLocalizer animates the direction's artwork into the loop, so its first frame (the poster) must work as \
-                a still and its last frame matches the first.
+                The loop is your page's own CSS animation (artworkDesign.motion), so its first frame (the poster) must \
+                work as a still and its last frame matches the first.
                 """
                 : """
                 If a header or search becomes a video later: the search video is always muted, so its first second shows \

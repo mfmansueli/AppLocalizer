@@ -32,6 +32,10 @@ final class CaptionsViewModel {
     var suggestionMessage: String?
     var isTranslateSheetPresented = false
     @ObservationIgnored private var commitTask: Task<Void, Never>?
+    /// Each artwork text measured on the direction's Claude Design page
+    /// (`artworkPageFitKey`), filled in as WebKit measures them.
+    var artworkPageFits: [String: CaptionFit] = [:]
+    @ObservationIgnored var artworkPagesMeasuring: Set<String> = []
 
     /// How long typing pauses before the caption is written.
     static let commitDelay: Duration = .milliseconds(500)

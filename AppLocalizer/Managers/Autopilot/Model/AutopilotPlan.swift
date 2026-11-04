@@ -142,9 +142,15 @@ struct AutopilotPlan: Codable, Hashable, Sendable {
     }
 
     /// "iPhone, iPad, Apple Watch and Apple Vision Pro · 15 languages · 17
-    /// screens per language".
+    /// screens per language"; without screenshots, what the run makes:
+    /// "Header and search artwork · 15 languages".
     var scopeTitle: String {
         let languages = localeCodes.count == 1 ? String(localized: "1 language") : String(localized: "\(localeCodes.count) languages")
+        guard makesScreenshots else {
+            let made = extrasTitle.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? String(localized: "Nothing to make yet")
+            // The App Preview's title says its languages.
+            return alsoMakes.makesArtwork ? [made, languages].joined(separator: " · ") : made
+        }
         // With a device's own screens, the count is per language.
         let perLanguage = displayTypes.contains(where: \.hasOwnScreens)
         let count = perLanguage ? screensPerLanguage : screens.count

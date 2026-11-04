@@ -57,7 +57,6 @@ struct AutopilotArtworkChoiceRow: View {
                 }
                 AutopilotArtworkDirectionBox(studio: studio, direction: extras.artworkDirection)
             }
-            .disabled(studio.run?.startedAt != nil)
         }
     }
 

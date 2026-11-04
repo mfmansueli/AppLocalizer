@@ -34,12 +34,15 @@ extension AutopilotCenter {
             previewTemplate: plan.previewDisplays.isEmpty ? nil : direction.previewLook,
             pushedChecksums: document.extras?.pushedChecksums
         )
+        extras.artworkDesign = plan.artworkKinds.isEmpty ? nil : direction.artworkDesign
         // What was discarded stays out while it's the same file.
         extras.discardedChecksums = document.extras?.discardedChecksums
         if !plan.artworkKinds.isEmpty {
             extras.artworkShows = plan.alsoMakes.artworkShows
             extras.artworkMotion = plan.alsoMakes.makesMotion ? .loop : .still
-            guard let artwork = await makeArtwork(appID, run: run, direction: direction, texts: document.artworkTexts, context: context) else {
+            guard let artwork = await makeArtwork(
+                appID, run: run, direction: direction, texts: document.artworkTexts, live: document.template, context: context
+            ) else {
                 return nil
             }
             extras.artwork = artwork
@@ -48,6 +51,7 @@ extension AutopilotCenter {
             extras.artwork = made.artwork
             extras.artworkSize = made.artworkSize
             extras.artworkTemplate = made.artworkTemplate
+            extras.artworkDesign = made.artworkDesign
             extras.artworkShows = made.artworkShows
             extras.artworkMotion = made.artworkMotion
         }
@@ -78,12 +82,13 @@ extension AutopilotCenter {
     /// The header and search artwork in every language, said in the log;
     /// empty when it couldn't be made, nil when Cancel Run stopped it.
     private func makeArtwork(
-        _ appID: StoreApp.ID, run: AutopilotRun, direction: AutopilotDirection, texts: ArtworkTextBook?, context: AutopilotContext
+        _ appID: StoreApp.ID, run: AutopilotRun, direction: AutopilotDirection, texts: ArtworkTextBook?, live: ScreenshotTemplate?,
+        context: AutopilotContext
     ) async -> [ExtrasArtworkFile]? {
         let plan = run.plan
         do {
-            let artwork = try await AutopilotArtworkMaker(context: context).make(
-                for: run, look: direction.artworkLook, texts: texts ?? ArtworkTextBook()
+            let artwork = try await AutopilotArtworkMaker(context: context, liveTemplate: live).make(
+                for: run, look: direction.artworkLook, design: direction.artworkDesign, texts: texts ?? ArtworkTextBook()
             ) { done in
                 update(appID) { $0.extrasProgress?.artworkDone = done }
             }

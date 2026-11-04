@@ -23,7 +23,9 @@ struct ProposeCaptionsTool: MCPTool {
         next_step asks for write_captions, pass the run's ID as run: the captions are saved right away instead \
         of queued, and the run checks them again. When it asks for write_artwork_texts, send items {locale, \
         placement: search or header, headline} with run instead of slots: the search results image's and the \
-        header's own texts (an empty header headline removes its line).
+        header's own texts (an empty header headline removes its line). For placement text, add phrase: one of \
+        the pages' phrases as next_step gave it, in the primary language, with its words in that locale as \
+        headline.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -35,8 +37,15 @@ struct ProposeCaptionsTool: MCPTool {
                         "properties": [
                             "locale": ["type": "string"], "slot": ["type": "integer"], "headline": ["type": "string"], "subhead": ["type": "string"],
                             "placement": [
-                                "type": "string", "enum": ["search", "header"],
-                                "description": "With run, during write_artwork_texts: the placement's own text, instead of a slot.",
+                                "type": "string", "enum": ["search", "header", "text"],
+                                "description": """
+                                With run, during write_artwork_texts: the placement's own text, or one of the pages' phrases (text), instead \
+                                of a slot.
+                                """,
+                            ],
+                            "phrase": [
+                                "type": "string",
+                                "description": "With placement text: the page's phrase in the primary language, exactly as next_step gave it.",
                             ],
                         ],
                         "required": ["locale", "headline"],

@@ -43,8 +43,8 @@ extension AutopilotCenter {
                 let request = AppPreviewRequest(
                     recording: services.recordingURL(recording.fileID, for: context.app), recordingSize: recording.pixelSize,
                     recordingSeconds: recording.seconds, marks: recording.marks, screens: screens, template: direction.previewLook,
-                    locale: locale, appName: context.app.name, displayType: display, fonts: services.fonts, output: temporary,
-                    cut: cut, music: music,
+                    locale: locale, appName: run.appName(in: code, fallback: context.app.name), displayType: display, fonts: services.fonts,
+                    output: temporary, cut: cut, music: music,
                     clips: run.previewClips(for: recording) { services.recordingURL($0, for: context.app) }
                 )
                 do {

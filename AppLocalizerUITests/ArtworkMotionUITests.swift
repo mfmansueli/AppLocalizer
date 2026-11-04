@@ -42,6 +42,32 @@ final class ArtworkMotionUITests: XCTestCase {
         attachScreenshot("Plan · still scene")
     }
 
+    /// A run back at the plan after Cancel Run (it started once) can still
+    /// change what the header and search show, still or motion, and the
+    /// expected result, like a new one.
+    func testAPlanBackFromCancelRunCanStillBeChanged() {
+        app.launch(debugScene: "st-plan-motion-again")
+        let motion = element("autopilot.plan.artworkMotionNote")
+        XCTAssertTrue(motion.waitForExistence(timeout: 20))
+        reveal(motion)
+        XCTAssertTrue(element("autopilot.plan.artworkMotion.loop").isSelected)
+        XCTAssertTrue(element("autopilot.plan.artworkMotion.still").isEnabled, "Still or motion can change")
+        XCTAssertTrue(element("autopilot.plan.artworkShows.scene").isEnabled, "What it shows can change")
+
+        tap("autopilot.plan.artworkShows.scene")
+        let shows = element("autopilot.plan.artworkShowsNote")
+        XCTAssertTrue(waitUntil { self.text(of: shows).hasPrefix("Only the name, the headline and a scene in the brand’s style.") }, text(of: shows))
+        tap("autopilot.plan.artworkMotion.still")
+        XCTAssertTrue(waitUntil { !self.text(of: motion).contains("20-second") }, text(of: motion))
+
+        let toggle = element("autopilot.plan.artworkDirection.toggle")
+        reveal(toggle)
+        XCTAssertTrue(toggle.isEnabled, "The expected result opens")
+        toggle.click()
+        XCTAssertTrue(element("autopilot.plan.artworkDirection.text").waitForExistence(timeout: 5))
+        attachScreenshot("Plan after Cancel Run · still editable")
+    }
+
     /// Each note sits under its choice, across the row, rather than in a
     /// narrow column beside it, where the scene's note wrapped every few
     /// words.

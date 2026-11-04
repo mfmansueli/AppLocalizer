@@ -155,7 +155,8 @@ struct NextStepToolTests {
         let how = try #require(json["how"]?.stringValue)
         #expect(how.contains("last: false") && how.contains("every direction"))
         #expect(json["artwork"]?.stringValue?.contains("extrasTemplates.artwork") == true)
-        #expect(json["motion"]?.stringValue?.contains("No template field changes the motion") == true)
+        #expect(json["motion"]?.stringValue?.contains("the page's own CSS animation") == true)
+        #expect(json["motion"]?.stringValue?.contains("each cycle dividing 20 s") == true)
 
         var own = StudioDebugArtMotion.revising
         own.directions[0].artworkTemplate = ScreenshotTemplate.starter(.cinema, id: "lumen", title: "Lumen")

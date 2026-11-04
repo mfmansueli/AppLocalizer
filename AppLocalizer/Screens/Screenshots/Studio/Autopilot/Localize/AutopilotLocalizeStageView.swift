@@ -93,7 +93,9 @@ struct AutopilotLocalizeStageView: View {
         return HStack(spacing: Spacing.medium) {
             Text("Headlines").frame(width: 170, alignment: .leading)
             Text(needs.isEmpty
-                ? String(localized: "Every language has its search headline, and it fits")
+                ? (run.chosenDirection?.artworkDesign?.allPhrases(in: run.plan.artworkKinds).isEmpty == false
+                    ? String(localized: "Every language has its search headline and the pages’ phrases, and they fit")
+                    : String(localized: "Every language has its search headline, and it fits"))
                 : String(localized: "\(client) writes \(AutopilotArtworkTextWork(needs).summary): \(names.formatted(.list(type: .and)))"))
                 .font(.callout)
                 .foregroundStyle(needs.isEmpty ? Palette.label : Palette.label2)

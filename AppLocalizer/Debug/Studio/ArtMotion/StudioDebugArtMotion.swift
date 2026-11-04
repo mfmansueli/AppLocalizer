@@ -23,12 +23,15 @@ import Foundation
 ///   changes to the three directions, on every device, with header and
 ///   search loops and the App Preview: the cards fit the sheet and open
 ///   full size.
+/// - `st-plan-motion-again`: `st-plan-motion` after Cancel Run: back at
+///   the plan with its own captures, every choice still editable.
 /// (`st-ready-extras-wide`, the board's 16:9 tile, is board 26's.)
 @MainActor
 enum StudioDebugArtMotion {
     nonisolated static let ids = [
         "st-plan-motion", "st-des-motion", "st-ready-motion", "st-lb-header-guide", "st-lb-search-motion",
         "st-plan-art-custom", "st-des-art-custom", "st-lb-search-ui", "st-lb-search-scene", "st-des-revise-motion",
+        "st-plan-motion-again",
     ]
 
     /// The board's expected result.
@@ -67,8 +70,30 @@ enum StudioDebugArtMotion {
         case "st-lb-search-scene":
             viewer(ready(shows: .scene), at: 1, locale: "ja")
         default:
-            id == "st-des-revise-motion" ? StudioDebugExtras.Scene(run: revising, sheet: true, savesExtras: false, everyDevice: true) : nil
+            sheetScene(for: id)
         }
+    }
+
+    /// The sheet's scenes for a run revising or started before.
+    private static func sheetScene(for id: String) -> StudioDebugExtras.Scene? {
+        switch id {
+        case "st-des-revise-motion":
+            StudioDebugExtras.Scene(run: revising, sheet: true, savesExtras: false, everyDevice: true)
+        case "st-plan-motion-again":
+            StudioDebugExtras.Scene(run: startedBefore, sheet: true, setUp: { $0.studio.showsPlanScreens = false }, savesExtras: false)
+        default:
+            nil
+        }
+    }
+
+    /// `artworkOnly(.plan)` as Cancel Run leaves it: back at the plan,
+    /// started once, with its captures and picks.
+    static var startedBefore: AutopilotRun {
+        var run = StudioDebugExtras.run(.design, languages: .primary)
+        AutopilotRunPreset.headerAndSearch.apply(to: &run.plan, devices: [.iPhone, .iPad], canReuse: true)
+        run.plan.alsoMakes.setMotion(.loop)
+        AutopilotCenter.resetForPlan(&run)
+        return run
     }
 
     /// The three directions back at Design with the person's note, the

@@ -75,7 +75,7 @@ enum BundledFonts {
 
     /// Synchronized folders copy resources flat, so the file is usually at
     /// the bundle's top level; a folder reference would keep `Fonts/`.
-    private static func url(for name: String) -> URL? {
+    static func url(for name: String) -> URL? {
         let bundle = Bundle(for: BundleToken.self)
         return bundle.url(forResource: name, withExtension: "ttf") ?? bundle.url(forResource: name, withExtension: "ttf", subdirectory: "Fonts")
     }

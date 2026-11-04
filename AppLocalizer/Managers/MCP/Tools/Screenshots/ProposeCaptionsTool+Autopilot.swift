@@ -14,12 +14,21 @@ extension ProposeCaptionsTool {
         var updates: [AutopilotCaptionUpdate] = []
         var texts: [AutopilotArtworkTextUpdate] = []
         for item in try arguments.array("items") {
+            // One of the pages' phrases in a language.
+            if item["placement"]?.stringValue == "text" {
+                switch Self.phraseUpdate(item, run: session.run) {
+                case let .success(update): texts.append(update)
+                case let .failure(refusal): return .refused(refusal.message, target: session.target)
+                }
+                continue
+            }
             // A placement's own text: the search headline or the header line.
             if let value = item["placement"]?.stringValue {
                 guard let role = ArtworkTextRole(rawValue: value), let code = item["locale"]?.stringValue,
                       let locale = StoreLocaleCatalog.resolve(code).locale, session.run.plan.localeCodes.contains(locale.code)
                 else {
-                    return .refused(String(localized: "A placement item needs a locale of the plan and placement search or header."), target: session.target)
+                    let refusal = String(localized: "A placement item needs a locale of the plan and placement search, header or text.")
+                    return .refused(refusal, target: session.target)
                 }
                 let headline = item["headline"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 guard !headline.isEmpty || role.isOptional else {
@@ -53,7 +62,37 @@ extension ProposeCaptionsTool {
         let left = (run?.overflows.count ?? 0) + (run?.artworkTextNeeds?.count ?? 0)
         let result: JSONValue = ["status": "saved", "saved": .int(updates.count + texts.count), "stillNotFitting": .int(left)]
         var lines = updates.map { MCPToolOutcome.LogLine(target: "\(session.app.name) · \($0.locale) · " + String(localized: "slot \($0.slot + 1)"), outcome: .proposed) }
-        lines += texts.map { MCPToolOutcome.LogLine(target: "\(session.app.name) · \($0.locale) · \($0.role.title)", outcome: .proposed) }
+        lines += texts.map { text in
+            let place = text.phrase.map { "“\(ArtworkCheckGeometry.snippet($0))”" } ?? text.role.title
+            return MCPToolOutcome.LogLine(target: "\(session.app.name) · \(text.locale) · \(place)", outcome: .proposed)
+        }
         return MCPToolOutcome(result: result, isError: false, logLines: lines)
+    }
+
+    /// A phrase item {locale, placement: "text", phrase, headline}: one of
+    /// the chosen direction's phrases (its words in the primary language,
+    /// as next_step gave them) in a language of the plan; in the primary
+    /// language, shorter words for one that doesn't fit.
+    static func phraseUpdate(_ item: JSONValue, run: AutopilotRun) -> Result<AutopilotArtworkTextUpdate, ProposeCaptionsPhraseRefusal> {
+        guard let code = item["locale"]?.stringValue, let locale = StoreLocaleCatalog.resolve(code).locale,
+              run.plan.localeCodes.contains(locale.code)
+        else {
+            return .failure(ProposeCaptionsPhraseRefusal(String(localized: "A text item needs a locale of the plan.")))
+        }
+        let design = run.chosenDirection?.artworkDesign
+        let known = design?.allPhrases(in: run.plan.artworkKinds) ?? []
+        let phrase = ArtworkTextBook.phraseKey(item["phrase"]?.stringValue ?? "")
+        guard !phrase.isEmpty, known.isEmpty || known.contains(phrase) else {
+            let list = known.map { "“\($0)”" }.joined(separator: ", ")
+            return .failure(ProposeCaptionsPhraseRefusal(String(localized: """
+            A text item’s phrase must be one of the pages’ phrases, exactly as next_step gave it: \(list).
+            """)))
+        }
+        let headline = ArtworkTextBook.phraseKey(item["headline"]?.stringValue ?? "")
+        guard !headline.isEmpty else {
+            return .failure(ProposeCaptionsPhraseRefusal(String(localized: "A text item needs the phrase’s words in \(locale.code) as headline.")))
+        }
+        let kind = design?.kind(writing: phrase) ?? run.plan.artworkKinds.first ?? .header
+        return .success(AutopilotArtworkTextUpdate(locale: locale.code, role: ArtworkTextRole.role(for: kind), headline: headline, phrase: phrase))
     }
 }

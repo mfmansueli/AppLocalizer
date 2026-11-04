@@ -41,10 +41,12 @@ extension AutopilotCenter {
     }
 
     /// The variant the assistant sent: rendered in every language with its
-    /// look (and its own texts, when the idea is the words), saved with the
+    /// look (and its own texts, when the idea is the words, and its new
+    /// page phrases' words, phrase → locale → words), saved with the
     /// extras. Throws when nothing asked for one.
     func receiveVariant(
-        appID: StoreApp.ID, look: ScreenshotTemplate, change: String, texts: [String: String], client: String, context: AutopilotContext
+        appID: StoreApp.ID, look: ScreenshotTemplate, design: AutopilotArtworkDesign? = nil, change: String, texts: [String: String],
+        phrases: [String: [String: String]] = [:], client: String, context: AutopilotContext
     ) async throws -> ExtrasArtworkVariant {
         guard let run = runs[appID], let request = run.variantRequest else {
             throw AutopilotError(String(localized: "No variant was asked for. Call next_step to see what AppLocalizer wants."))
@@ -59,6 +61,7 @@ extension AutopilotCenter {
         for (locale, headline) in texts {
             book.set(ScreenshotCaption(headline: headline, subhead: nil, provenance: provenance), role: request.role, locale: locale)
         }
+        book.setPhrases(phrases, provenance: provenance)
         // The sheet shows it rendering, language by language.
         update(appID) { run in
             run.variantRequest?.receivedAt = now()
@@ -67,7 +70,9 @@ extension AutopilotCenter {
         }
         let files: [ExtrasArtworkFile]
         do {
-            files = try await AutopilotArtworkMaker(context: context).make(for: run, look: look, texts: book, kinds: [request.kind]) { count in
+            files = try await AutopilotArtworkMaker(context: context, liveTemplate: document.template).make(
+                for: run, look: look, design: design, texts: book, kinds: [request.kind]
+            ) { count in
                 update(appID) { $0.variantRequest?.renderedCount = count }
             }
         } catch {
@@ -80,7 +85,7 @@ extension AutopilotCenter {
         }
         let variant = ExtrasArtworkVariant(
             role: request.role, kind: request.kind, controlIdea: request.controlIdea, idea: request.variantIdea, change: change,
-            template: look, files: files, client: client, madeAt: now()
+            template: look, design: design, files: files, client: client, madeAt: now()
         )
         document.extras?.variant = variant
         try await services.saveDocument(document, for: context.app)

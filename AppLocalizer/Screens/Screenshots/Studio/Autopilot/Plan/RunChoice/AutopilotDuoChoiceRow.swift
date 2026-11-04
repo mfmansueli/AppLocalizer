@@ -40,7 +40,6 @@ struct AutopilotDuoChoiceRow: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("autopilot.plan.duoNote")
             }
-            .disabled(studio.run?.startedAt != nil)
         }
     }
 }

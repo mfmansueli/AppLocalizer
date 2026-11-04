@@ -91,11 +91,13 @@ extension ScreenshotStudioModel {
         let primary = plan.primaryLocale
         let language = StoreLocaleCatalog.locale(code: primary)?.name ?? primary
         var items: [StudioViewerItem] = plan.artworkKinds.map { kind in
-            let slots = AutopilotArtworkMaker.slots(for: kind, plan: plan)
+            let page = direction.artworkDesign?.page(for: kind)
+            let slots = page.map(AutopilotArtworkPages.slots) ?? AutopilotArtworkMaker.slots(for: kind, plan: plan)
             let artwork = StudioArtworkItem(
                 kind: kind, template: direction.artworkLook, locale: primary,
                 headline: artworkHeadline(ArtworkTextRole.role(for: kind), locale: primary), slots: slots,
-                captures: pickedCaptures(slots, run: run), shows: plan.alsoMakes.artworkShows, isMotion: plan.alsoMakes.makesMotion
+                captures: pickedCaptures(slots, run: run), shows: plan.alsoMakes.artworkShows, isMotion: plan.alsoMakes.makesMotion,
+                page: page
             )
             let subtitle = [String(localized: "Direction from \(direction.sourceTitle)"), language].joined(separator: " · ")
             var item = artworkItem(artwork, title: "\(direction.name) · \(StudioArtworkDetails.title(kind)) · \(kind.pixelSize.title)", subtitle: subtitle)

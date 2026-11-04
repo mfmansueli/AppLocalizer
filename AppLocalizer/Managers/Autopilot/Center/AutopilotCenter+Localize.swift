@@ -101,7 +101,7 @@ extension AutopilotCenter {
         }
         guard overflows.isEmpty else { return }
         // Every caption fits: then each placement's own text.
-        let needs = artworkTextNeeds(of: run, in: document, context: localizer.context)
+        let needs = await artworkTextNeeds(of: run, in: document, context: localizer.context)
         guard runs[appID]?.stage == .localize else { return }
         update(appID) { run in
             run.artworkTextNeeds = needs.isEmpty ? nil : needs

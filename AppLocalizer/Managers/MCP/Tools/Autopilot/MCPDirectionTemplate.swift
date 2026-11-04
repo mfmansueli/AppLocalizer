@@ -11,7 +11,12 @@ import Foundation
 /// like an edit in the template editor.
 @MainActor
 enum MCPDirectionTemplate {
-    static func template(_ arguments: MCPToolArguments, base: ScreenshotTemplate, fonts: ScreenshotFontCatalog) throws -> ScreenshotTemplate {
+    /// `allowsNothing` (a revision that only changes the header and search
+    /// pages or the extras' looks, or a run without screenshots) keeps
+    /// `base` when neither is sent.
+    static func template(
+        _ arguments: MCPToolArguments, base: ScreenshotTemplate, fonts: ScreenshotFontCatalog, allowsNothing: Bool = false
+    ) throws -> ScreenshotTemplate {
         var operations: [TemplateOperation] = []
         if let object = try arguments.optionalObject("template") {
             operations += self.operations(from: .object(object), over: base)
@@ -19,6 +24,7 @@ enum MCPDirectionTemplate {
         if let ops = try arguments.optionalArray("ops") {
             operations += try TemplateOperation.mcpOperations(from: .array(ops), argument: "ops")
         }
+        if operations.isEmpty, allowsNothing { return base }
         guard !operations.isEmpty || arguments.values["base"] != nil else {
             throw MCPToolError.invalidArgument(name: "template", expected: String(localized: "a template (as get_template returns it), ops, or a base starter"))
         }
@@ -83,8 +89,9 @@ enum MCPDirectionTemplate {
         "type": "object",
         "description": """
         Optional looks for the run's extras, each template fields (as get_template returns them) and/or ops laid on \
-        this direction's template: artwork (the product page header and search results images) and appPreview (its \
-        captions and end card). Leave out to use the screenshots' look.
+        this direction's template: appPreview (the App Preview's captions and end card). artwork only styles the \
+        built-in header and search of a direction without artworkDesign; with artworkDesign the pages are the \
+        artwork. Leave out to use the screenshots' look.
         """,
         "properties": [
             "artwork": ["type": "object"],

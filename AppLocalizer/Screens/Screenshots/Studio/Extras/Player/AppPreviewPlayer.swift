@@ -6,8 +6,9 @@
 import SwiftUI
 
 /// An App Preview playing in place: the video (click it to play or pause;
-/// its poster while there's no file), Play or Pause, where it is, Sound On
-/// or Off, a bar per scene to jump to, and the music under it.
+/// its poster while there's no file), back and forward 5 seconds, Play or
+/// Pause, where it is, Sound On or Off, the bar to click or drag through
+/// it, a bar per scene to jump to, and the music under it.
 struct AppPreviewPlayer: View {
     let model: AppPreviewPlayerModel
     let file: ExtrasPreviewFile
@@ -30,19 +31,13 @@ struct AppPreviewPlayer: View {
                 videoButton
             }
             VStack(alignment: .leading, spacing: Spacing.xSmall) {
-                HStack(spacing: Spacing.small) {
-                    Button(model.isPlaying ? "Pause" : "Play") { model.toggle() }
-                        .controlSize(.small)
-                        .frame(minWidth: 64)
-                        .disabled(!model.canPlay)
-                        .accessibilityIdentifier("appPreview.play")
-                    Text(model.timeTitle)
-                        .font(.callout.monospacedDigit())
-                        .foregroundStyle(Palette.label2)
-                        .accessibilityIdentifier("appPreview.time")
-                    Spacer(minLength: 0)
+                PlayerControls(
+                    identifier: "appPreview", isPlaying: model.isPlaying, canPlay: model.canPlay, seconds: model.seconds,
+                    duration: model.duration, timeTitle: model.timeTitle, toggle: model.toggle, seek: model.seek(to:),
+                    scrubbing: model.scrub
+                ) {
                     Button(model.isMuted ? "Sound Off" : "Sound On") { model.isMuted.toggle() }
-                        .controlSize(.small)
+                        .buttonStyle(.bordered)
                         .accessibilityValue(Text(model.isMuted ? "Off" : "On"))
                         .accessibilityIdentifier("appPreview.sound")
                 }

@@ -44,6 +44,7 @@ struct ArtworkChecker {
         checks += safeAreaChecks(input)
         checks += contrastChecks(input, pixels: pixels)
         checks += lookChecks(input)
+        checks += pageChecks(input)
         return checks.filter(\.isError) + checks.filter { !$0.isError }
     }
 

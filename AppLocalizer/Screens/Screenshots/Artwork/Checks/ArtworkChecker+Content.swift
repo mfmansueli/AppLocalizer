@@ -12,7 +12,7 @@ extension ArtworkChecker {
     func contentChecks(_ input: ArtworkCheckInput, read: [ArtworkReadText]?) -> [ArtworkCheck] {
         var seen: Set<String> = []
         var checks: [ArtworkCheck] = []
-        let layers = [input.line, input.layout.lines.map(\.text).joined(separator: " "), input.layout.appLabel?.name.text ?? ""]
+        let layers = [input.line] + input.geometry.textLayers
         for text in layers {
             for match in ArtworkForbiddenText.matches(in: text) where seen.insert(match.key).inserted {
                 checks.append(ArtworkCheck(kind: match.kind, text: String(localized: "\(input.place): ‘\(match.snippet)’ — \(match.kind.notAllowed).")))
@@ -20,7 +20,7 @@ extension ArtworkChecker {
         }
         for line in read ?? [] {
             let center = CGPoint(x: line.frame.midX, y: line.frame.midY)
-            let isInterface = input.layout.phones.contains { $0.bounds.contains(center) }
+            let isInterface = input.geometry.interfaceFrames.contains { $0.contains(center) }
             for match in ArtworkForbiddenText.matches(in: line.text) where seen.insert(match.key).inserted {
                 if isInterface {
                     checks.append(ArtworkCheck(

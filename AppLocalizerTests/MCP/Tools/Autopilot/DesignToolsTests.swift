@@ -209,9 +209,13 @@ struct DesignToolsTests {
     }
 
     @Test func theArtworkOutcomeSaysWhatChanged() {
-        #expect(ReviseDirectionTool.artworkOutcome(sent: true, ownLook: true) == "The header and search artwork have the new look.")
-        #expect(ReviseDirectionTool.artworkOutcome(sent: false, ownLook: true).contains("kept their own look"))
-        #expect(ReviseDirectionTool.artworkOutcome(sent: false, ownLook: false) == "The header and search artwork follow the new template.")
+        #expect(ReviseDirectionTool.artworkOutcome(pages: [], look: true, hasPages: false, ownLook: true) == "The header and search artwork have the new look.")
+        #expect(ReviseDirectionTool.artworkOutcome(pages: [], look: false, hasPages: false, ownLook: true).contains("kept their own look"))
+        let unchanged = ReviseDirectionTool.artworkOutcome(pages: [], look: false, hasPages: false, ownLook: false)
+        #expect(unchanged == "The header and search artwork follow the new template.")
+        let pages = ReviseDirectionTool.artworkOutcome(pages: ["header", "search"], look: true, hasPages: true, ownLook: false)
+        #expect(pages.hasPrefix("New pages for header and search"))
+        #expect(ReviseDirectionTool.artworkOutcome(pages: [], look: true, hasPages: true, ownLook: false).contains("only artworkDesign changes them"))
     }
 
     // MARK: - report_design_source

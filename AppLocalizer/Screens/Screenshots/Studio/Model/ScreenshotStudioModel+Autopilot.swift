@@ -20,6 +20,7 @@ extension ScreenshotStudioModel {
     /// A run with nothing to capture goes straight to Design, and Claude
     /// Code starts only when something is left for it there.
     func start() {
+        noteStoreNames()
         autopilot?.start(appID: app.id)
         reportMissingSimulators()
         viewedStep = nil
@@ -34,6 +35,12 @@ extension ScreenshotStudioModel {
         }
         let prompt = prompt
         Task { await launch(prompt, with: launcher) }
+    }
+
+    /// Each language's App Store name on the run, so its header, search
+    /// and App Preview write the name that language's page has.
+    func noteStoreNames() {
+        autopilot?.noteStoreNames(storeTexts.names, appID: app.id)
     }
 
     private func startWithoutCapturing() {
@@ -253,8 +260,11 @@ extension ScreenshotStudioModel {
     /// artwork: what a note can change, and that the loops' motion is
     /// AppLocalizer's own.
     var revisionScopeNote: String? {
-        guard let extras = run?.plan.alsoMakes, extras.makesArtwork else { return nil }
-        let scope = String(localized: "A note changes the screenshots and the header and search images: colors, type, layout and what they show.")
+        guard let plan = run?.plan, plan.alsoMakes.makesArtwork else { return nil }
+        let extras = plan.alsoMakes
+        let scope = plan.makesScreenshots
+            ? String(localized: "A note changes the screenshots and the header and search images: colors, type, layout and what they show.")
+            : String(localized: "A note changes the header and search images: colors, type, layout and what they show. The live screenshots stay as they are.")
         guard extras.makesMotion else { return scope }
         let motion = String(localized: """
         The loops move the way AppLocalizer animates them (slow light, twinkling stars, a gentle float); the motion \

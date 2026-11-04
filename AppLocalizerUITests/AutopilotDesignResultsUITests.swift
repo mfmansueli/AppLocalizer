@@ -75,6 +75,20 @@ final class AutopilotDesignResultsUITests: XCTestCase {
         RunLoop.current.run(until: .now.addingTimeInterval(2.5))
         XCTAssertEqual(text(of: time), paused, "Paused, it stays put")
 
+        // The player's controls: scrub, then skip forward and back.
+        element("artwork.loop.scrubber").coordinate(withNormalizedOffset: CGVector(dx: 0.27, dy: 0.5)).click()
+        XCTAssertTrue(waitUntil { self.text(of: time).hasPrefix("0:05 / 0:20") }, text(of: time))
+        app.buttons["artwork.loop.forward"].click()
+        XCTAssertTrue(waitUntil { self.text(of: time).hasPrefix("0:10 / 0:20") }, text(of: time))
+        app.buttons["artwork.loop.back"].click()
+        app.buttons["artwork.loop.back"].click()
+        XCTAssertTrue(waitUntil { self.text(of: time).hasPrefix("0:00 / 0:20") }, text(of: time))
+        XCTAssertEqual(app.buttons["artwork.loop.play"].label, "Play the loop", "Still paused")
+        app.typeKey(.space, modifierFlags: [])
+        XCTAssertTrue(waitUntil { self.app.buttons["artwork.loop.play"].label == "Pause the loop" }, "Space plays it")
+        XCTAssertTrue(element("studio.viewer").exists, "And doesn't close the viewer")
+        attachScreenshot("Design · header loop controls")
+
         element("studio.viewer.next").click()
         XCTAssertTrue(waitUntil { self.text(of: title).hasPrefix("Quiet Indigo · Search results") }, text(of: title))
     }
@@ -99,6 +113,57 @@ final class AutopilotDesignResultsUITests: XCTestCase {
         XCTAssertTrue(extra.exists)
         extra.click()
         XCTAssertTrue(element("studio.viewer").waitForExistence(timeout: 5), "Choose's header opens full size too")
+    }
+
+    // MARK: - Only header and search
+
+    /// A run that makes only the header and search: Design's cards show
+    /// only each direction's pages, never a screenshot, and the sheet says
+    /// what the run makes.
+    func testDesignWithoutScreenshotsShowsOnlyTheHeaderAndSearch() {
+        app.launch(debugScene: "st-des-web-art-only")
+        XCTAssertTrue(element("autopilot.design").waitForExistence(timeout: 20))
+        let scope = text(of: element("autopilot.scope"))
+        XCTAssertTrue(scope.contains("header and search artwork") || scope.contains("Header and search artwork"), scope)
+        XCTAssertFalse(scope.contains("screens per language"), scope)
+        let subtitle = text(of: element("autopilot.design.subtitle"))
+        XCTAssertTrue(subtitle.contains("its own header and search images, and the live screenshots stay as they are"), subtitle)
+        for index in 0..<3 {
+            let card = element("autopilot.design.direction.\(index)")
+            XCTAssertTrue(card.waitForExistence(timeout: 5))
+            let parts = card.descendants(matching: .any)
+            XCTAssertFalse(parts.matching(identifier: "autopilot.direction.thumbnails").firstMatch.exists, "Card \(index) shows no screenshots")
+            let extras = parts.matching(identifier: "autopilot.direction.extras").firstMatch
+            XCTAssertTrue(extras.exists, "Card \(index) shows its header and search")
+            let inside = card.frame.insetBy(dx: -1, dy: -1)
+            XCTAssertTrue(inside.minX <= extras.frame.minX && extras.frame.maxX <= inside.maxX, "Extras at \(extras.frame) spill out of \(card.frame)")
+            for extra in 0..<2 {
+                XCTAssertTrue(parts.matching(identifier: "autopilot.direction.extra.\(extra)").firstMatch.exists, "Card \(index) has extra \(extra)")
+            }
+        }
+        attachScreenshot("Design · only header and search")
+
+        element("autopilot.design.direction.0").descendants(matching: .any).matching(identifier: "autopilot.direction.extra.1").firstMatch.click()
+        XCTAssertTrue(element("studio.viewer").waitForExistence(timeout: 5))
+        XCTAssertTrue(text(of: element("studio.viewer.title")).hasPrefix("Quiet Indigo · Search results"), text(of: element("studio.viewer.title")))
+    }
+
+    /// The same run at Choose: each row shows only its header and search,
+    /// and a note is about them alone.
+    func testChooseWithoutScreenshotsShowsOnlyTheHeaderAndSearch() {
+        app.launch(debugScene: "st-choose-web-art-only")
+        let note = element("autopilot.choose.noteScope")
+        XCTAssertTrue(note.waitForExistence(timeout: 20))
+        XCTAssertTrue(text(of: note).hasPrefix("A note changes the header and search images"), text(of: note))
+        let subtitle = text(of: element("autopilot.choose.subtitle"))
+        XCTAssertTrue(subtitle.contains("Only the header and search images; the live screenshots stay as they are."), subtitle)
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "autopilot.direction.thumbnails").firstMatch.exists, "No screenshots")
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "autopilot.direction.extras").count, 3)
+        XCTAssertFalse(
+            app.descendants(matching: .any).matching(identifier: "autopilot.direction.checks").firstMatch.exists,
+            "No caption checks: there are no screenshot captions"
+        )
+        attachScreenshot("Choose · only header and search")
     }
 
     // MARK: - Helpers

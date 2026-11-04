@@ -35,12 +35,13 @@ extension ArtworkChecker {
     /// The phones and the text stay inside the center safe area, which
     /// every device shows.
     func safeAreaChecks(_ input: ArtworkCheckInput) -> [ArtworkCheck] {
-        let layout = input.layout
-        let safe = layout.safeArea.insetBy(dx: -2, dy: -2)
+        let geometry = input.geometry
+        let safe = geometry.safeArea.insetBy(dx: -2, dy: -2)
         var outside: [String] = []
-        if let focal = layout.visibleFocalFrame, !safe.contains(focal) { outside.append(String(localized: "the phones")) }
-        if layout.lines.contains(where: { !safe.contains($0.frame) }) { outside.append(String(localized: "the headline")) }
-        if let label = layout.appLabel, !safe.contains(label.iconFrame.union(label.name.frame)) {
+        if let focal = geometry.visibleFocalFrame, !safe.contains(focal) { outside.append(String(localized: "the phones")) }
+        if geometry.headline.contains(where: { !safe.contains($0.frame) }) { outside.append(String(localized: "the headline")) }
+        if geometry.texts.contains(where: { !safe.contains($0.frame) }) { outside.append(String(localized: "the page’s text")) }
+        if let label = geometry.labelFrame, !safe.contains(label) {
             outside.append(String(localized: "the app’s icon and name"))
         }
         guard !outside.isEmpty else { return [] }
@@ -52,13 +53,11 @@ extension ArtworkChecker {
     /// Store page in Light and Dark Mode.
     func contrastChecks(_ input: ArtworkCheckInput, pixels: ArtworkPixels?) -> [ArtworkCheck] {
         var checks: [ArtworkCheck] = []
-        let layout = input.layout
-        let named: [(LayoutTextLine, String)] = layout.lines.filter { !$0.isOverflow }.map { ($0, String(localized: "the headline")) }
-            + (layout.appLabel.map { [($0.name, String(localized: "the app’s name"))] } ?? [])
+        let texts = input.geometry.headline + (input.geometry.appName.map { [$0] } ?? []) + input.geometry.texts
         var lowest: (ratio: Double, name: String)?
-        for (line, name) in named where !line.text.trimmingCharacters(in: .whitespaces).isEmpty {
-            let ratio = Self.textRatio(line, background: layout.background, size: layout.size)
-            if ratio < ArtworkContrast.minimumTextRatio, ratio < lowest?.ratio ?? .infinity { lowest = (ratio, name) }
+        for text in texts where !text.text.trimmingCharacters(in: .whitespaces).isEmpty {
+            guard let ratio = text.contrast else { continue }
+            if ratio < ArtworkContrast.minimumTextRatio, ratio < lowest?.ratio ?? .infinity { lowest = (ratio, text.name) }
         }
         if let lowest {
             checks.append(ArtworkCheck(
@@ -85,14 +84,14 @@ extension ArtworkChecker {
     /// screenshot's colors and, when it has text, its typeface.
     func lookChecks(_ input: ArtworkCheckInput) -> [ArtworkCheck] {
         guard input.roles.contains(.header), input.firstScreenshot != nil || input.screenshotTemplate != nil else { return [] }
-        let own = input.template.background.stops.compactMap(TemplateColor.init)
+        let own = input.geometry.colors
         let theirs = input.firstScreenshot.map { Self.colors(of: $0.background) }
             ?? input.screenshotTemplate?.background.stops.compactMap(TemplateColor.init) ?? []
         var missing: [String] = []
         if !own.isEmpty, !theirs.isEmpty, !own.contains(where: { color in theirs.contains { ArtworkContrast.distance(color, $0) < 0.12 } }) {
             missing.append(String(localized: "colors"))
         }
-        if let font = input.layout.lines.first?.fontName,
+        if let font = input.geometry.headlineFont,
            let screenshotFont = input.firstScreenshot?.headlineFont.fontName ?? input.screenshotTemplate?.caption.headline.font,
            font.caseInsensitiveCompare(screenshotFont) != .orderedSame
         {

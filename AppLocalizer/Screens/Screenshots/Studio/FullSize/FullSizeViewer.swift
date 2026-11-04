@@ -40,6 +40,8 @@ struct FullSizeViewer: View {
             studio.previewPlayer.toggle()
         } else if viewer.current.content.isRecording {
             studio.recordingPlayer.toggle()
+        } else if viewer.current.content.isMotion {
+            studio.artworkLoop.toggle()
         } else {
             studio.closeViewer()
         }

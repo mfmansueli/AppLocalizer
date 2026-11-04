@@ -158,6 +158,7 @@ enum StudioDebugExtras {
         )
         extras.artworkMotion = plan.alsoMakes.artworkMotion
         extras.artworkShows = plan.alsoMakes.artworkShows
+        extras.artworkDesign = direction.artworkDesign
         extras.artwork = plan.localeCodes.flatMap { code in
             plan.artworkKinds.map { kind in
                 ExtrasArtworkFile(kind: kind, locale: code, fileID: "debug-\(kind.rawValue)-\(code)", headline: "", fits: true, byteCount: 6_400_000)

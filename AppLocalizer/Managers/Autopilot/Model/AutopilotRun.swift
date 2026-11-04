@@ -89,6 +89,11 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     var keptCaptureCount = 0
     /// The last run's captures this one can reuse; nil when there are none.
     var keptFrom: AutopilotKeptCaptures?
+    /// The app's name in each language (locale → name) as its App Store
+    /// page has it: what the header, the search image and the App
+    /// Preview's end card write as the name (`appName(in:fallback:)`). Nil
+    /// until AppLocalizer has read the page, and in runs from before.
+    var storeNames: [String: String]?
     /// Suggest Screens, waiting for the assistant.
     var screenRequest: AutopilotScreenRequest?
     /// The assistant's suggested screens, shown at Plan.

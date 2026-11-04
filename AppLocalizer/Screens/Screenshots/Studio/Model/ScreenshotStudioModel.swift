@@ -15,8 +15,12 @@ import Observation
 @Observable
 final class ScreenshotStudioModel {
     @ObservationIgnored unowned let screenshots: ScreenshotsViewModel
-    /// The version's languages, names and subtitles.
-    var storeTexts = StudioStoreTexts()
+    /// The version's languages, names and subtitles. Its names go on the
+    /// app's Autopilot run, for the artwork it renders.
+    var storeTexts = StudioStoreTexts() {
+        didSet { noteStoreNames() }
+    }
+
     /// Nil shows the primary language.
     var localeCode: String?
     /// The device the preview shows. iPhone and iPad follow (and set) the
@@ -83,6 +87,8 @@ final class ScreenshotStudioModel {
     var pickRecording: AutopilotRecordingTarget?
     /// Plays the raw App Preview recording at Pick and in the viewer.
     let recordingPlayer = AppPreviewPlayerModel()
+    /// Where a header or search loop is as it plays in the viewer.
+    let artworkLoop = ArtworkLoopClock()
     /// The Claude Code run AppLocalizer started for this Autopilot run.
     var launchedRunID: ClaudeCodeRun.ID?
     /// Starts Claude Code when its helper is saved; the Autopilot sheet

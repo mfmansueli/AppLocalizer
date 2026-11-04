@@ -93,7 +93,9 @@ extension AutopilotCenter {
         let direction = await checked(direction, of: run, context: context)
         update(appID) { run in
             run.directions.append(direction)
-            run.appendLog(String(localized: "Direction \(run.directions.count) · \(direction.name) → template sent to AppLocalizer"), kind: .event, at: now())
+            // Without screenshots, a direction is its header and search.
+            let sent = run.plan.directionTitle
+            run.appendLog(String(localized: "Direction \(run.directions.count) · \(direction.name) → \(sent) sent to AppLocalizer"), kind: .event, at: now())
         }
         await advance(appID, context: context)
     }
@@ -118,6 +120,7 @@ extension AutopilotCenter {
         _ directionID: String,
         template: ScreenshotTemplate,
         extras: (artwork: ScreenshotTemplate?, preview: ScreenshotTemplate?) = (nil, nil),
+        artworkDesign: AutopilotArtworkDesign? = nil,
         rationale: String?,
         link: String?,
         isLast: Bool = true,
@@ -137,22 +140,24 @@ extension AutopilotCenter {
             run.directions[index].template = template
             if let artwork = extras.artwork { run.directions[index].artworkTemplate = artwork }
             if let preview = extras.preview { run.directions[index].previewTemplate = preview }
+            if let artworkDesign { run.directions[index].artworkDesign = artworkDesign.laid(over: run.directions[index].artworkDesign) }
             run.directions[index].isRevised = true
             run.directions[index].checks = checks
             run.directions[index].receivedAt = now()
             if let rationale, !rationale.isEmpty { run.directions[index].rationale = rationale }
             if let link, !link.isEmpty { run.directions[index].link = link }
             let name = run.directions[index].name
+            let sent = run.plan.directionTitle
             guard isLast else {
                 var revised = run.revision?.revisedIDs ?? []
                 if !revised.contains(directionID) { revised.append(directionID) }
                 run.revision?.revisedIDs = revised
-                run.appendLog(String(localized: "\(name) revised → template sent to AppLocalizer; more on the way"), kind: .event, at: now())
+                run.appendLog(String(localized: "\(name) revised → \(sent) sent to AppLocalizer; more on the way"), kind: .event, at: now())
                 return
             }
             run.revision = nil
             run.stage = .choose
-            run.appendLog(String(localized: "\(name) revised → template sent to AppLocalizer"), kind: .event, at: now())
+            run.appendLog(String(localized: "\(name) revised → \(sent) sent to AppLocalizer"), kind: .event, at: now())
         }
     }
 

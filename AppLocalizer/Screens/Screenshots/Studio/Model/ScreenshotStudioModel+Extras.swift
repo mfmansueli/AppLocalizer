@@ -38,6 +38,29 @@ extension ScreenshotStudioModel {
         return storeTexts.subtitle(for: locale, primary: primaryLocale.code) ?? ""
     }
 
+    /// The app's name in `locale`, as its App Store page has it there (else
+    /// the primary language's, else the run's, else the account's): what
+    /// the header and search write as the name.
+    func appName(in locale: String) -> String {
+        if let name = storeTexts.name(for: locale, primary: primaryLocale.code)?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !name.isEmpty
+        {
+            return name
+        }
+        return run?.appName(in: locale, fallback: app.name) ?? app.name
+    }
+
+    /// The header and search pages' phrases in `locale`, by their words in
+    /// the primary language, as the set's artwork texts have them.
+    func artworkPhrases(in locale: String) -> [String: String] {
+        screenshots.document?.artworkTexts?.phraseTexts(locale: locale) ?? [:]
+    }
+
+    /// The language the pages' phrases are written in.
+    var artworkPrimaryLocale: String {
+        run?.plan.primaryLocale ?? primaryLocale.code
+    }
+
     /// The saved caption, else the plan's in the primary language.
     func extrasHeadline(slot: Int, locale: String, plan: AutopilotPlan?) -> String {
         if let saved = screenshots.document?.captions.caption(locale: locale, slot: slot)?.headline, !saved.isEmpty { return saved }
@@ -66,17 +89,20 @@ extension ScreenshotStudioModel {
             let look = extras.artworkTemplate ?? template
             let shows = extras.artworkShows ?? .phone
             let isMotion = extras.artworkMotion == .loop
-            // The header shows no phone; the 16:9 image and search the search screen's.
-            let headerSlots = size == .wide && shows.needsCaptures ? [extras.searchSlot] : []
+            // The header shows no phone; the 16:9 image and search the search
+            // screen's. A Claude Design page shows the screens it names.
+            let headerPage = extras.artworkDesign?.page(for: headerKind)
+            let searchPage = extras.artworkDesign?.page(for: searchKind)
+            let headerSlots = headerPage.map(AutopilotArtworkPages.slots) ?? (size == .wide && shows.needsCaptures ? [extras.searchSlot] : [])
             result.header = StudioArtworkItem(
                 kind: headerKind, template: look, locale: locale, headline: artworkHeadline(ArtworkTextRole.role(for: headerKind), locale: locale),
-                slots: headerSlots, captures: setCaptures(headerSlots, locale: locale), shows: shows, isMotion: isMotion
+                slots: headerSlots, captures: setCaptures(headerSlots, locale: locale), shows: shows, isMotion: isMotion, page: headerPage
             )
-            let searchSlots = shows.needsCaptures ? [extras.searchSlot] : []
+            let searchSlots = searchPage.map(AutopilotArtworkPages.slots) ?? (shows.needsCaptures ? [extras.searchSlot] : [])
             result.search = StudioArtworkItem(
                 kind: searchKind, template: look, locale: locale,
                 headline: artworkHeadline(.search, locale: locale),
-                slots: searchSlots, captures: setCaptures(searchSlots, locale: locale), shows: shows, isMotion: isMotion
+                slots: searchSlots, captures: setCaptures(searchSlots, locale: locale), shows: shows, isMotion: isMotion, page: searchPage
             )
         }
         if let file = extras.preview(on: device, locale: locale, primary: primaryLocale.code) {

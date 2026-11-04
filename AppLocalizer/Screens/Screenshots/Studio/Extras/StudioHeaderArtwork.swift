@@ -16,7 +16,8 @@ struct StudioHeaderArtwork: View {
         Button { studio.openArtwork(at: 0) } label: {
             ArtworkThumbnail(
                 studio: studio, kind: item.kind, template: item.template, locale: item.locale, headline: item.headline,
-                slots: item.slots, captures: item.captures, width: width.rounded(), shows: item.shows, isMotion: item.isMotion
+                slots: item.slots, captures: item.captures, width: width.rounded(), shows: item.shows, isMotion: item.isMotion,
+                page: item.page
             )
         }
         .buttonStyle(.plain)

@@ -18,4 +18,6 @@ struct StudioArtworkItem: Hashable {
     var shows: AutopilotArtworkShow = .phone
     /// It's a motion loop's poster: "0:20 loop" on it.
     var isMotion = false
+    /// The direction's own page for this canvas, from Claude Design.
+    var page: String?
 }

@@ -21,6 +21,10 @@ struct AutopilotDirection: Codable, Hashable, Sendable, Identifiable {
     /// The header and search artwork's look, when the design AI sent one of
     /// its own (`extrasTemplates.artwork`); nil uses `template`'s.
     var artworkTemplate: ScreenshotTemplate?
+    /// The header and search artwork as Claude Design made them, one page
+    /// per canvas; nil draws them with AppLocalizer's own layout in
+    /// `artworkLook`.
+    var artworkDesign: AutopilotArtworkDesign?
     /// The App Preview's captions and end card look, when sent
     /// (`extrasTemplates.appPreview`); nil uses `template`'s.
     var previewTemplate: ScreenshotTemplate?

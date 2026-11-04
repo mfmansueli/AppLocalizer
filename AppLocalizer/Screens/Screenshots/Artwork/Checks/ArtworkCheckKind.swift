@@ -29,6 +29,9 @@ enum ArtworkCheckKind: String, Codable, Hashable, Sendable, CaseIterable {
     /// A motion loop that isn't 20 seconds at 30 fps, has sound, or jumps
     /// where it repeats.
     case loop
+    /// A Claude Design page that's missing what AppLocalizer fills in, or
+    /// whose capture didn't load.
+    case page
 
     /// Apple doesn't allow it: an error.
     var isApplesRule: Bool {
@@ -54,6 +57,7 @@ enum ArtworkCheckKind: String, Codable, Hashable, Sendable, CaseIterable {
         case .textContrast, .edgeContrast: String(localized: "Contrast")
         case .sharedLook: String(localized: "Look")
         case .loop: String(localized: "Loop")
+        case .page: String(localized: "Page")
         }
     }
 

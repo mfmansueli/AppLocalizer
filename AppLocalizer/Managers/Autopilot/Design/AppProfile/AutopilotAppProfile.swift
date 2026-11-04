@@ -31,6 +31,12 @@ struct AutopilotAppProfile: Hashable, Sendable {
     /// The icon's light and dark ends, "#7C86FF".
     var iconColors: [String]
 
+    /// Each language's name (locale → name), for what the artwork writes
+    /// as the app's name there.
+    var names: [String: String] {
+        Dictionary(languages.map { ($0.locale, $0.name) }) { first, _ in first }
+    }
+
     /// How much of the description the brief carries.
     static let descriptionLimit = 700
 

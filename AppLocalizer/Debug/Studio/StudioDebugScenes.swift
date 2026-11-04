@@ -58,7 +58,7 @@ enum StudioDebugScenes {
         "st-pick", "st-pick-page", "st-des", "st-des-paused", "st-choose", "st-choose-rev", "st-nodesign", "st-loc", "st-loc-captions", "st-ready-sheet",
         "st-ready", "st-ready-de", "st-ready-ar", "st-ready-ipad", "st-asc-watch", "st-plan-link",
     ] + everyDeviceIDs + StudioDebugExtras.ids + StudioDebugRunChoice.ids + StudioDebugAddScreens.ids + StudioDebugPreviewReview.ids
-        + StudioDebugDuoStates.ids + StudioDebugPick.ids + StudioDebugArtMotion.ids
+        + StudioDebugDuoStates.ids + StudioDebugPick.ids + StudioDebugArtMotion.ids + StudioDebugWebArtwork.ids
 
     static let everyDeviceIDs = [
         "st-plan-all", "st-cap-watch", "st-cap-vision", "st-pick-all", "st-choose-all", "st-loc-all", "st-ready-sheet-all",
@@ -77,7 +77,7 @@ enum StudioDebugScenes {
         }
         if let extras = StudioDebugExtras.scene(for: id) ?? StudioDebugRunChoice.scene(for: id) ?? StudioDebugAddScreens.scene(for: id)
             ?? StudioDebugPreviewReview.scene(for: id) ?? StudioDebugDuoStates.scene(for: id) ?? StudioDebugPick.scene(for: id)
-            ?? StudioDebugArtMotion.scene(for: id)
+            ?? StudioDebugArtMotion.scene(for: id) ?? StudioDebugWebArtwork.scene(for: id)
         {
             let saved = extras.savesExtras ? StudioDebugExtras.extras(for: extras.run) : nil
             let change = extras.documentChange

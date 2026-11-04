@@ -23,9 +23,9 @@ extension AutopilotRun {
                     ]
                 }),
                 "note": """
-                Nothing to capture: AppLocalizer renders them in each language from the chosen direction and the \
-                screenshots' picked captures. Each placement has its own text (not a screenshot's caption), written in \
-                Localize when next_step says write_artwork_texts.
+                Nothing to capture: AppLocalizer renders them in each language from the chosen direction's header and \
+                search pages (designed in Claude Design) and the screenshots' picked captures. Each placement has its own \
+                text (not a screenshot's caption), written in Localize when next_step says write_artwork_texts.
                 """,
             ]
         }
@@ -70,13 +70,22 @@ extension AutopilotRun {
                 "posterFrameAt": "0:05",
             ]
         }
-        json["how"] = """
-        Nothing more to send unless you want it: AppLocalizer renders the artwork in each language with the direction's \
-        background, headline style and device frames, the real picked captures in the phones, and each placement's own \
-        text (it shrinks to fit and mirrors for right-to-left); and it styles the App Preview's captions and end card \
-        with the direction's headline and colors. For a look of their own, pass extrasTemplates {artwork, appPreview} \
-        with propose_direction, designed for the roles above. No alpha: AppLocalizer flattens every image.
-        """
+        var how: [String] = []
+        if plan.alsoMakes.makesArtwork {
+            how.append("""
+            Design each direction's header and search yourself, for the roles above, as the HTML pages artworkDesign \
+            describes, and send them with propose_direction's artworkDesign (required: the direction is refused without \
+            them). Try them with render_artwork first. AppLocalizer fills in each language's text, the app's name and icon \
+            and the real captures, and draws exactly your page: no layout of its own.
+            """)
+        }
+        if !plan.previewDisplays.isEmpty {
+            how.append("""
+            The App Preview's captions and end card take the direction's headline style and colors; pass \
+            extrasTemplates.appPreview for a look of their own.
+            """)
+        }
+        json["how"] = .string(how.joined(separator: " "))
         return .object(json)
     }
 }

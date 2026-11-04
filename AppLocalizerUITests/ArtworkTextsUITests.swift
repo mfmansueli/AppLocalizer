@@ -43,6 +43,40 @@ final class ArtworkTextsUITests: XCTestCase {
         XCTAssertTrue(element("screenshots.captions.artworkEditor.count").exists)
     }
 
+    /// A phrase the page writes itself is a column too: English as the
+    /// page wrote it, German translated, French missing; written in the
+    /// editor, French's cell shows it.
+    func testEachPhraseHasAColumnToTranslateIn() {
+        app.launch(debugScene: "cap-artwork-phrases")
+        let english = element("screenshots.captions.artwork.en-US.text.0")
+        XCTAssertTrue(english.waitForExistence(timeout: 30))
+        XCTAssertTrue(english.label.contains("English (U.S.) phrase 1: Small steps count."), english.label)
+        let german = element("screenshots.captions.artwork.de-DE.text.0")
+        XCTAssertTrue(german.label.contains("Kleine Schritte zählen."), german.label)
+        let french = element("screenshots.captions.artwork.fr-FR.text.0")
+        XCTAssertTrue(french.label.contains("Missing"), french.label)
+
+        // The scene opens French's phrase in the editor.
+        let title = element("screenshots.captions.artworkEditor.title")
+        XCTAssertTrue(title.waitForExistence(timeout: 10))
+        XCTAssertEqual(text(of: title), "Phrase 1 · French")
+        let original = NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@", "Small steps count.", "Small steps count.")
+        let sources = element("screenshots.captions.artworkEditor.sources")
+        XCTAssertTrue(sources.descendants(matching: .staticText).matching(original).firstMatch.exists, "The original words to start from")
+        XCTAssertFalse(element("screenshots.captions.artworkEditor.count").exists, "A phrase has no word limit of its own")
+
+        let field = element("screenshots.captions.artworkEditor.headline")
+        field.click()
+        field.typeText("Les petits pas comptent.")
+        let written = NSPredicate(format: "label CONTAINS %@", "Les petits pas comptent.")
+        expectation(for: written, evaluatedWith: french)
+        waitForExpectations(timeout: 10)
+        let shot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        shot.name = "Captions phrase column"
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
     /// Localize shows each finding like a screenshot's check: pills, then
     /// the lines, and the error makes the row a problem.
     func testLocalizeShowsTheChecks() {

@@ -52,6 +52,7 @@ struct MCPToolbox {
             FinishDisplayRecordingTool(),
             NextStepTool(),
             GetDesignBriefTool(),
+            RenderArtworkTool(),
             ProposeDirectionTool(),
             ReviseDirectionTool(),
             ReviseAppPreviewTool(),

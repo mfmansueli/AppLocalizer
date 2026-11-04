@@ -40,13 +40,17 @@ import SwiftUI
 /// - `cap-artwork`: the Search results and Header columns, with search
 ///   headlines in English, German (too long) and French, and the header
 ///   line only in English.
+/// - `cap-artwork-phrases`: those columns, then a Phrase 1 column for the
+///   phrase Quiet Indigo's search page writes itself: in English as the
+///   page wrote it, German's translation, French missing and open in the
+///   editor.
 enum ScreenshotsDebugScenes {
     static let ids = [
         "sets", "sets-ipad", "sets-fallback", "sets-rendering", "sets-failed", "viewer", "viewer-fail", "scope",
         "sets-empty", "sets-notpl", "sets-noversion",
         "tpl", "tpl-ipad", "tpl-glyph", "tpl-pano", "tpl-history", "starter",
         "gallery", "gallery-elegant", "tpl-cinema", "tpl-highlight-ar", "tpl-market-de", "tpl-poster-ja", "tpl-swoosh-deco",
-        "cap", "cap-edit", "cap-translate", "cap-translating", "cap-artwork",
+        "cap", "cap-edit", "cap-translate", "cap-translating", "cap-artwork", "cap-artwork-phrases",
     ]
 
     /// The locales `cap-translate` adds, with no captions.
@@ -159,6 +163,22 @@ enum ScreenshotsDebugScenes {
                 document.artworkTexts = artworkTexts
                 await model.commit(document)
                 model.tab = .captions
+            }
+        case "cap-artwork-phrases":
+            scene { model in
+                guard var document = model.document else { return }
+                var texts = artworkTexts
+                let german = ScreenshotCaption(
+                    headline: "Kleine Schritte zählen.", subhead: nil, provenance: .assistant(client: "Claude Code", date: .now)
+                )
+                texts.setPhrase(german, source: StudioDebugWebArtwork.phrase, locale: "de-DE")
+                document.artworkTexts = texts
+                document.extras = ScreenshotExtras(
+                    directionName: "Quiet Indigo", madeAt: .now, artworkSize: .headerAndSearch, artworkDesign: StudioDebugWebArtwork.withPhrase
+                )
+                await model.commit(document)
+                model.tab = .captions
+                model.captions.artworkEditor.select(ArtworkTextKey(locale: "fr-FR", role: .search, phrase: StudioDebugWebArtwork.phrase))
             }
         case "cap-edit": scene { $0.editCaption(at: LocaleSlot(locale: "de-DE", slot: 2)) }
         case "cap-translate":

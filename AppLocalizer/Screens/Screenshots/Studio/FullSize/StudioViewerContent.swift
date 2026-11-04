@@ -50,6 +50,12 @@ enum StudioViewerContent: Hashable {
         }
     }
 
+    /// A header or search loop, which plays in place.
+    var isMotion: Bool {
+        if case let .artwork(item) = self { return item.isMotion }
+        return false
+    }
+
     var isAppPreview: Bool {
         if case .appPreview = self { return true }
         return false

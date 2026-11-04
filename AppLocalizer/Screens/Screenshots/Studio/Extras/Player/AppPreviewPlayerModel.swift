@@ -33,6 +33,8 @@ final class AppPreviewPlayerModel {
     @ObservationIgnored private var timeObserver: Any?
     @ObservationIgnored private var endObserver: (any NSObjectProtocol)?
     @ObservationIgnored private var statusObservation: NSKeyValueObservation?
+    /// It was playing when a drag on the scrubber began.
+    @ObservationIgnored private var resumesAfterScrub = false
 
     init() {
         player.actionAtItemEnd = .pause
@@ -95,6 +97,17 @@ final class AppPreviewPlayerModel {
 
     func toggle() {
         if isPlaying { pause() } else { play() }
+    }
+
+    /// A drag on the scrubber pauses it until the drag ends.
+    func scrub(_ active: Bool) {
+        if active {
+            resumesAfterScrub = isPlaying
+            pause()
+        } else if resumesAfterScrub {
+            resumesAfterScrub = false
+            play()
+        }
     }
 
     func seek(to time: Double) {

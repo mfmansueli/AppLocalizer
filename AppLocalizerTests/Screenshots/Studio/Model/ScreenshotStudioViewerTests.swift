@@ -159,6 +159,12 @@ struct ScreenshotStudioViewerTests {
 
         let (plain, _) = await newSet(StudioDebugRuns.run(.choose))
         #expect(plain.studio.revisionScopeNote == nil)
+
+        // Without screenshots, a note is only about the header and search.
+        let (artworkOnly, _) = await newSet(StudioDebugWebArtwork.artworkOnly(.choose))
+        let only = artworkOnly.studio.revisionScopeNote ?? ""
+        #expect(only.hasPrefix("A note changes the header and search images: colors, type, layout and what they show."))
+        #expect(only.contains("The live screenshots stay as they are."))
     }
 }
 #endif

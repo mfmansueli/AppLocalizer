@@ -24,6 +24,15 @@ extension AutopilotPlan {
     /// The run uses the last run's captures and picks.
     var reusesCaptures: Bool { runChoice.reusesCaptures }
 
+    /// What a direction brings, in Design's log: its template when the run
+    /// makes screenshots; without them, its header and search (or the one
+    /// 16:9 image), else the App Preview's look.
+    var directionTitle: String {
+        if makesScreenshots { return String(localized: "template") }
+        guard alsoMakes.makesArtwork else { return String(localized: "App Preview look") }
+        return alsoMakes.artworkSize == .wide ? String(localized: "16:9 image") : String(localized: "header and search")
+    }
+
     /// The screens the header and search artwork show: the search
     /// screen, on iPhone; none when the artwork is a scene.
     var artworkScreens: [AutopilotScreen] {

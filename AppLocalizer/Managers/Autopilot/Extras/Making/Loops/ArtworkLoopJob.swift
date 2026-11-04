@@ -6,17 +6,18 @@
 import CoreGraphics
 import Foundation
 
-/// One loop to draw: which file it belongs to, its still layers ready to
-/// draw, and where its draft goes. Everything it holds can cross to the
-/// task that draws it.
+/// One loop to draw: which file it belongs to, what it's drawn from (its
+/// still layers ready to draw, or a Claude Design page), and where its
+/// draft goes. Everything it holds can cross to the task that draws it.
 struct ArtworkLoopJob: Sendable {
     /// The file's place in the maker's list, and its language's.
     var fileIndex: Int
     var localeIndex: Int
+    /// The key it's remembered by in `ArtworkLoopIndex`.
     var poster: String
     var place: String
-    var layout: ArtworkLayout
-    var layers: ArtworkLoopLayers
+    var size: PixelSize
+    var source: ArtworkLoopSource
     var draft: URL
 
     /// What drawing it gave back.
@@ -25,9 +26,15 @@ struct ArtworkLoopJob: Sendable {
         var facts: ArtworkLoopFacts
     }
 
-    /// Draws and encodes every frame, off the main actor.
+    /// Draws and encodes every frame: the layers off the main actor, a
+    /// page stepped on it and encoded off it.
     func draw() async throws -> Drawn {
-        let facts = try await ArtworkLoopRenderer.encode(layers, layout: layout, frames: ArtworkLoopRenderer.frameCount, to: draft)
+        let facts = switch source {
+        case let .layers(layers, layout):
+            try await ArtworkLoopRenderer.encode(layers, layout: layout, frames: ArtworkLoopRenderer.frameCount, to: draft)
+        case let .page(request):
+            try await ArtworkWebLoop.write(request, to: draft)
+        }
         return Drawn(job: self, facts: facts)
     }
 

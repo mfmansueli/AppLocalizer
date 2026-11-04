@@ -64,7 +64,7 @@ struct ClaudeCodePermissionsTests {
     @Test func autopilotDesignsFromTheBriefWithoutStopping() {
         let prompt = ClaudeCodePermissions.autopilot.systemPrompt
         #expect(prompt.contains("Claude Design and Figma can't be opened from here."))
-        #expect(prompt.contains("send each with propose_direction; don't stop because the design project can't be opened"))
+        #expect(prompt.contains("tried with render_artwork); don't stop because the design project can't be opened"))
         #expect(!ClaudeCodePermissions.readProject.systemPrompt.contains("Claude Design"))
     }
 

@@ -43,8 +43,8 @@ struct CaptionsTable: View {
         .accessibilityIdentifier("screenshots.captions.table")
     }
 
-    /// The slots, then Search results and Header.
-    private var columnCount: Int { model.slotCount + model.artworkRoles.count }
+    /// The slots, then Search results and Header, then the pages' phrases.
+    private var columnCount: Int { model.slotCount + model.artworkRoles.count + model.artworkPhrases.count }
 
     private func cellWidth(for width: CGFloat) -> CGFloat {
         let available = width - Self.localeColumnWidth - 24 - CGFloat(columnCount) * 4

@@ -38,6 +38,15 @@ struct CaptionsColumnHeader: View {
                     .frame(width: cellWidth, alignment: .leading)
                     .accessibilityIdentifier("screenshots.captions.column.\(role.rawValue)")
             }
+            // The phrases Claude Design wrote on those pages.
+            ForEach(Array(model.artworkPhrases.enumerated()), id: \.offset) { index, phrase in
+                Text(ArtworkTextCell.phraseTitle(index))
+                    .foregroundStyle(Palette.label3)
+                    .lineLimit(1)
+                    .frame(width: cellWidth, alignment: .leading)
+                    .help(phrase)
+                    .accessibilityIdentifier("screenshots.captions.column.text.\(index)")
+            }
         }
         .font(.caption.weight(.medium))
         .foregroundStyle(Palette.label2)

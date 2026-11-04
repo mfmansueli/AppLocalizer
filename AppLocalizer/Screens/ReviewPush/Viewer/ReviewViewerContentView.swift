@@ -21,9 +21,9 @@ struct ReviewViewerContentView: View {
     @State private var large: CGImage?
 
     /// The App Preview's controls under it.
-    private static let previewControlsHeight: CGFloat = 96
-    /// A motion image's Play and note under it.
-    static let loopControlsHeight: CGFloat = 40
+    private static let previewControlsHeight: CGFloat = 124
+    /// A motion image's controls and note under it.
+    static let loopControlsHeight: CGFloat = 64
     static let zoomIdentifier = "review.viewer.zoom"
 
     var body: some View {

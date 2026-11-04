@@ -71,12 +71,23 @@ struct AutopilotDesignStageView: View {
             return String(localized: "AppLocalizer’s three starters, colored from the app icon.")
         }
         let name = run.designName ?? run.designKind.title
+        let each = Self.eachDirection(run.plan)
         guard run.startsClaudeCode == true else {
-            return String(localized: "\(run.designKind.title) designs in \(name); each direction is an AppLocalizer template.")
+            return String(localized: "\(run.designKind.title) designs in \(name); \(each).")
         }
         return studio.designProject?.summary == nil
-            ? String(localized: "Claude Code designs from AppLocalizer’s brief; each direction is an AppLocalizer template.")
-            : String(localized: "Claude Code designs from AppLocalizer’s brief and what it read in \(name); each direction is an AppLocalizer template.")
+            ? String(localized: "Claude Code designs from AppLocalizer’s brief; \(each).")
+            : String(localized: "Claude Code designs from AppLocalizer’s brief and what it read in \(name); \(each).")
+    }
+
+    /// What each direction is: an AppLocalizer template, or, without
+    /// screenshots, only what the run makes.
+    static func eachDirection(_ plan: AutopilotPlan) -> String {
+        if plan.makesScreenshots { return String(localized: "each direction is an AppLocalizer template") }
+        guard plan.alsoMakes.makesArtwork else {
+            return String(localized: "each direction is a look for the App Preview, and the live screenshots stay as they are")
+        }
+        return String(localized: "each direction is its own header and search images, and the live screenshots stay as they are")
     }
 
     private var client: String { run.client ?? String(localized: "Claude Code") }
@@ -148,26 +159,34 @@ struct AutopilotDesignStageView: View {
     }
 
     /// The screenshots, then the header, search and App Preview poster when
-    /// the run makes them, each opening full size.
+    /// the run makes them, each opening full size. A run without
+    /// screenshots shows only what it makes, bigger.
     private func arrived(_ direction: AutopilotDirection) -> some View {
-        let fit = AutopilotDirectionThumbnails.fit(
-            in: cardWidth, screens: studio.layouts(for: direction).count,
-            hasVision: studio.visionPreview(for: direction) != nil, hasWatch: studio.watchPreviewCapture != nil, maximum: 44
-        )
         let plan = run.plan
         return VStack(alignment: .leading, spacing: Spacing.small) {
-            AutopilotDirectionThumbnails(studio: studio, direction: direction, width: fit.thumbnail, stacksDevices: fit.stacks) { index in
-                studio.openDirection(direction, at: index)
+            if plan.makesScreenshots {
+                let fit = AutopilotDirectionThumbnails.fit(
+                    in: cardWidth, screens: studio.layouts(for: direction).count,
+                    hasVision: studio.visionPreview(for: direction) != nil, hasWatch: studio.watchPreviewCapture != nil, maximum: 44
+                )
+                AutopilotDirectionThumbnails(studio: studio, direction: direction, width: fit.thumbnail, stacksDevices: fit.stacks) { index in
+                    studio.openDirection(direction, at: index)
+                }
             }
             if !plan.alsoMakes.isEmpty {
-                AutopilotDirectionExtras(
-                    studio: studio, run: run, direction: direction,
-                    height: AutopilotDirectionExtras.fittingHeight(
-                        in: cardWidth, kinds: plan.artworkKinds, hasPreview: !plan.previewDisplays.isEmpty, maximum: 64
-                    )
-                )
+                AutopilotDirectionExtras(studio: studio, run: run, direction: direction, fit: Self.extrasFit(plan, cardWidth: cardWidth))
             }
         }
+    }
+
+    /// The extras under the screenshots, at most 64 pt tall; without
+    /// screenshots they're the whole direction, up to 96 pt, the header on
+    /// a line of its own when the card is narrow.
+    static func extrasFit(_ plan: AutopilotPlan, cardWidth: CGFloat) -> AutopilotDirectionExtras.Fit {
+        AutopilotDirectionExtras.fit(
+            in: cardWidth, kinds: plan.artworkKinds, hasPreview: !plan.previewDisplays.isEmpty,
+            maximum: plan.makesScreenshots ? 64 : 96, stacking: !plan.makesScreenshots
+        )
     }
 
     private func placeholder(

@@ -6,23 +6,28 @@
 import SwiftUI
 
 /// One direction: five screenshots (and, when the run makes them, its
-/// header, search artwork and App Preview poster), name with its source
-/// badge, the rationale, language checks and its buttons.
+/// header, search artwork and App Preview poster; without screenshots,
+/// only those, bigger), name with its source badge, the rationale,
+/// language checks and its buttons.
 struct AutopilotDirectionRow: View {
     @Bindable var studio: ScreenshotStudioModel
     let direction: AutopilotDirection
     let isChosen: Bool
     let isEditable: Bool
     var stacksDevices = false
+    /// How big the extras are (`AutopilotChooseStageView.extrasFit`).
+    var extrasFit = AutopilotDirectionExtras.Fit(height: 64)
 
     var body: some View {
         HStack(alignment: .center, spacing: Spacing.medium) {
             VStack(alignment: .leading, spacing: Spacing.small) {
-                AutopilotDirectionThumbnails(studio: studio, direction: direction, stacksDevices: stacksDevices) { index in
-                    studio.openDirection(direction, at: index)
+                if studio.run?.plan.makesScreenshots != false {
+                    AutopilotDirectionThumbnails(studio: studio, direction: direction, stacksDevices: stacksDevices) { index in
+                        studio.openDirection(direction, at: index)
+                    }
                 }
                 if let run = studio.run, !run.plan.alsoMakes.isEmpty {
-                    AutopilotDirectionExtras(studio: studio, run: run, direction: direction)
+                    AutopilotDirectionExtras(studio: studio, run: run, direction: direction, fit: extrasFit)
                 }
             }
             VStack(alignment: .leading, spacing: Spacing.xSmall) {
@@ -38,12 +43,16 @@ struct AutopilotDirectionRow: View {
                     .font(.callout)
                     .foregroundStyle(Palette.label2)
                     .fixedSize(horizontal: false, vertical: true)
-                if !direction.checks.isEmpty {
+                // The checks are about the screenshots' captions: a run
+                // without screenshots (or a direction from before) has none.
+                if !direction.checks.isEmpty, studio.run?.plan.makesScreenshots != false {
                     FlowLayout(spacing: Spacing.xSmall) {
                         ForEach(direction.checks, id: \.self) { check in
                             Pill(text: check.title, style: check.style)
                         }
                     }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("autopilot.direction.checks")
                 }
                 HStack(spacing: Spacing.small) {
                     if let link = direction.link, let url = URL(string: link) {

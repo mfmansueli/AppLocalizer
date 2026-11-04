@@ -15,6 +15,8 @@ struct ExtrasArtworkVariant: Codable, Hashable, Sendable {
     /// The one idea the design source says it changed.
     var change: String
     var template: ScreenshotTemplate
+    /// Its Claude Design page, when it was sent as one.
+    var design: AutopilotArtworkDesign?
     var files: [ExtrasArtworkFile]
     var client: String
     var madeAt: Date

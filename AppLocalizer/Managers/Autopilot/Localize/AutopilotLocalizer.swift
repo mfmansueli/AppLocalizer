@@ -118,6 +118,8 @@ struct AutopilotLocalizer {
     /// The language checks on a direction, with the captions saved now and
     /// the plan's for the primary language.
     func directionChecks(for template: ScreenshotTemplate, of run: AutopilotRun) async -> [AutopilotDirectionCheck] {
+        // They're about the screenshots' captions: a run without screenshots has none to fit.
+        guard run.plan.makesScreenshots else { return [] }
         var captions = await document()?.captions ?? CaptionBook()
         let primary = run.plan.primaryLocale
         for (slot, screen) in run.plan.screens.enumerated() where captions.caption(locale: primary, slot: slot) == nil && !screen.caption.isEmpty {

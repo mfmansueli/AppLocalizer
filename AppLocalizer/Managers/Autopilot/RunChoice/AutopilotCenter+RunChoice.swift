@@ -53,7 +53,7 @@ extension AutopilotCenter {
         guard let run = runs[appID], run.stage == .localize,
               let document = try? await context.services.loadDocument(for: context.app, primaryLocale: context.primaryLocale)
         else { return }
-        let needs = artworkTextNeeds(of: run, in: document, context: context)
+        let needs = await artworkTextNeeds(of: run, in: document, context: context)
         guard runs[appID]?.stage == .localize else { return }
         update(appID) { run in
             run.artworkTextNeeds = needs.isEmpty ? nil : needs

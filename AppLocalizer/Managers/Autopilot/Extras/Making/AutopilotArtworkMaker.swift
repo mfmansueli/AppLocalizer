@@ -6,30 +6,43 @@
 import CoreGraphics
 import Foundation
 
-/// Renders the header and search artwork in every language with the chosen
-/// direction's look, each placement's own text and the picked captures,
-/// checks each render (`ArtworkChecker`: Apple's rules are errors, the rest
-/// advice) and keeps each PNG in the app's Extras folder, named by its
-/// checksum. An artwork-only run has no captures of its own: the set's
-/// (`document`) show on the phones.
+/// Renders the header and search artwork in every language, each
+/// placement's own text and the picked captures in it: from the
+/// direction's Claude Design pages when it has them (`ArtworkWebRenderer`),
+/// else with AppLocalizer's own layout in the direction's look. Checks each
+/// render (`ArtworkChecker`: Apple's rules are errors, the rest advice) and
+/// keeps each PNG in the app's Extras folder, named by its checksum. An
+/// artwork-only run has no captures of its own: the set's show.
 @MainActor
 struct AutopilotArtworkMaker {
     let context: AutopilotContext
     var checker = ArtworkChecker()
+    var renderer = ArtworkWebRenderer.shared
+    /// The live set's template: the header continues it when the run makes
+    /// no screenshots (`screenshotLook`).
+    var liveTemplate: ScreenshotTemplate?
 
     /// The width captures are loaded at: enough for the search image's
     /// larger phone.
     static let captureWidth = 1320
+
+    /// The screenshots the header sits above, whose look it should share:
+    /// the chosen direction's new set, or the live set (`live`) when the
+    /// run makes no screenshots and it stays.
+    static func screenshotLook(of run: AutopilotRun, live: ScreenshotTemplate?) -> ScreenshotTemplate? {
+        run.plan.makesScreenshots ? run.chosenDirection?.template : live
+    }
 
     /// Every kind in every language; `progress` gets the languages done.
     /// The PNGs and their checks go one by one; a motion run's loops draw
     /// behind them, `ArtworkLoopJob.width` at once, and a loop made before
     /// from the same poster is kept (`ArtworkLoopIndex`).
     func make(
-        for run: AutopilotRun, look template: ScreenshotTemplate, texts: ArtworkTextBook, kinds: [AutopilotArtworkKind]? = nil,
-        progress: (Int) -> Void
+        for run: AutopilotRun, look template: ScreenshotTemplate, design: AutopilotArtworkDesign? = nil, texts: ArtworkTextBook,
+        kinds: [AutopilotArtworkKind]? = nil, progress: (Int) -> Void
     ) async throws -> [ExtrasArtworkFile] {
         let icon = await ArtworkIcon.image(of: context.app)
+        let iconData = design == nil ? nil : icon.flatMap(ScreenshotPNG.data)
         let folder = context.services.extrasFolder(for: context.app)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         var state = MakingState(index: ArtworkLoopIndex.load(from: folder), locales: run.plan.localeCodes.count)
@@ -46,25 +59,27 @@ struct AutopilotArtworkMaker {
                     continue
                 }
                 for kind in kinds ?? run.plan.artworkKinds {
-                    let made = try await still(kind, locale: locale, run: run, look: template, texts: texts, icon: icon)
+                    let made = if let html = design?.page(for: kind) {
+                        try await pageStill(kind, html: html, locale: locale, run: run, texts: texts, icon: iconData)
+                    } else {
+                        try await still(kind, locale: locale, run: run, look: template, texts: texts, icon: icon)
+                    }
                     let fileIndex = state.files.count
                     state.files.append(made.file)
                     guard run.plan.alsoMakes.makesMotion else { continue }
-                    if let kept = await keptLoop(poster: made.file.fileID, layout: made.layout, place: made.place, in: state.index) {
+                    if let kept = await keptLoop(poster: made.loopKey, size: kind.pixelSize, place: made.place, in: state.index) {
                         state.files[fileIndex].loop = kept.loop
                         state.files[fileIndex].checks = (made.file.checks ?? []) + kept.checks
                         continue
                     }
-                    guard let layers = ArtworkLoopRenderer.layers(layout: made.layout, captures: made.captures, icon: icon) else {
-                        throw ArtworkLoopError.layersFailed
-                    }
+                    let source = try Self.loopSource(of: made, icon: icon)
                     if drawing >= ArtworkLoopJob.width, let drawn = try await group.next() {
                         drawing -= 1
                         try await keep(drawn, in: &state, folder: folder)
                     }
                     let job = ArtworkLoopJob(
-                        fileIndex: fileIndex, localeIndex: localeIndex, poster: made.file.fileID, place: made.place, layout: made.layout,
-                        layers: layers, draft: folder.appending(path: "loop-\(UUID().uuidString).mov")
+                        fileIndex: fileIndex, localeIndex: localeIndex, poster: made.loopKey, place: made.place, size: kind.pixelSize,
+                        source: source, draft: folder.appending(path: "loop-\(UUID().uuidString).mov")
                     )
                     state.startLoop(in: localeIndex)
                     state.drafts.insert(job.draft)
@@ -81,6 +96,20 @@ struct AutopilotArtworkMaker {
             }
         }
         return state.files
+    }
+
+    /// What a still's loop is drawn from: AppLocalizer's layers, or the
+    /// Claude Design page stepped frame by frame.
+    private static func loopSource(of made: Still, icon: CGImage?) throws -> ArtworkLoopSource {
+        switch made.loop {
+        case let .layout(layout, captures):
+            guard let layers = ArtworkLoopRenderer.layers(layout: layout, captures: captures, icon: icon) else {
+                throw ArtworkLoopError.layersFailed
+            }
+            return .layers(layers, layout: layout)
+        case let .page(request):
+            return .page(request)
+        }
     }
 
     /// What `make` has made so far, and which languages are done: a
@@ -111,10 +140,17 @@ struct AutopilotArtworkMaker {
     /// A PNG made and checked, with what its loop needs.
     private struct Still {
         var file: ExtrasArtworkFile
-        var layout: ArtworkLayout
-        var captures: [Int: CGImage]
         /// "German header", for the loop's checks.
         var place: String
+        /// The loop's key in `ArtworkLoopIndex`.
+        var loopKey: String
+        var loop: LoopInput
+    }
+
+    /// What a still's loop is drawn from.
+    private enum LoopInput {
+        case layout(ArtworkLayout, captures: [Int: CGImage])
+        case page(ArtworkWebRequest)
     }
 
     /// One kind in one language as a PNG in the Extras folder, checked,
@@ -131,7 +167,8 @@ struct AutopilotArtworkMaker {
         let headline = texts.headline(ArtworkTextRole.role(for: kind), locale: code)
         let layout = ArtworkLayoutEngine(catalog: services.fonts).layout(
             template, kind: kind, locale: locale, headline: headline, slots: slots,
-            captureSizes: images.mapValues { PixelSize(width: $0.width, height: $0.height) }, appName: context.app.name,
+            captureSizes: images.mapValues { PixelSize(width: $0.width, height: $0.height) },
+            appName: run.appName(in: code, fallback: context.app.name),
             shows: run.plan.alsoMakes.artworkShows, isMotion: run.plan.alsoMakes.makesMotion
         )
         guard let data = ArtworkRenderer.pngData(layout: layout, captures: images, icon: icon) else {
@@ -141,23 +178,61 @@ struct AutopilotArtworkMaker {
         try data.write(to: services.extrasFileURL(id, pathExtension: "png", for: context.app), options: .atomic)
         let checks = await checker.checks(ArtworkCheckInput(
             kind: kind, locale: locale, image: ScreenshotPNG.image(data), pngData: data, layout: layout, line: headline,
-            template: template, screenshotTemplate: run.chosenDirection?.template
+            template: template, screenshotTemplate: Self.screenshotLook(of: run, live: liveTemplate)
         ))
         let file = ExtrasArtworkFile(
             kind: kind, locale: code, fileID: id, headline: headline, fits: layout.headlineFits, byteCount: data.count, checks: checks
         )
-        return Still(file: file, layout: layout, captures: images, place: "\(locale.name) \(kind.title.lowercased())")
+        return Still(file: file, place: Self.place(kind, locale: locale), loopKey: id, loop: .layout(layout, captures: images))
+    }
+
+    /// One kind in one language from its Claude Design page, as a PNG in
+    /// the Extras folder, checked against where the page put everything.
+    private func pageStill(
+        _ kind: AutopilotArtworkKind, html: String, locale: StoreLocale, run: AutopilotRun, texts: ArtworkTextBook, icon: Data?
+    ) async throws -> Still {
+        let headline = texts.headline(ArtworkTextRole.role(for: kind), locale: locale.code)
+        let request = await AutopilotArtworkPages(context: context).request(
+            html: html, kind: kind, locale: locale, headline: headline, run: run, icon: icon, phrases: texts.phraseTexts(locale: locale.code)
+        )
+        let render: ArtworkWebRender
+        do {
+            render = try await renderer.render(request, behindText: true, checksMotion: run.plan.alsoMakes.makesMotion)
+        } catch {
+            throw AutopilotError(String(localized: "Couldn’t render the \(kind.title.lowercased()) page in \(locale.name): \(error.localizedDescription)"))
+        }
+        guard let data = ScreenshotPNG.data(render.image) else {
+            throw AutopilotError(String(localized: "Couldn’t render the \(kind.title.lowercased()) artwork in \(locale.name)."))
+        }
+        let id = ScreenshotPNG.checksum(data)
+        try data.write(to: context.services.extrasFileURL(id, pathExtension: "png", for: context.app), options: .atomic)
+        let checks = await checker.checks(ArtworkCheckInput(
+            kind: kind, locale: locale, image: render.image, pngData: data, geometry: ArtworkCheckGeometry(web: render, kind: kind),
+            line: headline, screenshotTemplate: Self.screenshotLook(of: run, live: liveTemplate), page: render.measure
+        ))
+        let file = ExtrasArtworkFile(
+            kind: kind, locale: locale.code, fileID: id, headline: headline, fits: render.measure.headlineFits, byteCount: data.count, checks: checks
+        )
+        return Still(
+            file: file, place: Self.place(kind, locale: locale),
+            loopKey: ArtworkWebLoop.posterKey(poster: id, html: html, locale: locale.code, phrases: request.phrases), loop: .page(request)
+        )
+    }
+
+    /// "German header", for the loop's checks.
+    private static func place(_ kind: AutopilotArtworkKind, locale: StoreLocale) -> String {
+        "\(locale.name) \(kind.title.lowercased())"
     }
 
     /// The loop made before from the same poster, checked again; nil when
     /// there's none or its movie is gone.
     private func keptLoop(
-        poster: String, layout: ArtworkLayout, place: String, in index: ArtworkLoopIndex
+        poster: String, size: PixelSize, place: String, in index: ArtworkLoopIndex
     ) async -> (loop: ExtrasArtworkLoop, checks: [ArtworkCheck])? {
         guard let loop = index.loop(forPoster: poster) else { return nil }
         let url = context.services.extrasFileURL(loop.fileID, pathExtension: ExtrasArtworkLoop.pathExtension, for: context.app)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        return await checked(loop, at: url, layout: layout, place: place)
+        return await checked(loop, at: url, size: size, place: place)
     }
 
     /// A drawn loop, named by its checksum, checked and remembered.
@@ -175,7 +250,7 @@ struct AutopilotArtworkMaker {
             fileID: id, byteCount: facts.byteCount, seconds: facts.seconds, framesPerSecond: facts.framesPerSecond,
             codec: facts.codec, isSeamless: true
         )
-        let kept = await checked(made, at: url, layout: job.layout, place: job.place)
+        let kept = await checked(made, at: url, size: job.size, place: job.place)
         state.files[job.fileIndex].loop = kept.loop
         state.files[job.fileIndex].checks = (state.files[job.fileIndex].checks ?? []) + kept.checks
         state.index.remember(kept.loop, forPoster: job.poster)
@@ -184,9 +259,9 @@ struct AutopilotArtworkMaker {
 
     /// `loop` checked: 0:20, 30 fps, silent, no jump.
     private func checked(
-        _ loop: ExtrasArtworkLoop, at url: URL, layout: ArtworkLayout, place: String
+        _ loop: ExtrasArtworkLoop, at url: URL, size: PixelSize, place: String
     ) async -> (loop: ExtrasArtworkLoop, checks: [ArtworkCheck]) {
-        let report = await ArtworkLoopChecker.check(url, size: layout.pixelSize)
+        let report = await ArtworkLoopChecker.check(url, size: size)
         var checked = loop
         checked.isSeamless = report.isSeamless
         return (checked, report.problems.map { ArtworkCheck(kind: .loop, severity: .error, text: "\(place): \($0)") })

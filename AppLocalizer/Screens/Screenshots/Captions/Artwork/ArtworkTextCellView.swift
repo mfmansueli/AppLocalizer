@@ -20,7 +20,7 @@ struct ArtworkTextCellView: View {
                 if let text = cell.text {
                     filled(text)
                 } else {
-                    Label(cell.emptyTitle, systemImage: cell.role.isOptional ? "minus" : "plus")
+                    Label(cell.emptyTitle, systemImage: cell.role.isOptional && !cell.isPhrase ? "minus" : "plus")
                         .font(.callout)
                         .foregroundStyle(Palette.label2)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -36,7 +36,7 @@ struct ArtworkTextCellView: View {
         .buttonStyle(.plain)
         .accessibilityLabel(Text(cell.accessibilityText(localeName: localeName)))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .accessibilityIdentifier("screenshots.captions.artwork.\(cell.key.locale).\(cell.role.rawValue)")
+        .accessibilityIdentifier("screenshots.captions.artwork.\(cell.key.locale).\(cell.identifierSuffix)")
     }
 
     private func filled(_ text: ScreenshotCaption) -> some View {

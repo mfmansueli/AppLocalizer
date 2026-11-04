@@ -6,8 +6,9 @@
 import SwiftUI
 
 /// One item drawn as large as the viewer allows: screenshots rendered
-/// again at that size, the artwork drawn at it, the App Preview playing.
-/// Pinch on the trackpad to zoom a still or the App Preview's video.
+/// again at that size, the artwork drawn at it, the App Preview and the
+/// header and search loops playing with their controls under them. Pinch
+/// on the trackpad to zoom a still, a loop or the App Preview's video.
 struct FullSizeViewerContentView: View {
     @Bindable var studio: ScreenshotStudioModel
     let item: StudioViewerItem
@@ -16,7 +17,9 @@ struct FullSizeViewerContentView: View {
     @State private var large: CGImage?
 
     /// The App Preview's controls under it.
-    private static let controlsHeight: CGFloat = 96
+    private static let controlsHeight: CGFloat = 124
+    /// A loop's controls under it.
+    private static let loopControlsHeight: CGFloat = 64
 
     static let zoomIdentifier = "studio.viewer.zoom"
 
@@ -44,6 +47,13 @@ struct FullSizeViewerContentView: View {
             }
         case let .appPreview(file):
             StudioAppPreviewPlayer(studio: studio, file: file, width: width.rounded(), zoomIdentifier: Self.zoomIdentifier)
+        case .artwork where item.content.isMotion:
+            VStack(spacing: Spacing.small) {
+                ZoomableContainer(identifier: Self.zoomIdentifier, label: item.title) { still }
+                    .frame(width: width.rounded(), height: (width.rounded() * CGFloat(item.content.aspect)).rounded())
+                ArtworkLoopControls(clock: studio.artworkLoop)
+                    .frame(width: max(width, 300))
+            }
         default:
             ZoomableContainer(identifier: Self.zoomIdentifier, label: item.title) { still }
         }
@@ -75,7 +85,7 @@ struct FullSizeViewerContentView: View {
             ArtworkThumbnail(
                 studio: studio, kind: artwork.kind, template: artwork.template, locale: artwork.locale,
                 headline: artwork.headline, slots: artwork.slots, captures: artwork.captures, width: width.rounded(),
-                shows: artwork.shows, isMotion: artwork.isMotion, plays: true
+                shows: artwork.shows, isMotion: artwork.isMotion, plays: true, page: artwork.page
             )
             .overlay {
                 if artwork.kind == .header, studio.viewerShowsGuide { ArtworkHeaderGuide() }
@@ -128,6 +138,9 @@ struct FullSizeViewerContentView: View {
         let aspect = CGFloat(max(item.content.aspect, 0.1))
         if item.content.isAppPreview {
             return max(160, min(380, size.width, (size.height - Self.controlsHeight) / aspect))
+        }
+        if item.content.isMotion {
+            return max(80, min(size.width, (size.height - Self.loopControlsHeight) / aspect))
         }
         return max(80, min(size.width, size.height / aspect))
     }

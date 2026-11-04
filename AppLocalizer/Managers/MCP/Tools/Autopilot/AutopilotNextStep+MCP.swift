@@ -18,7 +18,7 @@ extension AutopilotNextStep {
         case let .wait(reason, seconds):
             ["action": "wait", "reason": .string(reason), "retryAfterSeconds": .int(seconds)]
         case .recordAgain, .design:
-            beforeChoosingJSON
+            beforeChoosingJSON(run: run)
         case .revise, .revisePreview:
             revisionJSON(run: run)
         case let .writeCaptions(overflows):
@@ -26,7 +26,7 @@ extension AutopilotNextStep {
         case let .writeArtworkTexts(needs):
             Self.writeArtworkTextsJSON(needs)
         case let .designVariant(request):
-            Self.designVariantJSON(request)
+            Self.designVariantJSON(request, run: run)
         case let .suggestScreens(request):
             Self.suggestScreensJSON(request, run: run)
         }
@@ -34,7 +34,7 @@ extension AutopilotNextStep {
 
     /// Recording moments again, then designing: the steps before the
     /// person chooses a direction.
-    private var beforeChoosingJSON: JSONValue {
+    private func beforeChoosingJSON(run: AutopilotRun?) -> JSONValue {
         switch self {
         case let .recordAgain(screenIDs):
             [
@@ -50,15 +50,35 @@ extension AutopilotNextStep {
             [
                 "action": "design",
                 "remaining": .int(remaining),
-                "how": """
-                Call get_design_brief, design with the person's design project, and send each direction with \
-                propose_direction as an AppLocalizer template (template and/or ops on a base starter). They \
-                arrive one by one; the person chooses one.
-                """,
+                "how": .string(Self.designHow(plan: run?.plan)),
             ]
         default:
             ["action": "none"]
         }
+    }
+
+    /// How to design the directions: the screenshots as a template and the
+    /// header and search as pages; without screenshots, only what the run
+    /// makes.
+    static func designHow(plan: AutopilotPlan?) -> String {
+        let lead = "Call get_design_brief, design with the person's design project, and send each direction with propose_direction: "
+        let pages = """
+        the header and search as your own HTML pages (try them with render_artwork first) that show what the person \
+        asked, its askedByThePerson, first
+        """
+        let end = " They arrive one by one; the person chooses one."
+        guard let plan, !plan.makesScreenshots else {
+            return lead + "the screenshots as an AppLocalizer template (template and/or ops on a base starter) and, when the brief has artworkDesign, "
+                + pages + "." + end
+        }
+        guard plan.alsoMakes.makesArtwork else {
+            let look = "this run makes no screenshots, so the template (template and/or ops on a base starter) is the App Preview's captions and end card."
+            return lead + look + end
+        }
+        let preview = plan.previewDisplays.isEmpty
+            ? "No screenshot template: leave base, template and ops out."
+            : "No screenshot template: base, template and ops only style the App Preview's captions and end card."
+        return lead + "this run makes no screenshots (the live set stays), so only " + pages + ", in artworkDesign. " + preview + end
     }
 
     /// `revise_direction` and `revise_app_preview`: the person's changes.

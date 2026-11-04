@@ -7,20 +7,26 @@ import Foundation
 
 extension AutopilotNextStep {
     /// `revise_direction`: the person's note, each direction as it is now
-    /// (its template, and the header and search artwork's own look when it
-    /// has one), what AppLocalizer can and can't change, and how to answer.
+    /// (its template, and its header and search pages, or the artwork's own
+    /// look for a direction made before them), and how to answer.
     static func reviseDirectionJSON(note: String, run: AutopilotRun?) -> JSONValue {
         let revised = Set(run?.revision?.revisedIDs ?? [])
         let extras = run?.plan.alsoMakes ?? AutopilotExtras()
+        let makesScreenshots = run?.plan.makesScreenshots ?? true
         let directions: [JSONValue] = (run?.directions ?? []).map { direction in
             var item: [String: JSONValue] = [
                 "id": .string(direction.id),
                 "name": .string(direction.name),
                 "revisedForThisNote": .bool(revised.contains(direction.id)),
-                "template": direction.template.json,
             ]
+            // Without screenshots, the template is only the App Preview's look.
+            if makesScreenshots || extras.makesAppPreview { item["template"] = direction.template.json }
             if extras.makesArtwork {
-                item["artwork"] = direction.artworkTemplate.map(\.json) ?? "follows template"
+                if let design = direction.artworkDesign, !design.isEmpty {
+                    item["artworkDesign"] = .object(design.pages.mapValues(JSONValue.string))
+                } else {
+                    item["artwork"] = direction.artworkTemplate.map(\.json) ?? "follows template"
+                }
             }
             if extras.makesAppPreview {
                 item["appPreview"] = direction.previewTemplate.map(\.json) ?? "follows template"
@@ -33,8 +39,9 @@ extension AutopilotNextStep {
             "directions": .array(directions),
             "how": .string(reviseHow),
         ]
+        if !makesScreenshots { json["noScreenshots"] = .string(noScreenshotsHow(makesArtwork: extras.makesArtwork, makesAppPreview: extras.makesAppPreview)) }
         if extras.makesArtwork { json["artwork"] = .string(artworkHow) }
-        if extras.makesMotion { json["motion"] = .string(motionFacts) }
+        if extras.makesMotion { json["motion"] = .string(motionHow) }
         return .object(json)
     }
 
@@ -47,22 +54,38 @@ extension AutopilotNextStep {
     AppLocalizer can't make. A direction already revisedForThisNote doesn't need sending again.
     """
 
-    /// The header and search images have a look of their own.
+    /// A run without screenshots: the note is about what it makes.
+    static func noScreenshotsHow(makesArtwork: Bool, makesAppPreview: Bool) -> String {
+        switch (makesArtwork, makesAppPreview) {
+        case (true, false):
+            "This run makes no screenshots (the live set stays): the note is about the header and search images. Send only their pages, no template."
+        case (true, true):
+            """
+            This run makes no screenshots (the live set stays): the note is about the header and search images and the \
+            App Preview. Send their pages, and template fields only for the App Preview's captions and end card.
+            """
+        default:
+            "This run makes no screenshots (the live set stays): the note is about the App Preview's captions and end card, its template."
+        }
+    }
+
+    /// The header and search images are the direction's own pages.
     private static let artworkHow = """
-    The note is about the header and search images too unless it says otherwise. A direction whose artwork is a \
-    template draws them from it: change them in extrasTemplates.artwork (fields and/or ops, laid on that artwork \
-    look); changing template alone leaves them exactly as they are. One whose artwork "follows template" changes \
-    with it. Keep get_design_brief's roles, safe areas and rules: the app name and line in the safe area, no \
-    prices, no awards.
+    The note is about the header and search images too unless it says otherwise. A direction with artworkDesign \
+    draws them from those HTML pages and nothing else: change them by sending the whole new page for each canvas \
+    that changes in revise_direction's artworkDesign (the composition, illustration, typography, colors, motion: \
+    anything); changing template leaves them exactly as they are. Try a page with render_artwork first. A direction \
+    with artwork instead (made before pages) changes with extrasTemplates.artwork, or send artworkDesign to give it \
+    pages. Words the note asks for (phrases, quotes, a slogan) go on the page as data-al="text", written once in the \
+    primary language (AppLocalizer translates them). What the note asks outranks get_design_brief's advice on roles; keep its rules: the text in the safe \
+    area, no prices, no awards.
     """
 
-    /// What moves in a loop, and what no template can change.
-    private static let motionFacts = """
-    AppLocalizer animates every header and search loop itself, the same way in every direction: the background \
-    light drifts slowly, a scene's moon rises and its stars twinkle, and the phones float gently. No template field \
-    changes the motion: not its speed, colors that change over time, an icon that grows or appears, text that comes \
-    in after the first frame, or parts that blink. The first frame is the poster, so the name and the line are there \
-    from the start. When the note asks for motion like that, change what you can (colors, the scene, the \
-    composition, the text, decorations) and say in rationale that AppLocalizer can't animate that yet.
+    /// How a page's loop moves, so a note about motion can be met.
+    private static let motionHow = """
+    Each header and search loop is the page's own CSS animation, stepped frame by frame: change its speed, what \
+    moves and how by editing the page's @keyframes (infinite, each cycle dividing \(AutopilotArtworkMotion.loopSeconds) s). \
+    The first frame is the poster, so the headline, name and icon are there from the start and stay still. A \
+    direction made before pages has AppLocalizer's own fixed motion: give it pages to change that.
     """
 }
