@@ -27,4 +27,15 @@ struct ExtrasPushEnvironment {
     var processingTimeout: Duration = .seconds(900)
     /// How many 429s one request waits out before it fails.
     var rateLimitRetries = 3
+    /// How many uploaded files may wait for Apple's processing (or be
+    /// placed) while the next one uploads. Not Apple's rule: a file costs
+    /// about the same requests however many process at once, so this only
+    /// keeps the state checks from bunching up. 1 sends them one after
+    /// another.
+    var processingWindow = 10
+    /// Ends each upload's name in the asset library. Apple refuses a
+    /// reference name that's already in use (`ENTITY_ERROR.ATTRIBUTE.
+    /// INVALID.DUPLICATE`), so a file pushed again (made again, or after a
+    /// push that was cut short) needs a name of its own.
+    var nameSuffix: @Sendable () -> String = { String(UUID().uuidString.prefix(6)) }
 }

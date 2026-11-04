@@ -109,6 +109,8 @@ struct DisplayRecorderTests {
         runner.statuses["test-results"] = 64
         runner.errorOutput = "Usage: test-results <bundle.xcresult> [<test>]"
         let simulators = MacSimulators(runner: runner, helperURL: Self.helper)
+        // The canned frame can be late while other tests keep the main actor busy.
+        simulators.recorder.firstFrameLimit = .seconds(600)
         try await simulators.recorder.start(udid: RecordingTestFixtures.udid, display: Self.display)
         await #expect(throws: DisplayRecorder.Failure.unreadableResults("Usage: test-results <bundle.xcresult> [<test>]")) {
             try await simulators.recorder.finish(resultBundle: "/Users/sam/missing.xcresult")

@@ -20,6 +20,13 @@ struct ProposeScreensToolTests {
         return run
     }
 
+    /// Lumen on every device, asked for Apple Watch screens.
+    private static var askedForTheWatch: AutopilotRun {
+        var run = StudioDebugRuns.run(.plan, everyDevice: true)
+        run.screenRequest = AutopilotScreenRequest(ask: nil, askedAt: AutopilotTestFixtures.now, displayType: .watch)
+        return run
+    }
+
     private static let screens: JSONValue = [
         [
             "name": "Streak widget", "reason": "Lumen ships a widget.", "evidence": "LumenWidget target",
@@ -33,6 +40,7 @@ struct ProposeScreensToolTests {
         let result = try await fixtures.call(NextStepTool(), ["run": "run-debug"]).result
         #expect(result["action"] == "suggest_screens")
         #expect(result["ask"] == "one that shows the streak")
+        #expect(result["device"] == "set")
         #expect(result["room"] == 5)
         #expect(result["version"] == "1.4")
         #expect(result["screens"]?.arrayValue?.first == ["slot": 1, "name": "Today", "steps": .string(StudioDebugRuns.steps[0])])
@@ -60,6 +68,30 @@ struct ProposeScreensToolTests {
         let done = try await fixtures.call(NextStepTool(), ["run": "run-debug"]).result
         #expect(done["action"] == "done")
         #expect(done["say"]?.stringValue?.contains("the person adds the ones they want") == true)
+    }
+
+    @Test func nextStepAsksForTheWatchsOwnScreens() async throws {
+        let fixtures = MCPAutopilotFixtures(Self.askedForTheWatch)
+        let result = try await fixtures.call(NextStepTool(), ["run": "run-debug"]).result
+        #expect(result["action"] == "suggest_screens")
+        #expect(result["device"] == "watch")
+        #expect(result["room"] == 6, "Apple's 10 less the watch's 4")
+        #expect(result["screens"]?.arrayValue?.count == 4)
+        #expect(result["screens"]?.arrayValue?.first == ["slot": 1, "name": "Mood check-in", "steps": "LumenWatch → Mood"])
+        let how = try #require(result["how"]?.stringValue)
+        #expect(how.contains("Suggest up to 3 Apple Watch screens"))
+        #expect(how.contains("Leave out caption"))
+        #expect(how.contains("propose_screens"))
+    }
+
+    @Test func watchSuggestionsAreShownUnderTheWatchWithoutCaptions() async throws {
+        let fixtures = MCPAutopilotFixtures(Self.askedForTheWatch)
+        let outcome = try await fixtures.call(ProposeScreensTool(), ["run": "run-debug", "screens": Self.screens])
+        #expect(outcome.result["status"] == "shown")
+        let suggestions = try #require(fixtures.run?.screenSuggestions)
+        #expect(suggestions.device == .watch)
+        #expect(suggestions.items.first?.caption == "", "Watch screenshots have no captions")
+        #expect(fixtures.run?.plan.screens(on: .watch).count == 4, "Nothing is added on its own")
     }
 
     @Test func onlyAsManyAsThereIsRoomFor() async throws {

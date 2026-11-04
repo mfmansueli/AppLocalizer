@@ -21,9 +21,13 @@ final class DebugScreenshotPushServices: ScreenshotPushServices {
     /// How the extras push and Product Page Optimization answer.
     let extrasScript: DebugExtrasScript
     private var autoPush: Bool
+    private var autoPushExtras: Bool
     private var restoreOnOpen: ScreenshotRestorePresentation?
     private var opensTest: ProductPageTestPlacement?
     private let storePage = DebugStorePageServices()
+    /// The asset library the sheet lists and deletes from, kept while the
+    /// scene runs.
+    let libraryFiles = DebugAssetLibraryFiles()
 
     init(
         script: DebugScreenshotUploadScript = DebugScreenshotUploadScript(),
@@ -39,6 +43,7 @@ final class DebugScreenshotPushServices: ScreenshotPushServices {
         self.restoreOnOpen = restoreOnOpen
         self.extrasScript = extrasScript
         opensTest = extrasScript.opensTest
+        autoPushExtras = extrasScript.pushesExtras
     }
 
     var uploads: any ScreenshotUploadTransport { transport }
@@ -76,6 +81,12 @@ final class DebugScreenshotPushServices: ScreenshotPushServices {
     func consumeAutoPush() -> Bool {
         defer { autoPush = false }
         return autoPush
+    }
+
+    /// True once, for a scene that pushes its extras as soon as it opens.
+    func consumeAutoPushExtras() -> Bool {
+        defer { autoPushExtras = false }
+        return autoPushExtras
     }
 
     /// “Test with Product Page Optimization…”, once, for a scene that opens

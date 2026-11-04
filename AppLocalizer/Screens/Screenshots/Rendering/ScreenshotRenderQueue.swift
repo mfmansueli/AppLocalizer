@@ -83,6 +83,12 @@ final class ScreenshotRenderQueue {
         return image
     }
 
+    /// A live screenshot at a larger size, for a viewer; not kept with the
+    /// thumbnails.
+    func largeLiveImage(_ screenshot: LiveScreenshot, pixelWidth: Int) async -> CGImage? {
+        await liveImage(screenshot, pixelWidth)
+    }
+
     func cancel() {
         task?.cancel()
         task = nil

@@ -36,6 +36,11 @@ extension ReviewPushViewModel {
         screenshots.pushExtras([plan])
     }
 
+    /// “Asset Library…”: the app's uploaded files, to delete leftovers.
+    func openAssetLibrary(_ plan: ExtrasReviewPlan) {
+        extras.library = screenshots.assetLibraryModel(appID: plan.appID)
+    }
+
     /// “Test with Product Page Optimization…”.
     func openTest(_ plan: ExtrasReviewPlan, placement: ProductPageTestPlacement) {
         extras.test = screenshots.testModel(for: plan, placement: placement)

@@ -22,6 +22,8 @@ extension AutopilotCenter {
         var done = 0
         for display in plan.previewDisplays {
             for code in plan.previewLocales {
+                // Cancel Run: the rest isn't made.
+                guard !Task.isCancelled else { return files }
                 defer {
                     done += 1
                     update(appID) { run in

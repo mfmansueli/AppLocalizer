@@ -17,6 +17,11 @@ enum AutopilotDirectionCard: Hashable, Sendable {
     case upNext
     case waiting
 
+    var isArrived: Bool {
+        if case .arrived = self { return true }
+        return false
+    }
+
     static func cards(of run: AutopilotRun, isWorking: Bool) -> [AutopilotDirectionCard] {
         (0..<AutopilotRun.directionCount).map { index in
             if run.directions.indices.contains(index) { return .arrived(run.directions[index]) }

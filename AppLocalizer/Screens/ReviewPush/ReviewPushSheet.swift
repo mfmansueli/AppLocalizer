@@ -7,7 +7,8 @@ import SwiftUI
 
 /// Review & Push (⇧⌘P, 800 pt): every pending change grouped by app and
 /// section, each as old → new with its source, a checkbox and a discard
-/// button. Once a push starts, the same sheet shows its progress.
+/// button; a click on an image opens it large over the sheet. Once a push
+/// starts, the same sheet shows its progress.
 struct ReviewPushSheet: View {
     @State private var viewModel: ReviewPushViewModel
     @State private var pushToConfirm: [PendingChange]?
@@ -28,7 +29,16 @@ struct ReviewPushSheet: View {
             if let run = viewModel.screenshots.run {
                 ScreenshotPushProgressView(push: viewModel.push, run: run, onViewResults: viewResults, onDone: finish)
             } else if viewModel.push.phase == .idle {
-                review
+                ZStack {
+                    // Disabled under the viewer, so Esc and Return reach it
+                    // rather than Cancel and Push.
+                    review
+                        .disabled(viewModel.viewer != nil)
+                        .accessibilityHidden(viewModel.viewer != nil)
+                    if let viewer = viewModel.viewer {
+                        ReviewFullSizeViewer(viewModel: viewModel, viewer: viewer)
+                    }
+                }
             } else {
                 PushProgressView(push: viewModel.push, onViewResults: viewResults, onDone: finish)
             }

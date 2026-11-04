@@ -45,6 +45,14 @@ extension ScreenshotStudioModel {
         return plan.screens[slot].caption
     }
 
+    /// The header and search artwork's details under the preview, in the
+    /// shown language; nil on the live set or without artwork.
+    var artworkDetails: StudioArtworkDetails? {
+        guard builder.effectiveChoice == .new, device == .iPhone || device == .iPad, let extras = screenshots.document?.extras else { return nil }
+        let codes = Set(screenshots.context.localizations.keys.map(\.code))
+        return StudioArtworkDetails(extras: extras, locale: selectedLocale) { codes.contains($0) }
+    }
+
     /// The new set's header, search artwork and App Preview in the shown
     /// language, on iPhone and iPad; nil on the live set or without them.
     var extrasPreview: StudioExtrasPreview? {

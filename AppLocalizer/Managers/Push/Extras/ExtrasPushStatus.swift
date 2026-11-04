@@ -8,6 +8,9 @@ import Foundation
 /// Where one extra is in its push.
 enum ExtrasPushStatus: Hashable, Sendable {
     case waiting
+    /// Its turn: AppLocalizer finds which groups it goes in (and, for an
+    /// App Preview, that there's room) before uploading.
+    case preparing
     /// Share of the file sent, 0…1.
     case uploading(Double)
     /// Uploaded; Apple is processing the file.
@@ -20,11 +23,12 @@ enum ExtrasPushStatus: Hashable, Sendable {
     /// Cancel Remaining stopped it before it started.
     case cancelled
 
-    /// "Waiting", "Uploading 42%", "Processing", "Placing", "Done",
-    /// "Failed", "Cancelled".
+    /// "Waiting", "Getting ready", "Uploading 42%", "Processing",
+    /// "Placing", "Done", "Failed", "Cancelled".
     var title: String {
         switch self {
         case .waiting: return String(localized: "Waiting")
+        case .preparing: return String(localized: "Getting ready")
         case let .uploading(fraction):
             let percent = Int((min(1, max(0, fraction)) * 100).rounded(.down))
             return String(localized: "Uploading \(percent)%")
@@ -52,7 +56,7 @@ enum ExtrasPushStatus: Hashable, Sendable {
     var isFinished: Bool {
         switch self {
         case .done, .failed, .cancelled: true
-        case .waiting, .uploading, .processing, .placing: false
+        case .waiting, .preparing, .uploading, .processing, .placing: false
         }
     }
 }

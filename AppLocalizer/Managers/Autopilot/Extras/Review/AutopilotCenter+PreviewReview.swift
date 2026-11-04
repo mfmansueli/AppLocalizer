@@ -122,6 +122,10 @@ extension AutopilotCenter {
     /// made: the earlier ones stay.
     @discardableResult
     func remakePreviews(_ appID: StoreApp.ID, context: AutopilotContext) async -> Bool {
+        await cancellably(appID) { await self.makeEveryPreviewAgain(appID, context: context) }
+    }
+
+    private func makeEveryPreviewAgain(_ appID: StoreApp.ID, context: AutopilotContext) async -> Bool {
         guard let run = runs[appID], let direction = run.chosenDirection,
               var document = try? await context.services.loadDocument(for: context.app, primaryLocale: context.primaryLocale),
               var extras = document.extras
@@ -135,6 +139,8 @@ extension AutopilotCenter {
             run.extrasProgress?.previewSizes = []
         }
         let files = await makePreviews(appID, run: run, direction: direction, captions: document.captions, context: context)
+        // Cancel Run: the earlier ones stay, and the run is back at its plan.
+        guard !Task.isCancelled else { return false }
         guard !files.isEmpty else {
             update(appID) { run in
                 run.previewReview?.remake = nil

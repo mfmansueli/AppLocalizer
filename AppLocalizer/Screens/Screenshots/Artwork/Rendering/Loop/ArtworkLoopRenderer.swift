@@ -14,7 +14,11 @@ import SwiftUI
 /// first frame is the poster (the PNG).
 @MainActor
 enum ArtworkLoopRenderer {
-    static var frameCount: Int { AutopilotArtworkMotion.loopSeconds * AutopilotArtworkMotion.loopFramesPerSecond }
+    nonisolated static var frameCount: Int { AutopilotArtworkMotion.loopSeconds * AutopilotArtworkMotion.loopFramesPerSecond }
+
+    /// Changes whenever a loop would come out differently from the same
+    /// poster, so loops made before aren't reused (`ArtworkLoopIndex`).
+    nonisolated static let version = 1
 
     /// Where frame `index` of `count` is in the loop: 0 for the first, 1
     /// (the same as 0) for the last.
@@ -62,7 +66,7 @@ enum ArtworkLoopRenderer {
         let phones = layout.phones.isEmpty
             ? nil
             : render(ArtworkView(layout: layout, captures: captures, icon: icon, layers: .phones), layout: layout, isOpaque: false)
-        return ArtworkLoopLayers(background: background, phones: phones, text: text)
+        return ArtworkLoopLayers.prepared(background: background, phones: phones, text: text)
     }
 
     private static func render(_ view: ArtworkView, layout: ArtworkLayout, isOpaque: Bool) -> CGImage? {

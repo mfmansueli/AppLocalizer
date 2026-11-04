@@ -51,8 +51,8 @@ final class ScreenshotStudioModel {
     /// "+ Add a Screen…"'s form, while it's open.
     var screenDraft: AutopilotScreenDraft?
     /// What the person asks Suggest Screens for, e.g. "one that shows the
-    /// streak".
-    var screenAsk = ""
+    /// streak", per device (iPhone for the set's).
+    var screenAsks: [ScreenshotDisplayType: String] = [:]
     /// Suggest Screens copied its prompt (no helper to start Claude Code).
     var didCopySuggestPrompt = false
     /// The full-size viewer over the app or the Autopilot sheet, while

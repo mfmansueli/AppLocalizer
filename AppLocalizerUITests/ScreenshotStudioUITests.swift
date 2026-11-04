@@ -242,6 +242,32 @@ final class ScreenshotStudioUITests: XCTestCase {
         XCTAssertTrue(element("autopilot.design").waitForExistence(timeout: 5))
     }
 
+    /// The full-size viewer zooms like Review & Push's: a double-click
+    /// goes to 200%, Fit goes back.
+    func testTheFullSizeViewerZooms() {
+        launch(scene: "st-pick")
+        let other = element("autopilot.pick.attempt.0.2")
+        XCTAssertTrue(other.waitForExistence(timeout: 15))
+        let pick = element("autopilot.pick")
+        for _ in 0..<12 where other.frame.maxY > pick.frame.maxY {
+            pick.scroll(byDeltaX: 0, deltaY: -200)
+        }
+        other.click()
+
+        let zoom = element("studio.viewer.zoom")
+        XCTAssertTrue(zoom.waitForExistence(timeout: 5))
+        XCTAssertFalse(element("studio.viewer.zoom.percent").exists, "It opens at fit")
+        zoom.doubleClick()
+        let percent = element("studio.viewer.zoom.percent")
+        XCTAssertTrue(percent.waitForExistence(timeout: 5))
+        XCTAssertTrue(text(of: percent).contains("200%"), text(of: percent))
+
+        app.buttons["studio.viewer.zoom.fit"].click()
+        XCTAssertTrue(percent.waitForNonExistence(timeout: 5))
+        element("studio.viewer.close").click()
+        XCTAssertTrue(element("studio.viewer").waitForNonExistence(timeout: 5))
+    }
+
     func testUsingADirectionMovesOnToLocalize() {
         launch(scene: "st-choose")
         let use = app.buttons.matching(identifier: "autopilot.direction.use").firstMatch

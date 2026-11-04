@@ -19,6 +19,9 @@ final class ReviewPushViewModel {
     /// Screenshot images left out of Push Selected; every image starts
     /// checked (`ReviewPushViewModel+Screenshots`).
     var uncheckedImages: Set<ScreenshotPlanItem.ID> = []
+    /// A screenshot, header, search image or App Preview clicked, shown
+    /// large over the sheet (`ReviewPushViewModel+Viewer`).
+    var viewer: ReviewViewer?
 
     let queue: ChangeQueue
     let push: PushController

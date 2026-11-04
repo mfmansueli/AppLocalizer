@@ -61,7 +61,8 @@ final class ExtrasReviewUITests: XCTestCase {
     /// out at once with an Undo.
     func testDiscardAllTakesTheExtrasOutWithUndo() {
         app.launch(debugScene: "shots-review-extras-only")
-        XCTAssertTrue(element("review.extras.section.\(appID)").waitForExistence(timeout: 30))
+        // Alone in Review & Push, the app's section is the list itself: its Push button says it's there.
+        XCTAssertTrue(app.buttons["review.extras.push.\(appID)"].waitForExistence(timeout: 30))
         let header = app.checkBoxes["review.extras.check.header-en-US"]
         XCTAssertTrue(header.waitForExistence(timeout: 10))
         let preview = app.checkBoxes["review.extras.check.iphone-en-US"]
@@ -105,6 +106,56 @@ final class ExtrasReviewUITests: XCTestCase {
         XCTAssertFalse(app.buttons["ppo.showInFinder"].exists)
     }
 
+    /// While it waits for the variant, the sheet says what Claude Code is
+    /// doing: each step done or going on, its latest step, the ones before
+    /// it, and Stop.
+    func testWhileAskingItSaysWhatClaudeCodeIsDoing() {
+        app.launch(debugScene: "shots-ppo-asking")
+        let waiting = element("ppo.waiting")
+        XCTAssertTrue(waiting.waitForExistence(timeout: 30))
+        XCTAssertTrue(text(of: element("ppo.waiting.title")).contains("is making the Outcome variant"), text(of: element("ppo.waiting.title")))
+        XCTAssertTrue(text(of: element("ppo.step.asked")).contains("Done"), text(of: element("ppo.step.asked")))
+        XCTAssertTrue(text(of: element("ppo.step.read")).contains("read what to change"), text(of: element("ppo.step.read")))
+        XCTAssertTrue(text(of: element("ppo.step.design")).contains("In progress"), text(of: element("ppo.step.design")))
+        XCTAssertTrue(text(of: element("ppo.step.render")).contains("Not yet"), text(of: element("ppo.step.render")))
+
+        XCTAssertTrue(element("claudeCode.run").waitForExistence(timeout: 15), "The Claude Code AppLocalizer started for it")
+        XCTAssertTrue(element("ppo.earlierSteps").waitForExistence(timeout: 15), "The steps before its latest")
+        XCTAssertTrue(app.buttons["claudeCode.run.stop"].exists)
+        XCTAssertFalse(element("ppo.idle").exists, "It's working on it")
+        let shot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        shot.name = "Asking for the variant"
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
+    /// While extras push, the section says what's going on: the count and
+    /// bar, the next file uploading while Apple processes the ones before
+    /// it, what finished, and the time; Cancel Remaining lets the ones in
+    /// flight finish.
+    func testThePushSaysWhatItsDoing() {
+        app.launch(debugScene: "shots-extras-pushing")
+        let progress = element("review.extras.progress")
+        XCTAssertTrue(progress.waitForExistence(timeout: 30))
+        scrollReview(by: -400, until: progress)
+        XCTAssertTrue(text(of: element("review.extras.progress.count")).contains("of"), text(of: element("review.extras.progress.count")))
+
+        let inFlight = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'review.extras.progress.now.'"))
+        let overlapping = XCTNSPredicateExpectation(predicate: NSPredicate(format: "count >= 2"), object: inFlight)
+        XCTAssertEqual(XCTWaiter().wait(for: [overlapping], timeout: 30), .completed, "One uploads while Apple processes another")
+        XCTAssertTrue(element("review.extras.progress.recent").waitForExistence(timeout: 40), "What finished")
+        XCTAssertTrue(text(of: element("review.extras.progress.time")).contains("so far"), text(of: element("review.extras.progress.time")))
+        let shot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        shot.name = "Extras pushing"
+        shot.lifetime = .keepAlways
+        add(shot)
+
+        app.buttons["Cancel Remaining"].click()
+        XCTAssertTrue(element("review.extras.progress.cancelling").waitForExistence(timeout: 5))
+        let finished = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value CONTAINS 'pushed'"), object: progress.staticTexts.firstMatch)
+        XCTAssertEqual(XCTWaiter().wait(for: [finished], timeout: 60), .completed, "The ones in flight finish, the rest don't go")
+    }
+
     /// App Store Connect won't take the artwork on a treatment: both
     /// variants are exported instead, and the sheet never claims a test.
     func testWhenTheAPICantPlaceTheArtworkBothVariantsAreExported() {
@@ -125,8 +176,9 @@ final class ExtrasReviewUITests: XCTestCase {
     }
 
     /// What VoiceOver reads for a combined element.
+    /// The label and the value, whichever it has (a text's is its value).
     private func text(of element: XCUIElement) -> String {
-        "\(element.label) \(element.value as? String ?? "")"
+        [element.label, element.value as? String ?? ""].filter { !$0.isEmpty }.joined(separator: " ")
     }
 
     /// Scrolls Review & Push (down for a negative `deltaY`) until `target`

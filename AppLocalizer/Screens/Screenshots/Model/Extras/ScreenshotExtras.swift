@@ -56,6 +56,10 @@ struct ScreenshotExtras: Codable, Hashable, Sendable {
 
     /// Languages whose headline doesn't fit the artwork.
     var tooLongLocales: [String] {
+        Self.tooLongLocales(of: artwork)
+    }
+
+    static func tooLongLocales(of artwork: [ExtrasArtworkFile]) -> [String] {
         Array(Set(artwork.filter { !$0.fits }.map(\.locale))).sorted()
     }
 }

@@ -35,7 +35,7 @@ struct ExtrasReviewSection: View {
                 discardedNote(discarded)
             }
             if let run = extras.run, run.items.contains(where: { $0.appID == plan.appID }) {
-                progress(run)
+                ExtrasPushProgressView(run: run)
             }
             if let error = extras.recordError {
                 Text(error).font(.caption).foregroundStyle(Palette.danger).padding(.horizontal, Spacing.small)
@@ -52,6 +52,12 @@ struct ExtrasReviewSection: View {
                 .foregroundStyle(Palette.label2)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: Spacing.small)
+            if viewModel.screenshots.canPushExtras {
+                Button("Asset Library…") { viewModel.openAssetLibrary(plan) }
+                    .controlSize(.small)
+                    .help(String(localized: "The files uploaded for \(plan.appName) on App Store Connect: see which are on a page and delete leftovers."))
+                    .accessibilityIdentifier("review.extras.library.\(plan.appID)")
+            }
             if !plan.items.isEmpty {
                 Text(plan.countTitle).font(.caption).foregroundStyle(Palette.label2).monospacedDigit()
                 let count = extras.checkedItems(in: plan).count
@@ -89,7 +95,7 @@ struct ExtrasReviewSection: View {
             } else {
                 FlowLayout(spacing: 10, lineSpacing: 10) {
                     ForEach(items) { item in
-                        ExtrasReviewTile(item: item, extras: extras)
+                        ExtrasReviewTile(item: item, extras: extras) { viewModel.openExtra(item, in: plan) }
                     }
                 }
                 .padding(.horizontal, Spacing.medium)
@@ -170,24 +176,5 @@ struct ExtrasReviewSection: View {
             .fixedSize()
             .accessibilityIdentifier("review.extras.test.both")
         }
-    }
-
-    private func progress(_ run: ExtrasPushRun) -> some View {
-        HStack(spacing: Spacing.small) {
-            if run.isRunning { ProgressView().controlSize(.small) }
-            Text(run.title).font(.caption.weight(.semibold))
-            if let failure = run.failures.first {
-                Text(failure.reason).font(.caption).foregroundStyle(Palette.danger).lineLimit(2)
-            }
-            Spacer(minLength: Spacing.small)
-            if run.phase == .finished, run.failedCount > 0 {
-                Button("Retry Failed") { run.retryFailed() }.controlSize(.small)
-            } else if run.isRunning {
-                Button("Cancel Remaining") { run.cancelRemaining() }.controlSize(.small)
-            }
-        }
-        .padding(.horizontal, Spacing.small)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("review.extras.progress")
     }
 }

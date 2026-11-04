@@ -77,6 +77,35 @@ struct AutopilotDirectionThumbnails: View {
         return width
     }
 
+    /// The widest thumbnail that fits the set, Apple Vision Pro and Apple
+    /// Watch side by side in `width`, at most `maximum`.
+    static func fittingThumbnail(in width: CGFloat, screens: Int, hasVision: Bool, hasWatch: Bool, maximum: CGFloat) -> CGFloat {
+        var units = CGFloat(screens)
+        var gaps = Spacing.xxSmall * CGFloat(max(screens - 1, 0))
+        if hasVision {
+            units += 2
+            gaps += Spacing.xSmall
+        }
+        if hasWatch {
+            units += 0.8
+            gaps += Spacing.xSmall
+        }
+        guard units > 0 else { return maximum }
+        return min(maximum, max(12, ((width - gaps) / units).rounded(.down)))
+    }
+
+    /// The thumbnail width for `width`, and whether Apple Vision Pro and
+    /// Apple Watch go on a line of their own: they do when the set alone
+    /// gets thumbnails a third bigger that way.
+    static func fit(in width: CGFloat, screens: Int, hasVision: Bool, hasWatch: Bool, maximum: CGFloat) -> (thumbnail: CGFloat, stacks: Bool) {
+        let oneRow = fittingThumbnail(in: width, screens: screens, hasVision: hasVision, hasWatch: hasWatch, maximum: maximum)
+        guard hasVision || hasWatch, oneRow < maximum else { return (oneRow, false) }
+        let set = fittingThumbnail(in: width, screens: screens, hasVision: false, hasWatch: false, maximum: maximum)
+        let devices = fittingThumbnail(in: width, screens: 0, hasVision: hasVision, hasWatch: hasWatch, maximum: maximum)
+        let stacked = min(set, devices)
+        return stacked >= oneRow * 4 / 3 ? (stacked, true) : (oneRow, false)
+    }
+
     private func accessibilityText(screens: Int, vision: Bool, watch: Bool) -> String {
         var parts = [String(localized: "\(screens) screenshots in \(direction.name)")]
         if vision { parts.append(String(localized: "an Apple Vision Pro screenshot")) }

@@ -33,6 +33,10 @@ enum ClaudeCodeDebugScenes {
         "cc-login", "cc-denied", "cc-settings", "cc-toolbar", "cc-hint", "cc-live",
     ]
 
+    /// Other scenes with the pretend helper: Product Page Optimization's
+    /// variant request.
+    static let helperScenes = ["shots-ppo-asking"]
+
     static let livePort: UInt16 = 47399
 
     static func isLive(_ id: String) -> Bool {
@@ -58,6 +62,7 @@ enum ClaudeCodeDebugScenes {
             runner.script = ClaudeCodeDebugScripts.everythingWorking
             runner.scripts = [ClaudeCodeRunPurpose.autopilot.title: ClaudeCodeDebugScripts.autopilotWorking]
         case "cc-settings": break
+        case "shots-ppo-asking": runner.script = ClaudeCodeDebugScripts.variantWorking
         default: runner.helperExists = false
         }
         return runner
@@ -67,7 +72,7 @@ enum ClaudeCodeDebugScenes {
     /// Open panel.
     @MainActor
     static func configure(_ launcher: ClaudeCodeLauncher, for id: String) {
-        guard ids.contains(id) else { return }
+        guard ids.contains(id) || helperScenes.contains(id) else { return }
         AssistantsSettingsTab.debugScrollsToLauncher = id == "cc-settings"
         launcher.folderChooser = { _, _ in ProjectFolderPath.expanded("~/Developer/Tempo") }
         let folder = isLive(id)

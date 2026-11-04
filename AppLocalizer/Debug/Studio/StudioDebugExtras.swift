@@ -20,12 +20,15 @@ import Foundation
 /// - `st-loc-extras-checks`, `st-ready-extras-checks`: the artwork done
 ///   with its checks: German's header has a discount (an error) and
 ///   Japanese's search image a Dark Mode edge (a warning).
+/// - `st-ready-extras-details`: the new set's preview in German with the
+///   Header and search card: German's header can't go (the discount), its
+///   search image is on App Store Connect, and so is all of English's.
 @MainActor
 enum StudioDebugExtras {
     nonisolated static let ids = [
         "st-plan-extras", "st-choose-extras", "st-loc-extras", "st-ready-extras-sheet",
         "st-ready-extras", "st-ready-extras-de", "st-ready-extras-wide",
-        "st-loc-extras-checks", "st-ready-extras-checks",
+        "st-loc-extras-checks", "st-ready-extras-checks", "st-ready-extras-details",
     ]
 
     /// A scene's run, whether it opens the sheet, and the rest of its setup.
@@ -37,6 +40,8 @@ enum StudioDebugExtras {
         var savesExtras = true
         /// Changes the set further (iPhone Duo's captures, say).
         var documentChange: (@Sendable (inout ScreenshotsDocument) -> Void)?
+        /// Lumen on every device: Apple Watch and Apple Vision Pro too.
+        var everyDevice = false
     }
 
     static func scene(for id: String) -> Scene? {
@@ -61,14 +66,16 @@ enum StudioDebugExtras {
                 model.studio.localeCode = "ar-SA"
                 model.studio.appearance = .dark
             }
-        default: nil
+        default: id == "st-ready-extras-details" ? detailsScene : nil
         }
     }
 
     /// The debug run at `stage`, making header and search artwork and an
     /// App Preview in every language.
-    static func run(_ stage: AutopilotStage, size: AutopilotArtworkSize = .headerAndSearch, languages: AutopilotPreviewLanguages = .all) -> AutopilotRun {
-        var run = StudioDebugRuns.run(stage)
+    static func run(
+        _ stage: AutopilotStage, size: AutopilotArtworkSize = .headerAndSearch, languages: AutopilotPreviewLanguages = .all, everyDevice: Bool = false
+    ) -> AutopilotRun {
+        var run = StudioDebugRuns.run(stage, everyDevice: everyDevice)
         run.plan.alsoMakes = AutopilotExtras(makesArtwork: true, artworkSize: size, makesAppPreview: true, previewLanguages: languages)
         guard stage != .plan else { return run }
         let received = StudioDebugRuns.date(day: 31, month: 10, hour: 14, minute: 4)
@@ -103,6 +110,22 @@ enum StudioDebugExtras {
         }
         return run
     }
+
+    /// The new set's preview in German with the Header and search card.
+    private static var detailsScene: Scene {
+        Scene(run: checked(run(.ready)), sheet: false, setUp: { model in
+            model.studio.choice = .new
+            model.studio.localeCode = "de-DE"
+        }, documentChange: { document in
+            document.extras?.pushedChecksums = pushedForDetails
+        })
+    }
+
+    /// `st-ready-extras-details`' pushed files: German's search image and
+    /// English's header and search.
+    nonisolated static let pushedForDetails = [
+        "search-de-DE": "debug-search-de-DE", "header-en-US": "debug-header-en-US", "search-en-US": "debug-search-en-US",
+    ]
 
     /// The checks' fixtures: German's header has a discount, Japanese's
     /// search image melts into the page in Dark Mode.

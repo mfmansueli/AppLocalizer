@@ -46,12 +46,15 @@ enum AutopilotPrompt {
         return lead + " " + String(localized: "Start with get_capture_plan for app \(appID), then ask next_step after each step.") + " " + keepGoing
     }
 
-    /// Suggest Screens: the assistant suggests screens for the plan; the
-    /// person adds the ones they want.
-    static func suggestScreens(appName: String, appID: StoreApp.ID, ask: String) -> String {
+    /// Suggest Screens: the assistant suggests screens for the plan (the
+    /// set's, or Apple Watch's own); the person adds the ones they want.
+    static func suggestScreens(appName: String, appID: StoreApp.ID, ask: String, on display: ScreenshotDisplayType = .iPhone) -> String {
         let ask = ask.trimmingCharacters(in: .whitespacesAndNewlines)
         let what = ask.isEmpty ? "" : " " + String(localized: "The person asks for: “\(ask)”.")
-        return String(localized: "Suggest new screens for \(appName)’s screenshot plan in AppLocalizer.") + what + " "
+        let lead = display == .watch
+            ? String(localized: "Suggest new Apple Watch screens for \(appName)’s screenshot plan in AppLocalizer.")
+            : String(localized: "Suggest new screens for \(appName)’s screenshot plan in AppLocalizer.")
+        return lead + what + " "
             + String(localized: "Call next_step for app \(appID) and do what it says; the person adds the ones they want.")
     }
 

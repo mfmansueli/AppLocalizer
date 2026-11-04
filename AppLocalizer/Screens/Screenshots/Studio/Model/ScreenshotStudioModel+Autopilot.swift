@@ -141,6 +141,20 @@ extension ScreenshotStudioModel {
         if let run = launchedRun, run.isActive { launcher?.stop(run.id) }
     }
 
+    /// Cancel Run… after Capture: what this Mac makes stops, the run goes
+    /// back to its plan with its captures and picks, and Claude Code stops.
+    func cancelRun() {
+        autopilot?.cancelRun(appID: app.id)
+        viewedStep = nil
+        if let run = launchedRun, run.isActive { launcher?.stop(run.id) }
+    }
+
+    /// What stopped when AppLocalizer closed picks up (the Screenshots
+    /// section opening).
+    func resumeInterruptedWork() {
+        autopilot?.resumeInterruptedWork(app.id, context: context)
+    }
+
     // MARK: - Prompt
 
     /// What to paste into the assistant to start.
@@ -233,6 +247,20 @@ extension ScreenshotStudioModel {
             await autopilot.useDirection(direction.id, appID: appID, context: context)
             await goOn()
         }
+    }
+
+    /// Under Ask for changes, when the run makes header and search
+    /// artwork: what a note can change, and that the loops' motion is
+    /// AppLocalizer's own.
+    var revisionScopeNote: String? {
+        guard let extras = run?.plan.alsoMakes, extras.makesArtwork else { return nil }
+        let scope = String(localized: "A note changes the screenshots and the header and search images: colors, type, layout and what they show.")
+        guard extras.makesMotion else { return scope }
+        let motion = String(localized: """
+        The loops move the way AppLocalizer animates them (slow light, twinkling stars, a gentle float); the motion \
+        itself can’t change yet.
+        """)
+        return scope + " " + motion
     }
 
     /// Ask Claude Design: the note goes back to the design AI.

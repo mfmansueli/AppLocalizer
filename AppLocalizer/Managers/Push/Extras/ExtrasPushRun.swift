@@ -5,13 +5,16 @@
 
 import Foundation
 import Observation
+import OSLog
 
 /// One push of Autopilot's extras (header and search results artwork, App
-/// Previews) through the App Asset Library, one item at a time. Each file
-/// is reserved in the app's library, uploaded in parts, committed and
-/// processed; only then is it placed, so a failed upload never touches the
-/// page. Artwork takes the place of what's in its slot; an App Preview
-/// replaces the ones it names and goes first in its group. Apple's
+/// Previews) through the App Asset Library. Each file is reserved in the
+/// app's library, uploaded in parts, committed and processed; only then is
+/// it placed, so a failed upload never touches the page. Uploads go one at
+/// a time, and the next starts while Apple processes the ones before it (up
+/// to `ExtrasPushEnvironment.processingWindow` at once); placements go one
+/// at a time too. Artwork takes the place of what's in its slot; an App
+/// Preview replaces the ones it names and goes first in its group. Apple's
 /// reference data decides which groups a file belongs in, by its size.
 ///
 /// The steps live in `ExtrasPushRun+Upload`, `+Placements` and
@@ -34,10 +37,23 @@ final class ExtrasPushRun {
     /// go on.
     var stopReason: String?
     var isCancelling = false
+    /// When the current round started.
+    var startedAt: Date?
+    /// The items in flight (one uploading, the rest with Apple or being
+    /// placed) and how far each has got.
+    var activities: [ExtrasPushItem.ID: ExtrasPushActivity] = [:]
+    /// What each item sent this push did, oldest first.
+    var events: [ExtrasPushEvent] = []
+    /// The next upload waits for one of the files with Apple to finish:
+    /// `processingWindow` are in flight.
+    var waitsForRoom = false
 
     let environment: ExtrasPushEnvironment
     /// Called when a round ends, to record what it did.
     @ObservationIgnored var onFinish: @MainActor (ExtrasPushRun) async -> Void = { _ in }
+    /// Called as soon as an item is placed, before the next placement, to
+    /// note it: a push cut short (the app quit) then doesn't send it again.
+    @ObservationIgnored var onItemDone: @MainActor (ExtrasPushItem) async -> Void = { _ in }
     @ObservationIgnored private var task: Task<Void, Never>?
 
     /// Each app's library ID, read once.
@@ -48,6 +64,20 @@ final class ExtrasPushRun {
     /// again: it waits for processing or places it.
     @ObservationIgnored var committedAssets: [ExtrasPushItem.ID: AssetLibraryAsset] = [:]
     @ObservationIgnored var processedItemIDs: Set<ExtrasPushItem.ID> = []
+    /// The last placement asked for: each waits for the one before it.
+    @ObservationIgnored private var lastPlacement: Task<Void, Never>?
+
+    /// Each failure with Apple's words, so it can be read after the sheet
+    /// closes (`log show --predicate 'subsystem == "com.lima.applocalizer"'`).
+    private static let logger = Logger(subsystem: "com.lima.applocalizer", category: "ExtrasPush")
+
+    /// An item uploaded and committed, waiting for Apple's processing.
+    private struct Upload: Sendable {
+        var item: ExtrasPushItem
+        var targets: [ExtrasPushTarget]
+        var asset: AssetLibraryAsset
+        var began: Date
+    }
 
     init(items: [ExtrasPushItem], environment: ExtrasPushEnvironment) {
         self.items = items
@@ -94,6 +124,7 @@ final class ExtrasPushRun {
         phase = .running
         stopReason = nil
         isCancelling = false
+        startedAt = environment.now()
         task = Task { [weak self] in
             await self?.sendWaiting()
             await self?.finishRound()
@@ -124,37 +155,101 @@ final class ExtrasPushRun {
         await task?.value
     }
 
+    /// Uploads the waiting items one by one; each goes on to processing
+    /// and placing while the next uploads, with at most
+    /// `processingWindow` uploaded and not finished.
     private func sendWaiting() async {
-        for item in items where status(of: item) == .waiting {
-            if isCancelling {
-                statuses[item.id] = .cancelled
-            } else if let stopReason {
-                statuses[item.id] = .failed(stopReason)
-            } else {
-                await send(item)
+        let window = max(1, environment.processingWindow)
+        await withTaskGroup(of: Void.self) { group in
+            var inFlight = 0
+            for item in items where status(of: item) == .waiting {
+                waitsForRoom = inFlight >= window
+                while inFlight >= window, await group.next() != nil {
+                    inFlight -= 1
+                }
+                waitsForRoom = false
+                if isCancelling {
+                    statuses[item.id] = .cancelled
+                } else if let stopReason {
+                    statuses[item.id] = .failed(stopReason)
+                } else if let upload = await upload(item) {
+                    inFlight += 1
+                    group.addTask { await self.finish(upload) }
+                }
             }
         }
     }
 
     private func finishRound() async {
         phase = .finished
+        activities = [:]
+        waitsForRoom = false
         pausedUntil = nil
         isCancelling = false
         await onFinish(self)
     }
 
-    /// One item: find its groups, make sure an App Preview has room,
-    /// upload and wait for processing, then place it.
-    private func send(_ item: ExtrasPushItem) async {
+    /// Finds the item's groups, makes sure an App Preview has room, and
+    /// uploads and commits it (or reuses an earlier round's upload). Nil
+    /// when it failed: its status says why.
+    private func upload(_ item: ExtrasPushItem) async -> Upload? {
+        let began = environment.now()
+        activities[item.id] = ExtrasPushActivity(itemID: item.id, startedAt: began, stepStartedAt: began)
+        enter(.preparing, for: item.id)
         do {
             let targets = try await targets(for: item)
             if case .appPreview = item.kind { try await checkPreviewRoom(for: item, in: targets) }
-            let asset = try await processedAsset(for: item)
-            statuses[item.id] = .placing
-            let placementIDs = try await place(asset, item: item, targets: targets)
-            statuses[item.id] = .done(assetID: asset.id, placementIDs: placementIDs)
+            let asset = try await committedAsset(for: item)
+            return Upload(item: item, targets: targets, asset: asset, began: began)
+        } catch {
+            statuses[item.id] = status(for: error)
+            end(item, began: began)
+            return nil
+        }
+    }
+
+    /// Waits for Apple to process the upload, then places it once the
+    /// placements before it are done.
+    private func finish(_ upload: Upload) async {
+        let item = upload.item
+        do {
+            try await process(upload.asset, for: item)
+            try await inTurn {
+                self.enter(.placing, for: item.id)
+                let placementIDs = try await self.place(upload.asset, item: item, targets: upload.targets)
+                self.statuses[item.id] = .done(assetID: upload.asset.id, placementIDs: placementIDs)
+                await self.onItemDone(item)
+            }
         } catch {
             statuses[item.id] = status(for: error)
         }
+        end(item, began: upload.began)
+    }
+
+    /// Runs `body` after the placements asked for before it.
+    private func inTurn<Result: Sendable>(_ body: @escaping @MainActor () async throws -> Result) async throws -> Result {
+        let before = lastPlacement
+        let mine = Task { @MainActor () -> Result in
+            await before?.value
+            return try await body()
+        }
+        lastPlacement = Task { _ = try? await mine.value }
+        return try await mine.value
+    }
+
+    /// Notes what the item did and how long it took.
+    private func end(_ item: ExtrasPushItem, began: Date) {
+        if let reason = status(of: item).failureReason {
+            Self.logger.error("\(item.id, privacy: .public) failed: \(reason, privacy: .public)")
+        }
+        let ended = environment.now()
+        events.append(ExtrasPushEvent(id: events.count, item: item, status: status(of: item), date: ended, seconds: ended.timeIntervalSince(began)))
+        activities[item.id] = nil
+    }
+
+    /// Moves the item to `status`, its step's clock starting again.
+    func enter(_ status: ExtrasPushStatus, for id: ExtrasPushItem.ID) {
+        statuses[id] = status
+        activities[id]?.stepStartedAt = environment.now()
     }
 }

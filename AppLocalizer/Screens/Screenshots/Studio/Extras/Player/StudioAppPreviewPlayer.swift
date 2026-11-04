@@ -13,11 +13,14 @@ struct StudioAppPreviewPlayer: View {
     @Bindable var studio: ScreenshotStudioModel
     let shown: ExtrasPreviewFile
     let width: CGFloat
+    /// Pinch to zoom the video (the full-size viewer); nil doesn't zoom.
+    let zoomIdentifier: String?
 
-    init(studio: ScreenshotStudioModel, file: ExtrasPreviewFile, width: CGFloat) {
+    init(studio: ScreenshotStudioModel, file: ExtrasPreviewFile, width: CGFloat, zoomIdentifier: String? = nil) {
         self.studio = studio
         shown = file
         self.width = width
+        self.zoomIdentifier = zoomIdentifier
     }
 
     private var file: ExtrasPreviewFile {
@@ -30,7 +33,7 @@ struct StudioAppPreviewPlayer: View {
         AppPreviewPlayer(
             model: studio.previewPlayer, file: file, url: studio.previewURL(file),
             musicTitle: (studio.screenshots.document?.extras?.previewMusic ?? studio.previewMusic).title,
-            poster: poster, width: width
+            poster: poster, width: width, zoomIdentifier: zoomIdentifier
         )
         .task(id: capture) {
             if let capture { studio.screenshots.captureImages.request([capture], width: Self.captureWidth) }

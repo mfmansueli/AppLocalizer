@@ -30,6 +30,12 @@ final class AutopilotCenter {
     @ObservationIgnored var makeID: () -> String = { UUID().uuidString.lowercased() }
     /// DEBUG scenes hold a run where it is: nothing moves on by itself.
     @ObservationIgnored var holdsStages = false
+    /// What each app's run is making on this Mac (the artwork, loops and
+    /// App Previews), so Cancel Run can stop it (`cancellably`).
+    @ObservationIgnored var making: [StoreApp.ID: (token: UUID, stop: () -> Void)] = [:]
+    /// How many uses of a direction or checks of every language are going
+    /// for each app: a resume waits until none is (`resumeInterruptedWork`).
+    @ObservationIgnored var localizing: [StoreApp.ID: Int] = [:]
 
     init(persistence: (any AutopilotPersistence)? = nil, runs: [StoreApp.ID: AutopilotRun] = [:], designProjects: [StoreApp.ID: DesignProject] = [:]) {
         self.persistence = persistence

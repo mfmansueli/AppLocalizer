@@ -55,10 +55,13 @@ enum ExtrasPushFixtures {
         [localizationID: ids.map { live($0, ExtrasPushKind.appPreviewPlacement, group: iPhoneGroup, media: .video) }]
     }
 
+    /// One file at a time unless `processingWindow` says otherwise, so the
+    /// calls' order is fixed.
     static func environment(
-        _ library: FakeAssetLibrary, clock: ScreenshotPushTestClock = ScreenshotPushTestClock(), processingTimeout: Duration = .seconds(60)
+        _ library: FakeAssetLibrary, clock: ScreenshotPushTestClock = ScreenshotPushTestClock(), processingTimeout: Duration = .seconds(60),
+        processingWindow: Int = 1, nameSuffix: (@Sendable () -> String)? = nil
     ) -> ExtrasPushEnvironment {
-        ExtrasPushEnvironment(
+        var environment = ExtrasPushEnvironment(
             library: library,
             rate: RequestRateTracker(now: { clock.now }),
             fileData: { url in Data("bytes of \(url.lastPathComponent)".utf8) },
@@ -66,8 +69,11 @@ enum ExtrasPushFixtures {
             sleep: { clock.advance(by: $0) },
             pollInterval: .seconds(1),
             longestPollInterval: .seconds(1),
-            processingTimeout: processingTimeout
+            processingTimeout: processingTimeout,
+            processingWindow: processingWindow
         )
+        if let nameSuffix { environment.nameSuffix = nameSuffix }
+        return environment
     }
 
     /// Runs a push of `items` to the end.

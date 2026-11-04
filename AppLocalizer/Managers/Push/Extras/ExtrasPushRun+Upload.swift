@@ -24,15 +24,13 @@ extension ExtrasPushRun {
         return targets
     }
 
-    /// The item's asset once Apple has processed it: uploaded now, or
-    /// kept from an earlier round.
-    func processedAsset(for item: ExtrasPushItem) async throws -> AssetLibraryAsset {
-        let asset = try await committedAsset(for: item)
-        guard !processedItemIDs.contains(item.id) else { return asset }
-        statuses[item.id] = .processing
+    /// Waits until Apple has processed the item's asset, unless an earlier
+    /// round saw it done.
+    func process(_ asset: AssetLibraryAsset, for item: ExtrasPushItem) async throws {
+        guard !processedItemIDs.contains(item.id) else { return }
+        enter(.processing, for: item.id)
         try await waitUntilProcessed(asset, item: item)
         processedItemIDs.insert(item.id)
-        return asset
     }
 
     /// `bytes` of the item's `total` went out: the percentage moves on
@@ -41,6 +39,7 @@ extension ExtrasPushRun {
         guard case let .uploading(fraction) = statuses[id], total > 0 else { return }
         let sent = min(1, Double(bytes) / Double(total))
         if sent > fraction { statuses[id] = .uploading(sent) }
+        if let before = activities[id]?.sentBytes, bytes > before { activities[id]?.sentBytes = min(bytes, total) }
     }
 
     // MARK: - Steps
@@ -66,15 +65,16 @@ extension ExtrasPushRun {
     }
 
     /// Reads the file, reserves it, uploads its parts and commits it.
-    private func committedAsset(for item: ExtrasPushItem) async throws -> AssetLibraryAsset {
+    func committedAsset(for item: ExtrasPushItem) async throws -> AssetLibraryAsset {
         if let asset = committedAssets[item.id] { return asset }
-        statuses[item.id] = .uploading(0)
+        enter(.uploading(0), for: item.id)
         let data: Data
         do {
             data = try await environment.fileData(item.fileURL)
         } catch {
             throw ExtrasPushFailure.file(detail: Self.describe(error))
         }
+        activities[item.id]?.totalBytes = data.count
         let libraryID = try await libraryID(for: item.appID)
         let reservation = try await reserve(item, libraryID: libraryID, fileSize: data.count)
         try await uploadParts(of: item, operations: reservation.uploadOperations, data: data)
@@ -84,27 +84,35 @@ extension ExtrasPushRun {
         return reservation.asset
     }
 
+    /// The upload's name in the asset library: the item's, e.g. "Autopilot
+    /// · de-DE · Header 21:9", then a short code of its own, since Apple
+    /// takes each reference name once.
+    func libraryName(for item: ExtrasPushItem) -> String {
+        "\(item.referenceName) · \(environment.nameSuffix())"
+    }
+
     private func reserve(_ item: ExtrasPushItem, libraryID: String, fileSize: Int) async throws -> AssetLibraryAssetReservation {
         let library = environment.library
+        let referenceName = libraryName(for: item)
         switch item.kind {
         case .artwork:
             return try await call {
                 try await library.reserveAssetLibraryImage(
-                    libraryID: libraryID, fileName: item.fileName, fileSize: fileSize, category: item.kind.category, referenceName: item.referenceName
+                    libraryID: libraryID, fileName: item.fileName, fileSize: fileSize, category: item.kind.category, referenceName: referenceName
                 )
             }
         case .motionArtwork:
             return try await call {
                 try await library.reserveAssetLibraryVideo(
                     libraryID: libraryID, fileName: item.fileName, fileSize: fileSize, category: item.kind.category,
-                    referenceName: item.referenceName, previewFrameTimeCode: ExtrasPushKind.loopPosterTimeCode
+                    referenceName: referenceName, previewFrameTimeCode: ExtrasPushKind.loopPosterTimeCode
                 )
             }
         case let .appPreview(posterTimeCode):
             return try await call {
                 try await library.reserveAssetLibraryVideo(
                     libraryID: libraryID, fileName: item.fileName, fileSize: fileSize, category: item.kind.category,
-                    referenceName: item.referenceName, previewFrameTimeCode: posterTimeCode
+                    referenceName: referenceName, previewFrameTimeCode: posterTimeCode
                 )
             }
         }
@@ -140,6 +148,7 @@ extension ExtrasPushRun {
         var interval = environment.pollInterval
         while true {
             let status = try await call { try await library.assetLibraryAssetState(asset) }
+            activities[item.id]?.checks += 1
             if status.isReady { return }
             if status.isFailed {
                 committedAssets[item.id] = nil

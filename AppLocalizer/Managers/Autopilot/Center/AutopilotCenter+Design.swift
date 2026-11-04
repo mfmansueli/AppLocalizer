@@ -111,13 +111,16 @@ extension AutopilotCenter {
         }
     }
 
-    /// A revised direction from the design AI: back to Choose.
+    /// A revised direction from the design AI: back to Choose after the
+    /// last one (`isLast`), so a note about every direction gets all of
+    /// them.
     func reviseDirection(
         _ directionID: String,
         template: ScreenshotTemplate,
         extras: (artwork: ScreenshotTemplate?, preview: ScreenshotTemplate?) = (nil, nil),
         rationale: String?,
         link: String?,
+        isLast: Bool = true,
         appID: StoreApp.ID,
         context: AutopilotContext
     ) async throws {
@@ -139,9 +142,17 @@ extension AutopilotCenter {
             run.directions[index].receivedAt = now()
             if let rationale, !rationale.isEmpty { run.directions[index].rationale = rationale }
             if let link, !link.isEmpty { run.directions[index].link = link }
+            let name = run.directions[index].name
+            guard isLast else {
+                var revised = run.revision?.revisedIDs ?? []
+                if !revised.contains(directionID) { revised.append(directionID) }
+                run.revision?.revisedIDs = revised
+                run.appendLog(String(localized: "\(name) revised → template sent to AppLocalizer; more on the way"), kind: .event, at: now())
+                return
+            }
             run.revision = nil
             run.stage = .choose
-            run.appendLog(String(localized: "\(run.directions[index].name) revised → template sent to AppLocalizer"), kind: .event, at: now())
+            run.appendLog(String(localized: "\(name) revised → template sent to AppLocalizer"), kind: .event, at: now())
         }
     }
 

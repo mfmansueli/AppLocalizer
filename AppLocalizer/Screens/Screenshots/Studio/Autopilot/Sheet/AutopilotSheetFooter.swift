@@ -117,6 +117,7 @@ struct AutopilotSheetFooter: View {
                 .buttonBorderShape(.capsule)
                 .accessibilityIdentifier("autopilot.stop")
         case .pick:
+            AutopilotCancelRunButton(studio: studio, run: run)
             Button("Use These Picks") { studio.usePicks() }
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.capsule)
@@ -124,8 +125,9 @@ struct AutopilotSheetFooter: View {
                 .disabled(!studio.canUsePicks(run))
                 .accessibilityIdentifier("autopilot.usePicks")
         case .design, .choose, .localize:
-            EmptyView()
+            AutopilotCancelRunButton(studio: studio, run: run)
         case .watchPreview:
+            AutopilotCancelRunButton(studio: studio, run: run)
             Button("Approve App Preview") { studio.approvePreview() }
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.capsule)

@@ -59,6 +59,16 @@ enum ClaudeCodeDebugScripts {
         )),
     ])
 
+    /// Designing Product Page Optimization's Outcome variant, still at it.
+    static let variantWorking = Script(lines: [
+        Line(delay: .milliseconds(200), text: Stream.started()),
+        Line(delay: .milliseconds(150), text: Stream.appLocalizer("next_step", id: "v1")),
+        Line(delay: .milliseconds(150), text: Stream.appLocalizer("get_design_brief", id: "v2")),
+        Line(delay: .milliseconds(150), text: Stream.read(ProjectFolderPath.expanded("~/Developer/Lumen/Design/Brand.md"), id: "v3")),
+        Line(delay: .milliseconds(150), text: Stream.appLocalizer("render_preview", id: "v4")),
+        Line(delay: .milliseconds(150), text: Stream.said("Designing the Outcome search image: a calm morning page, the same type and colours, no interface.")),
+    ], exitStatus: nil)
+
     static let autopilotWorking = Script(lines: [
         Line(delay: .milliseconds(200), text: Stream.started()),
         Line(delay: .milliseconds(100), text: Stream.appLocalizer("get_capture_plan", id: "p1")),

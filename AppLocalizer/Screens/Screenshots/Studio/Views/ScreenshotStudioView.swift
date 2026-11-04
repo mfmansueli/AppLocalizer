@@ -6,8 +6,9 @@
 import SwiftUI
 
 /// Screenshots → Preview: the header, the Autopilot strip, the App Store
-/// preview, search results and the Live set / New set card, with the
-/// Autopilot and Connect a Design Project sheets and the full-size viewer.
+/// preview, search results, the Live set / New set card and the new set's
+/// header and search artwork in detail, with the Autopilot and Connect a
+/// Design Project sheets and the full-size viewer.
 struct ScreenshotStudioView: View {
     @Bindable var screenshots: ScreenshotsViewModel
     @Environment(MCPServerController.self) private var assistants: MCPServerController?
@@ -36,6 +37,10 @@ struct ScreenshotStudioView: View {
                     HStack(alignment: .top, spacing: Spacing.large) { bottomCards(preview) }
                     VStack(alignment: .leading, spacing: Spacing.large) { bottomCards(preview) }
                 }
+                // The new set's header and search artwork, in detail.
+                if let details = studio.artworkDetails {
+                    StudioArtworkDetailsCard(studio: studio, details: details)
+                }
             }
             .padding(Spacing.xLarge)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -51,6 +56,7 @@ struct ScreenshotStudioView: View {
             }
         }
         .task(id: preview) { studio.loadImages(for: preview) }
+        .task { studio.resumeInterruptedWork() }
         .onChange(of: studio.run?.stage) { old, new in studio.runDidChange(from: old, to: new) }
         .sheet(isPresented: $studio.isAutopilotPresented) {
             AutopilotSheet(studio: studio, assistant: assistant)

@@ -67,11 +67,7 @@ extension AutopilotNextStep {
         case let .revisePreview(note, review):
             Self.revisePreviewJSON(note: note, review: review, run: run)
         case let .revise(note):
-            [
-                "action": "revise_direction",
-                "note": .string(note),
-                "how": "Change the direction(s) the note is about and send each with revise_direction.",
-            ]
+            Self.reviseDirectionJSON(note: note, run: run)
         default:
             ["action": "none"]
         }

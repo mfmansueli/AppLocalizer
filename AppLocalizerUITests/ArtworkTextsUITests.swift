@@ -70,11 +70,39 @@ final class ArtworkTextsUITests: XCTestCase {
 
     // MARK: - Helpers
 
+    /// The Screenshots preview's Header and search card, in German: the
+    /// header can't go (the discount), the search image is on App Store
+    /// Connect, and View Larger opens it full size.
+    func testThePreviewDetailsTheHeaderAndSearchImage() {
+        app.launch(debugScene: "st-ready-extras-details")
+        let card = element("studio.artwork.details")
+        XCTAssertTrue(card.waitForExistence(timeout: 30))
+        let root = element("studio.root")
+        for _ in 0..<10 where !app.windows.firstMatch.frame.contains(card.frame) {
+            root.scroll(byDeltaX: 0, deltaY: -400)
+        }
+        XCTAssertEqual(text(of: element("studio.artwork.details.language")), "German")
+        XCTAssertTrue(text(of: element("studio.artwork.details.header.format")).hasPrefix("3840 × 1646 · PNG"))
+        XCTAssertTrue(text(of: element("studio.artwork.details.header.checks")).hasPrefix("Can’t be pushed: German header: ‘−50%’"))
+        XCTAssertEqual(text(of: element("studio.artwork.details.search.status")), "On App Store Connect")
+        let languages = text(of: element("studio.artwork.details.languages"))
+        XCTAssertTrue(languages.hasPrefix("12 languages · 1 on App Store Connect"), languages)
+        let shot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        shot.name = "Header and search details"
+        shot.lifetime = .keepAlways
+        add(shot)
+
+        app.buttons["studio.artwork.details.search.view"].click()
+        XCTAssertTrue(element("studio.viewer.title").waitForExistence(timeout: 10))
+        XCTAssertTrue(text(of: element("studio.viewer.title")).contains("Search results · 3:2"))
+    }
+
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier]
     }
 
+    /// The label and the value, whichever it has (a text's is its value).
     private func text(of element: XCUIElement) -> String {
-        "\(element.label) \(element.value as? String ?? "")"
+        [element.label, element.value as? String ?? ""].filter { !$0.isEmpty }.joined(separator: " ")
     }
 }

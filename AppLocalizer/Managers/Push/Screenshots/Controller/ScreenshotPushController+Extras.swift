@@ -71,8 +71,16 @@ extension ScreenshotPushController {
         let environment = ExtrasPushEnvironment(library: provider.assetLibrary, rate: rate, now: now, sleep: sleep)
         let run = ExtrasPushRun(items: items, environment: environment)
         run.onFinish = { [weak self] run in await self?.recordExtras(run) }
+        run.onItemDone = { [weak self] item in await self?.recordPushedExtra(item) }
         extras.run = run
         run.start()
+    }
+
+    /// The App Asset Library sheet's model for the app, when the services
+    /// can reach its library.
+    func assetLibraryModel(appID: StoreApp.ID) -> AssetLibraryModel? {
+        guard let provider = extrasProvider else { return nil }
+        return AssetLibraryModel(appID: appID, appName: apps[appID]?.name ?? "", manager: provider.assetLibraryFiles)
     }
 
     /// The Product Page Optimization sheet's model for `placement` of
@@ -102,6 +110,23 @@ extension ScreenshotPushController {
 
     /// Writes what App Store Connect now has into each app's document, so
     /// the pushed extras leave Review & Push.
+    /// Notes one extra in its app's set as soon as it's placed, so a push
+    /// cut short (the app quit) doesn't send it again. Review & Push's
+    /// plans change once the push ends (`recordExtras`).
+    func recordPushedExtra(_ item: ExtrasPushItem) async {
+        guard let workspace, let app = apps[item.appID], let context = contexts[item.appID] else { return }
+        do {
+            var document = try await workspace.screenshots.loadDocument(for: app, primaryLocale: context.primaryLocale)
+            guard document.extras != nil else { return }
+            var pushed = document.extras?.pushedChecksums ?? [:]
+            pushed[item.id] = extras.fileID(of: item)
+            document.extras?.pushedChecksums = pushed
+            try await workspace.screenshots.saveDocument(document, for: app)
+        } catch {
+            extras.recordError = String(localized: "Pushed, but couldn’t note it in \(app.name)’s set: \(error.localizedDescription)")
+        }
+    }
+
     func recordExtras(_ run: ExtrasPushRun) async {
         guard let workspace else { return }
         var changed: Set<StoreApp.ID> = []

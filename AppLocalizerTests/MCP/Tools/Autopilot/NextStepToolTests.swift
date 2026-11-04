@@ -138,6 +138,41 @@ struct NextStepToolTests {
         #expect(AutopilotNextStep.done.mcpJSON(run: nil)["say"]?.stringValue?.contains("Nothing is uploaded until the person pushes") == true)
     }
 
+    /// Board 32's note about the header and search: next_step shows each
+    /// direction as it is now, which ones this note already changed, how
+    /// the artwork's own look changes, and that the motion is fixed.
+    @Test func revisingShowsEachDirectionAsItIsNow() throws {
+        var run = StudioDebugArtMotion.revising
+        run.revision?.revisedIDs = ["d-1"]
+        let json = AutopilotNextStep.revise(note: "Warmer header and search images").mcpJSON(run: run)
+        let directions = try #require(json["directions"]?.arrayValue)
+        #expect(directions.count == 3)
+        #expect(directions.map { $0["id"] } == ["d-1", "d-2", "d-3"])
+        #expect(directions.map { $0["revisedForThisNote"] } == [true, false, false])
+        #expect(directions[1]["template"] == run.directions[1].template.json)
+        #expect(directions[1]["artwork"] == "follows template")
+        #expect(directions[1]["appPreview"] == "follows template")
+        let how = try #require(json["how"]?.stringValue)
+        #expect(how.contains("last: false") && how.contains("every direction"))
+        #expect(json["artwork"]?.stringValue?.contains("extrasTemplates.artwork") == true)
+        #expect(json["motion"]?.stringValue?.contains("No template field changes the motion") == true)
+
+        var own = StudioDebugArtMotion.revising
+        own.directions[0].artworkTemplate = ScreenshotTemplate.starter(.cinema, id: "lumen", title: "Lumen")
+        let ownJSON = AutopilotNextStep.revise(note: "Warmer").mcpJSON(run: own)
+        #expect(ownJSON["directions"]?.arrayValue?.first?["artwork"] == own.directions[0].artworkTemplate?.json)
+    }
+
+    @Test func aRunWithoutExtrasIsRevisedWithoutTheirNotes() {
+        var run = StudioDebugRuns.run(.choose)
+        run.stage = .design
+        let json = AutopilotNextStep.revise(note: "Bigger headline").mcpJSON(run: run)
+        #expect(json["directions"]?.arrayValue?.count == 3)
+        #expect(json["directions"]?.arrayValue?.first?["artwork"] == nil)
+        #expect(json["artwork"] == nil)
+        #expect(json["motion"] == nil)
+    }
+
     @Test func captionsToWriteSayWhetherTheyreMissingOrTooLong() throws {
         let json = AutopilotNextStep.writeCaptions([Self.tooLong, Self.missing]).mcpJSON(run: nil)
         #expect(json["captions"] == [

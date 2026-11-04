@@ -6,12 +6,15 @@
 import Foundation
 
 /// "+ Add a Screen…"'s form: a name is enough while the assistant works out
-/// the steps; an empty caption is written by the assistant.
+/// the steps; an empty caption is written by the assistant. On Apple Watch
+/// there's no caption.
 struct AutopilotScreenDraft: Hashable, Sendable {
     var name = ""
     var steps = ""
     var caption = ""
     var worksOutSteps = true
+    /// Where it's added: iPhone for the set's screens, or Apple Watch.
+    var displayType: ScreenshotDisplayType = .iPhone
 
     /// Add Screen: a name, and the steps unless the assistant works them out.
     var canAdd: Bool {
@@ -19,12 +22,12 @@ struct AutopilotScreenDraft: Hashable, Sendable {
             && (worksOutSteps || !steps.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
-    /// The screen it adds after the plan's iPhone and iPad screens.
+    /// The screen it adds after the device's screens.
     func screen(id: String) -> AutopilotScreen {
         AutopilotScreen(
             id: id, name: name.trimmingCharacters(in: .whitespacesAndNewlines),
             steps: worksOutSteps ? "" : steps.trimmingCharacters(in: .whitespacesAndNewlines),
-            caption: caption.trimmingCharacters(in: .whitespacesAndNewlines),
+            caption: displayType.hasCaptions ? caption.trimmingCharacters(in: .whitespacesAndNewlines) : "",
             origin: .person, worksOutSteps: worksOutSteps ? true : nil
         )
     }

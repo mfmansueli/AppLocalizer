@@ -49,7 +49,10 @@ struct ProductPageTestSheet: View {
         }
         .padding(Spacing.large)
         .frame(width: 660)
-        .task(id: center?.run(for: model.plan.appID)?.variantRequest) { await model.reload() }
+        // Again when the request is made or cleared (the variant is in),
+        // not on each step of its progress.
+        .task(id: center?.run(for: model.plan.appID)?.variantRequest?.askedAt) { await model.reload() }
+        .task { await askOnAppearInDebugScenes() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("ppo.sheet")
     }
@@ -88,12 +91,7 @@ struct ProductPageTestSheet: View {
         case .intro:
             EmptyView()
         case .asking:
-            HStack(spacing: Spacing.small) {
-                ProgressView().controlSize(.small)
-                Text("Waiting for \(model.assistantName ?? String(localized: "the assistant"))’s \(model.treatmentName) variant…")
-                    .font(.callout)
-            }
-            .accessibilityIdentifier("ppo.waiting")
+            ProductPageTestAskingView(model: model, center: center)
         case .variantReady:
             languages
         case .testing:
@@ -157,6 +155,17 @@ struct ProductPageTestSheet: View {
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("ppo.outcome")
         }
+    }
+
+    /// DEBUG scenes that open on the request: asks, and has the pretend
+    /// Claude Code read it.
+    private func askOnAppearInDebugScenes() async {
+        #if DEBUG
+        guard model.asksOnAppear else { return }
+        model.asksOnAppear = false
+        await model.ask(center: center, launcher: launcher)
+        center?.markVariantRead(appID: model.plan.appID, client: model.assistantName ?? "Claude Code")
+        #endif
     }
 
     // MARK: - Buttons

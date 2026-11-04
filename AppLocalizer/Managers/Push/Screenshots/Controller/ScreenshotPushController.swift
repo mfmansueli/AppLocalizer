@@ -127,10 +127,12 @@ final class ScreenshotPushController {
         #if DEBUG
         // Push scenes start sending once the plans are in.
         if let debug = workspace.pushing as? DebugScreenshotPushServices, debug.consumeAutoPush() { push(orderedPlans) }
+        if let debug = workspace.pushing as? DebugScreenshotPushServices, debug.consumeAutoPushExtras() { pushExtras(extras.orderedPlans) }
         if let debug = workspace.pushing as? DebugScreenshotPushServices, let placement = debug.consumeOpenTest(),
            let plan = extras.orderedPlans.first
         {
             let model = testModel(for: plan, placement: placement)
+            model?.asksOnAppear = debug.extrasScript.asksVariant
             extras.test = model
             if debug.extrasScript.createsTest { model?.createTest() }
         }

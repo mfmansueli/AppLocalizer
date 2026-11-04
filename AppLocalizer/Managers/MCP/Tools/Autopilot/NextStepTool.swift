@@ -37,8 +37,17 @@ struct NextStepTool: MCPTool {
         if let wanted = try arguments.optionalString("run"), let run = center.run(for: app.id), wanted != run.id {
             throw MCPToolError.notFound(String(localized: "Run “\(wanted)” is over; \(app.name)’s current run is “\(run.id)”. Call get_capture_plan."))
         }
+        // What stopped when AppLocalizer closed picks up first.
+        if let run = center.run(for: app.id) {
+            center.resumeInterruptedWork(app.id, context: MCPAutopilotSession.context(app: app, run: run, in: context))
+        }
         let step = await center.nextStep(appID: app.id, client: context.clientName)
         var result = step.mcpJSON(run: center.run(for: app.id)).objectValue ?? [:]
+        if case let .writeArtworkTexts(needs) = step,
+           let profile = await AutopilotAppProfile.load(app: app, locales: needs.map(\.locale), in: context.workspace)
+        {
+            result["startFrom"] = profile.searchWordsJSON(for: needs.map(\.locale))
+        }
         if let run = center.run(for: app.id) {
             result["run"] = .string(run.id)
             result["stage"] = .string(run.stage.rawValue)

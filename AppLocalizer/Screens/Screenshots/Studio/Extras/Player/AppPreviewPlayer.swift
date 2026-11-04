@@ -12,22 +12,23 @@ struct AppPreviewPlayer: View {
     let model: AppPreviewPlayerModel
     let file: ExtrasPreviewFile
     let url: URL
-    /// "Warm acoustic".
-    let musicTitle: String
+    /// "Warm acoustic"; nil when it isn't known (Review & Push, a file
+    /// made before music).
+    let musicTitle: String?
     let poster: AppPreviewPosterView?
     let width: CGFloat
+    /// Pinch to zoom the video (Review & Push's viewer): the zoom's
+    /// identifier; nil doesn't zoom.
+    var zoomIdentifier: String?
 
     var body: some View {
         VStack(spacing: Spacing.small) {
-            Button {
-                model.toggle()
-            } label: {
-                video
+            if let zoomIdentifier {
+                ZoomableContainer(identifier: zoomIdentifier, doubleClickZooms: false) { videoButton }
+                    .frame(width: width, height: height)
+            } else {
+                videoButton
             }
-            .buttonStyle(.plain)
-            .help(Text(model.isPlaying ? "Pause" : "Play"))
-            .accessibilityLabel(Text(model.isPlaying ? "Pause the App Preview" : "Play the App Preview"))
-            .accessibilityIdentifier("appPreview.video")
             VStack(alignment: .leading, spacing: Spacing.xSmall) {
                 HStack(spacing: Spacing.small) {
                     Button(model.isPlaying ? "Pause" : "Play") { model.toggle() }
@@ -48,15 +49,29 @@ struct AppPreviewPlayer: View {
                 if let scenes = file.scenes, !scenes.isEmpty {
                     AppPreviewTimeline(scenes: scenes, seconds: model.seconds) { model.seek(to: $0) }
                 }
-                Text(musicLine)
-                    .font(.caption)
-                    .foregroundStyle(Palette.label2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("appPreview.music")
+                if !musicLine.isEmpty {
+                    Text(musicLine)
+                        .font(.caption)
+                        .foregroundStyle(Palette.label2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("appPreview.music")
+                }
             }
             .frame(width: max(width, 260))
         }
         .task(id: url) { model.load(url, seconds: file.seconds) }
+    }
+
+    private var videoButton: some View {
+        Button {
+            model.toggle()
+        } label: {
+            video
+        }
+        .buttonStyle(.plain)
+        .help(Text(model.isPlaying ? "Pause" : "Play"))
+        .accessibilityLabel(Text(model.isPlaying ? "Pause the App Preview" : "Play the App Preview"))
+        .accessibilityIdentifier("appPreview.video")
     }
 
     private var height: CGFloat {
@@ -85,9 +100,10 @@ struct AppPreviewPlayer: View {
     /// "♫ Warm acoustic · muted here · under the captions, fades out from 0:22".
     private var musicLine: String {
         let fade = ExtrasPreviewFile.lengthTitle(max(0, file.seconds - AppPreviewSoundtrack.fadeOutSeconds))
-        var parts = ["♫ " + musicTitle]
+        var parts: [String] = []
+        if let musicTitle { parts.append("♫ " + musicTitle) }
         if model.isMuted { parts.append(String(localized: "muted here")) }
-        parts.append(String(localized: "under the captions, fades out from \(fade)"))
+        if musicTitle != nil { parts.append(String(localized: "under the captions, fades out from \(fade)")) }
         if !model.canPlay { parts.append(String(localized: "the file isn’t on this Mac")) }
         return parts.joined(separator: " · ")
     }

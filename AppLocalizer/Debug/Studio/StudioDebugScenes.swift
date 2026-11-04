@@ -81,7 +81,7 @@ enum StudioDebugScenes {
         {
             let saved = extras.savesExtras ? StudioDebugExtras.extras(for: extras.run) : nil
             let change = extras.documentChange
-            return scene(run: extras.run, sheet: extras.sheet, setUp: extras.setUp, documentChange: { document in
+            return scene(run: extras.run, sheet: extras.sheet, everyDevice: extras.everyDevice, setUp: extras.setUp, documentChange: { document in
                 if let saved { document.extras = saved }
                 change?(&document)
             })

@@ -46,6 +46,13 @@ enum ArtworkSafeArea {
         return CGRect(x: rect.minX / size.width, y: rect.minY / size.height, width: rect.width / size.width, height: rect.height / size.height)
     }
 
+    /// How much of the top and of each side lies outside the safe area, in
+    /// whole percents of the artwork: 22 and 17 for the header.
+    static func percentInsets(for kind: AutopilotArtworkKind) -> (top: Int, side: Int) {
+        let fraction = fraction(for: kind)
+        return (Int((fraction.minY * 100).rounded()), Int((fraction.minX * 100).rounded()))
+    }
+
     /// Whether `frame` lies inside the kind's safe area, give or take
     /// `tolerance` pixels.
     static func contains(_ frame: CGRect, in kind: AutopilotArtworkKind, tolerance: CGFloat = 2) -> Bool {

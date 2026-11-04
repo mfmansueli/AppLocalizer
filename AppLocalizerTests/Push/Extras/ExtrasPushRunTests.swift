@@ -266,8 +266,55 @@ struct ExtrasPushRunTests {
         #expect(run.pausedUntil == nil)
     }
 
+    /// Apple takes each reference name once: a file pushed again (made
+    /// again, or after a push cut short) is reserved under its own.
+    @Test func aFilePushedAgainGetsANameOfItsOwn() async {
+        let library = FakeAssetLibrary()
+        let item = Fixtures.header()
+        let first = await Fixtures.push([item], environment: Fixtures.environment(library))
+        let again = await Fixtures.push([item], environment: Fixtures.environment(library))
+
+        #expect(first.status(of: item).isDone)
+        #expect(again.status(of: item).isDone)
+        let names = library.referenceNames
+        #expect(names.count == 2)
+        #expect(Set(names).count == 2)
+        #expect(names.allSatisfy { $0.hasPrefix("Autopilot · German · Header 21:9 · ") })
+    }
+
+    @Test func aTakenNameIsRefusedInApplesWords() async {
+        let library = FakeAssetLibrary()
+        let item = Fixtures.header()
+        _ = await Fixtures.push([item], environment: Fixtures.environment(library, nameSuffix: { "AAAAAA" }))
+        let again = await Fixtures.push([item], environment: Fixtures.environment(library, nameSuffix: { "AAAAAA" }))
+        #expect(again.status(of: item).failureReason?.contains("ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE") == true)
+        #expect(again.status(of: item).failureReason?.contains("Autopilot · German · Header 21:9 · AAAAAA") == true)
+    }
+
+    /// Each item is noted the moment it's placed, not only when the push
+    /// ends, so quitting mid-push doesn't send it again.
+    @Test func eachItemIsNotedAsSoonAsItsPlaced() async {
+        let holder = ExtrasPushRunHolder()
+        var script = FakeAssetLibrary.Script()
+        script.refusedPlacements = ["de-DE-header"]
+        let library = FakeAssetLibrary(script)
+        let header = Fixtures.header()
+        let wide = Fixtures.wide()
+        let preview = Fixtures.preview()
+        let run = ExtrasPushRun(items: [header, wide, preview], environment: Fixtures.environment(library, processingWindow: 3))
+        run.onItemDone = { item in holder.noted.append((id: item.id, whileRunning: run.isRunning)) }
+        run.start()
+        await run.waitUntilFinished()
+
+        #expect(Set(holder.noted.map(\.id)) == [wide.id, preview.id], "The refused header isn't noted")
+        let allWhileRunning = holder.noted.allSatisfy(\.whileRunning)
+        #expect(allWhileRunning)
+    }
+
     @Test func statusTitles() {
         #expect(ExtrasPushStatus.waiting.title == "Waiting")
+        #expect(ExtrasPushStatus.preparing.title == "Getting ready")
+        #expect(!ExtrasPushStatus.preparing.isFinished)
         #expect(ExtrasPushStatus.uploading(0.426).title == "Uploading 42%")
         #expect(ExtrasPushStatus.processing.title == "Processing")
         #expect(ExtrasPushStatus.placing.title == "Placing")

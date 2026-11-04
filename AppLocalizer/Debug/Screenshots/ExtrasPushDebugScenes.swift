@@ -18,8 +18,18 @@ import SwiftUI
 ///   with the Outcome variant rendered and checked.
 /// - `shots-ppo-export`: the same test where the treatment won't take the
 ///   artwork, so both variants are exported with the steps.
+/// - `shots-ppo-asking`: the search results test asking for the Outcome
+///   variant, the pretend Claude Code (`ClaudeCodeDebugScenes`) working on
+///   it after reading what to change.
+/// - `shots-extras-pushing`: the extras pushing slowly as soon as it opens,
+///   Apple taking a few checks to process each file, so the next uploads
+///   while the ones before it process.
+/// - `asset-library`: the App Asset Library sheet on its own, with files on
+///   a page, leftovers from earlier pushes, a failed and an unfinished one.
 enum ExtrasPushDebugScenes {
-    static let ids = ["shots-review-extras", "shots-review-extras-only", "shots-ppo", "shots-ppo-export"]
+    static let ids = [
+        "shots-review-extras", "shots-review-extras-only", "shots-ppo", "shots-ppo-export", "shots-ppo-asking", "shots-extras-pushing", "asset-library",
+    ]
 
     @MainActor
     static func view(for id: String) -> AnyView? {
@@ -30,6 +40,13 @@ enum ExtrasPushDebugScenes {
             scene(script: DebugExtrasScript(), variant: false, onlyExtras: true)
         case "shots-ppo":
             scene(script: DebugExtrasScript(opensTest: .header), variant: true)
+        case "shots-ppo-asking":
+            scene(script: DebugExtrasScript(opensTest: .searchResults, asksVariant: true), variant: false)
+        case "asset-library":
+            AnyView(AssetLibrarySheet(model: AssetLibraryModel(appID: StudioDebugRuns.appID, appName: "Lumen Journal", manager: DebugAssetLibraryFiles())))
+        case "shots-extras-pushing":
+            // Slow, and Apple takes a few checks: uploads go on while it processes.
+            scene(script: DebugExtrasScript(delay: .milliseconds(700), processingChecks: 2, pushesExtras: true), variant: false)
         case "shots-ppo-export":
             scene(script: DebugExtrasScript(delay: .milliseconds(20), refusesTreatmentArtwork: true, opensTest: .header, createsTest: true), variant: true)
         default:

@@ -39,6 +39,18 @@ extension AutopilotPlan {
         setScreens(screens(on: display) + [screen], on: display)
     }
 
+    /// Room left on `display` under Apple's 10 screenshots per device.
+    func screenRoom(on display: ScreenshotDisplayType) -> Int {
+        ScreenshotTemplate.maximumSlots - screens(on: display).count
+    }
+
+    /// Add a Screen and Suggest Screens work for the set (iPhone and iPad)
+    /// and for a planned Apple Watch. Apple Vision Pro's windows show the
+    /// iPhone screens.
+    func takesNewScreens(on display: ScreenshotDisplayType) -> Bool {
+        display == .watch ? displayTypes.contains(.watch) : !display.hasOwnScreens
+    }
+
     /// An id from `name` no screen uses yet: `insights`, `insights-2`; on
     /// Apple Watch and Apple Vision Pro, prefixed with the device.
     func newScreenID(named name: String, on display: ScreenshotDisplayType) -> String {

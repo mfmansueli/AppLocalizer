@@ -58,6 +58,9 @@ struct ScreenshotReviewContent: View {
         .sheet(item: $extras.test) { model in
             ProductPageTestSheet(model: model, center: viewModel.screenshots.workspace?.screenshots.autopilot)
         }
+        .sheet(item: $extras.library) { model in
+            AssetLibrarySheet(model: model)
+        }
     }
 
     /// Whether there's anything to show at all.

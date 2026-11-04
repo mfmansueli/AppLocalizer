@@ -167,6 +167,42 @@ struct AutopilotCenterDesignTests {
         }
     }
 
+    /// A note about every direction: each one sent with more to come keeps
+    /// the run designing and is marked done for the note; the last one
+    /// hands the choice back.
+    @Test func everyDirectionIsRevisedBeforeTheChoiceComesBack() async throws {
+        center.install(StudioDebugRuns.run(.choose))
+        center.requestRevision("Warmer header and search images", appID: appID)
+        var warmer = northpierDirections[0].template
+        warmer.caption.headline.size = 120
+        let artwork = ScreenshotTemplate.starter(.cinema, id: "lumen", title: "Lumen")
+
+        try await center.reviseDirection(
+            "d-1", template: warmer, extras: (artwork: artwork, preview: nil), rationale: nil, link: nil, isLast: false,
+            appID: appID, context: context
+        )
+        var revising = try #require(run)
+        #expect(revising.stage == .design)
+        #expect(revising.revision?.note == "Warmer header and search images")
+        #expect(revising.revision?.revisedIDs == ["d-1"])
+        #expect(revising.directions[0].isRevised)
+        #expect(revising.directions[0].artworkTemplate == artwork, "The header and search get their new look")
+        #expect(revising.log.last?.text == "Quiet Indigo revised → template sent to AppLocalizer; more on the way")
+
+        try await center.reviseDirection("d-2", template: warmer, rationale: nil, link: nil, isLast: false, appID: appID, context: context)
+        try await center.reviseDirection("d-1", template: warmer, rationale: nil, link: nil, isLast: false, appID: appID, context: context)
+        revising = try #require(run)
+        #expect(revising.revision?.revisedIDs == ["d-1", "d-2"], "Sent twice, counted once")
+
+        try await center.reviseDirection("d-3", template: warmer, rationale: nil, link: nil, appID: appID, context: context)
+        let chosen = try #require(run)
+        #expect(chosen.stage == .choose)
+        #expect(chosen.revision == nil)
+        let allRevised = chosen.directions.allSatisfy(\.isRevised)
+        #expect(allRevised)
+        #expect(chosen.log.last?.text == "Dawn Panorama revised → template sent to AppLocalizer")
+    }
+
     @Test func startersCantBeRevised() {
         center.install(StudioDebugRuns.run(.choose, design: false))
         center.requestRevision("Bigger headline", appID: appID)

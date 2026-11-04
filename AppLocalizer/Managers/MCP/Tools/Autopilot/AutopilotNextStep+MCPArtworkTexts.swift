@@ -26,7 +26,8 @@ extension AutopilotNextStep {
             "how": """
             These are the header's and the search results image's own texts, not screenshot captions. search: 3–5 words \
             (at most about 32 characters) that answer what people search for, the app's purpose at a glance; start from \
-            that language's keywords and subtitle (get_store_page) and write it in that language, like a caption. header: \
+            that language's keywords and subtitle (startFrom, or get_store_page) and write it in that language, like a \
+            caption, naming the app's core task in its own words, never a generic line. header: \
             optional, at most about 3 words for one feeling or outcome, or an empty headline for none. No prices, \
             discounts, URLs, awards, Apple recognitions or other platforms. Send them all with propose_captions, items \
             {locale, placement, headline}, and this run's ID as run; they're saved right away and the run checks them again.

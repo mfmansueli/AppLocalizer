@@ -160,6 +160,48 @@ struct ProductPageTestModelTests {
         #expect(model.phase == .intro)
     }
 
+    @Test func whileAskingItListsWhatsDoneAndWhatsLeft() async throws {
+        let center = AutopilotTestFixtures.center()
+        let appID = StudioDebugRuns.appID
+        center.install(StudioDebugExtras.run(.ready))
+        let model = try makeModel(variant: nil, appID: appID)
+        #expect(model.steps(of: center.run(for: appID)).isEmpty, "Nothing asked yet")
+
+        await model.ask(center: center, launcher: nil)
+        #expect(model.steps(of: center.run(for: appID)).map(\.state) == [.done, .current, .upcoming, .upcoming])
+        #expect(model.steps(of: center.run(for: appID)).last?.title == "AppLocalizer renders it in 3 languages and checks it")
+
+        center.markVariantRead(appID: appID, client: "Claude Code")
+        #expect(model.steps(of: center.run(for: appID)).map(\.state) == [.done, .done, .current, .upcoming])
+        #expect(center.run(for: appID)?.log.last?.text == "Claude Code read what to change for the test and is designing the variant")
+    }
+
+    @Test func nobodyWorkingOnItIsIdleOnlyWhereClaudeCodeCanStart() async throws {
+        let center = AutopilotTestFixtures.center()
+        let appID = StudioDebugRuns.appID
+        center.install(StudioDebugExtras.run(.ready))
+        let model = try makeModel(variant: nil, appID: appID)
+        await model.ask(center: center, launcher: nil)
+        let run = center.run(for: appID)
+        #expect(model.isIdle(session: nil, run: run, canStart: true))
+        #expect(!model.isIdle(session: nil, run: run, canStart: false), "Without the helper the notice says to ask the assistant")
+
+        center.update(appID) { $0.variantRequest?.receivedAt = .now }
+        #expect(!model.isIdle(session: nil, run: center.run(for: appID), canStart: true), "AppLocalizer is rendering it")
+    }
+
+    @Test func continuingWithoutTheHelperSaysToAskTheAssistant() async throws {
+        let center = AutopilotTestFixtures.center()
+        let appID = StudioDebugRuns.appID
+        center.install(StudioDebugExtras.run(.ready))
+        let model = try makeModel(variant: nil, appID: appID)
+        await model.ask(center: center, launcher: nil)
+        model.notice = nil
+        await model.continueAsking(center: center, launcher: nil)
+        #expect(model.notice == "Ask your assistant to continue Lumen Journal’s run: next_step says what to design.")
+        #expect(center.run(for: appID)?.variantRequest != nil, "The request stays open")
+    }
+
     @Test func theVariantIsPickedUpOnceItArrives() async throws {
         var arrived = ExtrasReviewFixtures.extras(previews: false)
         arrived.variant = ExtrasReviewFixtures.variant()

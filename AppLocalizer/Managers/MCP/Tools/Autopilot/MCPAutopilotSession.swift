@@ -29,9 +29,15 @@ struct MCPAutopilotSession {
         if let wanted = try arguments.optionalString("run"), !wanted.isEmpty, wanted != run.id {
             throw MCPToolError.notFound(String(localized: "Run “\(wanted)” is over; \(app.name)’s current run is “\(run.id)”. Call get_capture_plan."))
         }
+        return MCPAutopilotSession(app: app, center: center, context: Self.context(app: app, run: run, in: context), run: run)
+    }
+
+    /// What a run touches the app's screenshots with, in its primary
+    /// language.
+    static func context(app: StoreApp, run: AutopilotRun, in context: MCPToolContext) -> AutopilotContext {
         let primary = StoreLocaleCatalog.locale(code: run.plan.primaryLocale)
             ?? app.primaryLocale.flatMap(StoreLocaleCatalog.locale(code:)) ?? .englishUS
-        return MCPAutopilotSession(app: app, center: center, context: AutopilotContext(app: app, services: services, primaryLocale: primary), run: run)
+        return AutopilotContext(app: app, services: context.workspace.services.screenshots, primaryLocale: primary)
     }
 
     /// Reads the run again after a change.

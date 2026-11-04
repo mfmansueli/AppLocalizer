@@ -29,7 +29,7 @@ struct AutopilotScreenSuggestionsBox: View {
             let shown = suggestions.shown
             ForEach(Array(shown.enumerated()), id: \.element.id) { index, suggestion in
                 if index > 0 { Divider() }
-                AutopilotScreenSuggestionRow(studio: studio, suggestion: suggestion)
+                AutopilotScreenSuggestionRow(studio: studio, suggestion: suggestion, display: suggestions.device)
             }
             if shown.isEmpty {
                 Text("No more suggestions. Ask for something specific below.")

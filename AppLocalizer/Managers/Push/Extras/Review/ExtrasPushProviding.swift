@@ -12,4 +12,6 @@ import Foundation
 protocol ExtrasPushProviding {
     var assetLibrary: any AssetLibraryPushing { get }
     var productPageTesting: any ProductPageTesting { get }
+    /// The app's App Asset Library, to see and delete its files.
+    var assetLibraryFiles: any AssetLibraryManaging { get }
 }

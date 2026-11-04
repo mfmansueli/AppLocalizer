@@ -66,7 +66,8 @@ enum ExtrasPushDebugData {
 
     /// Small renders of the header and search image (and the variant) for
     /// every language's file, so the thumbnails have something to show, and
-    /// a stand-in file for each App Preview, so a push can read it.
+    /// a file for each App Preview, so a push can read it and the viewer
+    /// plays it (`ExtrasPushDebugMovies`).
     static func writeFiles(for run: AutopilotRun, extras: ScreenshotExtras, fonts: ScreenshotFontCatalog) {
         let folder = FileManager.default.temporaryDirectory.appending(path: "AppLocalizerAutopilot/\(appID)/Extras", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -86,11 +87,12 @@ enum ExtrasPushDebugData {
             try? rendered["variant"]?.write(to: folder.appending(path: "\(file.fileID).png"))
         }
         // The App Previews: stand-in bytes the simulated asset library
-        // uploads without decoding.
+        // uploads without decoding, then short real movies the viewer plays.
         let video = Data(repeating: 0, count: 64 * 1024)
         for preview in extras.previews {
             try? video.write(to: folder.appending(path: "\(preview.fileID).mov"))
         }
+        ExtrasPushDebugMovies.write(extras.previews, in: folder)
     }
 
     /// Draws the artwork small, in the primary language, with the run's

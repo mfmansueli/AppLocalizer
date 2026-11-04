@@ -183,9 +183,16 @@ extension AutopilotCenter {
         case .watchPreview:
             return watchStep(run)
         case .ready:
-            // A variant the person asked for in Review & Push.
-            return run.variantRequest.map(AutopilotNextStep.designVariant) ?? .done
+            return readyStep(appID: appID, run, client: client)
         }
+    }
+
+    /// Done, unless the person asked for a variant in Review & Push: the
+    /// first time it's handed over, the sheet says the assistant read it.
+    private func readyStep(appID: StoreApp.ID, _ run: AutopilotRun, client: String) -> AutopilotNextStep {
+        guard let request = run.variantRequest else { return .done }
+        if request.readAt == nil { markVariantRead(appID: appID, client: client) }
+        return .designVariant(request)
     }
 
     /// Capturing, with the environment the assistant reports kept.

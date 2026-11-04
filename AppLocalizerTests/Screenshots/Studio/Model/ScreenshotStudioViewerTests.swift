@@ -117,5 +117,48 @@ struct ScreenshotStudioViewerTests {
         #expect(viewer.current.title == "New screenshot 1 · Today")
         #expect(viewer.current.subtitle.hasSuffix("not pushed"))
     }
+
+    /// In Design and Choose, a direction's header, search and App Preview
+    /// poster open full size in its look: the loops play, and the poster
+    /// opens the recording the App Preview is cut from.
+    @Test func aDirectionsHeaderSearchAndRecordingOpenTogether() async throws {
+        let (model, center) = await newSet(StudioDebugArtMotion.revising)
+        let direction = try #require(center.run(for: StudioTestFixtures.app.id)?.directions[0])
+        model.studio.openDirectionExtras(direction, at: 1)
+        var viewer = try #require(model.studio.viewer)
+        #expect(Array(viewer.items.map(\.id).prefix(2)) == ["direction.artwork.header", "direction.artwork.search"])
+        #expect(viewer.index == 1)
+        #expect(viewer.current.title == "Quiet Indigo · Search results · 3:2 · 3840 × 2560 · motion")
+        #expect(viewer.current.subtitle == "20-second loop · plays muted on repeat · Direction from Claude Design · English (U.S.)")
+        guard case let .artwork(search) = viewer.current.content else {
+            Issue.record("The search image opens as artwork")
+            return
+        }
+        #expect(search.template == direction.artworkLook)
+        #expect(search.isMotion)
+        #expect(viewer.items[0].action == .headerGuide)
+
+        model.studio.openDirectionExtras(direction, at: 2)
+        viewer = try #require(model.studio.viewer)
+        #expect(viewer.items.count == 3)
+        #expect(viewer.current.id.hasPrefix("direction.recording."))
+        #expect(viewer.current.title.hasPrefix("Raw recording · "))
+        #expect(viewer.current.subtitle.contains("with Quiet Indigo’s captions and end card"))
+    }
+
+    @Test func aNoteSaysWhatItCanChange() async {
+        let (motion, _) = await newSet(StudioDebugArtMotion.revising)
+        let note = motion.studio.revisionScopeNote ?? ""
+        #expect(note.hasPrefix("A note changes the screenshots and the header and search images"))
+        #expect(note.contains("the motion itself can’t change yet"))
+
+        var still = StudioDebugExtras.run(.choose, languages: .primary)
+        still.plan.alsoMakes.setMotion(.still)
+        let (stillModel, _) = await newSet(still)
+        #expect(stillModel.studio.revisionScopeNote?.contains("motion") == false)
+
+        let (plain, _) = await newSet(StudioDebugRuns.run(.choose))
+        #expect(plain.studio.revisionScopeNote == nil)
+    }
 }
 #endif

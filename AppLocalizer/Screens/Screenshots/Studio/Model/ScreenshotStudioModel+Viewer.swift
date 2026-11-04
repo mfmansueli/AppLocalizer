@@ -82,6 +82,37 @@ extension ScreenshotStudioModel {
         show(items, at: slot)
     }
 
+    /// A direction's header and search artwork (or its one 16:9 image), its
+    /// loop playing when the run makes motion, then the App Preview's raw
+    /// recording, at `index`: what its extras row shows, in that order.
+    func openDirectionExtras(_ direction: AutopilotDirection, at index: Int) {
+        guard let run else { return }
+        let plan = run.plan
+        let primary = plan.primaryLocale
+        let language = StoreLocaleCatalog.locale(code: primary)?.name ?? primary
+        var items: [StudioViewerItem] = plan.artworkKinds.map { kind in
+            let slots = AutopilotArtworkMaker.slots(for: kind, plan: plan)
+            let artwork = StudioArtworkItem(
+                kind: kind, template: direction.artworkLook, locale: primary,
+                headline: artworkHeadline(ArtworkTextRole.role(for: kind), locale: primary), slots: slots,
+                captures: pickedCaptures(slots, run: run), shows: plan.alsoMakes.artworkShows, isMotion: plan.alsoMakes.makesMotion
+            )
+            let subtitle = [String(localized: "Direction from \(direction.sourceTitle)"), language].joined(separator: " · ")
+            var item = artworkItem(artwork, title: "\(direction.name) · \(StudioArtworkDetails.title(kind)) · \(kind.pixelSize.title)", subtitle: subtitle)
+            item.id = "direction.artwork.\(kind.rawValue)"
+            if kind == .header { item.action = .headerGuide }
+            return item
+        }
+        if !plan.previewDisplays.isEmpty, let target = currentPickRecording(run), let recording = run.recording(for: target) {
+            items.append(StudioViewerItem(
+                id: "direction.recording.\(recording.id)", title: recordingTitle(run),
+                subtitle: String(localized: "The App Preview is cut from this recording in Localize, with \(direction.name)’s captions and end card · click to play or pause"),
+                content: .recording(recording)
+            ))
+        }
+        show(items, at: min(index, max(items.count - 1, 0)))
+    }
+
     /// One App Preview, playing in the viewer.
     func openPreview(_ file: ExtrasPreviewFile) {
         show([appPreviewItem(file)], at: 0)
@@ -138,9 +169,9 @@ extension ScreenshotStudioModel {
 
     /// "Product page header · 21:9 · 3840 × 1646 · motion", "20-second
     /// loop · plays muted on repeat · English (U.S.) · New set · not pushed".
-    private func artworkItem(_ item: StudioArtworkItem, title: String) -> StudioViewerItem {
+    private func artworkItem(_ item: StudioArtworkItem, title: String, subtitle: String? = nil) -> StudioViewerItem {
         let language = StoreLocaleCatalog.locale(code: item.locale)?.name ?? item.locale
-        let subtitle = [language, String(localized: "New set"), String(localized: "not pushed")].joined(separator: " · ")
+        let subtitle = subtitle ?? [language, String(localized: "New set"), String(localized: "not pushed")].joined(separator: " · ")
         return StudioViewerItem(
             id: "artwork.\(item.kind.rawValue)", title: item.isMotion ? title + String(localized: " · motion") : title,
             subtitle: item.isMotion ? String(localized: "20-second loop · plays muted on repeat · ") + subtitle : subtitle,

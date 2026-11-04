@@ -39,6 +39,9 @@ struct ExtrasReviewItem: Hashable, Sendable, Identifiable {
     /// Artwork made as a motion loop: the movie the push sends, while
     /// `fileURL` stays the poster (the image) the tile shows.
     var loopFileURL: URL?
+    /// The App Preview as it was made (length, scenes), for the viewer;
+    /// nil for artwork.
+    var preview: ExtrasPreviewFile?
 
     var isMotion: Bool { loopFileURL != nil }
 

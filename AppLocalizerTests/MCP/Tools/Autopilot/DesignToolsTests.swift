@@ -188,6 +188,32 @@ struct DesignToolsTests {
         #expect(fixtures.run?.directions.contains { $0.isRevised } == false)
     }
 
+    /// With more directions to come, the run keeps designing and the
+    /// answer says what happened to the header and search artwork.
+    @Test func aRevisionWithMoreToComeKeepsDesigning() async throws {
+        let fixtures = MCPAutopilotFixtures(StudioDebugArtMotion.revising)
+        let first = try await fixtures.call(ReviseDirectionTool(), [
+            "run": "run-debug", "direction": "d-1", "ops": Self.biggerHeadline, "last": false,
+            "extrasTemplates": ["artwork": ["ops": [["op": "replace", "path": "caption.headline.size", "value": 140]]]],
+        ])
+        #expect(first.result["status"] == "revised")
+        #expect(first.result["artwork"] == "The header and search artwork have the new look.")
+        #expect(first.result["next"]?.stringValue?.contains("last: true") == true)
+        #expect(fixtures.run?.stage == .design)
+        #expect(fixtures.run?.revision?.revisedIDs == ["d-1"])
+
+        let last = try await fixtures.call(ReviseDirectionTool(), ["run": "run-debug", "direction": "d-2", "ops": Self.biggerHeadline])
+        #expect(last.result["artwork"] == "The header and search artwork follow the new template.")
+        #expect(last.result["next"] == nil)
+        #expect(fixtures.run?.stage == .choose)
+    }
+
+    @Test func theArtworkOutcomeSaysWhatChanged() {
+        #expect(ReviseDirectionTool.artworkOutcome(sent: true, ownLook: true) == "The header and search artwork have the new look.")
+        #expect(ReviseDirectionTool.artworkOutcome(sent: false, ownLook: true).contains("kept their own look"))
+        #expect(ReviseDirectionTool.artworkOutcome(sent: false, ownLook: false) == "The header and search artwork follow the new template.")
+    }
+
     // MARK: - report_design_source
 
     @Test func whatTheAssistantFoundInTheProjectIsShown() async throws {

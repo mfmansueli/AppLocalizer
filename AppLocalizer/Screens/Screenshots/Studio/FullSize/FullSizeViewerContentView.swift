@@ -7,6 +7,7 @@ import SwiftUI
 
 /// One item drawn as large as the viewer allows: screenshots rendered
 /// again at that size, the artwork drawn at it, the App Preview playing.
+/// Pinch on the trackpad to zoom a still or the App Preview's video.
 struct FullSizeViewerContentView: View {
     @Bindable var studio: ScreenshotStudioModel
     let item: StudioViewerItem
@@ -17,15 +18,40 @@ struct FullSizeViewerContentView: View {
     /// The App Preview's controls under it.
     private static let controlsHeight: CGFloat = 96
 
+    static let zoomIdentifier = "studio.viewer.zoom"
+
     var body: some View {
-        content
-            .accessibilityElement(children: item.content.plays ? .contain : .ignore)
-            .accessibilityLabel(Text(item.title))
-            .accessibilityIdentifier("studio.viewer.item.\(item.id)")
+        switch item.content {
+        case .recording, .appPreview:
+            content
+                // Contained, so the player's controls can be reached.
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(Text(item.title))
+                .accessibilityIdentifier("studio.viewer.item.\(item.id)")
+        default:
+            // The zoom is the item: an element around it would take its identifier.
+            content
+        }
     }
 
     @ViewBuilder
     private var content: some View {
+        switch item.content {
+        case .recording:
+            if let run = studio.run {
+                AutopilotRecordingPlayer(studio: studio, run: run, width: recordingWidth)
+                    .environment(\.colorScheme, .dark)
+            }
+        case let .appPreview(file):
+            StudioAppPreviewPlayer(studio: studio, file: file, width: width.rounded(), zoomIdentifier: Self.zoomIdentifier)
+        default:
+            ZoomableContainer(identifier: Self.zoomIdentifier, label: item.title) { still }
+        }
+    }
+
+    /// A screenshot, capture or artwork: what pinches zoom.
+    @ViewBuilder
+    private var still: some View {
         switch item.content {
         case let .shot(shot):
             StudioShotImage(
@@ -45,23 +71,18 @@ struct FullSizeViewerContentView: View {
             .shadow(color: .black.opacity(0.5), radius: 25, y: 20)
         case let .duoPair(inner, cover):
             duoPair(inner: inner, cover: cover)
-        case .recording:
-            if let run = studio.run {
-                AutopilotRecordingPlayer(studio: studio, run: run, width: recordingWidth)
-                    .environment(\.colorScheme, .dark)
-            }
         case let .artwork(artwork):
             ArtworkThumbnail(
                 studio: studio, kind: artwork.kind, template: artwork.template, locale: artwork.locale,
                 headline: artwork.headline, slots: artwork.slots, captures: artwork.captures, width: width.rounded(),
-                shows: artwork.shows, isMotion: artwork.isMotion
+                shows: artwork.shows, isMotion: artwork.isMotion, plays: true
             )
             .overlay {
                 if artwork.kind == .header, studio.viewerShowsGuide { ArtworkHeaderGuide() }
             }
             .shadow(color: .black.opacity(0.55), radius: 35, y: 24)
-        case let .appPreview(file):
-            StudioAppPreviewPlayer(studio: studio, file: file, width: width.rounded())
+        case .recording, .appPreview:
+            EmptyView()
         }
     }
 

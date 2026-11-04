@@ -167,6 +167,63 @@ final class AutopilotRunChoiceUITests: XCTestCase {
         attachScreenshot("Plan · Added screens")
     }
 
+    // MARK: - Apple Watch screens
+
+    /// "+ Add a Screen…" under Apple Watch's screens: no caption, and it
+    /// goes after the watch's, not the set's.
+    func testAWatchScreenIsAddedAfterTheWatchsOwn() {
+        launch(scene: "st-plan-all")
+        let add = element("autopilot.plan.addScreen.watch")
+        XCTAssertTrue(add.waitForExistence(timeout: 15))
+        reveal(add)
+        add.click()
+        let name = element("autopilot.plan.form.name")
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        XCTAssertFalse(element("autopilot.plan.form.caption").exists, "No caption on the watch")
+        XCTAssertTrue(text(of: element("autopilot.plan.form.note")).hasPrefix("Captured on Apple Watch"))
+        name.click()
+        name.typeText("Mood history")
+        attachScreenshot("Plan · Add a watch screen")
+        element("autopilot.plan.form.add").click()
+
+        let tag = element("autopilot.plan.origin.watch.4")
+        XCTAssertTrue(tag.waitForExistence(timeout: 5))
+        XCTAssertEqual(text(of: tag), "Added by you")
+        XCTAssertFalse(element("autopilot.plan.origin.5").exists, "Not in the set")
+        XCTAssertTrue(text(of: element("autopilot.plan.addScreensNote.watch")).hasPrefix("New screens go after screen 5 on Apple Watch"))
+        XCTAssertTrue(text(of: element("autopilot.plan.addScreensNote")).hasPrefix("New screens go after screen 5 on iPhone and iPad"))
+    }
+
+    func testWatchSuggestionsAreAddedToTheWatch() {
+        launch(scene: "st-plan-watch-suggest")
+        let add = element("autopilot.plan.suggestion.sg-watch-stack.add")
+        XCTAssertTrue(add.waitForExistence(timeout: 15))
+        reveal(add)
+        XCTAssertEqual(text(of: element("autopilot.plan.suggestions.title")), "Apple Watch screens Lumen Journal is missing")
+        attachScreenshot("Plan · Watch suggestions")
+        add.click()
+        XCTAssertTrue(element("autopilot.plan.suggestion.sg-watch-stack.added").waitForExistence(timeout: 5))
+        XCTAssertEqual(text(of: element("autopilot.plan.origin.watch.4")), "Suggested by Claude Code")
+        XCTAssertFalse(element("autopilot.plan.origin.5").exists, "Not in the set")
+    }
+
+    /// One request at a time: while the watch's is read, neither device
+    /// can ask.
+    func testSuggestingForTheWatchWaitsUnderTheWatch() {
+        launch(scene: "st-plan-watch-busy")
+        let busy = element("autopilot.plan.suggestions.busy")
+        XCTAssertTrue(busy.waitForExistence(timeout: 15))
+        reveal(busy)
+        let reading = text(of: element("autopilot.plan.suggestions.busyText"))
+        XCTAssertTrue(reading.hasPrefix("Claude Code is reading the watch app"), reading)
+        XCTAssertFalse(element("autopilot.plan.suggestScreens.watch").isEnabled)
+        XCTAssertFalse(element("autopilot.plan.suggestScreens").isEnabled)
+        attachScreenshot("Plan · Suggesting watch screens")
+        element("autopilot.plan.suggestions.cancel").click()
+        XCTAssertTrue(waitUntil { !busy.exists })
+        XCTAssertTrue(element("autopilot.plan.suggestScreens.watch").isEnabled)
+    }
+
     // MARK: - Helpers
 
     /// Scrolls `identifier` into view and clicks it.

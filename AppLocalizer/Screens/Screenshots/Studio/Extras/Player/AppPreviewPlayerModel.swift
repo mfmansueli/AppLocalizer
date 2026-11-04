@@ -8,7 +8,8 @@ import Foundation
 import Observation
 
 /// Plays one App Preview file: play and pause, where it is, sound on or
-/// off, and jumping to a scene. Back at the start when it ends.
+/// off, and jumping to a scene. Back at the start when it ends, or on
+/// again from the start when it `loops` (a motion header or search image).
 @MainActor
 @Observable
 final class AppPreviewPlayerModel {
@@ -19,6 +20,10 @@ final class AppPreviewPlayerModel {
     var isMuted = false {
         didSet { player.isMuted = isMuted }
     }
+
+    /// Plays again from the start when it ends, as the App Store plays a
+    /// motion loop.
+    var loops = false
 
     /// There's a file that plays: false while there's none, or when it
     /// can't be read (the poster shows instead).
@@ -43,7 +48,7 @@ final class AppPreviewPlayerModel {
     }
 
     /// Loads `url` from the start, paused; the same file stays where it is.
-    /// `seconds` is its length when known.
+    /// `seconds` is its length when known; 0 reads it from the file.
     func load(_ url: URL?, seconds length: Double) {
         guard url != self.url else { return }
         self.url = url
@@ -67,6 +72,12 @@ final class AppPreviewPlayerModel {
         }
         endObserver = NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.didEnd() }
+        }
+        if length <= 0 {
+            Task { [weak self] in
+                guard let time = try? await item.asset.load(.duration), time.seconds.isFinite, let self, self.url == url else { return }
+                duration = time.seconds
+            }
         }
     }
 
@@ -101,8 +112,12 @@ final class AppPreviewPlayerModel {
     }
 
     private func didEnd() {
-        isPlaying = false
         seek(to: 0)
+        if loops, isPlaying {
+            player.play()
+        } else {
+            isPlaying = false
+        }
     }
 
     /// "0:08 / 0:24".

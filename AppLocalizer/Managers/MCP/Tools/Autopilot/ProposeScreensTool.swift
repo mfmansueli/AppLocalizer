@@ -12,10 +12,11 @@ struct ProposeScreensTool: MCPTool {
         name: "propose_screens",
         title: "Suggest screens for the plan",
         description: """
-        Answers next_step's suggest_screens: screens the app's screenshot set is missing, each with its name, why \
-        (reason), what shows it (evidence: a file, target or commit), how to reach it from launch (steps, like the \
-        plan's) and a caption in the primary language. AppLocalizer shows them under the plan's screens; the person \
-        adds the ones they want with Add to Plan. Nothing is added on its own.
+        Answers next_step's suggest_screens: screens the app's screenshot set (or, when next_step's device is watch, \
+        the Apple Watch app's) is missing, each with its name, why (reason), what shows it (evidence: a file, target \
+        or commit), how to reach it from launch (steps, like the plan's) and a caption in the primary language (none \
+        on Apple Watch). AppLocalizer shows them under that device's screens in the plan; the person adds the ones \
+        they want with Add to Plan. Nothing is added on its own.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -30,7 +31,7 @@ struct ProposeScreensTool: MCPTool {
                             "reason": MCPToolDefinition.string("Why it shows the app well, in a sentence."),
                             "evidence": MCPToolDefinition.string("The file, target or commit that shows it."),
                             "steps": MCPToolDefinition.string("How to reach it from launch, e.g. tab “Insights” → wait for the mood chart."),
-                            "caption": MCPToolDefinition.string("The primary language's headline, 3–6 words."),
+                            "caption": MCPToolDefinition.string("The primary language's headline, 3–6 words. Left out on Apple Watch."),
                         ],
                         required: ["name", "reason", "steps"]
                     ),
@@ -43,7 +44,7 @@ struct ProposeScreensTool: MCPTool {
 
     func call(_ arguments: MCPToolArguments, in context: MCPToolContext) async throws -> MCPToolOutcome {
         let session = try await MCPAutopilotSession.load(arguments, in: context, atPlan: true)
-        let room = AutopilotCenter.maximumScreens - session.run.plan.screens.count
+        let room = session.run.plan.screenRoom(on: session.run.screenRequest?.device ?? .iPhone)
         let items = try arguments.array("screens").prefix(max(room, 0)).enumerated().map { index, value in
             let item = MCPToolArguments(value.objectValue ?? [:])
             return try AutopilotScreenSuggestion(

@@ -10,6 +10,9 @@ import SwiftUI
 struct AutopilotScreenSuggestionRow: View {
     @Bindable var studio: ScreenshotStudioModel
     let suggestion: AutopilotScreenSuggestion
+    /// The device it's added to: iPhone for the set's screens, or Apple
+    /// Watch.
+    var display: ScreenshotDisplayType = .iPhone
 
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.medium) {
@@ -41,7 +44,7 @@ struct AutopilotScreenSuggestionRow: View {
                         .accessibilityIdentifier("autopilot.plan.suggestion.\(suggestion.id).dismiss")
                     Button("Add to Plan") { studio.addSuggestedScreen(suggestion.id) }
                         .buttonStyle(.borderedProminent)
-                        .disabled(studio.plansMaximumScreens)
+                        .disabled(studio.plansMaximumScreens(on: display))
                         .accessibilityIdentifier("autopilot.plan.suggestion.\(suggestion.id).add")
                 }
                 .controlSize(.small)

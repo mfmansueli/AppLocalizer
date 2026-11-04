@@ -49,12 +49,13 @@ struct ExtrasReviewPlanner {
                 id: preview.id, appID: appID, content: .appPreview(preview.displayType, posterTimeCode: preview.posterTimeCode),
                 locale: preview.locale, localeName: Self.name(of: preview.locale), fileID: preview.fileID,
                 fileURL: fileURL(preview.fileID, "mov"), fileName: preview.fileName, pixelSize: preview.pixelSize, problems: preview.problems,
-                localizationID: localizations[preview.locale]
+                localizationID: localizations[preview.locale], preview: preview
             ))
         }
         return ExtrasReviewPlan(
             appID: appID, appName: appName, directionName: extras.directionName, items: items, pushedCount: pushedCount,
-            artwork: extras.artwork, primaryLocale: context.primaryLocale.code, variant: extras.variant, discardedCount: discardedCount
+            artwork: extras.artwork, primaryLocale: context.primaryLocale.code, variant: extras.variant, discardedCount: discardedCount,
+            musicTitle: extras.hasPreviews ? extras.previewMusic?.title : nil
         )
     }
 

@@ -13,7 +13,7 @@ import Synchronization
 /// `commit image-1`, `state image-1`, `list loc-de APP_PREVIEW IPHONE…`,
 /// `delete p-old`, `place image-1 PRODUCT_PAGE_HEADER_ASSET … loc-de`,
 /// `order IPHONE… p-2,p-a`). Like Apple, it refuses a placement past its
-/// group's limit. Files named by the start of their file name can fail
+/// group's limit and a reference name that's already in use. Files named by the start of their file name can fail
 /// once. Nothing reaches the network.
 final class FakeAssetLibrary: AssetLibraryPushing {
     struct Script: Sendable {
@@ -25,6 +25,10 @@ final class FakeAssetLibrary: AssetLibraryPushing {
         var processingFailures: [String: AssetLibraryStateDetail] = [:]
         /// Never done processing until `finishProcessing(_:)`.
         var stuck: Set<String> = []
+        /// Still processing until the file named by the value is reserved,
+        /// e.g. `["de-DE-header": "de-DE-preview"]`: only a push that
+        /// uploads the next file meanwhile gets it placed.
+        var processingUntilReserved: [String: String] = [:]
         /// Creating a placement for this file is refused once with
         /// `STATE_ERROR.INVALID_STATE`.
         var refusedPlacements: Set<String> = []
@@ -43,6 +47,7 @@ final class FakeAssetLibrary: AssetLibraryPushing {
         var placements: [String: [AssetLibraryPlacement]] = [:]
         var spent: Set<String> = []
         var stuck: Set<String>
+        var referenceNames: [String] = []
     }
 
     private let script: Script
@@ -58,6 +63,9 @@ final class FakeAssetLibrary: AssetLibraryPushing {
     }
 
     var log: [String] { state.withLock { $0.log } }
+
+    /// Every reference name an asset was reserved under, in order.
+    var referenceNames: [String] { state.withLock { $0.referenceNames } }
 
     /// What a localization shows now, in order.
     func placements(on localizationID: String) -> [AssetLibraryPlacement] {
@@ -88,15 +96,18 @@ final class FakeAssetLibrary: AssetLibraryPushing {
     }
 
     func reserveAssetLibraryImage(
-        libraryID _: String, fileName: String, fileSize: Int, category: String, referenceName _: String
+        libraryID _: String, fileName: String, fileSize: Int, category: String, referenceName: String
     ) async throws -> AssetLibraryAssetReservation {
-        try await reserve(.image, fileName: fileName, fileSize: fileSize, entry: "\(fileName) \(fileSize) \(category)")
+        try await reserve(.image, fileName: fileName, fileSize: fileSize, referenceName: referenceName, entry: "\(fileName) \(fileSize) \(category)")
     }
 
     func reserveAssetLibraryVideo(
-        libraryID _: String, fileName: String, fileSize: Int, category: String, referenceName _: String, previewFrameTimeCode: String?
+        libraryID _: String, fileName: String, fileSize: Int, category: String, referenceName: String, previewFrameTimeCode: String?
     ) async throws -> AssetLibraryAssetReservation {
-        try await reserve(.video, fileName: fileName, fileSize: fileSize, entry: "\(fileName) \(fileSize) \(category) poster \(previewFrameTimeCode ?? "-")")
+        try await reserve(
+            .video, fileName: fileName, fileSize: fileSize, referenceName: referenceName,
+            entry: "\(fileName) \(fileSize) \(category) poster \(previewFrameTimeCode ?? "-")"
+        )
     }
 
     func upload(_ operation: ScreenshotUploadOperation, data: Data, progress: @escaping @Sendable (Int64) -> Void) async throws {
@@ -118,7 +129,9 @@ final class FakeAssetLibrary: AssetLibraryPushing {
         let (fileName, polls, stuck) = state.withLock { state in
             state.polls[asset.id, default: 0] += 1
             let fileName = state.fileNames[asset.id] ?? ""
-            return (fileName, state.polls[asset.id] ?? 0, Self.matching(fileName, state.stuck) != nil)
+            let waitsFor = Self.matching(fileName, Set(script.processingUntilReserved.keys)).flatMap { script.processingUntilReserved[$0] }
+            let waiting = waitsFor.map { other in !state.fileNames.values.contains { $0.hasPrefix(other) } } ?? false
+            return (fileName, state.polls[asset.id] ?? 0, waiting || Self.matching(fileName, state.stuck) != nil)
         }
         if let name = Self.matching(fileName, Set(script.processingFailures.keys)), let detail = script.processingFailures[name], spend("process|\(name)") {
             return AssetLibraryAssetStatus(state: "FAILED", details: [detail])
@@ -179,11 +192,22 @@ final class FakeAssetLibrary: AssetLibraryPushing {
     // MARK: - Helpers
 
     /// Two parts, split in the middle.
-    private func reserve(_ media: AssetLibraryMedia, fileName: String, fileSize: Int, entry: String) async throws -> AssetLibraryAssetReservation {
+    private func reserve(
+        _ media: AssetLibraryMedia, fileName: String, fileSize: Int, referenceName: String, entry: String
+    ) async throws -> AssetLibraryAssetReservation {
         try limitOnce()
         log("reserve \(media.rawValue) \(entry)")
         if spend("reserve-hook") { await onReserve() }
         if Self.matching(fileName, script.offline) != nil { throw URLError(.notConnectedToInternet) }
+        let taken = state.withLock { state in
+            defer { state.referenceNames.append(referenceName) }
+            return state.referenceNames.contains(referenceName)
+        }
+        if taken {
+            throw AppStoreConnectError.rejected(
+                statusCode: 409, code: "ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE", detail: "Reference name '\(referenceName)' is already in use"
+            )
+        }
         let id = state.withLock { state in
             let id = "\(media.rawValue)-\(state.nextID)"
             state.nextID += 1

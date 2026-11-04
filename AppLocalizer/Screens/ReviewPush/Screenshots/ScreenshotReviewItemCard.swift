@@ -42,19 +42,26 @@ struct ScreenshotReviewItemCard: View {
                 .accessibilityIdentifier("review.shots.discard.\(Self.identifier(item))")
             }
             HStack(spacing: Spacing.xxSmall) {
-                ScreenshotThumbnail(
+                let old = ScreenshotThumbnail(
                     image: viewModel.screenshots.oldImage(for: item), width: width, aspect: aspect,
                     placeholder: oldPlaceholder, isLoading: item.old != nil
                 )
-                .accessibilityLabel(Text("Live now"))
+                if item.old != nil {
+                    openButton(.live) { old }
+                        .accessibilityLabel(Text("Live now"))
+                } else {
+                    old.accessibilityLabel(Text("Live now"))
+                }
                 Image(systemName: "arrow.right")
                     .font(.caption2)
                     .foregroundStyle(Palette.label3)
                     .accessibilityLabel(Text("becomes"))
-                ScreenshotThumbnail(
-                    image: viewModel.screenshots.newImage(for: item), width: width, aspect: aspect,
-                    isLoading: viewModel.screenshots.isRendering(item)
-                )
+                openButton(.new) {
+                    ScreenshotThumbnail(
+                        image: viewModel.screenshots.newImage(for: item), width: width, aspect: aspect,
+                        isLoading: viewModel.screenshots.isRendering(item)
+                    )
+                }
                 .accessibilityLabel(Text("New"))
             }
         }
@@ -66,6 +73,19 @@ struct ScreenshotReviewItemCard: View {
         .opacity(viewModel.isChecked(item) ? 1 : 0.55)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("review.shots.item.\(Self.identifier(item))")
+    }
+
+    /// A thumbnail that opens the set's slots large on `side`.
+    private func openButton(_ side: ReviewViewerSide, @ViewBuilder label: () -> some View) -> some View {
+        Button {
+            viewModel.openScreenshot(item, in: group, side: side, primaryLocaleName: primaryLocaleName)
+        } label: {
+            label()
+        }
+        .buttonStyle(.plain)
+        .help(String(localized: "Click to see it larger"))
+        .accessibilityHint(Text("Shows it larger"))
+        .accessibilityIdentifier("review.shots.open.\(Self.identifier(item)).\(side.rawValue)")
     }
 
     private var width: CGFloat { group.displayType.thumbnailWidth(phone: 34, tablet: 64) }

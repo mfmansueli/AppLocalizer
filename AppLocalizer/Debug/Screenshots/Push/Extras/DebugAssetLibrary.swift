@@ -8,14 +8,17 @@ import Foundation
 import Synchronization
 
 /// The App Asset Library for DEBUG scenes: every upload is accepted and
-/// processed at once, and each language's page takes it. Never contacts
-/// App Store Connect.
+/// processed after `processingChecks` state checks, and each language's
+/// page takes it. Never contacts App Store Connect.
 final class DebugAssetLibrary: AssetLibraryPushing {
     private let delay: Duration
+    private let processingChecks: Int
     private let nextID = Mutex(1)
+    private let checks = Mutex<[String: Int]>([:])
 
-    init(delay: Duration) {
+    init(delay: Duration, processingChecks: Int = 0) {
         self.delay = delay
+        self.processingChecks = processingChecks
     }
 
     func assetLibraryID(appID: StoreApp.ID) async throws -> String { "debug-library-\(appID)" }
@@ -43,8 +46,12 @@ final class DebugAssetLibrary: AssetLibraryPushing {
 
     func commitAssetLibraryAsset(_: AssetLibraryAsset) async throws {}
 
-    func assetLibraryAssetState(_: AssetLibraryAsset) async throws -> AssetLibraryAssetStatus {
-        AssetLibraryAssetStatus(state: "PREPARE_FOR_SUBMISSION")
+    func assetLibraryAssetState(_ asset: AssetLibraryAsset) async throws -> AssetLibraryAssetStatus {
+        let count = checks.withLock { checks in
+            checks[asset.id, default: 0] += 1
+            return checks[asset.id] ?? 0
+        }
+        return AssetLibraryAssetStatus(state: count > processingChecks ? "PREPARE_FOR_SUBMISSION" : "UPLOAD_COMPLETE")
     }
 
     func assetLibraryPlacements(localizationID _: String, placementType _: String, placementGroup _: String?) async throws -> [AssetLibraryPlacement] {

@@ -43,11 +43,19 @@ struct AutopilotArtworkBrief: Hashable {
                 text: String(localized: "Say what the app does at a glance: a headline of 2 to 5 words on one side and \(Self.showsText(shows)) on the other. The whole image shows, small, next to the app name and Get.")
             ))
         }
+        rows.append(Self.safeAreaRow(extras))
         rows.append(Row(
             title: String(localized: "One look for both"),
             text: String(localized: """
             The same colors, scene and type in each, so people know the app when they go from search to \
             the product page. One clear focal point; nothing busy.
+            """)
+        ))
+        rows.append(Row(
+            title: String(localized: "About the app"),
+            text: String(localized: """
+            Its subtitle, categories, description, the keywords in each language and the icon’s colors, so the idea, \
+            the scene and the search headline are about what this app does, not any app in its category.
             """)
         ))
         if extras.makesMotion {
@@ -85,6 +93,27 @@ struct AutopilotArtworkBrief: Hashable {
             """)
         ))
         self.rows = rows
+    }
+
+    /// Where the text and the focal point go, from `ArtworkSafeArea`: the
+    /// header's crop on iPhone and what sits over its top, or the 16:9
+    /// image's header crop.
+    static func safeAreaRow(_ extras: AutopilotExtras) -> Row {
+        let what = extras.artworkShows == .scene
+            ? String(localized: "the app name, every line of text and the scene’s focal point")
+            : String(localized: "the app name, every line of text and the phones")
+        if extras.artworkSize == .wide {
+            let insets = ArtworkSafeArea.percentInsets(for: .wide)
+            return Row(
+                title: String(localized: "Safe area"),
+                text: String(localized: "Keep \(what) inside the middle \(100 - 2 * insets.side)% of the width and below the top \(insets.top)%: the header’s crop cuts the rest. Only the background runs to the edges. Every language goes in the same space, so leave room for longer lines.")
+            )
+        }
+        let insets = ArtworkSafeArea.percentInsets(for: .header)
+        return Row(
+            title: String(localized: "Safe area"),
+            text: String(localized: "On the header, keep \(what) inside the middle \(100 - 2 * insets.side)% of the width and below the top \(insets.top)%; only the background runs to the edges. The search image shows whole, with rounded corners: keep text a little in from them. Every language goes in the same space, so leave room for longer lines.")
+        )
     }
 
     /// What the search artwork shows beside its headline.

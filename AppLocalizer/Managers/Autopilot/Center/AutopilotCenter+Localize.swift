@@ -28,15 +28,20 @@ extension AutopilotCenter {
             await checkExtrasOnly(appID, context: context)
             return
         }
-        let localizer = AutopilotLocalizer(context: context, now: now())
-        do {
-            let version = try await localizer.apply(direction, of: current)
-            update(appID) { $0.templateVersion = version }
-            await check(appID, with: localizer)
-        } catch {
-            update(appID) { run in
-                run.appendLog(String(localized: "Couldn’t save the set: \(error.localizedDescription)"), kind: .problem, at: now())
-                run.stage = .choose
+        await whileLocalizing(appID) {
+            let localizer = AutopilotLocalizer(context: context, now: now())
+            do {
+                let version = try await localizer.apply(direction, of: current)
+                // Cancel Run while it saved: the version stays in the set's history.
+                guard runs[appID]?.stage == .localize else { return }
+                update(appID) { $0.templateVersion = version }
+                await check(appID, with: localizer)
+            } catch {
+                update(appID) { run in
+                    guard run.stage == .localize else { return }
+                    run.appendLog(String(localized: "Couldn’t save the set: \(error.localizedDescription)"), kind: .problem, at: now())
+                    run.stage = .choose
+                }
             }
         }
     }
@@ -66,21 +71,28 @@ extension AutopilotCenter {
     }
 
     /// Checks every language, one at a time; ready when every caption fits.
+    /// Cancel Run stops it between languages.
     func check(_ appID: StoreApp.ID, with localizer: AutopilotLocalizer) async {
+        await whileLocalizing(appID) { await checkEveryLanguage(appID, with: localizer) }
+    }
+
+    private func checkEveryLanguage(_ appID: StoreApp.ID, with localizer: AutopilotLocalizer) async {
         // The set's captions stay as they are: only the artwork's texts.
         if runs[appID]?.plan.makesScreenshots == false {
             await checkExtrasOnly(appID, context: localizer.context)
             return
         }
-        guard let run = runs[appID], let document = await localizer.document() else { return }
+        guard let run = runs[appID], run.stage == .localize, let document = await localizer.document() else { return }
         var overflows: [AutopilotOverflow] = []
         for locale in run.plan.localeCodes {
+            guard runs[appID]?.stage == .localize else { return }
             update(appID) { $0.localeStatus[locale] = .checking }
             await Task.yield()
             let result = localizer.check(locale: locale, of: run, in: document)
             overflows += result.overflows
             update(appID) { $0.localeStatus[locale] = result.status }
         }
+        guard runs[appID]?.stage == .localize else { return }
         update(appID) { run in
             run.overflows = overflows
             guard !overflows.isEmpty else { return }
@@ -90,6 +102,7 @@ extension AutopilotCenter {
         guard overflows.isEmpty else { return }
         // Every caption fits: then each placement's own text.
         let needs = artworkTextNeeds(of: run, in: document, context: localizer.context)
+        guard runs[appID]?.stage == .localize else { return }
         update(appID) { run in
             run.artworkTextNeeds = needs.isEmpty ? nil : needs
             guard !needs.isEmpty else { return }

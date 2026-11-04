@@ -42,6 +42,25 @@ final class ArtworkMotionUITests: XCTestCase {
         attachScreenshot("Plan · still scene")
     }
 
+    /// Each note sits under its choice, across the row, rather than in a
+    /// narrow column beside it, where the scene's note wrapped every few
+    /// words.
+    func testTheNotesSitUnderTheirChoices() {
+        app.launch(debugScene: "st-plan-art-custom")
+        let shows = element("autopilot.plan.artworkShows")
+        let showsNote = element("autopilot.plan.artworkShowsNote")
+        XCTAssertTrue(showsNote.waitForExistence(timeout: 20))
+        reveal(showsNote)
+        XCTAssertGreaterThanOrEqual(showsNote.frame.minY, shows.frame.maxY, "The note is under the choice")
+        XCTAssertGreaterThan(showsNote.frame.width, shows.frame.width, "The note spans the row, wider than the choice")
+        XCTAssertLessThan(showsNote.frame.height, 50, "Two lines at most, not one word a line: \(showsNote.frame)")
+
+        let motion = element("autopilot.plan.artworkMotion")
+        let motionNote = element("autopilot.plan.artworkMotionNote")
+        XCTAssertGreaterThanOrEqual(motionNote.frame.minY, motion.frame.maxY)
+        attachScreenshot("Plan · notes under their choices")
+    }
+
     func testTheExpectedResultIsInThePlanAndTheBrief() {
         app.launch(debugScene: "st-plan-art-custom")
         let box = element("autopilot.plan.artworkDirection.text")
@@ -57,6 +76,7 @@ final class ArtworkMotionUITests: XCTestCase {
         let words = brief.descendants(matching: .staticText).allElementsBoundByIndex.map { text(of: $0) }.joined(separator: " ")
         XCTAssertTrue(words.contains("Motion · 20-second loop"), words)
         XCTAssertTrue(words.contains("Your direction"), words)
+        XCTAssertTrue(words.contains("Safe area"), words)
         attachScreenshot("Design · artwork brief")
     }
 

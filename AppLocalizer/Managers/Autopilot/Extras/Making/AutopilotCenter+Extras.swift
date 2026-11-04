@@ -11,11 +11,15 @@ import Foundation
 /// Push. A failure is said in the log and the row; the screenshots are
 /// ready either way.
 extension AutopilotCenter {
-    /// What was saved with the set; nil when the run makes no extras or
-    /// they couldn't be saved.
+    /// What was saved with the set; nil when the run makes no extras, they
+    /// couldn't be saved or Cancel Run stopped them (nothing is saved then).
     @discardableResult
     func makeExtras(_ appID: StoreApp.ID, context: AutopilotContext) async -> ScreenshotExtras? {
-        guard let run = runs[appID], !run.plan.alsoMakes.isEmpty, let direction = run.chosenDirection else { return nil }
+        await cancellably(appID) { await self.makeEveryExtra(appID, context: context) }
+    }
+
+    private func makeEveryExtra(_ appID: StoreApp.ID, context: AutopilotContext) async -> ScreenshotExtras? {
+        guard let run = runs[appID], run.stage == .localize, !run.plan.alsoMakes.isEmpty, let direction = run.chosenDirection else { return nil }
         let plan = run.plan
         var progress = AutopilotExtrasProgress()
         progress.artworkTotal = plan.artworkKinds.isEmpty ? 0 : plan.localeCodes.count
@@ -35,29 +39,10 @@ extension AutopilotCenter {
         if !plan.artworkKinds.isEmpty {
             extras.artworkShows = plan.alsoMakes.artworkShows
             extras.artworkMotion = plan.alsoMakes.makesMotion ? .loop : .still
-        }
-        if !plan.artworkKinds.isEmpty {
-            do {
-                extras.artwork = try await AutopilotArtworkMaker(context: context).make(
-                    for: run, look: direction.artworkLook, texts: document.artworkTexts ?? ArtworkTextBook()
-                ) { done in
-                    update(appID) { $0.extrasProgress?.artworkDone = done }
-                }
-                let tooLong = extras.tooLongLocales
-                let checks = Self.checks(of: extras.artwork)
-                update(appID) { run in
-                    run.extrasProgress?.artworkTooLong = tooLong
-                    run.extrasProgress?.artworkChecks = checks
-                    run.appendLog(Self.artworkLogLine(plan: plan, tooLong: tooLong), kind: .event, at: now())
-                    if let line = Self.checksLogLine(checks) { run.appendLog(line, kind: checks.contains(where: \.isError) ? .problem : .event, at: now()) }
-                }
-            } catch {
-                update(appID) { run in
-                    let total = run.extrasProgress?.artworkTotal ?? 0
-                    run.extrasProgress?.artworkDone = total
-                    run.appendLog(String(localized: "Couldn’t make the header and search artwork: \(error.localizedDescription)"), kind: .problem, at: now())
-                }
+            guard let artwork = await makeArtwork(appID, run: run, direction: direction, texts: document.artworkTexts, context: context) else {
+                return nil
             }
+            extras.artwork = artwork
         } else if let made = document.extras {
             // The artwork made before and not in this run stays.
             extras.artwork = made.artwork
@@ -66,6 +51,7 @@ extension AutopilotCenter {
             extras.artworkShows = made.artworkShows
             extras.artworkMotion = made.artworkMotion
         }
+        guard !Task.isCancelled else { return nil }
         if !plan.previewDisplays.isEmpty {
             extras.previews = await makePreviews(appID, run: run, direction: direction, captions: document.captions, context: context)
             extras.previewMusic = plan.alsoMakes.previewMusic
@@ -76,6 +62,7 @@ extension AutopilotCenter {
             extras.previewTemplate = made.previewTemplate
             extras.previewMusic = made.previewMusic
         }
+        guard !Task.isCancelled else { return nil }
         document.extras = extras
         var saved: ScreenshotExtras? = extras
         do {
@@ -86,6 +73,39 @@ extension AutopilotCenter {
         }
         update(appID) { $0.extrasProgress?.isFinished = true }
         return saved
+    }
+
+    /// The header and search artwork in every language, said in the log;
+    /// empty when it couldn't be made, nil when Cancel Run stopped it.
+    private func makeArtwork(
+        _ appID: StoreApp.ID, run: AutopilotRun, direction: AutopilotDirection, texts: ArtworkTextBook?, context: AutopilotContext
+    ) async -> [ExtrasArtworkFile]? {
+        let plan = run.plan
+        do {
+            let artwork = try await AutopilotArtworkMaker(context: context).make(
+                for: run, look: direction.artworkLook, texts: texts ?? ArtworkTextBook()
+            ) { done in
+                update(appID) { $0.extrasProgress?.artworkDone = done }
+            }
+            let tooLong = ScreenshotExtras.tooLongLocales(of: artwork)
+            let checks = Self.checks(of: artwork)
+            update(appID) { run in
+                run.extrasProgress?.artworkTooLong = tooLong
+                run.extrasProgress?.artworkChecks = checks
+                run.appendLog(Self.artworkLogLine(plan: plan, tooLong: tooLong), kind: .event, at: now())
+                if let line = Self.checksLogLine(checks) { run.appendLog(line, kind: checks.contains(where: \.isError) ? .problem : .event, at: now()) }
+            }
+            return artwork
+        } catch {
+            // Cancel Run: nothing more is made or saved.
+            if error is CancellationError || Task.isCancelled { return nil }
+            update(appID) { run in
+                let total = run.extrasProgress?.artworkTotal ?? 0
+                run.extrasProgress?.artworkDone = total
+                run.appendLog(String(localized: "Couldn’t make the header and search artwork: \(error.localizedDescription)"), kind: .problem, at: now())
+            }
+            return []
+        }
     }
 
     /// Every file's findings, errors first.

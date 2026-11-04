@@ -64,10 +64,11 @@ struct AutopilotPlanTable: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(Spacing.medium)
         }
-        if isEditable, !display.hasOwnScreens, let run = studio.run {
-            // "+ Add a Screen…" and Suggest Screens.
+        if isEditable, plan.takesNewScreens(on: display), let run = studio.run {
+            // "+ Add a Screen…" and Suggest Screens, for the set and for
+            // Apple Watch.
             Divider()
-            AutopilotAddScreensFooter(studio: studio, run: run, client: client)
+            AutopilotAddScreensFooter(studio: studio, run: run, client: client, display: display)
         } else if isEditable, screens.count < ScreenshotTemplate.maximumSlots {
             Divider()
             Button {

@@ -8,10 +8,14 @@ import SwiftUI
 /// Design: how many directions arrived, who's working on them and what
 /// it's doing now (or why nobody is, with Continue), the three directions
 /// arriving one by one, and the log. A card only spins while someone works
-/// on it (`AutopilotDirectionCard`).
+/// on it (`AutopilotDirectionCard`). The cards share the width they have:
+/// the thumbnails shrink to fit, and a click opens one full size.
 struct AutopilotDesignStageView: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
+    /// The page's width inside its padding, measured; the cards size their
+    /// thumbnails from it (`AutopilotDesignCardsLayout` keeps it honest).
+    @State private var contentWidth: CGFloat = 0
 
     var body: some View {
         ScrollView {
@@ -43,7 +47,7 @@ struct AutopilotDesignStageView: View {
                         .accessibilityIdentifier("autopilot.design.revision")
                 }
                 AutopilotAssistantStatus(studio: studio, run: run, launchNote: launchNote)
-                HStack(alignment: .top, spacing: Spacing.medium) {
+                AutopilotDesignCardsLayout(spacing: Spacing.medium) {
                     let cards = AutopilotDirectionCard.cards(of: run, isWorking: studio.assistantIsWorking)
                     ForEach(cards.indices, id: \.self) { index in
                         card(cards[index], index: index)
@@ -56,6 +60,7 @@ struct AutopilotDesignStageView: View {
             }
             .padding(Spacing.xLarge)
         }
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { contentWidth = $0 - Spacing.xLarge * 2 })
         .accessibilityIdentifier("autopilot.design")
     }
 
@@ -87,7 +92,7 @@ struct AutopilotDesignStageView: View {
         VStack(alignment: .leading, spacing: Spacing.small) {
             switch card {
             case let .arrived(direction):
-                AutopilotDirectionThumbnails(studio: studio, direction: direction, width: 44)
+                arrived(direction)
                 Text(direction.name).font(.headline)
                 Text(direction.rationale).font(.caption).foregroundStyle(Palette.label2).lineLimit(3)
             case let .designing(since):
@@ -129,8 +134,40 @@ struct AutopilotDesignStageView: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(Palette.raised, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Radius.banner, style: .continuous).strokeBorder(Palette.separator, lineWidth: 0.5))
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: card.isArrived ? .contain : .combine)
         .accessibilityIdentifier("autopilot.design.direction.\(index)")
+    }
+
+    /// The width inside one of the three cards.
+    private var cardWidth: CGFloat {
+        Self.cardWidth(in: contentWidth, cards: AutopilotRun.directionCount)
+    }
+
+    static func cardWidth(in width: CGFloat, cards: Int) -> CGFloat {
+        max(0, AutopilotDesignCardsLayout.cardWidth(in: width, count: cards) - Spacing.medium * 2)
+    }
+
+    /// The screenshots, then the header, search and App Preview poster when
+    /// the run makes them, each opening full size.
+    private func arrived(_ direction: AutopilotDirection) -> some View {
+        let fit = AutopilotDirectionThumbnails.fit(
+            in: cardWidth, screens: studio.layouts(for: direction).count,
+            hasVision: studio.visionPreview(for: direction) != nil, hasWatch: studio.watchPreviewCapture != nil, maximum: 44
+        )
+        let plan = run.plan
+        return VStack(alignment: .leading, spacing: Spacing.small) {
+            AutopilotDirectionThumbnails(studio: studio, direction: direction, width: fit.thumbnail, stacksDevices: fit.stacks) { index in
+                studio.openDirection(direction, at: index)
+            }
+            if !plan.alsoMakes.isEmpty {
+                AutopilotDirectionExtras(
+                    studio: studio, run: run, direction: direction,
+                    height: AutopilotDirectionExtras.fittingHeight(
+                        in: cardWidth, kinds: plan.artworkKinds, hasPreview: !plan.previewDisplays.isEmpty, maximum: 64
+                    )
+                )
+            }
+        }
     }
 
     private func placeholder(

@@ -6,7 +6,8 @@
 import SwiftUI
 
 /// A header or search image drawn small: rendered once its captures are
-/// loaded, at twice its width in pixels, with its ratio kept meanwhile.
+/// loaded, at twice its width in pixels, with its ratio kept meanwhile. In
+/// the viewer a loop plays instead (`plays`).
 struct ArtworkThumbnail: View {
     @Bindable var studio: ScreenshotStudioModel
     let kind: AutopilotArtworkKind
@@ -20,7 +21,17 @@ struct ArtworkThumbnail: View {
     var shows: AutopilotArtworkShow = .phone
     /// A motion loop's poster: its light, and "0:20 loop" on it.
     var isMotion = false
+    /// A loop plays (the viewer) instead of showing its poster.
+    var plays = false
     @State private var rendered: CGImage?
+    /// What a playing loop draws each frame.
+    @State private var loop: Loop?
+
+    private struct Loop {
+        var layout: ArtworkLayout
+        var captures: [Int: CGImage]
+        var icon: CGImage?
+    }
 
     private static let captureWidth = 480
 
@@ -28,7 +39,9 @@ struct ArtworkThumbnail: View {
         let images = captures.compactMapValues { studio.screenshots.captureImages.image(for: $0, width: Self.captureWidth) }
         let ratio = CGFloat(kind.pixelSize.height) / CGFloat(kind.pixelSize.width)
         Group {
-            if let rendered {
+            if plays, isMotion, let loop {
+                ArtworkLoopPlayer(layout: loop.layout, captures: loop.captures, icon: loop.icon, width: width)
+            } else if let rendered {
                 Image(decorative: rendered, scale: 2).resizable()
             } else {
                 RoundedRectangle(cornerRadius: 4).fill(Palette.fill2)
@@ -37,7 +50,7 @@ struct ArtworkThumbnail: View {
         .frame(width: width, height: (width * ratio).rounded())
         .clipShape(RoundedRectangle(cornerRadius: max(3, width * 0.022), style: .continuous))
         .overlay(alignment: .bottomTrailing) {
-            if isMotion, width >= 160 { loopChip }
+            if isMotion, !plays, width >= 160 { loopChip }
         }
         .task(id: RenderKey(
             template: template, locale: locale, headline: headline, loaded: Set(images.keys), width: width, shows: shows, isMotion: isMotion
@@ -51,8 +64,9 @@ struct ArtworkThumbnail: View {
             )
             let icon = await ArtworkIcon.image(of: studio.app)
             rendered = ArtworkRenderer.image(layout: layout, captures: images, icon: icon, pixelWidth: Int(width * 2))
+            if plays, isMotion { loop = Loop(layout: layout, captures: images, icon: icon) }
         }
-        .accessibilityElement()
+        .accessibilityElement(children: plays && isMotion ? .contain : .ignore)
         .accessibilityLabel(Text("\(kind.title) artwork, \(StoreLocaleCatalog.locale(code: locale)?.name ?? locale)"))
         .accessibilityIdentifier("artwork.\(kind.rawValue).\(locale)")
     }

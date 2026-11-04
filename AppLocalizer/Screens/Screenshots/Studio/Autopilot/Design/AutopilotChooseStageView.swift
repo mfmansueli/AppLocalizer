@@ -31,25 +31,39 @@ struct AutopilotChooseStageView: View {
                     )
                 }
                 if run.designKind.usesDesignAI, isEditable {
-                    HStack(spacing: Spacing.small) {
-                        TextField(String(localized: "Ask for changes, e.g. “bigger headline, lighter background”"), text: $studio.revisionNote)
-                            .textFieldStyle(.roundedBorder)
-                            .onSubmit { studio.askForChanges() }
-                            .accessibilityIdentifier("autopilot.choose.note")
-                        Button("Ask \(run.designKind.title)") { studio.askForChanges() }
-                            .buttonBorderShape(.capsule)
-                            .disabled(studio.revisionNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                            .accessibilityIdentifier("autopilot.choose.ask")
+                    VStack(alignment: .leading, spacing: Spacing.xSmall) {
+                        askBar
+                        if let note = studio.revisionScopeNote {
+                            Text(note)
+                                .font(.caption)
+                                .foregroundStyle(Palette.label2)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("autopilot.choose.noteScope")
+                        }
                     }
-                    .padding(Spacing.small)
-                    .background(Palette.raised, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: Radius.banner, style: .continuous).strokeBorder(Palette.separator, lineWidth: 0.5))
                 }
             }
             .padding(Spacing.xLarge)
         }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { contentWidth = $0 - Spacing.xLarge * 2 })
         .accessibilityIdentifier("autopilot.choose")
+    }
+
+    /// The note for the design source and its button.
+    private var askBar: some View {
+        HStack(spacing: Spacing.small) {
+            TextField(String(localized: "Ask for changes, e.g. “bigger headline, lighter background”"), text: $studio.revisionNote)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit { studio.askForChanges() }
+                .accessibilityIdentifier("autopilot.choose.note")
+            Button("Ask \(run.designKind.title)") { studio.askForChanges() }
+                .buttonBorderShape(.capsule)
+                .disabled(studio.revisionNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityIdentifier("autopilot.choose.ask")
+        }
+        .padding(Spacing.small)
+        .background(Palette.raised, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.banner, style: .continuous).strokeBorder(Palette.separator, lineWidth: 0.5))
     }
 
     /// Apple Vision Pro and Apple Watch move under the set when the row

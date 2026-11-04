@@ -8,17 +8,21 @@ import Foundation
 /// Suggest Screens: the person asks (optionally for something specific),
 /// the assistant reads the UI tests, the commits since the last version and
 /// the live set and answers with `propose_screens`, and the person adds
-/// the ones they want. Nothing is added on its own.
+/// the ones they want. Nothing is added on its own. It works for the set's
+/// screens (iPhone and iPad) and for Apple Watch's own.
 extension AutopilotCenter {
     /// Apple's limit: up to 10 screenshots per device.
     nonisolated static let maximumScreens = ScreenshotTemplate.maximumSlots
 
-    /// Suggest Screens: the assistant is asked through `next_step`.
-    func requestScreenSuggestions(appID: StoreApp.ID, ask: String?) {
+    /// Suggest Screens: the assistant is asked through `next_step`, for
+    /// `display`'s screens (iPhone for the set's).
+    func requestScreenSuggestions(appID: StoreApp.ID, ask: String?, on display: ScreenshotDisplayType = .iPhone) {
         update(appID) { run in
-            guard run.stage == .plan, run.plan.screens.count < Self.maximumScreens else { return }
+            guard run.stage == .plan, run.plan.takesNewScreens(on: display), run.plan.screenRoom(on: display) > 0 else { return }
             let ask = ask?.trimmingCharacters(in: .whitespacesAndNewlines)
-            run.screenRequest = AutopilotScreenRequest(ask: ask?.isEmpty == false ? ask : nil, askedAt: now())
+            run.screenRequest = AutopilotScreenRequest(
+                ask: ask?.isEmpty == false ? ask : nil, askedAt: now(), displayType: display.hasOwnScreens ? display : nil
+            )
             run.screenSuggestions = nil
         }
     }
@@ -28,6 +32,7 @@ extension AutopilotCenter {
     }
 
     /// The assistant's suggestions; they replace the ones shown before.
+    /// Apple Watch's have no caption: its screenshots are the captures.
     @discardableResult
     func receiveScreenSuggestions(_ items: [AutopilotScreenSuggestion], client: String, appID: StoreApp.ID) throws -> AutopilotScreenSuggestions {
         guard let run = runs[appID], run.stage == .plan, let request = run.screenRequest else {
@@ -36,7 +41,14 @@ extension AutopilotCenter {
         guard !items.isEmpty else {
             throw AutopilotError(String(localized: "Send at least one screen, each with a name, why and the steps."))
         }
-        let suggestions = AutopilotScreenSuggestions(ask: request.ask, client: client, items: items, receivedAt: now())
+        let captioned = request.device.hasCaptions ? items : items.map { item in
+            var item = item
+            item.caption = ""
+            return item
+        }
+        let suggestions = AutopilotScreenSuggestions(
+            ask: request.ask, client: client, items: captioned, receivedAt: now(), displayType: request.displayType
+        )
         update(appID) { run in
             run.screenRequest = nil
             run.screenSuggestions = suggestions
@@ -44,20 +56,22 @@ extension AutopilotCenter {
         return suggestions
     }
 
-    /// Add to Plan: after the iPhone and iPad screens, marked as suggested.
+    /// Add to Plan: after the device's screens (the set's, or Apple
+    /// Watch's), marked as suggested.
     func addSuggestedScreen(_ id: String, appID: StoreApp.ID) {
         update(appID) { run in
-            guard run.stage == .plan, run.plan.screens.count < Self.maximumScreens,
-                  let index = run.screenSuggestions?.items.firstIndex(where: { $0.id == id && $0.status == .open }),
-                  let suggestions = run.screenSuggestions
+            guard run.stage == .plan, let suggestions = run.screenSuggestions,
+                  run.plan.takesNewScreens(on: suggestions.device), run.plan.screenRoom(on: suggestions.device) > 0,
+                  let index = suggestions.items.firstIndex(where: { $0.id == id && $0.status == .open })
             else { return }
             let item = suggestions.items[index]
+            let display = suggestions.device
             run.plan.appendScreen(
                 AutopilotScreen(
-                    id: run.plan.newScreenID(named: item.name, on: .iPhone), name: item.name, steps: item.steps, caption: item.caption,
-                    origin: .suggestion(client: suggestions.client)
+                    id: run.plan.newScreenID(named: item.name, on: display), name: item.name, steps: item.steps,
+                    caption: display.hasCaptions ? item.caption : "", origin: .suggestion(client: suggestions.client)
                 ),
-                on: .iPhone
+                on: display
             )
             run.screenSuggestions?.items[index].status = .added
             run.keptCaptureCount = run.keptTargetCount

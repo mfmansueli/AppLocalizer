@@ -29,12 +29,16 @@ struct ArtworkView: View {
     /// Where in the motion loop, 0–1; a still and the poster are 0.
     var phase: Double = 0
     var layers: Layers = .all
+    /// Draws it this much smaller (or larger) than its pixel size: a loop
+    /// playing in the viewer draws every frame at the size it shows.
+    var scale: CGFloat = 1
 
     var body: some View {
         Canvas { context, _ in
+            if scale != 1 { context.scaleBy(x: scale, y: scale) }
             draw(in: &context)
         }
-        .frame(width: layout.size.width, height: layout.size.height)
+        .frame(width: layout.size.width * scale, height: layout.size.height * scale)
         .overlay(alignment: .topLeading) {
             if layers == .all || layers == .text { iconView }
         }
@@ -110,9 +114,9 @@ struct ArtworkView: View {
                     (layout.lines.first?.color ?? .white).color.opacity(0.25)
                 }
             }
-            .frame(width: label.iconFrame.width, height: label.iconFrame.height)
-            .clipShape(RoundedRectangle(cornerRadius: label.iconFrame.width * 0.225, style: .continuous))
-            .offset(x: label.iconFrame.minX, y: label.iconFrame.minY)
+            .frame(width: label.iconFrame.width * scale, height: label.iconFrame.height * scale)
+            .clipShape(RoundedRectangle(cornerRadius: label.iconFrame.width * scale * 0.225, style: .continuous))
+            .offset(x: label.iconFrame.minX * scale, y: label.iconFrame.minY * scale)
         }
     }
 }

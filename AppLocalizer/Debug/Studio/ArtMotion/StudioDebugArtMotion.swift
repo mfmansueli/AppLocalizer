@@ -19,12 +19,16 @@ import Foundation
 /// - `st-lb-search-ui`: the search image with the app and no device.
 /// - `st-lb-search-scene`: the search image with no app, a scene,
 ///   Japanese.
+/// - `st-des-revise-motion`: Design while Claude Code makes the person's
+///   changes to the three directions, on every device, with header and
+///   search loops and the App Preview: the cards fit the sheet and open
+///   full size.
 /// (`st-ready-extras-wide`, the board's 16:9 tile, is board 26's.)
 @MainActor
 enum StudioDebugArtMotion {
     nonisolated static let ids = [
         "st-plan-motion", "st-des-motion", "st-ready-motion", "st-lb-header-guide", "st-lb-search-motion",
-        "st-plan-art-custom", "st-des-art-custom", "st-lb-search-ui", "st-lb-search-scene",
+        "st-plan-art-custom", "st-des-art-custom", "st-lb-search-ui", "st-lb-search-scene", "st-des-revise-motion",
     ]
 
     /// The board's expected result.
@@ -63,8 +67,20 @@ enum StudioDebugArtMotion {
         case "st-lb-search-scene":
             viewer(ready(shows: .scene), at: 1, locale: "ja")
         default:
-            nil
+            id == "st-des-revise-motion" ? StudioDebugExtras.Scene(run: revising, sheet: true, savesExtras: false, everyDevice: true) : nil
         }
+    }
+
+    /// The three directions back at Design with the person's note, the
+    /// header and search as loops beside an App Preview.
+    static var revising: AutopilotRun {
+        var run = StudioDebugExtras.run(.choose, languages: .primary, everyDevice: true)
+        run.plan.alsoMakes.setMotion(.loop)
+        run.stage = .design
+        run.revision = AutopilotRevisionRequest(
+            note: "Make the header and search images warmer, with the icon bigger", askedAt: StudioDebugRuns.date(day: 31, month: 10, hour: 15, minute: 2)
+        )
+        return run
     }
 
     /// Only header and search, as a 20-second loop, from the kept captures

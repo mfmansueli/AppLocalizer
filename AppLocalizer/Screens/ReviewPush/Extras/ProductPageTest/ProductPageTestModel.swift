@@ -49,6 +49,14 @@ final class ProductPageTestModel: Identifiable {
     var notice: String?
     /// The assistant asked for the variant (the run's client).
     var assistantName: String?
+    /// The Claude Code AppLocalizer started for the variant, if it did.
+    var launchedRunID: ClaudeCodeRun.ID?
+    /// AppLocalizer is starting Claude Code: nobody's idle yet.
+    private(set) var isStarting = false
+    #if DEBUG
+    /// DEBUG scenes: asks as soon as the sheet opens.
+    var asksOnAppear = false
+    #endif
 
     @ObservationIgnored let environment: ProductPageTestEnvironment?
     @ObservationIgnored let fileURL: (_ fileID: String, _ pathExtension: String) -> URL
@@ -133,18 +141,63 @@ final class ProductPageTestModel: Identifiable {
         }
         assistantName = center.run(for: plan.appID)?.client
         phase = .asking
-        guard let launcher, launcher.canStart,
-              await AutopilotContinuation.start(appID: plan.appID, appName: plan.appName, center: center, launcher: launcher) != nil
-        else {
+        launchedRunID = nil
+        await startClaudeCode(center: center, launcher: launcher)
+    }
+
+    /// Starts Claude Code again for the variant still asked for, after it
+    /// stopped or was stopped before sending it.
+    func continueAsking(center: AutopilotCenter?, launcher: ClaudeCodeLauncher?) async {
+        guard phase == .asking, let center, center.run(for: plan.appID)?.variantRequest != nil else { return }
+        notice = nil
+        await startClaudeCode(center: center, launcher: launcher)
+    }
+
+    private func startClaudeCode(center: AutopilotCenter, launcher: ClaudeCodeLauncher?) async {
+        guard let launcher, launcher.canStart else {
             notice = String(localized: "Ask your assistant to continue \(plan.appName)’s run: next_step says what to design.")
             return
         }
+        isStarting = true
+        defer { isStarting = false }
+        guard let id = await AutopilotContinuation.start(appID: plan.appID, appName: plan.appName, center: center, launcher: launcher) else {
+            notice = String(localized: "Ask your assistant to continue \(plan.appName)’s run: next_step says what to design.")
+            return
+        }
+        launchedRunID = id
     }
 
     func cancelAsking(center: AutopilotCenter?) {
         center?.cancelVariant(appID: plan.appID)
         phase = variant == nil ? .intro : .variantReady
         notice = nil
+    }
+
+    /// What's done and what's left while it waits for the variant; empty
+    /// when nothing's asked.
+    func steps(of run: AutopilotRun?) -> [ProductPageTestAskingStep] {
+        guard phase == .asking, let request = run?.variantRequest else { return [] }
+        return ProductPageTestAskingStep.steps(
+            for: request, assistant: assistantName ?? run?.client ?? String(localized: "the assistant"),
+            placement: placement.title.lowercased(), direction: plan.directionName.isEmpty ? nil : plan.directionName,
+            languageCount: rows.count
+        )
+    }
+
+    /// The Claude Code working on the variant: the one AppLocalizer started
+    /// for it, else the run's latest since it was asked for.
+    func session(in launcher: ClaudeCodeLauncher?, run: AutopilotRun?) -> ClaudeCodeRun? {
+        guard let launcher else { return nil }
+        if let started = launcher.run(launchedRunID) { return started }
+        guard let askedAt = run?.variantRequest?.askedAt else { return nil }
+        return launcher.latestRun(appID: plan.appID, purpose: .autopilot, since: askedAt)
+    }
+
+    /// Nobody's working on the variant AppLocalizer could start Claude Code
+    /// for: it stopped (or was stopped) before sending it.
+    func isIdle(session: ClaudeCodeRun?, run: AutopilotRun?, canStart: Bool) -> Bool {
+        guard phase == .asking, canStart, !isStarting, let request = run?.variantRequest, request.receivedAt == nil else { return false }
+        return session?.isActive != true
     }
 
     /// Picks up the variant once the assistant sent it.

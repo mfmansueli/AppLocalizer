@@ -30,6 +30,16 @@ extension AutopilotCenter {
         update(appID) { $0.variantRequest = nil }
     }
 
+    /// The assistant read what to design (next_step's `design_variant`),
+    /// for the sheet's progress.
+    func markVariantRead(appID: StoreApp.ID, client: String) {
+        update(appID) { run in
+            guard run.variantRequest != nil, run.variantRequest?.readAt == nil else { return }
+            run.variantRequest?.readAt = now()
+            run.appendLog(String(localized: "\(client) read what to change for the test and is designing the variant"), kind: .event, at: now())
+        }
+    }
+
     /// The variant the assistant sent: rendered in every language with its
     /// look (and its own texts, when the idea is the words), saved with the
     /// extras. Throws when nothing asked for one.
@@ -49,7 +59,25 @@ extension AutopilotCenter {
         for (locale, headline) in texts {
             book.set(ScreenshotCaption(headline: headline, subhead: nil, provenance: provenance), role: request.role, locale: locale)
         }
-        let files = try await AutopilotArtworkMaker(context: context).make(for: run, look: look, texts: book, kinds: [request.kind]) { _ in }
+        // The sheet shows it rendering, language by language.
+        update(appID) { run in
+            run.variantRequest?.receivedAt = now()
+            run.variantRequest?.renderedCount = 0
+            run.variantRequest?.languageCount = run.plan.localeCodes.count
+        }
+        let files: [ExtrasArtworkFile]
+        do {
+            files = try await AutopilotArtworkMaker(context: context).make(for: run, look: look, texts: book, kinds: [request.kind]) { count in
+                update(appID) { $0.variantRequest?.renderedCount = count }
+            }
+        } catch {
+            // Back to waiting for the assistant, which gets the error.
+            update(appID) { run in
+                run.variantRequest?.receivedAt = nil
+                run.variantRequest?.renderedCount = nil
+            }
+            throw error
+        }
         let variant = ExtrasArtworkVariant(
             role: request.role, kind: request.kind, controlIdea: request.controlIdea, idea: request.variantIdea, change: change,
             template: look, files: files, client: client, madeAt: now()

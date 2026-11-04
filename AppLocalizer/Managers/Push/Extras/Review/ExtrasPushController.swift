@@ -22,6 +22,8 @@ final class ExtrasPushController {
     var run: ExtrasPushRun?
     /// “Test with Product Page Optimization…”'s sheet while it's open.
     var test: ProductPageTestModel?
+    /// The App Asset Library sheet while it's open.
+    var library: AssetLibraryModel?
     /// Why a push that went couldn't be noted in the set.
     var recordError: String?
 

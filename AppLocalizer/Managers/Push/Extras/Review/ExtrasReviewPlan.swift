@@ -23,6 +23,9 @@ struct ExtrasReviewPlan: Hashable, Sendable {
     /// Discarded in review: they stay off App Store Connect until Undo or
     /// until they're made again.
     var discardedCount = 0
+    /// The App Previews' music: "Warm acoustic"; nil without App Previews
+    /// or from before music.
+    var musicTitle: String?
 
     /// Nothing to show, push, test or undo.
     var isEmpty: Bool { items.isEmpty && artwork.isEmpty && discardedCount == 0 }

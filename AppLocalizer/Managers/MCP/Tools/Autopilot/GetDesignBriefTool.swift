@@ -9,7 +9,8 @@ import Foundation
 /// `get_design_brief`: what the design AI needs to design the set — the
 /// picks (with their images), every caption in every language with its
 /// length, canvas sizes and safe areas, the longest caption per slot,
-/// right-to-left languages and the brand source.
+/// right-to-left languages, the brand source, and what the app is in its
+/// own words (`aboutTheApp`).
 struct GetDesignBriefTool: MCPTool {
     let definition = MCPToolDefinition(
         name: "get_design_brief",
@@ -18,7 +19,8 @@ struct GetDesignBriefTool: MCPTool {
         The brief for designing the Autopilot run's screenshot set: the picked capture of each screen (images \
         attached), every caption in every language with its length, the longest caption per slot, canvas sizes \
         and safe areas per device, right-to-left languages, the design project to use, the starters you can \
-        base a direction on, and the template fields you can set. When the run also makes product page header and \
+        base a direction on, the template fields you can set, and aboutTheApp: its subtitle, categories, \
+        description, keywords per language and icon colors, so each direction is about what this app does. When the run also makes product page header and \
         search results artwork or an App Preview, extras says which canvases and what each direction brings for \
         them. Design around the real captures; never draw the interface. Send each direction with propose_direction.
         """,
@@ -72,6 +74,9 @@ struct GetDesignBriefTool: MCPTool {
         ]
         let app = session.app
         if let extras = run.mcpBriefExtras(referenceURL: { services.referenceURL($0, for: app) }) { result["extras"] = extras }
+        if let profile = await AutopilotAppProfile.load(app: app, locales: run.plan.localeCodes, in: context.workspace) {
+            result["aboutTheApp"] = profile.mcpJSON
+        }
         if let project = session.center.designProject(for: session.app.id) {
             result["designProject"] = designProject(project)
         }
