@@ -66,15 +66,46 @@ final class AutopilotHeaderConceptsUITests: XCTestCase {
         reveal(note)
         XCTAssertTrue(element("autopilot.plan.shotStyle.templates").isSelected)
         XCTAssertTrue(text(of: note).hasSuffix("2 of 3 picked."), text(of: note))
+        // The picks show as previews, with a place for a third.
+        XCTAssertTrue(element("autopilot.plan.shotTemplate.cinema").exists)
+        XCTAssertTrue(element("autopilot.plan.shotTemplate.editorial").exists)
+        XCTAssertTrue(element("autopilot.plan.shotTemplate.add").exists)
         attachScreenshot("Plan · screenshot style from templates")
 
-        let pills = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'autopilot.plan.shotTemplate.'"))
-        XCTAssertEqual(pills.count, 12, "The twelve gallery templates")
-        pills.element(boundBy: 0).click()
+        tap("autopilot.plan.shotTemplate.choose")
+        let picker = element("autopilot.shotTemplatePicker")
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        let count = element("autopilot.shotTemplatePicker.count")
+        XCTAssertTrue(text(of: count).hasPrefix("12 templates"), text(of: count))
+        // The grid is lazy: the style filter, not a count of cards, says what it shows.
+        let filter = element("screenshots.gallery.style")
+        filter.radioButtons["Elegant"].click()
+        XCTAssertTrue(waitUntil { self.text(of: count).hasPrefix("3 templates") }, text(of: count))
+        XCTAssertTrue(element("screenshots.gallery.card.cinema.pick").exists, "Cinema is pick 1")
+        XCTAssertTrue(element("screenshots.gallery.card.above").waitForNonExistence(timeout: 5))
+        filter.radioButtons["All"].click()
+        XCTAssertTrue(waitUntil { self.text(of: count).hasPrefix("12 templates") }, text(of: count))
+        let picked = element("autopilot.shotTemplatePicker.picked")
+        XCTAssertEqual(text(of: picked), "2 of 3 picked.")
+        XCTAssertEqual(element("screenshots.starter.cinema").label, "Remove: Cinema")
+        // The picker's own controls: reveal would scroll the plan behind it.
+        element("screenshots.starter.above").click()
+        XCTAssertTrue(waitUntil { self.text(of: picked) == "3 of 3 picked. Picking another replaces the last." }, text(of: picked))
+        XCTAssertTrue(element("screenshots.gallery.card.above.pick").exists, "Numbered once picked")
+        attachScreenshot("Template picker · 3 picked")
+        element("autopilot.shotTemplatePicker.done").click()
+        XCTAssertTrue(waitUntil { !picker.exists })
+
         XCTAssertTrue(waitUntil { self.text(of: note).hasSuffix("3 of 3 picked.") }, text(of: note))
+        XCTAssertTrue(element("autopilot.plan.shotTemplate.above").exists)
+        XCTAssertFalse(element("autopilot.plan.shotTemplate.add").exists, "Three picked: no place left")
+        tap("autopilot.plan.shotTemplate.editorial.remove")
+        XCTAssertTrue(waitUntil { self.text(of: note).hasSuffix("2 of 3 picked.") }, text(of: note))
+        XCTAssertFalse(element("autopilot.plan.shotTemplate.editorial").exists)
+
         tap("autopilot.plan.shotStyle.free")
         XCTAssertTrue(waitUntil { self.text(of: note).contains("designs 3 directions of its own") }, text(of: note))
-        XCTAssertEqual(pills.count, 0)
+        XCTAssertFalse(element("autopilot.plan.shotTemplate.choose").exists)
     }
 
     // MARK: - Design

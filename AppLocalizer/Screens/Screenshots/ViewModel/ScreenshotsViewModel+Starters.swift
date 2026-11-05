@@ -3,6 +3,7 @@
 //  AppLocalizer
 //
 
+import CoreGraphics
 import Foundation
 
 extension ScreenshotsViewModel {
@@ -43,9 +44,26 @@ extension ScreenshotsViewModel {
         renderQueue.render(starterPreviews.flatMap(\.jobs), pixelWidth: StarterPreview.pixelWidth)
     }
 
+    /// A gallery card's slots, each nil until it's rendered (all of them
+    /// before the previews are laid out).
+    func starterImages(_ starter: TemplateStarter) -> [CGImage?] {
+        guard let preview = starterPreviews.first(where: { $0.starter == starter }) else {
+            return Array(repeating: nil, count: StarterPreview.slotCount)
+        }
+        return preview.jobs.map { renderQueue.images[$0.key] }
+    }
+
+    /// The card's font note, once the previews are laid out.
+    func starterFontNote(_ starter: TemplateStarter) -> String {
+        starterPreviews.first { $0.starter == starter }?.fontNote ?? ""
+    }
+
     /// "12 templates · previewed with Lumen’s captions and captures".
-    var galleryCount: String {
-        let count = TemplateStarter.starters(in: galleryStyle).count
+    var galleryCount: String { galleryCount(in: galleryStyle) }
+
+    /// The count for `style`'s templates, every one's when nil.
+    func galleryCount(in style: TemplateStarter.Style?) -> String {
+        let count = TemplateStarter.starters(in: style).count
         let title = templateEditor.templateTitle
         return count == 1
             ? String(localized: "1 template · previewed with \(title)’s captions and captures")

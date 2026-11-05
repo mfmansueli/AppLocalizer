@@ -35,6 +35,15 @@ struct InAppDraftWrite: Hashable, Sendable {
         "inAppPurchases": ("/v2/inAppPurchases/%@/versions", "inAppPurchaseVersions", "inAppPurchase"),
     ]
 
+    init(ownerType: String, ownerID: String, localizationType: String, versionType: String, locale: String, attributes: [String: String?]) {
+        self.ownerType = ownerType
+        self.ownerID = ownerID
+        self.localizationType = localizationType
+        self.versionType = versionType
+        self.locale = locale
+        self.attributes = attributes
+    }
+
     init?(_ request: PushRequest) {
         guard request.method == .post,
               let document = StorePageWriteDocument.decode(request.body),
@@ -113,7 +122,9 @@ struct InAppDraftWrite: Hashable, Sendable {
     /// Sends it: into `knownVersionID`, else the newest version that takes
     /// edits, else a new draft; then updates the locale's localization when
     /// the version has it, or creates it. Returns the version and the
-    /// localization, with the last response's rate limit.
+    /// localization, with the last response's rate limit. A draft App Store
+    /// Connect won't make throws `InAppDraftRefusal`, naming the newest
+    /// version's state.
     func send(
         via transport: any PushTransport,
         knownVersionID: String?
@@ -128,7 +139,13 @@ struct InAppDraftWrite: Hashable, Sendable {
             if let editable = Self.editableVersionID(in: versions.data) {
                 versionID = editable
             } else {
-                let created = try await transport.send(createVersion)
+                let created: AppStoreConnectResponse
+                do {
+                    created = try await transport.send(createVersion)
+                } catch let refusal as AppStoreConnectError where Self.isRefusal(refusal) {
+                    let latest = Self.latestVersion(in: versions.data)
+                    throw InAppDraftRefusal(latestVersion: latest?.version, latestState: latest?.state, refusal: refusal)
+                }
                 rateLimit = created.rateLimit
                 guard let id = Self.createdID(in: created.data) else { throw AppStoreConnectError.unexpectedPayload }
                 versionID = id
@@ -141,6 +158,23 @@ struct InAppDraftWrite: Hashable, Sendable {
         }
         let response = try await transport.send(create(versionID: versionID))
         return (versionID, Self.createdID(in: response.data), response.rateLimit ?? localizations.rateLimit ?? rateLimit)
+    }
+
+    /// Apple said no (409, 422 or another 4xx), rather than a rate limit,
+    /// a key problem or an outage the push handles itself.
+    private static func isRefusal(_ error: AppStoreConnectError) -> Bool {
+        switch error {
+        case .rejected: true
+        case let .server(statusCode, _, _): (400..<500).contains(statusCode)
+        default: false
+        }
+    }
+
+    /// The newest version in the list, whatever its state.
+    static func latestVersion(in data: Data) -> (version: Int?, state: String?)? {
+        guard let latest = resources(in: data).max(by: { version(of: $0) < version(of: $1) }) else { return nil }
+        let attributes = latest["attributes"] as? [String: Any]
+        return (attributes?["version"] as? Int, attributes?["state"] as? String)
     }
 
     private static func createdID(in data: Data) -> String? {

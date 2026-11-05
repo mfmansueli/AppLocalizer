@@ -7,8 +7,9 @@ import SwiftUI
 
 /// Age Rating: Apple's questionnaire in three groups, the override, and
 /// the rating preview beside them, updating as you answer. Suggested
-/// answers show under their questions, with the suggestion bar above. In a
-/// narrow window the preview goes above the questionnaire.
+/// answers show under their questions, with the suggestion bar above; an
+/// assistant's answers have a banner with Confirm All. In a narrow window
+/// the preview goes above the questionnaire.
 struct AgeRatingPageView: View {
     @Bindable var viewModel: AppInformationViewModel
 
@@ -41,7 +42,13 @@ struct AgeRatingPageView: View {
             )
             AppInformationSuggestionsPanel(viewModel: viewModel, page: .ageRating)
             if let banner = viewModel.assistantBanner {
-                AssistantAnswersBanner(client: banner.client, text: banner.text)
+                AssistantAnswersBanner(client: banner.client, text: banner.text) {
+                    if banner.unconfirmed > 0 {
+                        Button(String(localized: "Confirm All")) { viewModel.confirmAllAnswers() }
+                            .help(String(localized: "Confirms every answer \(banner.client) proposed on this page."))
+                            .accessibilityIdentifier("appInformation.age.confirmAll")
+                    }
+                }
             }
             if viewModel.content?.ids.ageRatingDeclarationID == nil {
                 InlineMessage.warning(String(localized: "App Store Connect didn’t return this app’s questionnaire, so it can’t be edited here."))

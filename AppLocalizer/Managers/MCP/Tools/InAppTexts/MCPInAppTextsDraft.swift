@@ -104,8 +104,28 @@ struct MCPInAppTextsDraft {
             "primaryLocale": .string(matrix.primaryLocale.code),
             "hasSubscriptionGroup": .bool(content.groupID != nil),
             "columns": .array(columns.map(Self.json)),
+            "versions": .array(versionsJSON),
             "locales": .array(locales.map(json)),
         ]
+    }
+
+    /// Each owner's newest texts version (API 4.4.1) and where a push
+    /// writes: that version, a new draft, or the pre-4.4.1 localizations.
+    private var versionsJSON: [JSONValue] {
+        builder.owners.compactMap { owner in
+            guard owner.resourceID != nil else { return nil }
+            var json: [String: JSONValue] = ["owner": .string(owner.productID ?? "group")]
+            if let latest = content.latestVersions[owner.key] {
+                if let version = latest.version { json["version"] = .int(version) }
+                if let state = latest.state { json["state"] = .string(state) }
+            }
+            json["writesTo"] = switch builder.write(for: owner) {
+            case .legacy: "legacy localizations"
+            case .version: "editable version"
+            case .draft: "new draft version"
+            }
+            return .object(json)
+        }
     }
 
     private static func json(_ column: InAppTextColumn) -> JSONValue {

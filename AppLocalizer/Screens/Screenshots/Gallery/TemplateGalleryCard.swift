@@ -7,7 +7,8 @@ import SwiftUI
 
 /// One gallery template: its five slots rendered with the app's captions
 /// and captures, its name (and In use), tags, what it's like, which
-/// scripts its font draws, and the button that picks it.
+/// scripts its font draws, and the button that picks it. Autopilot's
+/// template picker numbers the ones picked.
 struct TemplateGalleryCard: View {
     let starter: TemplateStarter
     let images: [CGImage?]
@@ -15,6 +16,8 @@ struct TemplateGalleryCard: View {
     let isInUse: Bool
     let buttonTitle: String
     let isProminent: Bool
+    /// 1, 2, 3 when picked for an Autopilot run.
+    var pickNumber: Int?
     var onUse: () -> Void
 
     var body: some View {
@@ -28,6 +31,18 @@ struct TemplateGalleryCard: View {
             .padding(.vertical, 10)
             .padding(.horizontal, 6)
             .background(Palette.stage, in: RoundedRectangle(cornerRadius: Radius.field))
+            .overlay(alignment: .topTrailing) {
+                if let pickNumber {
+                    Text(pickNumber.formatted())
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 18, height: 18)
+                        .background(Circle().fill(Palette.accent))
+                        .padding(5)
+                        .accessibilityLabel(Text("Pick \(pickNumber)"))
+                        .accessibilityIdentifier("screenshots.gallery.card.\(starter.rawValue).pick")
+                }
+            }
             HStack(spacing: Spacing.xSmall) {
                 Text(starter.title)
                     .font(.headline)
@@ -56,7 +71,8 @@ struct TemplateGalleryCard: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Palette.raised, in: RoundedRectangle(cornerRadius: Radius.card))
         .overlay {
-            RoundedRectangle(cornerRadius: Radius.card).strokeBorder(Palette.separator, lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Radius.card)
+                .strokeBorder(pickNumber == nil ? Palette.separator : Palette.accent, lineWidth: pickNumber == nil ? 0.5 : 2)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("screenshots.gallery.card.\(starter.rawValue)")

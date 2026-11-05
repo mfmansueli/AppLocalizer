@@ -9,12 +9,14 @@ import Foundation
 /// "Create Bruma Premium Monthly" with its fields. Its requests, in order:
 ///
 /// 1. `POST /v1/subscriptions` into the group: an existing one's ID, or
-///    `{subscriptionGroup:…}`, which the push finds or creates.
+///    `{subscriptionGroup:…}`, which the push finds or creates. A push
+///    after one that created it finds it (`NewSubscriptionCreate`).
 /// 2. A new group's display name (App Store Connect needs one to submit
 ///    the group), into its texts' version (`InAppDraftWrite`).
 /// 3. The subscription's display name and description, the same way, into
 ///    `{createdID:subscriptions}`.
-/// 4. Availability in every country or region, and in new ones.
+/// 4. Availability in every country or region App Store Connect has, and
+///    in new ones (`SubscriptionAvailabilityEverywhere`).
 /// 5. The starting price in the United States, equalized everywhere else
 ///    (`SubscriptionStartingPrices`).
 ///
@@ -142,7 +144,7 @@ struct NewSubscriptionChangeBuilder {
             ownerID: subscriptionID,
             versionType: "subscriptionVersions"
         ))
-        requests.append(availability(subscriptionID: subscriptionID))
+        requests.append(SubscriptionAvailabilityEverywhere.request(subscriptionID: subscriptionID))
         if let price = subscription.price {
             requests.append(SubscriptionStartingPrices.request(subscriptionID: subscriptionID, territoryID: NewSubscription.baseTerritoryID, price: price))
         }
@@ -177,19 +179,6 @@ struct NewSubscriptionChangeBuilder {
             parentID: PushRequest.inAppDraftPlaceholder(ownerType: ownerType, ownerID: ownerID)
         )
         return PushRequest(method: .post, path: "/v2/\(type)", body: document.encoded())
-    }
-
-    private func availability(subscriptionID: String) -> PushRequest {
-        Self.post("/v1/subscriptionAvailabilities", [
-            "data": [
-                "type": "subscriptionAvailabilities",
-                "attributes": ["availableInNewTerritories": true],
-                "relationships": [
-                    "subscription": ["data": ["type": "subscriptions", "id": subscriptionID]],
-                    "availableTerritories": ["data": TerritoryCatalog.standard.territories.map { ["type": "territories", "id": $0.id] }],
-                ],
-            ],
-        ])
     }
 
     private static func post(_ path: String, _ body: [String: Any]) -> PushRequest {

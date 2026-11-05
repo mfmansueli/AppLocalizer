@@ -119,7 +119,9 @@ struct NewSubscriptionChangeBuilderTests {
 
         let availability = try data(change.requests[3])
         let territories = ((availability["relationships"] as? [String: Any])?["availableTerritories"] as? [String: Any])?["data"] as? [[String: Any]]
-        #expect(territories?.count == TerritoryCatalog.standard.count)
+        // Every territory App Store Connect has, read when it's sent.
+        #expect(territories?.compactMap { $0["id"] as? String } == [SubscriptionAvailabilityEverywhere.placeholder])
+        #expect(SubscriptionAvailabilityEverywhere(change.requests[3])?.subscriptionID == "{createdID:subscriptions}")
 
         let prices = try #require(SubscriptionStartingPrices(change.requests[4]))
         #expect(prices.subscriptionID == "{createdID:subscriptions}")

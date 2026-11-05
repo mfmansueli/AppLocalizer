@@ -51,6 +51,16 @@ struct MCPPriceCatalog {
 
     /// The product's prices in every territory, with the queue's proposals.
     func sheet(for product: PricingProduct) async throws -> MCPPriceSheet {
+        guard let sheet = try await sheetIfPriced(for: product) else {
+            throw MCPToolError.unavailable(noStartingPriceMessage(product))
+        }
+        return sheet
+    }
+
+    /// The product's prices, or nil for a subscription without a price in
+    /// the United States yet, whose US price sets its starting price
+    /// (`MCPStartingPriceProposer`).
+    func sheetIfPriced(for product: PricingProduct) async throws -> MCPPriceSheet? {
         let services = workspace.services.pricing
         // Proceeds use the commission set in Settings → General.
         let commission = workspace.commission()
@@ -58,9 +68,20 @@ struct MCPPriceCatalog {
             let sheet = try await services.priceSheet(for: product, commission: commission)
             let calculator = PriceCalculator(catalog: .standard, snapshot: services.indexSnapshot(), commission: commission)
             return MCPPriceSheet(app: app, product: product, mode: mode, sheet: sheet, calculator: calculator, workspace: workspace)
+        } catch PricingSheetError.noStartingPrice {
+            return nil
         } catch {
             throw MCPToolError.unavailable(String(localized: "Couldn’t read the prices of \(product.name): \(error.localizedDescription)"))
         }
+    }
+
+    /// Why a subscription without a US price has no prices to read, and
+    /// how to give it some.
+    func noStartingPriceMessage(_ product: PricingProduct) -> String {
+        String(localized: """
+        \(product.name) has no price in the United States yet. Propose its US price with propose_prices (territory \
+        USA, a point from get_price_points): Apple equalizes it in every other country or region.
+        """)
     }
 
     /// "Keep my prices" as the refusal names it.

@@ -14,17 +14,22 @@ struct AssistantAnswersBanner<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: Spacing.small) {
-            SourceTag(source: .assistant(client: client))
-            Text(text)
-                .font(.callout)
-                .fixedSize(horizontal: false, vertical: true)
+            // One element for VoiceOver; the trailing buttons stay their own.
+            HStack(spacing: Spacing.small) {
+                SourceTag(source: .assistant(client: client))
+                Text(text)
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("appInformation.assistantBanner.text")
             Spacer(minLength: 0)
             trailing()
         }
         .padding(.horizontal, Spacing.medium)
         .padding(.vertical, Spacing.small)
         .background(Palette.fill2, in: RoundedRectangle(cornerRadius: Radius.field + 1, style: .continuous))
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("appInformation.assistantBanner")
     }
 }

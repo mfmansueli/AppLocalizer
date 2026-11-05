@@ -86,6 +86,27 @@ struct AppInformationViewModelTests {
         #expect(vm.evidence(for: .messaging) == nil)
     }
 
+    @Test func confirmAllConfirmsEveryAssistantAnswerAsProposed() async throws {
+        let vm = await loaded()
+        queue.upsert(contentsOf: DebugAppInformationChanges.assistantAgeAnswers(confirmed: [.wellness]))
+        let proposed = try #require(vm.ageRating?.answers)
+        #expect(vm.assistantBanner?.unconfirmed == 6)
+
+        vm.confirmAllAnswers()
+
+        #expect(vm.assistantAnswers.count == 7)
+        let allConfirmed = vm.assistantAnswers.values.allSatisfy(\.confirmed)
+        #expect(allConfirmed)
+        #expect(vm.assistantAnswers.values.allSatisfy { $0.client == "Claude Code" })
+        #expect(vm.assistantBanner?.unconfirmed == 0)
+        #expect(vm.assistantBanner?.text == "answered 7 questions from the project · all confirmed")
+        // Nothing was answered differently, and every answer can be pushed.
+        #expect(vm.ageRating?.answers == proposed)
+        let ageChanges = queue.changes.filter { $0.id.hasPrefix(vm.builder.changeID(.ageRating, "")) }
+        #expect(ageChanges.count == 7)
+        #expect(ageChanges.allSatisfy { $0.blockedReason == nil && $0.source.isAssistant })
+    }
+
     @Test func theOverrideKeepsItsReasonOnThisMac() async throws {
         let vm = await loaded()
         vm.setOverrideOn(true)

@@ -29,7 +29,7 @@ struct MCPPriceProposer {
 
     func propose(_ price: Decimal, in territory: Territory) -> Outcome {
         let ladder = sheet.ladder(for: territory)
-        guard let point = ladder.point(at: price) else { return notAPricePoint(price, in: territory, ladder: ladder) }
+        guard let point = ladder.point(at: price) else { return Self.notAPricePoint(price, in: territory, ladder: ladder) }
         guard let current = sheet.sheet.prices[territory.id]?.current else {
             return .refused(reason: MCPPriceProposal.unknownTerritoryMessage(territory.id, product: sheet.product), nearest: [])
         }
@@ -67,7 +67,8 @@ struct MCPPriceProposer {
     }
 
     /// "R$ 112,00 isn't a price point in Brazil. Nearest: R$ 109,90 or R$ 114,90."
-    private func notAPricePoint(_ price: Decimal, in territory: Territory, ladder: PricePointLadder) -> Outcome {
+    /// Also the starting price's refusal (`MCPStartingPriceProposer`).
+    static func notAPricePoint(_ price: Decimal, in territory: Territory, ladder: PricePointLadder) -> Outcome {
         let currency = CurrencyFormat.forCurrency(territory.currencyCode)
         let below = ladder.points.last { $0.customerPrice < price }?.customerPrice
         let above = ladder.points.first { $0.customerPrice > price }?.customerPrice

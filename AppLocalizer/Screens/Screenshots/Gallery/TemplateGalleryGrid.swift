@@ -22,8 +22,8 @@ struct TemplateGalleryGrid: View {
                 let isInUse = !isFirstRun && viewModel.document?.template?.starter == starter
                 TemplateGalleryCard(
                     starter: starter,
-                    images: images(for: starter),
-                    fontNote: viewModel.starterPreviews.first { $0.starter == starter }?.fontNote ?? "",
+                    images: viewModel.starterImages(starter),
+                    fontNote: viewModel.starterFontNote(starter),
                     isInUse: isInUse,
                     buttonTitle: isFirstRun ? String(localized: "Use This Template") : viewModel.templateEditor.starterButtonTitle(starter),
                     isProminent: !isInUse
@@ -34,12 +34,5 @@ struct TemplateGalleryGrid: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("screenshots.gallery")
-    }
-
-    private func images(for starter: TemplateStarter) -> [CGImage?] {
-        guard let preview = viewModel.starterPreviews.first(where: { $0.starter == starter }) else {
-            return Array(repeating: nil, count: StarterPreview.slotCount)
-        }
-        return preview.jobs.map { viewModel.renderQueue.images[$0.key] }
     }
 }

@@ -30,15 +30,17 @@ extension AppInformationViewModel {
     }
 
     /// "Claude Code answered 7 questions from the project · 5 not confirmed
-    /// yet", or nil when no assistant answered.
-    var assistantBanner: (client: String, text: String)? {
+    /// yet" (or "· all confirmed"), with how many are left for Confirm All;
+    /// nil when no assistant answered.
+    var assistantBanner: (client: String, text: String, unconfirmed: Int)? {
         let answers = assistantAnswers
         guard let client = answers.values.first?.client else { return nil }
         let open = answers.values.count { !$0.confirmed }
         let answered = answers.count == 1
             ? String(localized: "answered 1 question from the project")
             : String(localized: "answered \(answers.count) questions from the project")
-        return (client, answered + " · " + String(localized: "\(open) not confirmed yet"))
+        let state = open == 0 ? String(localized: "all confirmed") : String(localized: "\(open) not confirmed yet")
+        return (client, answered + " · " + state, open)
     }
 
     /// You picked an answer: it replaces an assistant's.
@@ -58,6 +60,15 @@ extension AppInformationViewModel {
             confirmed: confirmed
         )
         apply(change, id: builder.changeID(.ageRating, question.rawValue))
+    }
+
+    /// Confirm All in the banner: every assistant answer not confirmed yet
+    /// is, as if its Confirmed box were checked. Answers stay as proposed.
+    func confirmAllAnswers() {
+        let open = assistantAnswers.filter { !$0.value.confirmed }.keys
+        for question in AgeRatingQuestion.allCases where open.contains(question) {
+            confirmAnswer(question, true)
+        }
     }
 
     /// Reject in the evidence popover: the answer goes back to App Store

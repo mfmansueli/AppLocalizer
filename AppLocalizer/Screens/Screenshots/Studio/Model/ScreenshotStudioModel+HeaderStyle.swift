@@ -5,9 +5,8 @@
 
 import SwiftUI
 
-/// The plan's Header style (scene templates, or the design AI going
-/// freely) and Screenshot style (its own directions, gallery templates,
-/// or the current template kept).
+/// The plan's Header style: scene templates, or the design AI going
+/// freely.
 extension ScreenshotStudioModel {
     // MARK: - Header style
 
@@ -122,28 +121,5 @@ extension ScreenshotStudioModel {
         let light = headerColors.flatMap { TemplateColor($0.light) }?.color ?? Color(red: 0.36, green: 0.33, blue: 0.91)
         let dark = headerColors.flatMap { TemplateColor($0.dark) }?.color ?? Color(red: 0.17, green: 0.15, blue: 0.41)
         return (light, dark)
-    }
-
-    // MARK: - Screenshot style
-
-    func setShotStyle(_ style: AutopilotShotStyle) {
-        updatePlan { $0.runChoice.shotStyle = style }
-    }
-
-    /// Adds a gallery template, or takes it out: a fourth replaces the last.
-    func toggleShotTemplate(_ name: String) {
-        let picks = run?.plan.screenshotTemplates ?? []
-        updatePlan { $0.runChoice.shotTemplates = AutopilotShotStyle.toggling(name, in: picks) }
-    }
-
-    /// The set's template version ("v4"), nil when it has none to keep.
-    var keptTemplateVersion: Int? {
-        guard screenshots.document?.template != nil else { return nil }
-        return screenshots.document?.history?.currentNumber ?? 1
-    }
-
-    /// The twelve gallery templates, by title.
-    static var shotTemplateNames: [String] {
-        TemplateStarter.allCases.map(\.title)
     }
 }

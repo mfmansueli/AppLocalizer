@@ -70,6 +70,13 @@ enum AppStoreConnectError: LocalizedError, Equatable {
         return code == "ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE"
     }
 
+    /// 409 `ENTITY_ERROR.ATTRIBUTE.INVALID.UNMODIFIABLE`, e.g. a pre-4.4.1
+    /// write of a subscription group's texts, which live in versions now.
+    var isUnmodifiable: Bool {
+        guard case let .rejected(_, code, _) = self else { return false }
+        return code == "ENTITY_ERROR.ATTRIBUTE.INVALID.UNMODIFIABLE"
+    }
+
     /// 409 `STATE_ERROR`, e.g. "Screenshot Set Already Exists!".
     var isStateError: Bool {
         guard case let .rejected(_, code, _) = self else { return false }

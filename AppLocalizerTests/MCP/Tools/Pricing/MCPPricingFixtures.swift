@@ -23,11 +23,13 @@ enum MCPPricingFixtures {
         _ arguments: [String: JSONValue],
         changes: ChangeQueue = ChangeQueue(),
         modes: [StoreApp.ID: PricingMode] = [tempo: .keepPrices],
-        commission: Commission = .smallBusiness
+        commission: Commission = .smallBusiness,
+        pricing: (any PricingServices)? = nil
     ) async throws -> MCPToolOutcome {
         let workspace = MCPTestFixtures.workspace(
             changes: changes,
             pricingModes: PricingModeStore(defaults: nil, modes: modes),
+            pricing: pricing,
             commission: commission
         )
         return try await tool.call(MCPToolArguments(arguments), in: MCPToolContext(workspace: workspace, clientName: client))

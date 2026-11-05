@@ -16,9 +16,10 @@ struct ProposePricesTool: MCPTool {
         price}]. Prices are in the territory's currency and must be one of Apple's price points \
         (get_price_points); a price between points is refused with the two nearest ones. Each proposal is queued \
         for the person to review in AppLocalizer (status "queued"); nothing reaches App Store Connect until they \
-        push. Today's price is "unchanged" and withdraws your earlier proposal for that territory. Unknown \
-        territories or products, in-app purchases and every price for an app set to Keep my prices are refused \
-        (status "refused") with the reason.
+        push. Today's price is "unchanged" and withdraws your earlier proposal for that territory. A \
+        subscription without a price in the United States yet takes only its US price, queued as its starting \
+        price: Apple equalizes it in every other country or region. Unknown territories or products, in-app \
+        purchases and every price for an app set to Keep my prices are refused (status "refused") with the reason.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -61,7 +62,17 @@ struct ProposePricesTool: MCPTool {
             }
         } else {
             let product = try catalog.requireProduct(productID)
-            var sheet = try await catalog.sheet(for: product)
+            guard var sheet = try await catalog.sheetIfPriced(for: product) else {
+                let starting = try await MCPStartingPriceProposer.load(catalog: catalog, product: product, source: context.source)
+                for proposal in proposals {
+                    let outcome = starting.propose(proposal.price, territory: proposal.territory)
+                    let territoryID = MCPStartingPriceProposer.isUnitedStates(proposal.territory) ? MCPStartingPriceProposer.territoryID : nil
+                    outcomes.append(outcome)
+                    results.append(Self.result(proposal, territoryID: territoryID, outcome: outcome))
+                    logLines.append(Self.logLine(outcome, target: starting.target))
+                }
+                return Self.outcome(results: results, outcomes: outcomes, logLines: logLines, isBatch: isBatch)
+            }
             let territories = proposals.map { sheet.territory(matching: $0.territory) }
             try await sheet.loadExactLadders(for: territories.compactMap { $0?.id })
             let proposer = MCPPriceProposer(sheet: sheet, source: context.source)
@@ -73,6 +84,16 @@ struct ProposePricesTool: MCPTool {
                 logLines.append(Self.logLine(outcome, target: sheet.target(territory?.name ?? proposal.territory)))
             }
         }
+        return Self.outcome(results: results, outcomes: outcomes, logLines: logLines, isBatch: isBatch)
+    }
+
+    /// One proposal's result, or a batch's results with counts.
+    private static func outcome(
+        results: [JSONValue],
+        outcomes: [MCPPriceProposer.Outcome],
+        logLines: [MCPToolOutcome.LogLine],
+        isBatch: Bool
+    ) -> MCPToolOutcome {
         guard isBatch else { return MCPToolOutcome(result: results[0], isError: false, logLines: logLines) }
         let summary: JSONValue = [
             "results": .array(results),

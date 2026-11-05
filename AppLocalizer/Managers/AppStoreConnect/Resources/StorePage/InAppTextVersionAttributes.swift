@@ -10,7 +10,7 @@ import Foundation
 /// numbered copy of a group's, subscription's or purchase's texts for App
 /// Review. Only one that hasn't been submitted, or was rejected, takes
 /// edits (`InAppTextsContent.editableVersionStates`).
-struct InAppTextVersionAttributes: Decodable, Sendable {
+struct InAppTextVersionAttributes: Decodable, Hashable, Sendable {
     /// 1, 2, … in the order they were made.
     var version: Int?
     /// `PREPARE_FOR_SUBMISSION`, `READY_FOR_REVIEW`, `APPROVED`, …

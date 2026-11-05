@@ -5,6 +5,7 @@
 
 import Foundation
 import Observation
+import OSLog
 
 /// Sends reviewed changes to App Store Connect, one request at a time, and
 /// keeps the progress list Review & Push shows. It lives above the sheet, so
@@ -52,10 +53,16 @@ final class PushController {
     /// In-App Texts drafts found or made during this push, by
     /// `InAppDraftWrite.ownerKey`, so every locale's change goes into one.
     private var inAppDrafts: [String: String] = [:]
+    /// Owners App Store Connect wouldn't make a draft for in this push, so
+    /// their other locales fail with the same reason without asking again.
+    private var inAppDraftRefusals: [String: InAppDraftRefusal] = [:]
     /// Subscription groups found or made during this push, by
     /// `SubscriptionGroupPlaceholder.token`, so new subscriptions in the
     /// same new group share one.
     private var subscriptionGroups: [String: String] = [:]
+    /// Every territory App Store Connect has, read once per push for new
+    /// subscriptions' availability (`SubscriptionAvailabilityEverywhere`).
+    private var territoryIDs: [String]?
     /// Requests this hour, shared with screenshot pushes.
     let rateTracker: RequestRateTracker
     /// Screenshot pushes: images uploaded set by set beside these changes.
@@ -129,7 +136,9 @@ final class PushController {
         items = changes.filter { !$0.isBlocked }.map { PushItem(change: $0) }
         notice = nil
         inAppDrafts = [:]
+        inAppDraftRefusals = [:]
         subscriptionGroups = [:]
+        territoryIDs = nil
         guard !items.isEmpty else { return }
         run()
     }
@@ -154,6 +163,7 @@ final class PushController {
         }
         guard retried else { return }
         notice = nil
+        inAppDraftRefusals = [:]
         run()
     }
 
@@ -360,19 +370,12 @@ final class PushController {
             }
         }
         for request in change.pushRequests.dropFirst(items[index].sentRequestCount) {
-            let request = try await resolvingSetupPlaceholders(request, at: index, transport: transport)
-            if try await sendSetupStep(request, at: index, transport: transport) {
-                items[index].sentRequestCount += 1
-                continue
-            }
-            let resolved = try request.resolved(createdID: items[index].createdID) { try secrets.secret(named: $0) }
             do {
-                let response = try await transport.send(resolved)
-                noteRequest(response.rateLimit)
-                if request.method == .post { noteCreated(response.data, at: index) }
-            } catch let error as AppStoreConnectError where error.isDuplicate {
-                guard let update = ExistingLocalizationUpdate(resolved) else { throw error }
-                items[index].createdID = try await updateExisting(update, refusal: error, transport: transport)
+                try await send(request, at: index, transport: transport)
+            } catch {
+                // Method and path only: bodies can hold texts and secrets.
+                Self.logger.error("\(change.id, privacy: .public): \(request.method.rawValue, privacy: .public) \(request.path, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+                throw error
             }
             items[index].sentRequestCount += 1
         }
@@ -449,6 +452,28 @@ final class PushController {
 // The writes a refused or versioned localization `POST` turns into, and a
 // new subscription's steps.
 extension PushController {
+    fileprivate static let logger = Logger(subsystem: "com.lima.applocalizer", category: "Push")
+
+    /// One of a change's requests, its placeholders filled in.
+    private func send(_ request: PushRequest, at index: Int, transport: any PushTransport) async throws {
+        let request = try await resolvingSetupPlaceholders(request, at: index, transport: transport)
+        if try await sendSetupStep(request, at: index, transport: transport) { return }
+        let resolved = try request.resolved(createdID: items[index].createdID) { try secrets.secret(named: $0) }
+        do {
+            let response = try await transport.send(resolved)
+            noteRequest(response.rateLimit)
+            if request.method == .post { noteCreated(response.data, at: index) }
+        } catch let error as AppStoreConnectError where error.isDuplicate {
+            guard let update = ExistingLocalizationUpdate(resolved) else { throw error }
+            items[index].createdID = try await updateExisting(update, refusal: error, transport: transport)
+        } catch let error as AppStoreConnectError where error.isUnmodifiable {
+            // A pre-4.4.1 texts write: the same texts go into a version.
+            guard let legacy = LegacyInAppTextWrite(resolved) else { throw error }
+            let write = try await legacy.draftWrite(via: transport) { noteRequest($0) }
+            items[index].createdID = try await send(write, transport: transport)
+        }
+    }
+
     /// The `data` of a `POST`'s response: the resource it created, kept
     /// for `{createdID}` and `{createdID:<type>}`.
     private func noteCreated(_ data: Data, at index: Int) {
@@ -478,12 +503,25 @@ extension PushController {
         return try request.resolvingCreatedIDs(items[index].createdIDs)
     }
 
-    /// Sends a request that's more than one write: an In-App Texts write
-    /// into a version, or a subscription's starting prices. False for any
-    /// other request.
+    /// Sends a request that's more than one write: a new subscription
+    /// (found when a push before created it), an In-App Texts write into a
+    /// version, availability everywhere, or a subscription's starting
+    /// prices. False for any other request.
     private func sendSetupStep(_ request: PushRequest, at index: Int, transport: any PushTransport) async throws -> Bool {
+        if let create = NewSubscriptionCreate(request) {
+            let id = try await create.send(via: transport) { noteRequest($0) }
+            items[index].createdID = id
+            items[index].createdIDs["subscriptions"] = id
+            return true
+        }
         if let write = InAppDraftWrite(request) {
             items[index].createdID = try await send(write, transport: transport)
+            return true
+        }
+        if let availability = SubscriptionAvailabilityEverywhere(request) {
+            let territories = try await everyTerritory(transport: transport)
+            let response = try await transport.send(availability.request(territoryIDs: territories))
+            noteRequest(response.rateLimit)
             return true
         }
         guard let prices = SubscriptionStartingPrices(request) else { return false }
@@ -496,11 +534,26 @@ extension PushController {
         return true
     }
 
+    /// Every territory App Store Connect has, read on first use in a push.
+    private func everyTerritory(transport: any PushTransport) async throws -> [String] {
+        if let territoryIDs { return territoryIDs }
+        let ids = try await SubscriptionAvailabilityEverywhere.territoryIDs(via: transport) { noteRequest($0) }
+        territoryIDs = ids
+        return ids
+    }
+
     /// An In-App Texts write into the owner's editable version, the one
     /// found or made earlier in this push when there is one. Returns the
     /// localization's ID.
     private func send(_ write: InAppDraftWrite, transport: any PushTransport) async throws -> String? {
-        let sent = try await write.send(via: transport, knownVersionID: inAppDrafts[write.ownerKey])
+        if let refusal = inAppDraftRefusals[write.ownerKey] { throw refusal }
+        let sent: (versionID: String, localizationID: String?, rateLimit: AppStoreConnectRateLimit?)
+        do {
+            sent = try await write.send(via: transport, knownVersionID: inAppDrafts[write.ownerKey])
+        } catch let refusal as InAppDraftRefusal {
+            inAppDraftRefusals[write.ownerKey] = refusal
+            throw refusal
+        }
         inAppDrafts[write.ownerKey] = sent.versionID
         noteRequest(sent.rateLimit)
         return sent.localizationID

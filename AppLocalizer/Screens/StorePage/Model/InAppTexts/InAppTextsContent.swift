@@ -28,6 +28,10 @@ struct InAppTextsContent: Hashable, Sendable {
     /// Owners App Store Connect has no versions for: written the pre-4.4.1
     /// way.
     var legacyOwners: Set<String> = []
+    /// Owner → its newest version, whatever its state, so
+    /// `get_in_app_texts` can say where texts go (e.g. one in a review
+    /// submission).
+    var latestVersions: [String: InAppTextVersionAttributes] = [:]
 
     /// The owner key of the subscription group.
     static let groupKey = "group"

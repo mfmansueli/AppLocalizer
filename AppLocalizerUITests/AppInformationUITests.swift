@@ -97,6 +97,18 @@ final class AppInformationUITests: XCTestCase {
         XCTAssertTrue(app.buttons["appInformation.evidence.reject"].exists)
     }
 
+    func testConfirmAllConfirmsEveryAssistantAnswer() {
+        launch(scene: "info-age")
+        let confirmAll = app.buttons["appInformation.age.confirmAll"]
+        XCTAssertTrue(confirmAll.waitForExistence(timeout: 10))
+        let wellness = app.checkBoxes["appInformation.age.wellness.confirmed"]
+        XCTAssertTrue(wellness.exists)
+        confirmAll.click()
+        XCTAssertTrue(text(containing: "all confirmed").waitForExistence(timeout: 5))
+        XCTAssertFalse(confirmAll.exists, "Nothing is left to confirm.")
+        XCTAssertEqual(wellness.value as? Int, 1)
+    }
+
     /// Ignores saved window state, which can leave the app without a
     /// window under XCUITest.
     private func launch(scene: String) {

@@ -81,6 +81,9 @@ struct InAppTextsLoader: Sendable {
             content.legacyOwners.insert(key)
             return try await current()
         }
+        if let latest = list.max(by: { ($0.attributes.version ?? 0) < ($1.attributes.version ?? 0) }) {
+            content.latestVersions[key] = latest.attributes
+        }
         guard let editable = Self.editableVersion(in: list) else { return try await current() }
         content.editableVersions[key] = editable.id
         return try await ofVersion(editable.id)

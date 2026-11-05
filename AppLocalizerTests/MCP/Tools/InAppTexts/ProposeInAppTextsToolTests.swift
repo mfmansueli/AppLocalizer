@@ -125,5 +125,9 @@ struct ProposeInAppTextsToolTests {
         let english = try #require(outcome.result["locales"]?.arrayValue?.first)
         #expect(english["missing"] == ["group.name"])
         #expect(english["texts"]?["lumen.monthly.name"] == "Lumen Plus")
+        // Where each owner's texts go: the sample's versions take edits.
+        let versions = try #require(outcome.result["versions"]?.arrayValue)
+        #expect(versions.compactMap { $0["owner"]?.stringValue } == ["group", "lumen.monthly"])
+        #expect(versions.allSatisfy { $0["writesTo"] == "editable version" })
     }
 }
