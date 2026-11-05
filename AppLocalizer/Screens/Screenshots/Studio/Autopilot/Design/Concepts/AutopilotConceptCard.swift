@@ -6,9 +6,10 @@
 import SwiftUI
 
 /// One header concept on Choose: its header above its search artwork (or
-/// its one 16:9 image), click to view larger; its name, where it came
-/// from, metaphor, why it fits and, with Motion loop, its loop; Choose, and
-/// Ask for Changes… for this concept only.
+/// its one 16:9 image), its loop playing once it's animated, click to view
+/// larger; its name, where it came from, metaphor, why it fits and, with
+/// Motion loop, its loop's beats; Choose, and Ask for Changes… for this
+/// concept only.
 struct AutopilotConceptCard: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -91,11 +92,14 @@ struct AutopilotConceptCard: View {
     @ViewBuilder private var images: some View {
         let kinds = run.plan.artworkKinds
         let imageWidth = min(250, max(width - Spacing.small * 2, 60))
+        let plays = run.playsLoop(of: concept)
         if kinds.count > 1 {
             VStack(alignment: .leading, spacing: 4) {
-                AutopilotConceptThumbnail(studio: studio, run: run, concept: concept, kind: .header, width: imageWidth)
+                AutopilotConceptThumbnail(studio: studio, run: run, concept: concept, kind: .header, width: imageWidth, plays: plays)
                 HStack(alignment: .bottom, spacing: 4) {
-                    AutopilotConceptThumbnail(studio: studio, run: run, concept: concept, kind: .search, width: (imageWidth * 96 / 250).rounded())
+                    AutopilotConceptThumbnail(
+                        studio: studio, run: run, concept: concept, kind: .search, width: (imageWidth * 96 / 250).rounded(), plays: plays
+                    )
                     Text("Header above, search results left")
                         .font(.caption2)
                         .foregroundStyle(Palette.label2)
@@ -103,7 +107,7 @@ struct AutopilotConceptCard: View {
                 }
             }
         } else if let kind = kinds.first {
-            AutopilotConceptThumbnail(studio: studio, run: run, concept: concept, kind: kind, width: imageWidth)
+            AutopilotConceptThumbnail(studio: studio, run: run, concept: concept, kind: kind, width: imageWidth, plays: plays)
         }
     }
 

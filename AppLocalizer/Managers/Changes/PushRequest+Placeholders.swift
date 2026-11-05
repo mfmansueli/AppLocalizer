@@ -14,8 +14,58 @@ import Foundation
 // - `{secret:<name>}`: a secret kept in the Keychain (`SecretStore`), so the
 //   queue's file and the push history never hold it, e.g. App Review's demo
 //   account password. It sits inside a JSON string and is escaped for it.
+// - `{createdID:<type>}`: the ID of the resource of that type an earlier
+//   `POST` of the same change created, when a change creates several, e.g.
+//   a new subscription's texts go into `{createdID:subscriptions}`.
+// - `{inAppDraft:<ownerType>/<ownerID>}`: the version of a subscription
+//   group's, subscription's or in-app purchase's texts that takes edits,
+//   found or created as a draft when the change is sent (`InAppDraftWrite`).
+// - `{subscriptionGroup:<appID>:<referenceName>}`: the app's subscription
+//   group with that reference name, found or created when the change is
+//   sent (`SubscriptionGroupPlaceholder`).
 extension PushRequest {
     static let createdIDPlaceholder = "{createdID}"
+
+    /// `{createdID:subscriptions}`.
+    static func createdIDPlaceholder(type: String) -> String {
+        "{createdID:\(type)}"
+    }
+
+    /// `{inAppDraft:subscriptionGroups/123}`.
+    static func inAppDraftPlaceholder(ownerType: String, ownerID: String) -> String {
+        "{inAppDraft:\(ownerType)/\(ownerID)}"
+    }
+
+    /// The request with every `{createdID:<type>}` replaced by the ID the
+    /// change's earlier `POST` of that type got. Throws when one wasn't
+    /// created (yet).
+    func resolvingCreatedIDs(_ createdIDs: [String: String]) throws -> PushRequest {
+        var resolved = self
+        while let type = resolved.firstCreatedIDType {
+            guard let id = createdIDs[type] else { throw PushRequestPlaceholderError.missingCreatedID }
+            resolved = resolved.replacing(Self.createdIDPlaceholder(type: type), with: id)
+        }
+        return resolved
+    }
+
+    /// The request with `token` replaced by `value` in its path and body.
+    func replacing(_ token: String, with value: String) -> PushRequest {
+        var replaced = self
+        replaced.path = path.replacingOccurrences(of: token, with: value)
+        replaced.body = bodyText.map { Data($0.replacingOccurrences(of: token, with: value).utf8) } ?? body
+        return replaced
+    }
+
+    /// The type in the first `{createdID:<type>}`, in the path or the body.
+    private var firstCreatedIDType: String? {
+        for text in [path, bodyText ?? ""] {
+            guard let start = text.range(of: "{createdID:"),
+                  let end = text[start.upperBound...].firstIndex(of: "}")
+            else { continue }
+            return String(text[start.upperBound..<end])
+        }
+        return nil
+    }
 
     static func secretPlaceholder(named name: String) -> String {
         "{secret:\(name)}"

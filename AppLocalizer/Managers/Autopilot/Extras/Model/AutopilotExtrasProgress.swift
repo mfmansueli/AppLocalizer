@@ -16,6 +16,9 @@ struct AutopilotExtrasProgress: Codable, Hashable, Sendable {
     var artworkTooLong: [String] = []
     /// What the artwork's checks found in every language, errors first.
     var artworkChecks: [ArtworkCheck]?
+    /// Why the header and search artwork couldn't be made; nothing of it
+    /// was saved, so Ready for review offers Make Again.
+    var artworkProblem: String?
     var previewsDone = 0
     var previewsTotal = 0
     /// One sentence per App Preview that failed a check or couldn't be

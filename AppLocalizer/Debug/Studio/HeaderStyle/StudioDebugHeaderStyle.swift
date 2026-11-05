@@ -15,14 +15,20 @@ import Foundation
 /// - `st-choose-tpl`: Choose a direction and a header, the second
 ///   direction and the first header chosen.
 /// - `st-choose-free`: Choose a header, Claude Design's own, still images.
+/// - `st-des-header-loop`: Design in a Header 21:9 only run with Motion
+///   loop: the first concept's loop is in, the other two are animating.
+/// - `st-choose-header-loop`: Choose a header in that run, each concept
+///   playing its loop.
 /// - `st-lb-concept`: a concept's header and search full size.
 /// - `st-vid-loop`, `st-vid-loop-rev`: Watch the header loop, v1, and v2
 ///   after the person asked for slower movement.
+/// - `st-ready-header-failed`: Ready for review in that run, its header
+///   not made (the page didn't load), with Make Again.
 @MainActor
 enum StudioDebugHeaderStyle {
     nonisolated static let ids = [
         "st-plan-tpl", "st-plan-free", "st-plan-shotstyle", "st-des-tpl", "st-des-free", "st-choose-tpl", "st-choose-free",
-        "st-lb-concept", "st-vid-loop", "st-vid-loop-rev",
+        "st-des-header-loop", "st-choose-header-loop", "st-lb-concept", "st-vid-loop", "st-vid-loop-rev", "st-ready-header-failed",
     ]
 
     static func scene(for id: String) -> StudioDebugExtras.Scene? {
@@ -52,6 +58,10 @@ enum StudioDebugHeaderStyle {
             StudioDebugExtras.Scene(run: choosingBoth, sheet: true, savesExtras: false)
         case "st-choose-free":
             StudioDebugExtras.Scene(run: headerOnly(.choose, style: .free, motion: .still), sheet: true, savesExtras: false)
+        case "st-choose-header-loop":
+            StudioDebugExtras.Scene(run: headerLoopOnly, sheet: true, savesExtras: false)
+        case "st-des-header-loop":
+            StudioDebugExtras.Scene(run: animatingLoops, sheet: true, savesExtras: false)
         case "st-lb-concept":
             StudioDebugExtras.Scene(run: headerOnly(.choose), sheet: true, setUp: { model in
                 StudioDebugPick.when(model) { $0.studio.run?.stage == .choose } then: { model in
@@ -63,6 +73,8 @@ enum StudioDebugHeaderStyle {
             StudioDebugExtras.Scene(run: watching(version: 1), sheet: true, savesExtras: false)
         case "st-vid-loop-rev":
             StudioDebugExtras.Scene(run: watching(version: 2), sheet: true, savesExtras: false)
+        case "st-ready-header-failed":
+            StudioDebugExtras.Scene(run: headerNotMade, sheet: true, savesExtras: false)
         default:
             nil
         }
@@ -84,6 +96,45 @@ enum StudioDebugHeaderStyle {
         run.proposesConcepts = true
         run.directions = []
         run.concepts = style == .templates ? StudioDebugConcepts.fromTemplates : StudioDebugConcepts.free
+        return run
+    }
+
+    /// Choose in a run that makes only the 21:9 header, as a loop, from
+    /// Claude Design's own concepts, each animated at Design.
+    static var headerLoopOnly: AutopilotRun {
+        var run = headerOnly(.choose, style: .free)
+        run.plan.alsoMakes.setArtworkSize(.headerOnly)
+        run.animatesConcepts = true
+        for index in run.conceptList.indices { run.concepts?[index].motion = StudioDebugWebArtwork.quietIndigo }
+        return run
+    }
+
+    /// `headerLoopOnly` back at Design: the first concept's loop is in, the
+    /// other two have their stills and are being animated.
+    static var animatingLoops: AutopilotRun {
+        var run = headerLoopOnly
+        run.stage = .design
+        for index in run.conceptList.indices.dropFirst() { run.concepts?[index].motion = nil }
+        run.briefReadAt = StudioDebugRuns.date(day: 4, month: 11, hour: 14, minute: 2)
+        return run
+    }
+
+    /// `headerLoopOnly` at Ready for review, B chosen, its header not made:
+    /// the page didn't load.
+    static var headerNotMade: AutopilotRun {
+        var run = headerLoopOnly
+        run.stage = .ready
+        run.art = "B"
+        run.loopReview = AutopilotLoopReview(conceptID: "B")
+        for code in run.plan.localeCodes { run.localeStatus[code] = .fits(note: nil) }
+        var progress = AutopilotExtrasProgress()
+        progress.artworkTotal = run.plan.localeCodes.count
+        progress.artworkDone = progress.artworkTotal
+        progress.artworkProblem = "Couldn’t render the header page in English (U.S.): The page didn’t load"
+        progress.isFinished = true
+        run.extrasProgress = progress
+        run.finishedAt = StudioDebugRuns.date(day: 4, month: 11, hour: 21, minute: 40)
+        run.appendLog(AutopilotCenter.readyLine(for: run), kind: .problem, at: run.finishedAt ?? .now)
         return run
     }
 

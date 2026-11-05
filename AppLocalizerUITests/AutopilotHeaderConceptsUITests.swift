@@ -131,6 +131,64 @@ final class AutopilotHeaderConceptsUITests: XCTestCase {
         XCTAssertTrue(waitUntil { use.isEnabled })
     }
 
+    /// Header 21:9 only with Motion loop: the section names the header,
+    /// says each concept plays its loop, and the three cards fit the
+    /// sheet, the stage list and Ask Claude Design too; a concept full
+    /// size plays with the player's controls.
+    func testAHeaderLoopOnlyRunFitsTheSheet() {
+        app.launch(debugScene: "st-choose-header-loop")
+        let title = element("autopilot.choose.conceptsTitle")
+        XCTAssertTrue(title.waitForExistence(timeout: 20))
+        XCTAssertEqual(text(of: title), "Header")
+        let from = text(of: element("autopilot.choose.conceptsFrom"))
+        XCTAssertTrue(from.hasSuffix("each plays its 20-second loop"), from)
+        attachScreenshot("Choose · header loops")
+
+        let sheet = app.sheets.firstMatch
+        XCTAssertTrue(sheet.exists, "No sheet")
+        let bounds = sheet.frame.insetBy(dx: -1, dy: -1)
+        for id in ["A", "B", "C"] {
+            let card = element("autopilot.choose.concept.\(id)").frame
+            XCTAssertTrue(bounds.contains(card), "Concept \(id) at \(card) is cut off by the sheet at \(bounds).")
+        }
+        for identifier in ["autopilot.choose.ask", "autopilot.stage.plan"] {
+            let frame = app.buttons[identifier].frame
+            XCTAssertTrue(bounds.contains(frame), "\(identifier) at \(frame) is cut off by the sheet at \(bounds).")
+        }
+
+        element("autopilot.choose.concept.A").descendants(matching: .any).matching(identifier: "autopilot.choose.concept.zoom").firstMatch.click()
+        XCTAssertTrue(app.buttons["artwork.loop.play"].waitForExistence(timeout: 20), "The concept's loop plays full size")
+        XCTAssertTrue(text(of: element("studio.viewer.subtitle")).hasPrefix("20-second loop · plays muted on repeat"))
+        attachScreenshot("Viewer · a concept's loop")
+    }
+
+    /// Design while the loops come: the first plays, the others say
+    /// they're being animated.
+    func testDesignSaysWhichLoopsAreComing() {
+        app.launch(debugScene: "st-des-header-loop")
+        let next = element("autopilot.design.next")
+        XCTAssertTrue(next.waitForExistence(timeout: 20))
+        XCTAssertTrue(text(of: next).hasPrefix("Next, you choose: 1 of 3 headers, each playing its 20-second loop."), text(of: next))
+        XCTAssertEqual(text(of: element("autopilot.design.count")), "1 of 3")
+        let second = element("autopilot.design.concept.1")
+        XCTAssertTrue(second.label.contains("is animating its 20-second loop"), second.label)
+        attachScreenshot("Design · loops coming")
+    }
+
+    /// The header couldn't be made: Ready for review says it isn't in
+    /// Review & Push and offers Make Again, not See in Preview.
+    func testAHeaderThatWasntMadeOffersMakeAgain() {
+        app.launch(debugScene: "st-ready-header-failed")
+        let summary = element("autopilot.ready.summary")
+        XCTAssertTrue(summary.waitForExistence(timeout: 20))
+        XCTAssertTrue(text(of: summary).hasPrefix("Header artwork couldn’t be made, so it isn’t in Review & Push."), text(of: summary))
+        let note = element("autopilot.ready.artworkMissing")
+        XCTAssertTrue(note.exists)
+        XCTAssertTrue(note.buttons["Make Again"].exists)
+        XCTAssertFalse(element("autopilot.ready.artwork").exists, "No See in Preview for what isn't there")
+        attachScreenshot("Ready · header not made")
+    }
+
     func testAskingForChangesToOneConcept() {
         app.launch(debugScene: "st-choose-free")
         let card = element("autopilot.choose.concept.B")

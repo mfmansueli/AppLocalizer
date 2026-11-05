@@ -5,35 +5,54 @@
 
 import SwiftUI
 
-/// What Pricing shows for an app that sells nothing yet.
+/// What Pricing shows for an app that sells nothing yet: Create
+/// Subscription, Ask Claude Code to set up the ones the app's code sells,
+/// and the new subscriptions already waiting in Review & Push.
 struct NoSubscriptionsView: View {
-    let appName: String
+    @Bindable var viewModel: PricingViewModel
 
     @Environment(\.openURL) private var openURL
 
+    // The queued list goes in the actions: a fixed-size ContentUnavailableView
+    // above it made the window's minimum height follow the description's
+    // wrapping, and AppKit's layout looped until it crashed.
     var body: some View {
         ContentUnavailableView {
-            Label("\(appName) has no subscriptions", systemImage: "tag")
+            Label("\(viewModel.app.name) has no subscriptions", systemImage: "tag")
         } description: {
-            Text("""
-            Create a subscription group or an in-app purchase in App Store Connect, then refresh. Until then \
-            there’s nothing to price here, but Store Page and App Information work as usual.
-            """)
+            Text(description)
         } actions: {
-            Button("Open App Store Connect") {
-                if let url = URL(string: "https://appstoreconnect.apple.com/apps") { openURL(url) }
+            VStack(spacing: Spacing.xLarge) {
+                HStack(spacing: Spacing.small) {
+                    Button("Create Subscription…") { viewModel.isNewSubscriptionSheetPresented = true }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("pricing.createSubscription")
+                    NewSubscriptionAskButton(app: viewModel.app)
+                    Button("Open App Store Connect") {
+                        if let url = URL(string: "https://appstoreconnect.apple.com/apps") { openURL(url) }
+                    }
+                    .accessibilityIdentifier("pricing.openAppStoreConnect")
+                }
+                .buttonBorderShape(.capsule)
+                if !viewModel.queuedNewSubscriptions.isEmpty {
+                    QueuedNewSubscriptionsList(viewModel: viewModel)
+                        .frame(maxWidth: .infinity)
+                }
             }
-            .buttonBorderShape(.capsule)
-            .accessibilityIdentifier("pricing.openAppStoreConnect")
         }
-        .frame(maxWidth: 460)
+        .frame(maxWidth: 520)
+        .padding(Spacing.xLarge)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("pricing.noSubscriptions")
     }
-}
 
-#Preview {
-    NoSubscriptionsView(appName: "Quiet Timer")
-        .frame(width: 900, height: 600)
+    private var description: String {
+        viewModel.queuedNewSubscriptions.isEmpty
+            ? String(localized: """
+            Create one here or ask your assistant to set up the ones the app’s code sells. They wait in Review & \
+            Push, and the push creates them with their texts, availability and starting price.
+            """)
+            : String(localized: "Push to create them, then refresh to set their prices here.")
+    }
 }

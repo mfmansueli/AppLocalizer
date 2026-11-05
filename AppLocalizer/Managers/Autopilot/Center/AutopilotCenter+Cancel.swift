@@ -13,9 +13,10 @@ extension AutopilotCenter {
     /// (`stop`), after them the set is ready.
     static let cancellableStages: Set<AutopilotStage> = [.pick, .design, .choose, .localize, .watchPreview]
 
-    /// Back to the plan: the directions, the choice and what was being
-    /// made are dropped; the captures and picks stay for the next start. A
-    /// template version saved by Use This Direction stays in the set.
+    /// Back to the plan: the directions, the header concepts, the choices
+    /// and what was being made are dropped; the captures and picks stay for
+    /// the next start. A template version saved by Use This Direction stays
+    /// in the set.
     func cancelRun(appID: StoreApp.ID) {
         guard let run = runs[appID], Self.cancellableStages.contains(run.stage) else { return }
         making.removeValue(forKey: appID)?.stop()
@@ -27,11 +28,19 @@ extension AutopilotCenter {
     }
 
     /// `run` as it was before it started, keeping its captures and picks.
+    /// The header concepts go too: kept, they'd start the next Design with
+    /// every concept in and nothing to move it on to Choose.
     static func resetForPlan(_ run: inout AutopilotRun) {
         run.stage = .plan
         run.directions = []
         run.revision = nil
         run.chosenDirectionID = nil
+        run.proposesConcepts = nil
+        run.animatesConcepts = nil
+        run.concepts = nil
+        run.art = nil
+        run.directionPick = nil
+        run.loopReview = nil
         run.extrasProgress = nil
         run.previewReview = nil
         run.overflows = []

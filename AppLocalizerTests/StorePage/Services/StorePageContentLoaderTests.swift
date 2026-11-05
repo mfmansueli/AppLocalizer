@@ -92,6 +92,43 @@ struct StorePageContentLoaderTests {
         #expect(StorePageContentLoader.version(replaced, isFirstVersion: false) == nil)
     }
 
+    /// "Add for Review" in App Store Connect moves the version to
+    /// `READY_FOR_REVIEW`; the page used to drop it and say the app had no
+    /// version (Alba, 2026-11-05).
+    @Test func aVersionAddedForReviewOpensEditable() async throws {
+        var responses = Canned.lumen
+        responses[0] = Canned.page([
+            Canned.version("v13", "1.3", state: "READY_FOR_DISTRIBUTION", created: "2026-08-01T09:00:00-07:00"),
+            Canned.version("v14", "1.4", state: "READY_FOR_REVIEW", created: "2026-10-01T09:00:00-07:00"),
+        ])
+        let content = try await loader(FakeHTTPTransport(responses)).content(for: app, versionID: nil)
+        #expect(content.version.id == "v14")
+        #expect(content.version.state == .readyForReview)
+        #expect(content.version.isEditable)
+    }
+
+    @Test(arguments: [
+        "WAITING_FOR_EXPORT_COMPLIANCE", "INVALID_BINARY", "ACCEPTED", "PENDING_APPLE_RELEASE", "PROCESSING_FOR_DISTRIBUTION",
+    ])
+    func everyReadOnlyStateIsShown(state: String) async throws {
+        var responses = Canned.lumen
+        responses[0] = Canned.page([Canned.version("v14", "1.4", state: state, created: "2026-10-01T09:00:00-07:00")])
+        let content = try await loader(FakeHTTPTransport(responses)).content(for: app, versionID: nil)
+        #expect(content.version.state.rawValue == state)
+        #expect(!content.version.isEditable)
+    }
+
+    @Test func versionsInStatesItDoesNotShowAreNamedInTheError() async {
+        let transport = FakeHTTPTransport([
+            Canned.page([Canned.version("v12", "1.2", state: "REPLACED_WITH_NEW_VERSION", created: "2026-05-01T09:00:00-07:00")]),
+        ])
+        await #expect(throws: AppStoreConnectError.notFound(
+            detail: "None of its App Store versions is in a state AppLocalizer reads: 1.2 (REPLACED_WITH_NEW_VERSION)."
+        )) {
+            try await loader(transport).content(for: app, versionID: nil)
+        }
+    }
+
     @Test func aRateLimitIsAnError() async {
         let transport = FakeHTTPTransport([CannedHTTPResponse(statusCode: 429, body: #"{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED"}]}"#)])
         await #expect(throws: AppStoreConnectError.rateLimited) {

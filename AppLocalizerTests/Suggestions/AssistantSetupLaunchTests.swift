@@ -62,6 +62,15 @@ struct AssistantSetupLaunchTests {
         #expect(!withoutLauncher.offersLaunch)
     }
 
+    @Test func setupOpenedBeforeTheAppListLoadedOffersItOnceTheAppArrives() {
+        let setup = setup(appID: nil)
+        #expect(!setup.offersLaunch)
+        setup.setApp(id: ClaudeCodeTestFixtures.lumenID, name: "Lumen Journal")
+        #expect(setup.offersLaunch)
+        #expect(setup.launches)
+        #expect(setup.key.appName == "Lumen Journal")
+    }
+
     @Test func theSnippetStepWaitsForTheHelper() async {
         runner.helperExists = false
         let setup = setup()

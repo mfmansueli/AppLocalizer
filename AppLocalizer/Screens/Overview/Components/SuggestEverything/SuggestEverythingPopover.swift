@@ -129,25 +129,11 @@ struct SuggestEverythingPopover: View {
             VStack(spacing: 0) {
                 ForEach(Array(scope.rows.enumerated()), id: \.element.id) { index, row in
                     if index > 0 { Divider() }
-                    HStack(alignment: .firstTextBaseline, spacing: Spacing.medium) {
-                        Text(row.page.title)
-                            .font(.callout.weight(.semibold))
-                            .frame(width: 110, alignment: .leading)
-                        Text(row.detail)
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        if row.isLocked {
-                            Image(systemName: "lock")
-                                .font(.caption)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                    .foregroundStyle(row.isLocked ? Palette.label3 : Palette.label)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("everything.covers.\(row.page.rawValue)")
+                    coverageRow(title: row.page.title, detail: row.detail, isLocked: row.isLocked, id: row.page.rawValue)
+                }
+                if let detail = scope.inAppTextsDetail {
+                    if !scope.rows.isEmpty { Divider() }
+                    coverageRow(title: String(localized: "In-App Texts"), detail: detail, isLocked: false, id: "inAppTexts")
                 }
             }
             .overlay {
@@ -155,6 +141,28 @@ struct SuggestEverythingPopover: View {
                     .strokeBorder(Palette.separator2, lineWidth: 0.5)
             }
         }
+    }
+
+    private func coverageRow(title: String, detail: String, isLocked: Bool, id: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.medium) {
+            Text(title)
+                .font(.callout.weight(.semibold))
+                .frame(width: 110, alignment: .leading)
+            Text(detail)
+                .font(.caption)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if isLocked {
+                Image(systemName: "lock")
+                    .font(.caption)
+                    .accessibilityHidden(true)
+            }
+        }
+        .foregroundStyle(isLocked ? Palette.label3 : Palette.label)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("everything.covers.\(id)")
     }
 
     /// "Claude Code is still sending Store Page suggestions (2 of 4). Those

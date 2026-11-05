@@ -170,6 +170,8 @@ final class AutopilotCenter {
         applyCaptureChoice(to: &run)
         // A design AI makes the header and search as concepts of their own.
         run.proposesConcepts = AutopilotRun.proposesConcepts(plan: run.plan, design: run.designKind) ? true : nil
+        // With Motion loop, the person chooses among moving concepts.
+        run.animatesConcepts = run.proposesConcepts == true && run.plan.alsoMakes.makesMotion ? true : nil
         if run.proposesConcepts == true, run.plan.alsoMakes.artworkStyle == .templates, run.plan.alsoMakes.headerTemplates.isEmpty {
             run.plan.alsoMakes.headerTemplates = AutopilotHeaderTemplate.defaultPicks(recommended: .night)
         }

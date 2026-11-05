@@ -68,6 +68,13 @@ struct InAppTextMatrix: Hashable, Sendable {
         drafts[CellKey(locale: locale, columnID: column.id), default: ListingFieldDraft()].edit(value)
     }
 
+    /// An assistant's value (`propose_in_app_texts`), tagged with who
+    /// proposed it while it's pending.
+    mutating func propose(_ value: String, for column: InAppTextColumn, in locale: StoreLocale, by client: String) -> ListingProposalOutcome {
+        addLocale(locale)
+        return drafts[CellKey(locale: locale, columnID: column.id), default: ListingFieldDraft()].propose(value, by: client)
+    }
+
     mutating func acceptMachineTranslation(_ value: String, for column: InAppTextColumn, in locale: StoreLocale) {
         addLocale(locale)
         drafts[CellKey(locale: locale, columnID: column.id), default: ListingFieldDraft()].acceptMachineTranslation(value)

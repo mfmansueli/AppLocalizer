@@ -11,6 +11,8 @@ import Foundation
 @MainActor
 struct DebugPricingServices: PricingServices {
     var error: AppStoreConnectError?
+    /// Thrown by price sheets alone, e.g. `PricingSheetError.noStartingPrice`.
+    var sheetError: PricingSheetError?
     /// How long a price sheet takes to arrive; long enough keeps the skeleton up.
     var sheetDelay: Duration?
     /// Answers the first sheet at once and delays only the ones after it (a refresh).
@@ -35,6 +37,7 @@ struct DebugPricingServices: PricingServices {
         let request = calls.recordSheetRequest()
         if let sheetDelay, !delaysRefreshOnly || request > 1 { try await Task.sleep(for: sheetDelay) }
         if let error { throw error }
+        if let sheetError { throw sheetError }
         return DebugPriceSheets.sheet(for: product, commission: commission, canReadSales: canReadSales)
     }
 

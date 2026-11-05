@@ -49,8 +49,11 @@ struct PricingSectionBar: View {
             .accessibilityIdentifier("pricing.productBrowser")
             .popover(isPresented: $viewModel.isBrowserPresented, arrowEdge: .bottom) {
                 if let catalog = viewModel.catalog {
-                    ProductBrowserPopover(catalog: catalog, selectedID: product.id) { product in
+                    ProductBrowserPopover(catalog: catalog, selectedID: product.id, queuedNewSubscriptions: viewModel.queuedNewSubscriptions) { product in
                         Task { await viewModel.select(productID: product.id) }
+                    } onNewSubscription: {
+                        viewModel.isBrowserPresented = false
+                        viewModel.isNewSubscriptionSheetPresented = true
                     }
                 }
             }

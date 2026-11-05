@@ -43,9 +43,10 @@ final class AssistantSetupViewModel {
     private var pairedForTest = false
 
     let launcher: ClaudeCodeLauncher?
-    /// The app whose project folder Claude Code starts in.
-    let appID: StoreApp.ID?
-    let appName: String
+    /// The app whose project folder Claude Code starts in. Setup opened
+    /// before the app list loaded gets it later (`setApp(id:name:)`).
+    private(set) var appID: StoreApp.ID?
+    private(set) var appName: String
 
     /// The prompt step 4 asks to send.
     static let testPrompt = "List my apps in AppLocalizer"
@@ -203,6 +204,15 @@ final class AssistantSetupViewModel {
     func chooseLaunch(_ starts: Bool) {
         guard step == .snippet else { return }
         startsClaudeCode = starts
+    }
+
+    /// The selected app once the app list loaded, for setup opened before
+    /// it did: Claude Code is then offered to start in its folder.
+    func setApp(id: StoreApp.ID?, name: String) {
+        guard id != appID || name != appName else { return }
+        appID = id
+        appName = name
+        key.appName = name
     }
 
     /// Change…: the project folder's Open panel.

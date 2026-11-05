@@ -6,8 +6,9 @@
 import Foundation
 
 /// The run's prompts, filled: the concepts prompt (1A or 1B), each
-/// concept's pages (2), the chosen concept's motion (3), and the person's
-/// note appended to 2 or 3 (4).
+/// concept's pages (2), a concept's motion (3: each concept's at Design with
+/// Motion loop, else the chosen one's), and the person's note appended to 2
+/// or 3 (4).
 struct ArtworkPromptBuilder {
     let run: AutopilotRun
     let facts: ArtworkPromptFacts
@@ -42,15 +43,15 @@ struct ArtworkPromptBuilder {
         ArtworkPrompt(id: .pages, text: filler(["concept_json": concept.json]).fill(.pages), about: concept.id)
     }
 
-    /// 3: the chosen concept's pages, animated.
+    /// 3: `concept`'s pages, animated.
     func motion(for concept: AutopilotArtworkConcept) -> ArtworkPrompt {
         let files = run.plan.artworkKinds.map { "pages.\($0.rawValue)" }.joined(separator: " and ")
         let extra = ["concept_json": concept.json, "page_files": "\(files) below, as you sent them"]
         return ArtworkPrompt(id: .motion, text: filler(extra).fill(.motion), about: concept.id)
     }
 
-    /// 4 appended to `base` (2 at Choose, 3 at Watch): the person's note
-    /// for `targets`.
+    /// 4 appended to `base` (2 at Choose, then 3 when each concept loops;
+    /// 3 at Watch): the person's note for `targets`.
     func change(_ note: String, targets: [AutopilotArtworkConcept], after base: ArtworkPrompt) -> ArtworkPrompt {
         let names = targets.map { "\($0.id) (\($0.name))" }.joined(separator: ", ")
         let change = filler(["user_request": note, "targets": names]).fill(.change)

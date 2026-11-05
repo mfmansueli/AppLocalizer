@@ -6,8 +6,8 @@
 import SwiftUI
 
 /// Under the context bar: Translate Missing…, Fill, Import & Export and Add
-/// Locale (the languages the app supports first), with the coverage summary
-/// line on the right.
+/// Locale (the languages the app supports first), plus Ask Claude Code… on
+/// In-App Texts, with the coverage summary line on the right.
 struct StorePageActionBar: View {
     let viewModel: StorePageViewModel
 
@@ -24,6 +24,9 @@ struct StorePageActionBar: View {
             fillMenu
             transferMenu
             addLocaleMenu
+            if viewModel.mode == .inAppTexts {
+                InAppTextsAskButton(app: viewModel.app)
+            }
             Spacer(minLength: Spacing.small)
             Text(viewModel.summaryLine)
                 .font(.caption)

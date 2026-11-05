@@ -159,6 +159,21 @@ struct ArtworkWebRendererTests {
         #expect(FileManager.default.fileExists(atPath: url.path))
     }
 
+    /// A page lent out again right after it's given back (a header's loop
+    /// right after its still) loads its own page: the empty page the last
+    /// render left loading ends cancelled (-999) once the next load starts,
+    /// and that isn't the next load's failure.
+    @Test func aPageLentAgainAtOnceLoadsItsOwnPage() async throws {
+        let page = try await ArtworkWebPage(rules: ArtworkWebBlocking.list())
+        defer { page.close() }
+        let cleared = try #require(page.webView.loadHTMLString("", baseURL: nil), "The empty page clear() starts")
+        let loading = Task { try await page.load(ArtworkWebFixtures.request(kind: .header, pixelWidth: 480), fontCSS: ArtworkWebFonts.css) }
+        while !page.isLoading { await Task.yield() }
+        page.webView(page.webView, didFail: cleared, withError: URLError(.cancelled))
+        let measure = try await loading.value
+        #expect(measure.headline != nil)
+    }
+
     @Test func theBundledFontsAreServed() {
         #expect(ArtworkWebFonts.css.contains("font-family: \"Playfair Display\""))
         #expect(ArtworkWebFonts.data(named: "Anton-Regular.ttf")?.isEmpty == false)

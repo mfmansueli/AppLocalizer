@@ -61,9 +61,41 @@ extension AutopilotRun {
     /// Every concept, in the order it arrived.
     var conceptList: [AutopilotArtworkConcept] { concepts ?? [] }
 
-    /// Concepts with a still page on every canvas.
+    /// Concepts ready to choose: a still page on every canvas and, when
+    /// each concept is animated, an animated one too.
     var designedConcepts: [AutopilotArtworkConcept] {
-        conceptList.filter { $0.isDesigned(plan.artworkKinds) }
+        conceptList.filter(isReady)
+    }
+
+    /// `concept` has every page Choose shows.
+    func isReady(_ concept: AutopilotArtworkConcept) -> Bool {
+        concept.isDesigned(plan.artworkKinds) && (!animatesEachConcept || concept.isAnimated(plan.artworkKinds))
+    }
+
+    /// Every concept is animated at Design, before the person chooses
+    /// (Motion loop, in runs started since).
+    var animatesEachConcept: Bool { animatesConcepts == true && makesHeaderLoop }
+
+    /// Design and Choose play `concept`'s loop: it was animated at Design.
+    func playsLoop(of concept: AutopilotArtworkConcept) -> Bool {
+        animatesEachConcept && concept.isAnimated(plan.artworkKinds)
+    }
+
+    /// Concepts with their stills whose loop is still to come.
+    var conceptsToAnimate: [AutopilotArtworkConcept] {
+        guard animatesEachConcept else { return [] }
+        return conceptList.filter { $0.isDesigned(plan.artworkKinds) && !$0.isAnimated(plan.artworkKinds) }
+    }
+
+    /// The concepts the person's note is for that haven't answered it yet:
+    /// not revised, or, when each concept is animated, revised but without
+    /// its loop again.
+    func conceptsLeft(for revision: AutopilotRevisionRequest) -> [String] {
+        let revised = Set(revision.revisedIDs ?? [])
+        return revision.askedConcepts.filter { id in
+            guard revised.contains(id) else { return true }
+            return animatesEachConcept && concept(id)?.isAnimated(plan.artworkKinds) != true
+        }
     }
 
     /// Every concept has its pages.
@@ -144,6 +176,14 @@ extension AutopilotRun {
     /// for you to watch and approve."
     var nextChoiceLine: String? {
         guard usesConcepts else { return nil }
+        if animatesEachConcept {
+            var line = String(localized: """
+            Next, you choose: \(choicesTitle), each playing its \(AutopilotArtworkMotion.loopSeconds)-second loop. \
+            Then AppLocalizer localizes the one you chose
+            """)
+            if !plan.previewDisplays.isEmpty { line += String(localized: ", and the App Preview is cut") }
+            return line + String(localized: ", for you to watch and approve.")
+        }
         var line = String(localized: "Next, you choose: \(choicesTitle). Then AppLocalizer localizes")
         if makesHeaderLoop {
             line += String(localized: ", \(designKind.title) animates the header you chose into a \(AutopilotArtworkMotion.loopSeconds)-second loop")

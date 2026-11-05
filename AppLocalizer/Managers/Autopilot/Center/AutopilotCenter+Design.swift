@@ -161,8 +161,8 @@ extension AutopilotCenter {
             var revised = run.revision?.revisedIDs ?? []
             if !revised.contains(directionID) { revised.append(directionID) }
             run.revision?.revisedIDs = revised
-            // A note for concepts too waits for them.
-            let conceptsLeft = (run.revision?.askedConcepts ?? []).filter { !revised.contains($0) }
+            // A note for concepts too waits for them (and their loops).
+            let conceptsLeft = run.revision.map(run.conceptsLeft) ?? []
             guard isLast, conceptsLeft.isEmpty else {
                 run.appendLog(String(localized: "\(name) revised → \(sent) sent to AppLocalizer; more on the way"), kind: .event, at: now())
                 return

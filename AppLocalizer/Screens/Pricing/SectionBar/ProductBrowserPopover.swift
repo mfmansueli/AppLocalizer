@@ -6,11 +6,15 @@
 import SwiftUI
 
 /// Every subscription group with its subscriptions, then the in-app
-/// purchases: name, product ID, duration, review state and base price.
+/// purchases: name, product ID, duration, review state and base price;
+/// then the new subscriptions waiting in Review & Push and New
+/// Subscription….
 struct ProductBrowserPopover: View {
     let catalog: PricingCatalog
     let selectedID: String?
+    var queuedNewSubscriptions: [PendingChange] = []
     let onSelect: (PricingProduct) -> Void
+    var onNewSubscription: (() -> Void)?
 
     var body: some View {
         ScrollView {
@@ -26,6 +30,9 @@ struct ProductBrowserPopover: View {
                         }
                     }
                 }
+                if let onNewSubscription {
+                    newSubscriptions(onNewSubscription)
+                }
             }
             .padding(Spacing.small)
         }
@@ -33,6 +40,44 @@ struct ProductBrowserPopover: View {
         .frame(maxHeight: 420)
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityIdentifier("pricing.productBrowser.popover")
+    }
+
+    private func newSubscriptions(_ onNew: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxSmall) {
+            if !queuedNewSubscriptions.isEmpty {
+                Text("Waiting in Review & Push")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.label2)
+                    .padding(.horizontal, Spacing.small)
+                ForEach(queuedNewSubscriptions) { change in
+                    HStack(spacing: Spacing.small) {
+                        Image(systemName: "plus.circle")
+                            .foregroundStyle(Palette.label2)
+                            .frame(width: 18)
+                            .accessibilityHidden(true)
+                        Text(change.title)
+                        Spacer(minLength: Spacing.small)
+                        Text(change.newValue)
+                            .monospacedDigit()
+                            .foregroundStyle(Palette.label2)
+                    }
+                    .padding(.horizontal, Spacing.small)
+                    .padding(.vertical, Spacing.xSmall)
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            Divider()
+                .padding(.vertical, Spacing.xxSmall)
+            Button(action: onNew) {
+                Label("New Subscription…", systemImage: "plus")
+                    .padding(.horizontal, Spacing.small)
+                    .padding(.vertical, Spacing.xSmall)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("pricing.productBrowser.newSubscription")
+        }
     }
 
     private func row(_ product: PricingProduct) -> some View {

@@ -21,6 +21,20 @@ struct InAppTextsContent: Hashable, Sendable {
     var productResourceIDs: [String: String] = [:]
     /// Product ID → locale → localization resource ID.
     var productLocalizations: [String: [StoreLocale: String]] = [:]
+    /// Owner (`groupKey` or a product ID) → the version that takes edits,
+    /// whose localizations the IDs above are. An owner without one has its
+    /// current texts here, and a push finds or creates a draft for them.
+    var editableVersions: [String: String] = [:]
+    /// Owners App Store Connect has no versions for: written the pre-4.4.1
+    /// way.
+    var legacyOwners: Set<String> = []
+
+    /// The owner key of the subscription group.
+    static let groupKey = "group"
+
+    /// The version states that take edits: not submitted yet (a draft
+    /// review submission still counts), or rejected.
+    static let editableVersionStates: Set<String> = ["PREPARE_FOR_SUBMISSION", "READY_FOR_REVIEW", "REJECTED", "DEVELOPER_REJECTED"]
 
     static let empty = InAppTextsContent(products: [], texts: [:])
 

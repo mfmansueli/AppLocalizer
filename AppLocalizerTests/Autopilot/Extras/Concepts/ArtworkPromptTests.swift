@@ -82,7 +82,7 @@ struct ArtworkPromptTests {
     @Test func fromTemplatesTheConceptsPromptNamesThePicks() {
         let prompt = Self.builder(StudioDebugHeaderStyle.headerOnly(.design)).concepts()
         #expect(prompt.id == .conceptsTemplates)
-        #expect(prompt.version == "v3")
+        #expect(prompt.version == "v4")
         #expect(prompt.text.contains("night"))
         #expect(prompt.text.contains("Lumen"))
         #expect(!prompt.text.contains("{{"))
@@ -150,7 +150,7 @@ struct ArtworkPromptTests {
         let prompt = try #require(entries.first)
         #expect(prompt.event == .prompt)
         #expect(prompt.promptID == "artwork-concepts-templates")
-        #expect(prompt.promptVersion == "v3")
+        #expect(prompt.promptVersion == "v4")
         #expect(prompt.provider == "Claude Code")
         #expect(prompt.designSource == "Claude Design")
         #expect(prompt.promptHash?.count == 64)

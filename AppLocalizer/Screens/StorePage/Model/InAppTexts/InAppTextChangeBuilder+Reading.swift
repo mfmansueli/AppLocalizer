@@ -7,7 +7,8 @@ import Foundation
 
 extension InAppTextChangeBuilder {
     /// Lays queued in-app text changes onto a matrix with App Store
-    /// Connect's values, as your edits.
+    /// Connect's values: an assistant's change stays its proposal (so the
+    /// tag survives your next edit), anything else is your edit.
     func apply(_ changes: [PendingChange], to matrix: inout InAppTextMatrix) {
         for change in changes where owns(change) {
             guard let document = StorePageWriteDocument.decode(change.requests.first?.body),
@@ -18,7 +19,11 @@ extension InAppTextChangeBuilder {
                 guard document.data.attributes.keys.contains(attribute) else { continue }
                 let text = document.attribute(attribute) ?? ""
                 guard text != matrix.value(column, in: locale) else { continue }
-                matrix.edit(column, in: locale, to: text)
+                if case let .assistant(client) = change.source {
+                    _ = matrix.propose(text, for: column, in: locale, by: client)
+                } else {
+                    matrix.edit(column, in: locale, to: text)
+                }
             }
         }
     }

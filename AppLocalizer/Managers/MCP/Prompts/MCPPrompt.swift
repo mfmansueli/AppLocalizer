@@ -218,7 +218,10 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
             and that run, in as many calls as you like, each with the value, a one-sentence reason and evidence \
             (git range, file and line, or review). If an item is refused, read the reason, fix it and send it \
             again; run_stopped means the person stopped receiving, so stop. Call end_suggestions when you're \
-            done. Nothing changes until the person accepts each suggestion in AppLocalizer.
+            done. Then call get_in_app_texts and, for each missing subscription group display name and each missing \
+            subscription or in-app purchase display name and description, write it in that language within the \
+            limit and send them with propose_in_app_texts (they're queued for review, not part of the plan). \
+            Nothing changes until the person accepts each suggestion in AppLocalizer.
             """
         case .runScreenshots:
             Self.runScreenshotsInstructions(appPhrase: appPhrase)
@@ -258,7 +261,8 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         propose_direction with templates in AppLocalizer's format, designed with the connected design project, \
         and the header and search as your own HTML pages when the brief has artworkDesign, tried with \
         render_artwork, only the pages when it says noScreenshots; when it hands you prompts, the header and search \
-        come as concepts instead: send each with propose_artwork_concept, its pages with it or after; report what \
+        come as concepts instead: send each with propose_artwork_concept, its pages with it or after, and when a \
+        motion prompt comes for it, its animated pages with revise_artwork_concept; report what \
         you find in it with report_design_source), revise_direction (and revise_artwork_concept for the concepts \
         the note is for), animate_header and revise_loop (the chosen header's animated pages, with \
         revise_artwork_concept), write_captions (then \

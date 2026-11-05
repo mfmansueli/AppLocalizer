@@ -183,6 +183,61 @@ struct ArtworkConceptToolsTests {
         #expect(fixtures.run?.concept("B")?.changeNotes == "A warmer sky")
     }
 
+    // MARK: - Each concept animated at Design
+
+    /// The header page alone, for a Header 21:9 only run.
+    private static let headerPage = JSONValue.object(["header": .string(StudioDebugWebArtwork.quietIndigo.page(for: .header) ?? "")])
+
+    @Test func eachConceptsLoopComesAtDesign() async throws {
+        var run = Self.designing
+        run.animatesConcepts = true
+        let fixtures = MCPAutopilotFixtures(run)
+        _ = try await fixtures.call(ProposeArtworkConceptTool(), ["run": "run-debug", "concept": Self.moonrise])
+        _ = try await fixtures.call(ProposeArtworkConceptTool(), ["run": "run-debug", "concept": ["id": "A"], "artworkDesign": Self.pages])
+        #expect(fixtures.run?.stage == .design)
+
+        let step = try await fixtures.call(NextStepTool(), ["run": "run-debug"])
+        let prompts = step.result["prompts"]?.arrayValue ?? []
+        #expect(prompts.compactMap { $0["id"]?.stringValue } == ["artwork-concepts-templates", "artwork-motion"])
+        #expect(prompts.last?["for"] == "A")
+        #expect(prompts.last?["text"]?.stringValue?.hasPrefix("Animate this concept's pages") == true)
+        let received = step.result["concepts"]?["received"]?.arrayValue?.first
+        #expect(received?["loopToCome"] == true)
+        #expect(received?["pages"]?["header"] != nil, "The stills its motion prompt animates")
+        #expect(step.result["concepts"]?["how"]?.stringValue?.contains("the person chooses among the 20-second loops") == true)
+
+        let brief = try await fixtures.call(GetDesignBriefTool(), ["run": "run-debug"])
+        #expect(brief.result["artworkDesign"]?["motionHow"]?.stringValue?.contains("The person chooses among the loops.") == true)
+
+        let outcome = try await fixtures.call(ReviseArtworkConceptTool(), ["run": "run-debug", "concept_id": "A", "artworkDesign": Self.pages])
+        #expect(outcome.result["status"] == "animated", "\(outcome.result)")
+        #expect(outcome.result["next"]?.stringValue?.hasPrefix("Its loop is in.") == true)
+        #expect(fixtures.run?.concept("A")?.motion?.page(for: .header) == StudioDebugWebArtwork.quietIndigo.page(for: .header))
+        #expect(fixtures.run?.stage == .design, "Two concepts to come")
+    }
+
+    @Test func aNoteOnAMovingConceptAsksForItsLoopAgain() async throws {
+        let fixtures = MCPAutopilotFixtures(StudioDebugHeaderStyle.headerLoopOnly)
+        fixtures.center.requestConceptChanges("Warmer light", conceptIDs: ["B"], forDirections: false, appID: MCPAutopilotFixtures.appID)
+        let revised = try await fixtures.call(
+            ReviseArtworkConceptTool(), ["run": "run-debug", "concept_id": "B", "artworkDesign": Self.headerPage, "change_notes": "Warmer light"]
+        )
+        #expect(revised.result["status"] == "revised", "\(revised.result)")
+        #expect(fixtures.run?.stage == .design)
+
+        let step = try await fixtures.call(NextStepTool(), ["run": "run-debug"])
+        #expect(step.result["action"] == "revise")
+        let prompt = step.result["prompts"]?.arrayValue?.first
+        #expect(prompt?["id"] == "artwork-change")
+        #expect(prompt?["text"]?.stringValue?.hasPrefix("Animate this concept's pages") == true, "Its motion prompt, with the note")
+        #expect(step.result["concepts"]?.arrayValue?.first?["animatedForThisNote"] == false)
+
+        let animated = try await fixtures.call(ReviseArtworkConceptTool(), ["run": "run-debug", "concept_id": "B", "artworkDesign": Self.headerPage])
+        #expect(animated.result["status"] == "animated", "\(animated.result)")
+        #expect(fixtures.run?.stage == .choose)
+        #expect(fixtures.run?.revision == nil)
+    }
+
     @Test func theChosenHeadersAnimatedPagesMakeTheLoop() async throws {
         var run = StudioDebugHeaderStyle.headerOnly(.choose)
         run.stage = .localize

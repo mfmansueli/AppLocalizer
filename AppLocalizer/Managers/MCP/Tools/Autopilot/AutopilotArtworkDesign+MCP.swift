@@ -112,8 +112,9 @@ extension AutopilotArtworkDesign {
 
     /// A run with header concepts: the pages come with each concept
     /// (`propose_artwork_concept`, the prompts next_step hands out), their
-    /// words are the name and their phrases, and motion comes after the
-    /// person chose, from the motion prompt.
+    /// words are the name and their phrases, and motion comes from the
+    /// motion prompt: for each concept at Design with Motion loop, else
+    /// after the person chose.
     static func conceptContract(_ json: inout [String: JSONValue], run: AutopilotRun) {
         let extras = run.plan.alsoMakes
         json["youDesignIt"] = .string("""
@@ -127,7 +128,13 @@ extension AutopilotArtworkDesign {
         json["show"] = .string(extras.artworkShows.rawValue)
         json["motionHow"] = json["motion"]
         json["motion"] = .string(extras.makesMotion ? "loop" : "still")
-        if extras.makesMotion {
+        if run.animatesEachConcept {
+            json["motionHow"] = .string("""
+            Make each concept's stills first, with no animation. Then next_step hands you each concept's motion prompt: \
+            it turns that concept's pages into a \(AutopilotArtworkMotion.loopSeconds)-second loop, sent with \
+            revise_artwork_concept. The person chooses among the loops.
+            """)
+        } else if extras.makesMotion {
             json["motionHow"] = .string("""
             Make the stills first, with no animation. Once the person chose a header, next_step says animate_header: the \
             motion prompt turns that concept's pages into a \(AutopilotArtworkMotion.loopSeconds)-second loop.

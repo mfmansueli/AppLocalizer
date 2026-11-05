@@ -14,12 +14,17 @@ extension AutopilotNextStep {
     /// The concepts part of the design action.
     static func conceptsJSON(run: AutopilotRun) -> JSONValue {
         let extras = run.plan.alsoMakes
+        let toAnimate = Set(run.conceptsToAnimate.map(\.id))
         let received: [JSONValue] = run.conceptList.map { concept in
             let missing = (concept.design ?? AutopilotArtworkDesign()).missing(run.plan.artworkKinds)
-            return [
+            var entry: [String: JSONValue] = [
                 "id": .string(concept.id), "name": .string(concept.name),
                 "pagesToCome": .array(missing.map { .string($0.rawValue) }),
             ]
+            if run.animatesEachConcept { entry["loopToCome"] = .bool(!concept.isAnimated(run.plan.artworkKinds)) }
+            // The stills its motion prompt animates.
+            if toAnimate.contains(concept.id) { entry["pages"] = .object((concept.design?.pages ?? [:]).mapValues(JSONValue.string)) }
+            return .object(entry)
         }
         var json: [String: JSONValue] = [
             "expected": .int(run.expectedConcepts),
@@ -39,10 +44,18 @@ extension AutopilotNextStep {
             ? "Answer the concepts prompt (prompts, id \(run.plan.alsoMakes.artworkStyle == .templates ? "artwork-concepts-templates" : "artwork-concepts-free")) "
             + "and send each of its \(count) concepts with propose_artwork_concept as soon as it's written, recommended: true on the one you recommend. "
             : ""
+        let motion = run.animatesEachConcept
+            ? """
+             Then animate each concept's stills with its motion prompt (artwork-motion, for that concept), trying them \
+            with render_artwork (concept: its id), and send them with revise_artwork_concept (concept_id, artworkDesign): \
+            the person chooses among the \(AutopilotArtworkMotion.loopSeconds)-second loops.
+            """
+            : ""
         return lead + """
         Then make each concept's pages with its pages prompt (artwork-pages, for that concept), trying them with \
-        render_artwork (concept: its id), and send them with propose_artwork_concept: concept {"id": …} and artworkDesign. \
-        The concepts can be made in parallel. The header and search never go in propose_direction in this run.
+        render_artwork (concept: its id), and send them with propose_artwork_concept: concept {"id": …} and artworkDesign.
+        """ + motion + """
+         The concepts can be made in parallel. The header and search never go in propose_direction in this run.
         """
     }
 
@@ -53,21 +66,30 @@ extension AutopilotNextStep {
         let revised = Set(revision?.revisedIDs ?? [])
         let asked = revision?.askedConcepts ?? []
         let concepts: [JSONValue] = asked.compactMap { run.concept($0) }.map { concept in
-            [
+            var entry: [String: JSONValue] = [
                 "id": .string(concept.id), "name": .string(concept.name),
                 "revisedForThisNote": .bool(revised.contains(concept.id)),
                 "artworkDesign": .object((concept.design?.pages ?? [:]).mapValues(JSONValue.string)),
             ]
+            if run.animatesEachConcept { entry["animatedForThisNote"] = .bool(concept.isAnimated(run.plan.artworkKinds)) }
+            return .object(entry)
         }
         var json: [String: JSONValue] = [
             "action": "revise",
             "note": .string(note),
             "concepts": .array(concepts),
-            "how": """
-            Change every concept listed: its pages prompt with the note appended (prompts) says how. Send each with \
-            revise_artwork_concept (concept_id, artworkDesign with the pages that change, change_notes), last: false on \
-            all but the final one; the run goes back to the person after the last.
-            """,
+            "how": .string(run.animatesEachConcept
+                ? """
+                Change every concept listed: its pages prompt with the note appended (prompts) says how. Send each with \
+                revise_artwork_concept (concept_id, artworkDesign with the pages that change, change_notes). Then \
+                animate it again from its new stills with its motion prompt (the note appended), and send those pages \
+                with revise_artwork_concept too. The run goes back to the person once every concept listed has its loop.
+                """
+                : """
+                Change every concept listed: its pages prompt with the note appended (prompts) says how. Send each with \
+                revise_artwork_concept (concept_id, artworkDesign with the pages that change, change_notes), last: false on \
+                all but the final one; the run goes back to the person after the last.
+                """),
         ]
         if revision?.asksDirections == true, case let .object(directions) = reviseDirectionJSON(note: note, run: run) {
             json["directions"] = directions["directions"]

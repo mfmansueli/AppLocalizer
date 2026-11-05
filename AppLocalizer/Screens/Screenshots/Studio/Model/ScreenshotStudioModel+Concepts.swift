@@ -46,21 +46,21 @@ extension ScreenshotStudioModel {
         Task { await goOn() }
     }
 
-    /// A concept's header and search (or its one 16:9 image), full size.
+    /// A concept's header and search (or its one 16:9 image), full size:
+    /// its loop playing with the player's controls once it's animated.
     func openConcept(_ concept: AutopilotArtworkConcept, at index: Int) {
         guard let run else { return }
         let plan = run.plan
         let primary = plan.primaryLocale
-        let loop = plan.alsoMakes.makesMotion
-            ? String(localized: "Becomes a \(AutopilotArtworkMotion.loopSeconds)-second loop if you choose it · ")
-            : ""
+        let plays = run.playsLoop(of: concept)
+        let loop = Self.conceptLoopNote(plays: plays, run: run)
         let items: [StudioViewerItem] = plan.artworkKinds.map { kind in
-            let page = concept.stillDesign?.page(for: kind)
+            let page = (plays ? concept.motion : concept.stillDesign)?.page(for: kind)
             let slots = page.map(AutopilotArtworkPages.slots) ?? AutopilotArtworkMaker.slots(for: kind, plan: plan)
             let artwork = StudioArtworkItem(
                 kind: kind, template: conceptLook, locale: primary,
                 headline: artworkHeadline(ArtworkTextRole.role(for: kind), locale: primary), slots: slots,
-                captures: pickedCaptures(slots, run: run), shows: plan.alsoMakes.artworkShows, isMotion: false, page: page
+                captures: pickedCaptures(slots, run: run), shows: plan.alsoMakes.artworkShows, isMotion: plays, page: page
             )
             var item = artworkItem(artwork, title: Self.conceptTitle(concept, kind: kind), subtitle: loop + concept.sourceTitle)
             item.id = "concept.\(concept.id).\(kind.rawValue)"
@@ -68,6 +68,18 @@ extension ScreenshotStudioModel {
             return item
         }
         show(items, at: min(index, max(items.count - 1, 0)))
+    }
+
+    /// What the viewer says of a concept's motion: "20-second loop · plays
+    /// muted on repeat · ", or, while it's a still, "Becomes a 20-second
+    /// loop if you choose it · " (or "Its 20-second loop is on the way · ").
+    static func conceptLoopNote(plays: Bool, run: AutopilotRun) -> String {
+        let seconds = AutopilotArtworkMotion.loopSeconds
+        if plays { return String(localized: "\(seconds)-second loop · plays muted on repeat · ") }
+        guard run.plan.alsoMakes.makesMotion else { return "" }
+        return run.animatesEachConcept
+            ? String(localized: "Its \(seconds)-second loop is on the way · ")
+            : String(localized: "Becomes a \(seconds)-second loop if you choose it · ")
     }
 
     /// "Moonrise · header · 21:9".
@@ -89,7 +101,9 @@ extension ScreenshotStudioModel {
                 : String(localized: "A note changes the App Preview’s look and every header concept: colors, type, layout and what they show."))
             : String(localized: "A note changes every header concept: colors, type, layout and what they show.")
         var line = what + " " + String(localized: "Ask for Changes… on a concept changes only that one.")
-        if run.makesHeaderLoop {
+        if run.animatesEachConcept {
+            line += " " + String(localized: "Its loop is made again from the changes. After Localize and check you watch the one you chose in every language.")
+        } else if run.makesHeaderLoop {
             line += " " + String(localized: "The loop comes after Localize and check: you watch it and can ask for changes then.")
         }
         return line

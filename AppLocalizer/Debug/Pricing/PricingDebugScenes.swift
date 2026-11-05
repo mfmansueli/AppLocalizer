@@ -77,7 +77,7 @@ enum PricingDebugScenes {
         case "pricing-refresh":
             scene(services: DebugPricingServices(sheetDelay: .seconds(2), delaysRefreshOnly: true, launch: PricingDebugLaunch(refreshes: true)))
         case "pricing-nosubs":
-            scene(app: AppIDs.quiet)
+            scene(app: AppIDs.quiet, pricingModes: DebugWorkspace.pricingModes.merging([AppIDs.quiet: .showSuggestions]) { $1 })
         case "iap":
             scene(launch: PricingDebugLaunch(productID: DebugPricingCatalog.lumenLifetimeID))
         default:

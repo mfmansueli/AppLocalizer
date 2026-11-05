@@ -6,14 +6,16 @@
 import SwiftUI
 
 /// A concept's page on one canvas, rendered in the primary language with
-/// the picks; a gray box while it's still being designed.
+/// the picks, or its loop playing (`plays`: Watch the header loop, and
+/// Design and Choose once each concept is animated); a gray box while it's
+/// still being designed.
 struct AutopilotConceptThumbnail: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
     let concept: AutopilotArtworkConcept?
     let kind: AutopilotArtworkKind
     let width: CGFloat
-    /// Plays the loop's pages (Watch the header loop) instead of the still.
+    /// Plays the loop's pages instead of the still.
     var plays = false
 
     var body: some View {

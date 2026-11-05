@@ -81,7 +81,8 @@ struct PushProgressRow: View {
         case let .failed(text): text
         case .conflict: String(localized: "Changed in App Store Connect since your last fetch. It's back in review.")
         case let .notSent(reason): reason
-        case .queued, .sending, .done: nil
+        case .sending: item.progressNote
+        case .queued, .done: nil
         }
     }
 

@@ -34,12 +34,19 @@ extension AutopilotCenter {
         finishMaking(appID, extras: extras, readyLine: Self.readyLine(for: made))
     }
 
-    /// What the log says when the set is ready.
+    /// What the log says when the set is ready, and what isn't in Review
+    /// & Push because it couldn't be made.
     static func readyLine(for run: AutopilotRun) -> String {
+        let failed = run.extrasProgress?.artworkProblem == nil ? nil : run.plan.alsoMakes.artworkSize.artworkTitle
         guard run.plan.makesScreenshots else {
-            return String(localized: "Ready in Review & Push: \(run.plan.extrasTitle); the live screenshots stay as they are")
+            if let failed {
+                return String(localized: "\(failed) couldn’t be made, so it isn’t in Review & Push; Make Again tries again with what you chose")
+            }
+            let made = run.plan.extrasTitle ?? String(localized: "the extras")
+            return String(localized: "Ready in Review & Push: \(made); the live screenshots stay as they are")
         }
-        return String(localized: "\(run.totalScreenshots) screenshots ready in Review & Push")
+        guard let failed else { return String(localized: "\(run.totalScreenshots) screenshots ready in Review & Push") }
+        return String(localized: "\(run.totalScreenshots) screenshots ready in Review & Push; \(failed.lowercased()) couldn’t be made, Make Again tries again")
     }
 
     /// The chosen header's animated pages, from `revise_artwork_concept`:

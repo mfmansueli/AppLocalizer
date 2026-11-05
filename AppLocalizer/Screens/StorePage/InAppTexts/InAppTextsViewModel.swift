@@ -40,6 +40,10 @@ final class InAppTextsViewModel {
         do {
             state = try await .loaded(services.inAppTexts(for: app))
             rebuild()
+            // Changes queued before App Store Connect moved these texts into
+            // versions (API 4.4.1), or for a version that's since gone,
+            // become what pushing them now takes.
+            if let matrix { sync(matrix) }
         } catch {
             state = .failed(error.localizedDescription)
         }
@@ -68,9 +72,16 @@ final class InAppTextsViewModel {
 
     /// You edited a cell: queued like any other change.
     func edit(_ column: InAppTextColumn, in locale: StoreLocale, to value: String) {
-        guard var matrix, let builder, matrix.value(column, in: locale) != value else { return }
+        guard var matrix, matrix.value(column, in: locale) != value else { return }
         matrix.edit(column, in: locale, to: value)
         self.matrix = matrix
+        sync(matrix)
+    }
+
+    /// Makes the queue hold exactly the matrix's changes, keeping when each
+    /// was first queued.
+    private func sync(_ matrix: InAppTextMatrix) {
+        guard let builder else { return }
         let desired = builder.changes(for: matrix)
         let existing = queue.changes(for: app.id, section: .storePage).filter(builder.owns)
         let desiredIDs = Set(desired.map(\.id))

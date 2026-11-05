@@ -15,7 +15,7 @@ import Observation
 final class KeyAssistantSetupViewModel {
     let controller: KeyAssistantController
     /// The test's subtitle is for this app.
-    let appName: String
+    var appName: String
 
     var vendor: AIProviderVendor {
         didSet {

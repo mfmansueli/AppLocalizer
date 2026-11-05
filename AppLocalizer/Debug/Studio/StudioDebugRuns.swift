@@ -373,7 +373,52 @@ enum StudioDebugRuns {
         }
     }
 
+    private static func localeStatus(of plan: AutopilotPlan, done: Int) -> [String: AutopilotLocaleStatus] {
+        var status: [String: AutopilotLocaleStatus] = [:]
+        for (index, code) in plan.localeCodes.enumerated() {
+            if index < done {
+                let isRTL = StoreLocaleCatalog.locale(code: code)?.isRTL == true
+                let note: String? = code == "ja" ? "Hiragino Sans for Japanese" : isRTL ? "mirrored for right-to-left" : nil
+                status[code] = .fits(note: note)
+            } else {
+                status[code] = index == done ? .checking : .waiting
+            }
+        }
+        return status
+    }
+
+    static func date(day: Int, month: Int, hour: Int = 9, minute: Int = 0, second: Int = 0) -> Date {
+        Calendar.current.date(from: DateComponents(year: 2026, month: month, day: day, hour: hour, minute: minute, second: second)) ?? .now
+    }
+}
+
+// The three directions of a run past Design, built once per plan.
+extension StudioDebugRuns {
     static func directions(design: Bool, of run: AutopilotRun) -> [AutopilotDirection] {
+        let key = DirectionsKey(
+            design: design, slotCount: run.plan.screens.count, displayTypes: run.plan.displayTypes,
+            primaryLocale: run.plan.primaryLocale, localeCodes: run.plan.localeCodes
+        )
+        if let cached = directionsCache[key] { return cached }
+        let directions = makeDirections(design: design, of: run)
+        directionsCache[key] = directions
+        return directions
+    }
+
+    /// What the directions depend on: the caption checks lay out every
+    /// caption in every language and slot, which takes seconds, and the
+    /// scenes and hundreds of tests build these runs again and again.
+    private struct DirectionsKey: Hashable {
+        var design: Bool
+        var slotCount: Int
+        var displayTypes: [ScreenshotDisplayType]
+        var primaryLocale: String
+        var localeCodes: [String]
+    }
+
+    private static var directionsCache: [DirectionsKey: [AutopilotDirection]] = [:]
+
+    private static func makeDirections(design: Bool, of run: AutopilotRun) -> [AutopilotDirection] {
         let names = design
             ? [
                 ("Quiet Indigo", "Your indigo, with a New York headline over the device. Closest to Lumen’s app icon.", TemplateStarter.above),
@@ -400,23 +445,6 @@ enum StudioDebugRuns {
             )
         }
     }
-
-    private static func localeStatus(of plan: AutopilotPlan, done: Int) -> [String: AutopilotLocaleStatus] {
-        var status: [String: AutopilotLocaleStatus] = [:]
-        for (index, code) in plan.localeCodes.enumerated() {
-            if index < done {
-                let isRTL = StoreLocaleCatalog.locale(code: code)?.isRTL == true
-                let note: String? = code == "ja" ? "Hiragino Sans for Japanese" : isRTL ? "mirrored for right-to-left" : nil
-                status[code] = .fits(note: note)
-            } else {
-                status[code] = index == done ? .checking : .waiting
-            }
-        }
-        return status
-    }
-
-    static func date(day: Int, month: Int, hour: Int = 9, minute: Int = 0, second: Int = 0) -> Date {
-        Calendar.current.date(from: DateComponents(year: 2026, month: month, day: day, hour: hour, minute: minute, second: second)) ?? .now
-    }
 }
+
 #endif

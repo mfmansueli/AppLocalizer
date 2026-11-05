@@ -14,10 +14,24 @@ extension AutopilotReadyStageView {
         run.plan.extrasTitle.map { ", " + String(localized: "plus \($0)") } ?? ""
     }
 
+    /// The artwork the run makes couldn't be made: it isn't in Review &
+    /// Push.
+    var artworkMissing: Bool {
+        AutopilotCenter.artworkMissing(run, extras: studio.screenshots.document?.extras)
+    }
+
+    /// "Header artwork couldn’t be made, so it isn’t in Review & Push…"
+    var missingArtworkSummary: String {
+        let what = run.plan.alsoMakes.artworkSize.artworkTitle
+        return String(localized: "\(what) couldn’t be made, so it isn’t in Review & Push. Make Again tries again with what you chose.")
+    }
+
     func extrasNotes(direction: String) -> [AutopilotReadyNote] {
         var notes: [AutopilotReadyNote] = []
         let extras = studio.screenshots.document?.extras
-        if !run.plan.artworkKinds.isEmpty {
+        if artworkMissing {
+            notes.append(missingArtworkNote)
+        } else if !run.plan.artworkKinds.isEmpty {
             let size = run.plan.alsoMakes.artworkSize
             let sizes = size.sizesDetail
             var detail = run.plan.alsoMakes.makesMotion
@@ -56,5 +70,19 @@ extension AutopilotReadyStageView {
             })
         }
         return notes
+    }
+
+    /// Why the artwork couldn't be made, and Make Again.
+    private var missingArtworkNote: AutopilotReadyNote {
+        let size = run.plan.alsoMakes.artworkSize
+        let reason = run.extrasProgress?.artworkProblem.map { $0.hasSuffix(".") ? $0 : $0 + "." }
+            ?? String(localized: "Nothing of it was saved with the set.")
+        return AutopilotReadyNote(
+            title: String(localized: "\(size.artworkTitle) couldn’t be made"),
+            detail: reason + " " + String(localized: "Make Again makes it again from your choices, without designing anything again."),
+            button: String(localized: "Make Again"), identifier: "autopilot.ready.artworkMissing"
+        ) {
+            studio.makeExtrasAgain()
+        }
     }
 }

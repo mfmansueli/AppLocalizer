@@ -68,7 +68,9 @@ enum DebugStorePageContent {
             groupID: "lumen-plus-group",
             groupLocalizations: groupLocalizations,
             productResourceIDs: Dictionary(uniqueKeysWithValues: StorePageSampleData.products.map { ($0.id, "resource-\($0.id)") }),
-            productLocalizations: productLocalizations
+            productLocalizations: productLocalizations,
+            editableVersions: Dictionary(uniqueKeysWithValues: [(InAppTextsContent.groupKey, "lumen-plus-group-v1")]
+                + StorePageSampleData.products.map { ($0.id, "\($0.id)-v1") })
         )
     }
 

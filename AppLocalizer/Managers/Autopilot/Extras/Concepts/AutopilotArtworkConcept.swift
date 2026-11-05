@@ -9,8 +9,9 @@ import Foundation
 /// directions (`propose_artwork_concept`): the idea Claude Design wrote
 /// from the concepts prompt (its name, metaphor, why it fits, how it
 /// follows the person's request and how it loops), then its own pages, a
-/// still per canvas. With a motion loop, the chosen concept gets a second
-/// set of pages, animated (`motion`). The person chooses one at Choose,
+/// still per canvas. With a motion loop, it gets a second set of pages,
+/// animated (`motion`): every concept at Design (`animatesConcepts`), or in
+/// runs from before only the chosen one. The person chooses one at Choose,
 /// apart from the screenshot direction.
 struct AutopilotArtworkConcept: Codable, Hashable, Sendable, Identifiable {
     /// "A", "B", "C": the id the concept was sent with.
@@ -42,9 +43,14 @@ struct AutopilotArtworkConcept: Codable, Hashable, Sendable, Identifiable {
     /// Pages render_artwork passed before the concept's own were sent:
     /// the Design row shows them meanwhile.
     var drafts: AutopilotArtworkDesign?
-    /// The chosen concept's pages animated into the loop (the motion
-    /// prompt); nil until they arrive, and in a still run.
+    /// The pages animated into the loop (the motion prompt); nil until they
+    /// arrive, and in a still run.
     var motion: AutopilotArtworkDesign?
+    /// Animated pages refused at Design for a motion check: the next try
+    /// with a failure is taken, with a warning. Nil before any.
+    var motionRetries: Int?
+    /// The motion checks its loop was taken without, one line each.
+    var motionWarnings: [String]?
     /// Where it came from.
     var source: DesignProjectKind
     /// The assistant that sent it.
@@ -87,5 +93,11 @@ struct AutopilotArtworkConcept: Codable, Hashable, Sendable, Identifiable {
     func isDesigned(_ kinds: [AutopilotArtworkKind]) -> Bool {
         guard let design else { return false }
         return design.missing(kinds).isEmpty
+    }
+
+    /// Every canvas among `kinds` has its animated page.
+    func isAnimated(_ kinds: [AutopilotArtworkKind]) -> Bool {
+        guard let motion, !motion.isEmpty else { return false }
+        return motion.missing(kinds).isEmpty
     }
 }

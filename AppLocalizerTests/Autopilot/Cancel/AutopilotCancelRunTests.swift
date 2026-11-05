@@ -64,6 +64,49 @@ struct AutopilotCancelRunTests {
         #expect(!run.captures.isEmpty)
     }
 
+    /// The header concepts, the picks at Choose and the loop go with the
+    /// directions.
+    @Test(arguments: [AutopilotStage.design, .choose, .localize])
+    func cancellingDropsTheHeaderConcepts(stage: AutopilotStage) throws {
+        var start = StudioDebugHeaderStyle.headerLoopOnly
+        start.stage = stage
+        start.art = "A"
+        start.directionPick = "1"
+        start.loopReview = stage == .localize ? AutopilotLoopReview(conceptID: "A") : nil
+        center.install(start)
+
+        center.cancelRun(appID: appID)
+
+        let run = try #require(run)
+        #expect(run.stage == .plan)
+        #expect(run.conceptList.isEmpty)
+        #expect(run.proposesConcepts == nil)
+        #expect(run.animatesConcepts == nil)
+        #expect(run.art == nil)
+        #expect(run.directionPick == nil)
+        #expect(run.loopReview == nil)
+    }
+
+    /// Kept, the concepts started the next Design with all three in, and
+    /// next_step told Claude Design to wait forever.
+    @Test func theNextDesignAsksForNewConcepts() async throws {
+        var start = StudioDebugHeaderStyle.headerLoopOnly
+        start.art = "A"
+        center.install(start)
+        center.cancelRun(appID: appID)
+
+        // Started again with Claude Design, nothing left to capture.
+        var again = try #require(run)
+        again.stage = .design
+        again.proposesConcepts = true
+        center.install(again)
+
+        let restarted = try #require(run)
+        #expect(restarted.conceptList.isEmpty)
+        #expect(restarted.conceptsLeft == 3)
+        #expect(await center.nextStep(appID: appID, client: AutopilotTestFixtures.client) == .design(remaining: 0))
+    }
+
     /// What's being made stops at its next frame or file.
     @Test func cancellingStopsWhatsBeingMade() async {
         center.install(StudioDebugRuns.run(.localize))

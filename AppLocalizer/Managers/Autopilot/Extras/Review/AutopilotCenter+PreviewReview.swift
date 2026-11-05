@@ -42,7 +42,7 @@ extension AutopilotCenter {
             } else {
                 run.stage = .ready
                 run.finishedAt = now()
-                run.appendLog(readyLine, kind: .event, at: now())
+                run.appendLog(readyLine, kind: run.extrasProgress?.artworkProblem == nil ? .event : .problem, at: now())
             }
         }
     }

@@ -14,8 +14,10 @@ struct AutopilotChooseStageView: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
     let isEditable: Bool
-    /// The width the rows share.
-    @State private var contentWidth: CGFloat = 900
+    /// The width the rows share, measured: it starts at 0 so the concept
+    /// cards it sizes can't lock the page wider than the sheet
+    /// (`AutopilotDesignCardsLayout` keeps it honest).
+    @State private var contentWidth: CGFloat = 0
 
     var body: some View {
         ScrollView {
@@ -27,7 +29,8 @@ struct AutopilotChooseStageView: View {
                     if run.hasDirections {
                         section(
                             run.plan.makesScreenshots ? String(localized: "Screenshots") : String(localized: "App Preview"),
-                            subtitle: Self.directionsFrom(run), identifier: "autopilot.choose.directionsFrom"
+                            subtitle: Self.directionsFrom(run), identifier: "autopilot.choose.directionsFrom",
+                            titleIdentifier: "autopilot.choose.directionsTitle"
                         )
                         directionRows
                     }
@@ -70,12 +73,16 @@ struct AutopilotChooseStageView: View {
         }
     }
 
-    /// Header and search: the concepts, three to a line.
+    /// Header and search (or the one place the run makes): the concepts,
+    /// three to a line, sharing the width the page is offered.
     private var conceptsSection: some View {
         VStack(alignment: .leading, spacing: Spacing.small) {
-            section(String(localized: "Header and search"), subtitle: Self.conceptsFrom(run), identifier: "autopilot.choose.conceptsFrom")
+            section(
+                run.plan.alsoMakes.artworkSize.placeTitle, subtitle: Self.conceptsFrom(run),
+                identifier: "autopilot.choose.conceptsFrom", titleIdentifier: "autopilot.choose.conceptsTitle"
+            )
             let width = Self.conceptWidth(in: contentWidth)
-            HStack(alignment: .top, spacing: Self.conceptSpacing) {
+            AutopilotDesignCardsLayout(spacing: Self.conceptSpacing) {
                 ForEach(run.conceptsToChoose) { concept in
                     AutopilotConceptCard(studio: studio, run: run, concept: concept, isEditable: isEditable, width: width)
                 }
@@ -84,9 +91,10 @@ struct AutopilotChooseStageView: View {
         }
     }
 
-    private func section(_ title: String, subtitle: String, identifier: String) -> some View {
+    private func section(_ title: String, subtitle: String, identifier: String, titleIdentifier: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.small) {
             Text(title).font(.callout.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier(titleIdentifier)
             Spacer(minLength: Spacing.small)
             Text(subtitle)
                 .font(.caption)
@@ -114,7 +122,9 @@ struct AutopilotChooseStageView: View {
     }
 
     /// "Claude Design’s own concepts · header and search share one look ·
-    /// the one you choose becomes a 20-second loop".
+    /// each plays its 20-second loop"; in runs from before, "still for
+    /// now: the one you choose becomes a 20-second loop" (Claude Design
+    /// animates it after Use These, at Localize).
     static func conceptsFrom(_ run: AutopilotRun) -> String {
         let extras = run.plan.alsoMakes
         var line = extras.artworkStyle == .free
@@ -123,8 +133,10 @@ struct AutopilotChooseStageView: View {
         if run.plan.artworkKinds.count > 1 || run.plan.artworkKinds == [.wide] {
             line += String(localized: " · header and search share one look")
         }
-        if extras.makesMotion {
-            line += String(localized: " · the one you choose becomes a \(AutopilotArtworkMotion.loopSeconds)-second loop")
+        if run.animatesEachConcept {
+            line += String(localized: " · each plays its \(AutopilotArtworkMotion.loopSeconds)-second loop")
+        } else if extras.makesMotion {
+            line += String(localized: " · still for now: the one you choose becomes a \(AutopilotArtworkMotion.loopSeconds)-second loop")
         }
         return line
     }

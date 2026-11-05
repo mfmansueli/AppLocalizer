@@ -81,7 +81,7 @@ extension PricingViewModel {
                 calculator: strategy.calculator,
                 mode: mode
             )
-            other.onError = { [weak self] error in self?.onNotice(PricingLoadNotice.notice(for: error)) }
+            other.onError = { [weak self] error in self?.reportLoadError(error) }
             await other.follow()
             followedProductIDs.insert(sibling.id)
         }
@@ -102,7 +102,7 @@ extension PricingViewModel {
             siblingSheets[product.id] = sheet
             return sheet
         } catch {
-            onNotice(PricingLoadNotice.notice(for: error))
+            reportLoadError(error)
             return nil
         }
     }

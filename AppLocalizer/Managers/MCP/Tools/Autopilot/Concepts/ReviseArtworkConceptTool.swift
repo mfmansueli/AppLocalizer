@@ -6,9 +6,10 @@
 import Foundation
 
 /// `revise_artwork_concept`: a concept's new pages. At Choose's "Ask for
-/// changes", the concepts the note is for; after Localize and check, the
-/// chosen header's animated pages (the motion prompt), and at Watch the
-/// header loop, its new version for the person's note.
+/// changes", the concepts the note is for; with Motion loop, each concept's
+/// animated pages at Design (the motion prompt, again after a note); in
+/// runs from before, the chosen header's after Localize and check; and at
+/// Watch the header loop, its new version for the person's note.
 struct ReviseArtworkConceptTool: MCPTool {
     let definition = MCPToolDefinition(
         name: "revise_artwork_concept",
@@ -16,10 +17,12 @@ struct ReviseArtworkConceptTool: MCPTool {
         description: """
         Sends a concept's new pages. When next_step says revise (the person's note on concepts), send each concept the \
         note is for, with artworkDesign holding the pages that change (whole pages; the others stay) and change_notes \
-        saying what changed; pass last: false on every one but the final. When next_step says animate_header or \
-        revise_loop, send the chosen concept's animated pages (every canvas) the same way: AppLocalizer checks that \
-        every animation repeats evenly in the loop, frame 0 is the still, the last frame leads back to it, the data-al \
-        elements never move and no frame jumps, then makes the loops. Rendered and checked like propose_artwork_concept.
+        saying what changed; pass last: false on every one but the final. When next_step hands you a concept's motion \
+        prompt (artwork-motion) at design or revise, or says animate_header or revise_loop, send that concept's \
+        animated pages (every canvas) the same way: AppLocalizer checks that every animation repeats evenly in the \
+        loop, frame 0 is the still, the last frame leads back to it, the data-al elements never move and no frame \
+        jumps; at Design the person then chooses among the loops, later AppLocalizer makes them in every language. \
+        Rendered and checked like propose_artwork_concept.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -59,7 +62,10 @@ struct ReviseArtworkConceptTool: MCPTool {
         }
         let notes = try arguments.optionalString("change_notes")
         if run.stage == .localize || run.stage == .watchPreview {
-            return await animate(concept, design: design, notes: notes, session: session, context: context)
+            return await animate(concept, design: design, notes: notes, atDesign: false, session: session, context: context)
+        }
+        if Self.animatesAtDesign(concept, in: run) {
+            return await animate(concept, design: design, notes: notes, atDesign: true, session: session, context: context)
         }
         var previews: [MCPArtworkPreview.Page] = []
         var checkedDesign = design
@@ -94,14 +100,29 @@ struct ReviseArtworkConceptTool: MCPTool {
         )
     }
 
-    /// The chosen header's animated pages, checked for motion, then the
-    /// loops are made with them.
+    /// At Design, the pages sent are `concept`'s loop when each concept is
+    /// animated: with no note, or for the note once its stills are revised.
+    static func animatesAtDesign(_ concept: AutopilotArtworkConcept, in run: AutopilotRun) -> Bool {
+        guard run.stage == .design, run.animatesEachConcept else { return false }
+        guard let revision = run.revision else { return true }
+        return (revision.revisedIDs ?? []).contains(concept.id)
+    }
+
+    /// A concept's animated pages, checked for motion: at Design its loop
+    /// to choose by, else the chosen header's, and the loops are made with
+    /// them.
     private func animate(
-        _ concept: AutopilotArtworkConcept, design: AutopilotArtworkDesign?, notes: String?, session: MCPAutopilotSession, context: MCPToolContext
+        _ concept: AutopilotArtworkConcept, design: AutopilotArtworkDesign?, notes: String?, atDesign: Bool, session: MCPAutopilotSession,
+        context: MCPToolContext
     ) async -> MCPToolOutcome {
         let run = session.run
         guard let design else {
             return .refused(String(localized: "Send artworkDesign with the animated pages, one per canvas."), target: session.target)
+        }
+        if atDesign, !concept.isDesigned(run.plan.artworkKinds) {
+            return .refused(
+                String(localized: "Send \(concept.name)’s still pages with propose_artwork_concept first, then animate them."), target: session.target
+            )
         }
         let preview = MCPArtworkPreview(session: session, workspace: context.workspace)
         let checked = await preview.check(design, requiresHeadline: false)
@@ -113,22 +134,35 @@ struct ReviseArtworkConceptTool: MCPTool {
         let pages = checked.design.laid(over: concept.motion ?? concept.design)
         let problems = await preview.motionProblems(pages, still: concept.design, moving: moving)
         session.center.logAnswer("revise_artwork_concept", concept: concept, pages: design, checks: problems, run: run, provider: context.clientName)
-        if session.center.refusesMotion(problems, appID: session.app.id) {
+        let refuses = atDesign
+            ? session.center.refusesConceptMotion(problems, conceptID: concept.id, appID: session.app.id)
+            : session.center.refusesMotion(problems, appID: session.app.id)
+        if refuses {
             let fix = problems.joined(separator: " ")
             return .refused(String(localized: "\(fix) Fix it and send the animated pages again."), target: session.target)
         }
         do {
-            try await session.center.addLoop(
-                concept.id, design: checked.design, changeNotes: notes, client: context.clientName, appID: session.app.id,
-                context: session.context
-            )
+            if atDesign {
+                try await session.center.addConceptMotion(
+                    concept.id, design: checked.design, client: context.clientName, appID: session.app.id, context: session.context
+                )
+            } else {
+                try await session.center.addLoop(
+                    concept.id, design: checked.design, changeNotes: notes, client: context.clientName, appID: session.app.id,
+                    context: session.context
+                )
+            }
         } catch {
             return .refused(error.localizedDescription, target: session.target)
         }
-        var result: [String: JSONValue] = [
-            "status": "animated", "concept": .string(concept.id),
-            "next": "AppLocalizer makes the loops in every language now; call next_step.",
-        ]
+        let next: JSONValue = if !atDesign {
+            "AppLocalizer makes the loops in every language now; call next_step."
+        } else if session.center.run(for: session.app.id)?.stage == .design {
+            "Its loop is in. Send the other concepts' animated pages, then call next_step."
+        } else {
+            "Every concept has its loop: the person chooses now. Call next_step."
+        }
+        var result: [String: JSONValue] = ["status": "animated", "concept": .string(concept.id), "next": next]
         if !problems.isEmpty { result["warnings"] = .array(problems.map { .string($0) }) }
         result["artwork"] = .array(checked.pages.map(MCPArtworkPreview.json))
         return MCPToolOutcome(

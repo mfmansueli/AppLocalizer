@@ -29,7 +29,7 @@ struct ArtworkPromptLogEntry: Codable, Hashable, Sendable {
     var designSource: String?
     /// "artwork-concepts-free".
     var promptID: String?
-    /// "v3".
+    /// "v4".
     var promptVersion: String?
     /// The filled prompt's SHA-256.
     var promptHash: String?

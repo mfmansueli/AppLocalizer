@@ -37,6 +37,7 @@ struct AutopilotExtrasRows: View {
     private var artworkState: RowState {
         guard let progress else { return .waiting }
         if !progress.isArtworkDone { return .working }
+        if progress.artworkProblem != nil { return .problem }
         let hasErrors = progress.artworkChecks?.contains(where: \.isError) == true
         return progress.artworkTooLong.isEmpty && !hasErrors ? .done : .problem
     }
@@ -46,6 +47,7 @@ struct AutopilotExtrasRows: View {
         guard progress.isArtworkDone else {
             return String(localized: "Rendering with each language’s caption · \(progress.artworkDone) of \(languages)")
         }
+        if let problem = progress.artworkProblem { return String(localized: "Couldn’t be made: \(problem)") }
         guard !progress.artworkTooLong.isEmpty else {
             let fits = String(localized: "Rendered in \(languages) languages · headline fits in all")
             return run.plan.alsoMakes.artworkMotion == .loop ? fits + String(localized: " · loops seamlessly · 30 fps") : fits

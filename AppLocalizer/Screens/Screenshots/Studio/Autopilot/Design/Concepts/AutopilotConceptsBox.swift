@@ -7,8 +7,9 @@ import SwiftUI
 
 /// Design's header concepts, as they arrive: each row fills in with its
 /// name, where it came from, its metaphor and why it fits, and with Motion
-/// loop its loop, as soon as its idea is sent; its still follows as soon as
-/// a page passes render_artwork.
+/// loop its loop's beats, as soon as its idea is sent; its still follows as
+/// soon as a page passes render_artwork, and, when each concept is
+/// animated, its loop plays once it's in.
 struct AutopilotConceptsBox: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -49,7 +50,9 @@ struct AutopilotConceptsBox: View {
             Button {
                 if let concept { studio.openConcept(concept, at: 0) }
             } label: {
-                AutopilotConceptThumbnail(studio: studio, run: run, concept: concept, kind: kind, width: 150)
+                AutopilotConceptThumbnail(
+                    studio: studio, run: run, concept: concept, kind: kind, width: 150, plays: concept.map(run.playsLoop) ?? false
+                )
             }
             .buttonStyle(.plain)
             .disabled(concept?.stillDesign == nil)
@@ -65,6 +68,15 @@ struct AutopilotConceptsBox: View {
                         .fixedSize(horizontal: false, vertical: true)
                     if run.plan.alsoMakes.makesMotion, let loop = concept.loopLine {
                         Text(loop).font(.caption).foregroundStyle(Palette.label2)
+                    }
+                    if run.conceptsToAnimate.contains(where: { $0.id == concept.id }) {
+                        HStack(spacing: Spacing.xSmall) {
+                            if studio.assistantIsWorking { ProgressView().controlSize(.mini) }
+                            Text("\(run.designKind.title) is animating its \(AutopilotArtworkMotion.loopSeconds)-second loop…")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(Palette.label2)
+                        .accessibilityIdentifier("autopilot.design.concept.animating")
                     }
                 } else {
                     HStack(spacing: Spacing.small) {

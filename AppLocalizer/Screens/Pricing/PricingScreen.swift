@@ -22,7 +22,7 @@ struct PricingScreen: View {
         @Bindable var strategy = viewModel.strategy
         VStack(spacing: 0) {
             if let catalog = viewModel.catalog, catalog.isEmpty {
-                NoSubscriptionsView(appName: viewModel.app.name)
+                NoSubscriptionsView(viewModel: viewModel)
             } else if let message = viewModel.catalogState.errorMessage {
                 failure(message)
             } else {
@@ -40,6 +40,25 @@ struct PricingScreen: View {
                 initialMode: defaultMode,
                 onContinue: { mode in Task { await viewModel.choose(mode) } },
                 onNotNow: viewModel.notNow
+            )
+        }
+        .sheet(isPresented: $viewModel.isNewSubscriptionSheetPresented) {
+            NewSubscriptionSheet(
+                appName: viewModel.app.name,
+                bundleID: viewModel.app.bundleID,
+                groups: viewModel.subscriptionGroups,
+                initial: viewModel.newSubscriptionDefaults(),
+                problems: viewModel.problems(for:),
+                onCancel: { viewModel.isNewSubscriptionSheetPresented = false },
+                onAdd: viewModel.queueNewSubscription
+            )
+        }
+        .sheet(isPresented: $viewModel.isStartingPriceSheetPresented) {
+            StartingPriceSheet(
+                productName: viewModel.selectedProduct?.name ?? "",
+                initialPrice: nil,
+                onCancel: { viewModel.isStartingPriceSheetPresented = false },
+                onSave: viewModel.queueStartingPrice
             )
         }
         .sheet(isPresented: $viewModel.isScheduleSheetPresented) {
@@ -103,6 +122,8 @@ struct PricingScreen: View {
                 Divider()
                 PricingResultsView(viewModel: viewModel)
             }
+        } else if viewModel.needsStartingPrice {
+            StartingPriceView(viewModel: viewModel)
         } else if let message = viewModel.sheetError {
             failure(message)
         } else {

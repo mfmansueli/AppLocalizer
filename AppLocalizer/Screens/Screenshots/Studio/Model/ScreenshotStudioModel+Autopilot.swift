@@ -350,6 +350,14 @@ extension ScreenshotStudioModel {
 
     // MARK: - Ready
 
+    /// Make Again: the artwork that couldn't be made, made again from what
+    /// the person chose; the set reloads once the run is ready again.
+    func makeExtrasAgain() {
+        guard let autopilot else { return }
+        let (appID, context) = (app.id, context)
+        Task { await autopilot.makeExtrasAgain(appID: appID, context: context) }
+    }
+
     /// See the Preview: the new set in the preview.
     func seePreview() {
         isAutopilotPresented = false

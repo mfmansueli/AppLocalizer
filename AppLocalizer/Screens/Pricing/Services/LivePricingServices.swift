@@ -44,7 +44,7 @@ struct LivePricingServices: PricingServices {
         let prices = try await client.subscriptionPrices(subscriptionID: product.id)
         let current = LivePricingMapper.currentPrices(prices, commission: commission, today: dayString(today()))
         guard let basePointID = current[baseTerritoryID]?.appStoreConnectID else {
-            throw AppStoreConnectError.notFound(detail: String(localized: "\(product.name) has no price in the United States yet."))
+            throw PricingSheetError.noStartingPrice(productName: product.name)
         }
         let equalized = try await LivePricingMapper.pointsByTerritory(client.equalizations(pricePointID: basePointID), commission: commission)
         guard var sheet = LivePricingMapper.sheet(

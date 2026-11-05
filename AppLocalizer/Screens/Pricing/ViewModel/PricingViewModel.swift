@@ -36,6 +36,12 @@ final class PricingViewModel {
     /// The tile whose details the map shows.
     var hoveredTerritoryID: PricingRow.ID?
     var isScheduleSheetPresented = false
+    /// Create Subscription, from the empty state or the product browser.
+    var isNewSubscriptionSheetPresented = false
+    /// The selected subscription has no price yet, so Pricing offers Set
+    /// Starting Price instead of a failure.
+    private(set) var needsStartingPrice = false
+    var isStartingPriceSheetPresented = false
     /// Existing subscribers per territory for the schedule's warning; nil
     /// until loaded, or when AppLocalizer can't read them.
     private(set) var subscribers: [String: Int]?
@@ -89,7 +95,10 @@ final class PricingViewModel {
         return catalog?.siblings(of: product) ?? []
     }
 
-    var pendingPriceChangeCount: Int { queue.changes(for: app.id, section: .subscriptionPricing).count }
+    /// Price changes waiting in Review & Push; new subscriptions aren't.
+    var pendingPriceChangeCount: Int {
+        queue.changes(for: app.id, section: .subscriptionPricing).count { !NewSubscriptionChangeBuilder.owns($0) }
+    }
 
     // MARK: - Loading
 
@@ -105,7 +114,7 @@ final class PricingViewModel {
             if let productID { await select(productID: productID, force: true) }
         } catch {
             catalogState = .failed(error.localizedDescription)
-            onNotice(PricingLoadNotice.notice(for: error))
+            reportLoadError(error)
         }
     }
 
@@ -115,6 +124,12 @@ final class PricingViewModel {
         await load()
     }
 
+    /// The banner for a failed read, if it deserves one (a cancelled read
+    /// doesn't).
+    func reportLoadError(_ error: any Error) {
+        if let notice = PricingLoadNotice.notice(for: error) { onNotice(notice) }
+    }
+
     func select(productID: String, force: Bool = false) async {
         guard force || productID != selectedProductID, let product = catalog?.product(id: productID) else { return }
         selectedProductID = productID
@@ -122,6 +137,7 @@ final class PricingViewModel {
         resetProductViews(for: product)
         isLoadingSheet = true
         sheetError = nil
+        needsStartingPrice = false
         if matrix?.product.id != productID { matrix = nil }
         defer { isLoadingSheet = false }
         do {
@@ -138,7 +154,7 @@ final class PricingViewModel {
                 mode: mode,
                 isFollowing: followedProductIDs.contains(productID)
             )
-            matrix.onError = { [weak self] error in self?.onNotice(PricingLoadNotice.notice(for: error)) }
+            matrix.onError = { [weak self] error in self?.reportLoadError(error) }
             if let previous = self.matrix, previous.product.id == productID {
                 matrix.filter = previous.filter
                 matrix.sortOrder = previous.sortOrder
@@ -148,7 +164,8 @@ final class PricingViewModel {
         } catch {
             guard selectedProductID == productID else { return }
             sheetError = error.localizedDescription
-            onNotice(PricingLoadNotice.notice(for: error))
+            needsStartingPrice = error is PricingSheetError
+            if !needsStartingPrice { reportLoadError(error) }
         }
     }
 
@@ -194,7 +211,7 @@ final class PricingViewModel {
 
     /// Keep my prices after confirming: queued price changes go.
     func confirmKeepPrices() {
-        queue.discardAll { $0.appID == app.id && $0.section == .subscriptionPricing }
+        queue.discardAll { $0.appID == app.id && $0.section == .subscriptionPricing && !NewSubscriptionChangeBuilder.owns($0) }
         apply(mode: .keepPrices)
         matrix?.queueDidChange()
     }

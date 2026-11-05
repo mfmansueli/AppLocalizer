@@ -21,6 +21,25 @@ struct SuggestEverythingScopeTests {
         return AppInformationSlotValues(content: content, accessibility: accessibility, builder: builder, changes: [])
     }
 
+    /// Subscriptions and in-app purchases: What It Covers lists their texts
+    /// and the prompt asks for the missing ones, even while the version is
+    /// in review.
+    @Test func inAppTextsAreCoveredWhenTheAppSellsSomething() {
+        let scope = SuggestEverythingScope(
+            appName: "Alba",
+            listing: StorePageContentFixtures.editable.listing(),
+            information: slots(information),
+            inAppTextsMissing: 14
+        )
+        #expect(scope.inAppTextsDetail == "14 missing: group name, subscription and in-app purchase texts")
+        #expect(scope.prompt.hasSuffix(SuggestEverythingScope.inAppTextsRequest))
+        #expect(scope.prompt.contains("propose_in_app_texts"))
+
+        let nothingSold = SuggestEverythingScope(appName: "Alba", listing: StorePageContentFixtures.editable.listing(), information: slots(information))
+        #expect(nothingSold.inAppTextsDetail == nil)
+        #expect(!nothingSold.prompt.contains("propose_in_app_texts"))
+    }
+
     @Test func anEditableVersionCoversEverything() {
         let scope = SuggestEverythingScope(
             appName: "Lumen Journal",

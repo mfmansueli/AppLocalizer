@@ -52,4 +52,13 @@ struct ListingFieldTests {
         #expect(ListingVersionState(apiValue: "METADATA_REJECTED").isEditable)
         #expect(ListingVersionState(apiValue: "SOMETHING_NEW") == .inReview)
     }
+
+    @Test func aDraftReviewSubmissionIsStillEditable() {
+        let added = ListingVersion("1.0", state: ListingVersionState(apiValue: "READY_FOR_REVIEW"))
+        #expect(added.state == .readyForReview)
+        #expect(added.isEditable)
+        #expect(added.title == "Version 1.0 · Ready for Review")
+        #expect(!ListingVersionState(apiValue: "WAITING_FOR_EXPORT_COMPLIANCE").isEditable)
+        #expect(!ListingVersionState(apiValue: "PENDING_APPLE_RELEASE").isLive)
+    }
 }

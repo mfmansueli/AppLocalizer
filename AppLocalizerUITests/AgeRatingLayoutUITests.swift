@@ -26,6 +26,7 @@ final class AgeRatingLayoutUITests: XCTestCase {
         app.launch(debugScene: "in-age")
         let preview = element("appInformation.age.preview")
         XCTAssertTrue(preview.waitForExistence(timeout: 10))
+        restoresTheOpenedWidth()
         resizeWindow(toWidth: Self.defaultWidth)
         assertEverythingFits()
         XCTAssertGreaterThan(preview.frame.minX, element("suggestions.bar").frame.maxX, "The preview sits beside the questions at the default size.")
@@ -40,12 +41,8 @@ final class AgeRatingLayoutUITests: XCTestCase {
         app.launch(debugScene: "in-age-done")
         let preview = element("appInformation.age.preview")
         XCTAssertTrue(preview.waitForExistence(timeout: 10))
+        restoresTheOpenedWidth()
         resizeWindow(toWidth: Self.defaultWidth)
-        // The window keeps its size for the next launch, the other tests'
-        // and the app's own: put it back.
-        addTeardownBlock { @MainActor [self] in
-            resizeWindow(toWidth: Self.defaultWidth)
-        }
 
         resizeWindow(toWidth: Self.defaultWidth - 500)
         XCTAssertLessThan(app.windows.firstMatch.frame.width, Self.defaultWidth - 200, "The window didn't get narrower.")
@@ -59,13 +56,26 @@ final class AgeRatingLayoutUITests: XCTestCase {
     /// The window's `.defaultSize` width.
     private static let defaultWidth: CGFloat = 1200
 
-    /// Drags the window's right edge; it stops at the window's minimum.
+    /// The window keeps its size for the next launch, the other tests' and
+    /// the app's own: the width it opened with is put back after the test.
+    private func restoresTheOpenedWidth() {
+        let openedWidth = app.windows.firstMatch.frame.width
+        addTeardownBlock { @MainActor [self] in
+            resizeWindow(toWidth: openedWidth)
+        }
+    }
+
+    /// Drags the window's right edge, or its left one when the right one
+    /// is at the screen's edge (a window as wide as the space beside it),
+    /// where a click lands off screen; it stops at the window's minimum.
     private func resizeWindow(toWidth width: CGFloat) {
         let window = app.windows.firstMatch
         let delta = width - window.frame.width
         guard abs(delta) > 1 else { return }
-        let edge = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5))
-        edge.click(forDuration: 0.2, thenDragTo: edge.withOffset(CGVector(dx: delta, dy: 0)))
+        let screenWidth = app.menuBars.firstMatch.frame.width
+        let dragsRight = screenWidth == 0 || window.frame.maxX < screenWidth - 2
+        let edge = window.coordinate(withNormalizedOffset: CGVector(dx: dragsRight ? 1 : 0, dy: 0.5))
+        edge.click(forDuration: 0.2, thenDragTo: edge.withOffset(CGVector(dx: dragsRight ? delta : -delta, dy: 0)))
     }
 
     /// The sidebar, the page column, the bar with its buttons and the

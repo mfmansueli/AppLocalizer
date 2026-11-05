@@ -57,6 +57,10 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     /// direction. Nil in runs started before, whose directions carry their
     /// artwork (`AutopilotDirection.artworkDesign`).
     var proposesConcepts: Bool?
+    /// With Motion loop, every concept is animated at Design, so the person
+    /// chooses among the loops. Nil in runs started before, which animate
+    /// only the chosen one, after Use These.
+    var animatesConcepts: Bool?
     /// The header and search concepts, in the order they arrived; nil
     /// before the first, and in runs without them.
     var concepts: [AutopilotArtworkConcept]?

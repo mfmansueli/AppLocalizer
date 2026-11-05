@@ -16,7 +16,7 @@ struct StorePageContentLoader: Sendable {
         let all = versionResources.compactMap { Self.version($0, isFirstVersion: versionResources.count == 1) }
         let versions = StorePageVersion.pickerVersions(from: all)
         guard let version = versions.first(where: { $0.id == versionID }) ?? StorePageVersion.preferred(in: versions) else {
-            throw AppStoreConnectError.notFound(detail: String(localized: "This app has no App Store version yet."))
+            throw AppStoreConnectError.notFound(detail: Self.noVersionDetail(versionResources))
         }
         let appInfos = try await client.appInfos(appID: app.id)
         guard let appInfo = Self.preferredAppInfo(in: appInfos) else {
@@ -61,6 +61,15 @@ struct StorePageContentLoader: Sendable {
             platform: resource.attributes.platform,
             createdDate: resource.attributes.createdDate.flatMap { try? Date($0, strategy: .iso8601) }
         )
+    }
+
+    /// Why there's no version to open: none at all, or only ones in states
+    /// this page doesn't show, named so the cause is visible ("1.0
+    /// (REPLACED_WITH_NEW_VERSION)") instead of "no version yet".
+    static func noVersionDetail(_ resources: [AppStoreConnectResource<AppStoreVersionAttributes>]) -> String {
+        guard !resources.isEmpty else { return String(localized: "This app has no App Store version yet.") }
+        let listed = resources.map { "\($0.attributes.versionString) (\($0.attributes.state ?? "no state"))" }.joined(separator: ", ")
+        return String(localized: "None of its App Store versions is in a state AppLocalizer reads: \(listed).")
     }
 
     /// The app info being prepared with the next version, else the live one.

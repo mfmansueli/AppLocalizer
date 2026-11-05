@@ -15,7 +15,8 @@ struct NextStepTool: MCPTool {
         Says what the app's Screenshot Autopilot run wants from you now: capture (with the targets left and \
         problems to retry with their fix), wait (the person is picking or choosing; ask again after \
         retryAfterSeconds), design (get_design_brief then propose_direction; with prompts, the header and search \
-        concepts with propose_artwork_concept), revise_direction or revise (the person's note; revise_artwork_concept \
+        concepts with propose_artwork_concept, and with Motion loop each concept's motion prompt, its animated pages \
+        with revise_artwork_concept), revise_direction or revise (the person's note; revise_artwork_concept \
         for concepts), animate_header and revise_loop (the chosen header's loop, with revise_artwork_concept), \
         write_captions (missing or too long, then propose_captions with run), revise_app_preview (the \
         person's note on the App Preview, then revise_app_preview), or done. Call it after each step until it \

@@ -1,4 +1,4 @@
-Animate the chosen pages for {{app_name}} into seamless, silent loops of {{loop_seconds}} seconds.
+Animate this concept's pages for {{app_name}} into seamless, silent loops of {{loop_seconds}} seconds.
 
 {{block:reference-headers}}
 

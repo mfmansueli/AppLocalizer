@@ -19,7 +19,12 @@ final class ArtworkWebPage: NSObject, WKNavigationDelegate {
     private var loading: CheckedContinuation<Void, any Error>?
     /// The load in flight, so a late timeout leaves a newer one alone.
     private var loadToken = UUID()
+    /// The navigation `loading` waits for. Another one's end (the empty
+    /// page `clear()` starts, cancelled by the next load) isn't this load's.
+    private var loadingNavigation: WKNavigation?
     private(set) var size = PixelSize(width: 0, height: 0)
+    /// A page is loading and being filled in.
+    var isLoading: Bool { loading != nil }
 
     /// How long a page may take to load and fill in.
     static let loadLimit: Duration = .seconds(30)
@@ -148,6 +153,7 @@ final class ArtworkWebPage: NSObject, WKNavigationDelegate {
     func close() {
         loading?.resume(throwing: CancellationError())
         loading = nil
+        loadingNavigation = nil
         webView.stopLoading()
         window?.contentView = nil
         window?.close()
@@ -182,11 +188,12 @@ final class ArtworkWebPage: NSObject, WKNavigationDelegate {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
             loading?.resume(throwing: CancellationError())
             loading = continuation
-            webView.loadHTMLString(html, baseURL: URL(string: "\(ArtworkWebAssets.scheme)://page/"))
+            loadingNavigation = webView.loadHTMLString(html, baseURL: URL(string: "\(ArtworkWebAssets.scheme)://page/"))
             Task { [weak self] in
                 try? await Task.sleep(for: Self.loadLimit)
                 guard let self, loadToken == token, let loading else { return }
                 self.loading = nil
+                loadingNavigation = nil
                 webView.stopLoading()
                 loading.resume(throwing: ArtworkWebError.timedOut)
             }
@@ -195,20 +202,20 @@ final class ArtworkWebPage: NSObject, WKNavigationDelegate {
 
     // MARK: - WKNavigationDelegate
 
-    func webView(_: WKWebView, didFinish _: WKNavigation!) {
-        finishLoading(nil)
+    func webView(_: WKWebView, didFinish navigation: WKNavigation!) {
+        finishLoading(navigation, nil)
     }
 
-    func webView(_: WKWebView, didFail _: WKNavigation!, withError error: any Error) {
-        finishLoading(ArtworkWebError.loadFailed(error.localizedDescription))
+    func webView(_: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
+        finishLoading(navigation, ArtworkWebError.loadFailed(error.localizedDescription))
     }
 
-    func webView(_: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError error: any Error) {
-        finishLoading(ArtworkWebError.loadFailed(error.localizedDescription))
+    func webView(_: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error) {
+        finishLoading(navigation, ArtworkWebError.loadFailed(error.localizedDescription))
     }
 
     func webViewWebContentProcessDidTerminate(_: WKWebView) {
-        finishLoading(ArtworkWebError.loadFailed(String(localized: "the page’s process ended")))
+        finishLoading(nil, ArtworkWebError.loadFailed(String(localized: "the page’s process ended")))
     }
 
     /// Links and other navigations away from the page go nowhere.
@@ -218,9 +225,19 @@ final class ArtworkWebPage: NSObject, WKNavigationDelegate {
         return isPage && navigationAction.targetFrame?.isMainFrame != false ? .allow : .cancel
     }
 
-    private func finishLoading(_ error: (any Error)?) {
-        guard let loading else { return }
+    /// Ends the load in flight when `navigation` is its own (nil: whatever
+    /// is loading, as when the page's process ends).
+    private func finishLoading(_ navigation: WKNavigation?, _ error: (any Error)?) {
+        guard let loading, Self.isOwn(navigation, loading: loadingNavigation) else { return }
         self.loading = nil
+        loadingNavigation = nil
         if let error { loading.resume(throwing: error) } else { loading.resume() }
+    }
+
+    /// Whether a delegate call about `navigation` is the load's: the one it
+    /// started, or any when either isn't known.
+    private static func isOwn(_ navigation: WKNavigation?, loading: WKNavigation?) -> Bool {
+        guard let navigation, let loading else { return true }
+        return navigation === loading
     }
 }

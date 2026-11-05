@@ -33,6 +33,10 @@ struct SuggestEverythingScope: Hashable, Sendable {
     /// What the assistant may still suggest, e.g. "Promotional Text in
     /// every language".
     private var openParts: [String] = []
+    /// What It Covers' In-App Texts line, e.g. "12 missing: group name,
+    /// subscription and in-app purchase texts"; nil when the app sells
+    /// nothing (or they couldn't be read). Not locked by the version.
+    private(set) var inAppTextsDetail: String?
 
     /// Before anything is read: the prompt asks for everything.
     init(appName: String, versionString: String?) {
@@ -42,7 +46,13 @@ struct SuggestEverythingScope: Hashable, Sendable {
 
     /// `newLanguages` are the languages the app's project has and its App
     /// Store page doesn't: their new pages are part of the Store Page.
-    init(appName: String, listing: StoreListing?, information: AppInformationSlotValues?, newLanguages: [StoreLocale] = []) {
+    init(
+        appName: String,
+        listing: StoreListing?,
+        information: AppInformationSlotValues?,
+        newLanguages: [StoreLocale] = [],
+        inAppTextsMissing: Int? = nil
+    ) {
         let version = listing?.version.versionString ?? information?.content.version?.versionString
         self.init(appName: appName, versionString: version)
         self.newLanguages = newLanguages
@@ -53,6 +63,7 @@ struct SuggestEverythingScope: Hashable, Sendable {
         lockedWhile = isLive ? String(localized: "while it’s on the App Store") : String(localized: "while it’s in review")
         if let listing { addStorePage(listing, locked: locked, newLanguages: newLanguages) }
         if let information { addAppInformation(information, locked: locked) }
+        if let inAppTextsMissing { addInAppTexts(missing: inAppTextsMissing) }
     }
 
     /// Reads the app as an assistant would.
@@ -60,11 +71,13 @@ struct SuggestEverythingScope: Hashable, Sendable {
     static func load(app: StoreApp, in workspace: MCPWorkspace) async -> SuggestEverythingScope {
         let listing = try? await MCPListingDraft.load(app: app.id, in: workspace)
         let information = try? await MCPAppInformationDraft.load(app: app.id, in: workspace)
+        let inAppTexts = try? await MCPInAppTextsDraft.load(app: app.id, in: workspace)
         return SuggestEverythingScope(
             appName: app.name,
             listing: listing?.listing,
             information: information?.slots,
-            newLanguages: listing?.newLanguageLocales ?? []
+            newLanguages: listing?.newLanguageLocales ?? [],
+            inAppTextsMissing: inAppTexts.flatMap { $0.content.isEmpty ? nil : $0.missingCount }
         )
     }
 
@@ -72,11 +85,13 @@ struct SuggestEverythingScope: Hashable, Sendable {
     var prompt: String {
         let app = versionString.map { "\(appName) \($0)" } ?? appName
         guard isRestricted, !openParts.isEmpty else {
-            return String(localized: """
+            let everything = String(localized: """
             Suggest everything for \(app) in AppLocalizer. Read the project first, then suggest every Store Page field in every \
             language, including languages the app supports that aren’t on the App Store yet, and App Information: General, Age \
             Rating, Accessibility for each device, and App Review. Skip fields I’ve already changed.
             """)
+            guard inAppTextsDetail != nil else { return everything }
+            return everything + " " + Self.inAppTextsRequest
         }
         let parts = openParts.formatted(.list(type: .and))
         return String(localized: """
@@ -85,7 +100,22 @@ struct SuggestEverythingScope: Hashable, Sendable {
         """)
     }
 
+    /// The In-App Texts part of the prompt: they're proposed, not suggested.
+    static var inAppTextsRequest: String {
+        String(localized: """
+        Also propose the In-App Texts that are missing, in every language: the subscription group's display name and each \
+        subscription's and in-app purchase's display name and description (get_in_app_texts, then propose_in_app_texts).
+        """)
+    }
+
     // MARK: - Pages
+
+    private mutating func addInAppTexts(missing: Int) {
+        inAppTextsDetail = missing == 0
+            ? String(localized: "Nothing missing: group name, subscription and in-app purchase texts")
+            : String(localized: "\(missing) missing: group name, subscription and in-app purchase texts")
+        openParts.append(String(localized: "the missing In-App Texts (get_in_app_texts, then propose_in_app_texts)"))
+    }
 
     /// Every field in every language, and the new languages' pages.
     private mutating func addStorePage(_ listing: StoreListing, locked: String, newLanguages: [StoreLocale]) {

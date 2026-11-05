@@ -28,7 +28,7 @@ enum MCPProposalKind: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .screenshots: String(localized: "Template revisions and captions arrive as proposals you accept or reject.")
         case .storeText: String(localized: "Listing text, translations, keywords and What’s New.")
-        case .prices: String(localized: "Always refused for apps set to Keep my prices.")
+        case .prices: String(localized: "New subscriptions, and price changes, which are always refused for apps set to Keep my prices.")
         case .appInformation: String(localized: "Age rating, App Privacy, App Review and export compliance answers.")
         }
     }

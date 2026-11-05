@@ -52,13 +52,15 @@ struct AutopilotReadyStageView: View {
         let languages = run.plan.localeCodes.count == 1 ? String(localized: "1 language") : String(localized: "\(run.plan.localeCodes.count) languages")
         let name = run.chosenDirection?.name ?? String(localized: "the new template")
         if !run.plan.makesScreenshots {
+            if artworkMissing, run.plan.previewDisplays.isEmpty { return missingArtworkSummary }
             let what = run.plan.extrasTitle ?? String(localized: "the extras")
             return String(localized: """
             \(what.prefix(1).uppercased() + what.dropFirst()) in \(languages), in \(name). The live screenshots stay as they \
             are. Everything is in Review & Push; nothing is uploaded yet.
             """)
         }
-        return String(localized: "\(run.totalScreenshots) screenshots for \(run.plan.devicesTitle) in \(languages)\(extrasSummaryPart), in \(name). They’re in Review & Push; nothing is uploaded yet.")
+        let made = String(localized: "\(run.totalScreenshots) screenshots for \(run.plan.devicesTitle) in \(languages)\(extrasSummaryPart), in \(name). They’re in Review & Push; nothing is uploaded yet.")
+        return artworkMissing ? made + " " + missingArtworkSummary : made
     }
 
     private var notes: [AutopilotReadyNote] {

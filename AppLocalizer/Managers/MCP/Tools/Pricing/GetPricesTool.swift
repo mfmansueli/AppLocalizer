@@ -40,7 +40,20 @@ struct GetPricesTool: MCPTool {
         let products = try arguments.optionalString("productId").map { try [catalog.requireProduct($0)] } ?? catalog.catalog.products
         var entries: [JSONValue] = []
         for product in products {
-            let sheet = try await catalog.sheet(for: product)
+            let sheet: MCPPriceSheet
+            do {
+                sheet = try await catalog.sheet(for: product)
+            } catch {
+                // One product without prices (a new subscription) doesn't hide the others.
+                guard products.count > 1 else { throw error }
+                entries.append([
+                    "productId": .string(product.id),
+                    "name": .string(product.name),
+                    "sku": .string(product.productID),
+                    "unavailable": .string(error.localizedDescription),
+                ])
+                continue
+            }
             var entry = sheet.productJSON
             entry["territories"] = .array(sheet.rows().map { Self.entry(for: $0, in: sheet) })
             entries.append(.object(entry))

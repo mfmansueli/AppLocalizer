@@ -20,13 +20,14 @@ enum ArtworkPromptID: String, CaseIterable, Hashable, Sendable {
     case conceptsTemplates = "artwork-concepts-templates"
     /// 2: one concept's pages, a still per place.
     case pages = "artwork-pages"
-    /// 3: the chosen concept's pages, animated into a loop.
+    /// 3: a concept's pages, animated into a loop: each concept's at Design
+    /// with Motion loop (v4), the chosen one's in runs from before.
     case motion = "artwork-motion"
     /// 4: the person's note, appended to 2 or 3.
     case change = "artwork-change"
 
     /// The prompts' version, logged with every use.
-    static let version = "v3"
+    static let version = "v4"
 
     /// A block other prompts include as `{{block:<id>}}`.
     var isBlock: Bool { self == .appContext || self == .referenceHeaders }

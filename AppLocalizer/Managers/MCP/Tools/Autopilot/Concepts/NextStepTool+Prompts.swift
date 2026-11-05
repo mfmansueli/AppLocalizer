@@ -7,8 +7,9 @@ import Foundation
 
 /// The prompts `next_step` hands the assistant in a run with header
 /// concepts: the concepts prompt, each concept's pages prompt, the motion
-/// prompt for the chosen header, and the person's note appended to the
-/// one it's for. Each is logged with its inputs.
+/// prompt (for each concept at Design with Motion loop, else for the chosen
+/// header), and the person's note appended to the one it's for. Each is
+/// logged with its inputs.
 extension NextStepTool {
     /// The prompts for `step`, or none when it needs none.
     static func prompts(for step: AutopilotNextStep, session: MCPAutopilotSession, context: MCPToolContext) async -> [ArtworkPrompt] {
@@ -38,12 +39,19 @@ extension NextStepTool {
             for concept in run.conceptList where !concept.isDesigned(run.plan.artworkKinds) {
                 prompts.append(builder.pages(for: concept))
             }
+            for concept in run.conceptsToAnimate {
+                prompts.append(builder.motion(for: concept))
+            }
             return prompts
         case let .revise(note):
-            let revised = Set(run.revision?.revisedIDs ?? [])
-            let targets = (run.revision?.askedConcepts ?? []).compactMap { run.concept($0) }
-            return targets.filter { !revised.contains($0.id) }.map { concept in
-                builder.change(note, targets: targets, after: builder.pages(for: concept))
+            guard let revision = run.revision else { return [] }
+            let revised = Set(revision.revisedIDs ?? [])
+            let targets = revision.askedConcepts.compactMap { run.concept($0) }
+            let left = Set(run.conceptsLeft(for: revision))
+            // The still pages first; with a loop per concept, its motion after.
+            return targets.filter { left.contains($0.id) }.map { concept in
+                let base = revised.contains(concept.id) ? builder.motion(for: concept) : builder.pages(for: concept)
+                return builder.change(note, targets: targets, after: base)
             }
         case let .animateHeader(conceptID):
             return run.concept(conceptID).map { [builder.motion(for: $0)] } ?? []

@@ -20,6 +20,11 @@ struct AssistantSetupSheet: View {
         localized: "Suggest Everything needs an assistant. Connect one here; when you’re done, it starts from Overview."
     )
 
+    /// The selected app, which arrives after the sheet when it opened
+    /// before the app list loaded.
+    private let appID: StoreApp.ID?
+    private let appName: String
+
     @State private var viewModel: AssistantSetupViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -34,6 +39,8 @@ struct AssistantSetupSheet: View {
         reason: String? = nil
     ) {
         self.reason = reason
+        self.appID = appID
+        self.appName = appName
         #if DEBUG
         self.reason = reason ?? Self.debugReason
         let step = step ?? Self.debugStep
@@ -72,6 +79,7 @@ struct AssistantSetupSheet: View {
         .frame(width: 680)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("assistantSetup.sheet")
+        .onChange(of: appID) { viewModel.setApp(id: appID, name: appName) }
         .task(id: viewModel.step) {
             if viewModel.step == .test, viewModel.launches, viewModel.testRunID == nil { await viewModel.startTest() }
         }

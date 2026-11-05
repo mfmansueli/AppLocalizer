@@ -45,25 +45,34 @@ struct LiveStorePageServicesTests {
     @Test func inAppTextsReadTheGroupSubscriptionsAndPurchases() async throws {
         let transport = FakeHTTPTransport([
             Canned.page([Canned.named("subscriptionGroups", "grp", #""referenceName":"Lumen Plus""#)]),
+            Canned.page([Canned.named("subscriptionGroupVersions", "gv1", #""version":1,"state":"APPROVED""#)]),
             Canned.page([Canned.named("subscriptionGroupLocalizations", "gl-en", #""locale":"en-US","name":"Lumen Plus""#)]),
             Canned.page([Canned.named("subscriptions", "sub1", #""name":"Monthly","productId":"lumen.monthly""#)]),
+            Canned.page([Canned.named("subscriptionVersions", "sv2", #""version":2,"state":"PREPARE_FOR_SUBMISSION""#)]),
             Canned.page([
                 Canned.named("subscriptionLocalizations", "sl-en", #""locale":"en-US","name":"Lumen Plus Monthly","description":"Unlimited photos""#),
                 Canned.named("subscriptionLocalizations", "sl-de", #""locale":"de-DE","name":"Lumen Plus monatlich","description":null"#),
             ]),
             Canned.page([Canned.named("inAppPurchases", "iap1", #""name":"Lifetime","productId":"lumen.lifetime""#)]),
+            CannedHTTPResponse(statusCode: 404, body: #"{"errors":[{"status":"404","code":"NOT_FOUND"}]}"#),
             Canned.page([Canned.named("inAppPurchaseLocalizations", "pl-en", #""locale":"en-US","name":"Lumen Lifetime","description":"Forever""#)]),
         ])
         let content = try await services(transport).inAppTexts(for: app)
 
         #expect(transport.requests.map { $0.url?.path() } == [
             "/v1/apps/6450000001/subscriptionGroups",
+            "/v1/subscriptionGroups/grp/versions",
             "/v1/subscriptionGroups/grp/subscriptionGroupLocalizations",
             "/v1/subscriptionGroups/grp/subscriptions",
-            "/v1/subscriptions/sub1/subscriptionLocalizations",
+            "/v1/subscriptions/sub1/versions",
+            "/v1/subscriptionVersions/sv2/localizations",
             "/v1/apps/6450000001/inAppPurchasesV2",
+            "/v2/inAppPurchases/iap1/versions",
             "/v2/inAppPurchases/iap1/inAppPurchaseLocalizations",
         ])
+        // The group's only version is approved: its draft is made on push.
+        #expect(content.editableVersions == ["lumen.monthly": "sv2"])
+        #expect(content.legacyOwners == ["lumen.lifetime"])
         #expect(content.groupID == "grp")
         #expect(content.products.map(\.id) == ["lumen.monthly", "lumen.lifetime"])
         #expect(content.products.map(\.kind) == [.subscription, .inAppPurchase])

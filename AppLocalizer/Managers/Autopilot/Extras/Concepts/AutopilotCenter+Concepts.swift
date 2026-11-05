@@ -145,7 +145,7 @@ extension AutopilotCenter {
         guard let run = runs[appID], run.stage == .choose || run.stage == .design, run.canUseChoices else { return }
         let direction = run.directionToUse
         update(appID) { run in
-            if run.makesHeaderLoop, let id = run.art { run.loopReview = AutopilotLoopReview(conceptID: id) }
+            if run.makesHeaderLoop, let concept = run.chosenConcept { run.loopReview = Self.loopReview(of: concept, in: run) }
             let header = run.chosenConcept?.name
             switch (direction?.name, header) {
             case let (name?, header?): run.appendLog(String(localized: "Using \(name) with the \(header) header"), kind: .event, at: now())
@@ -158,6 +158,18 @@ extension AutopilotCenter {
         } else {
             await useHeaderOnly(appID, context: context)
         }
+    }
+
+    /// The header loop of the chosen `concept`: v1 when it was animated at
+    /// Design (Localize makes it right away), else waiting for its
+    /// animated pages.
+    static func loopReview(of concept: AutopilotArtworkConcept, in run: AutopilotRun) -> AutopilotLoopReview {
+        var review = AutopilotLoopReview(conceptID: concept.id)
+        if run.animatesEachConcept, concept.isAnimated(run.plan.artworkKinds) {
+            review.version = 1
+            review.motionWarnings = concept.motionWarnings
+        }
+        return review
     }
 
     /// Use This Header in a run that makes only the header and search: no
@@ -216,6 +228,8 @@ extension AutopilotCenter {
                 let pages = design.laid(over: run.conceptList[index].design)
                 run.concepts?[index].design = pages
             }
+            // Its loop is made again from the new stills, for the same note.
+            if run.animatesEachConcept { Self.clearMotion(of: index, in: &run) }
             run.concepts?[index].isRevised = true
             run.concepts?[index].changeNotes = changeNotes
             run.concepts?[index].receivedAt = now()
@@ -223,8 +237,12 @@ extension AutopilotCenter {
             var revised = run.revision?.revisedIDs ?? []
             if !revised.contains(conceptID) { revised.append(conceptID) }
             run.revision?.revisedIDs = revised
-            let pending = revision.askedConcepts.filter { !revised.contains($0) }
             let what = run.plan.alsoMakes.artworkSize.artworkTitle.lowercased()
+            if run.animatesEachConcept {
+                run.appendLog(String(localized: "\(name) revised → \(what) sent to AppLocalizer; its loop is next"), kind: .event, at: now())
+                return
+            }
+            let pending = revision.askedConcepts.filter { !revised.contains($0) }
             guard isLast, pending.isEmpty, !revision.asksDirections || Self.directionsRevised(run) else {
                 run.appendLog(String(localized: "\(name) revised → \(what) sent to AppLocalizer; more on the way"), kind: .event, at: now())
                 return
@@ -233,6 +251,74 @@ extension AutopilotCenter {
             run.stage = .choose
             run.appendLog(String(localized: "\(name) revised → \(what) sent to AppLocalizer"), kind: .event, at: now())
         }
+    }
+
+    /// A concept's animated pages at Design, when each concept is animated:
+    /// the loop it plays at Choose. Moves on once every concept (and
+    /// direction) is in, or, for the person's note, once every concept it's
+    /// for is revised and animated again.
+    func addConceptMotion(
+        _ conceptID: String, design: AutopilotArtworkDesign, client: String, appID: StoreApp.ID, context: AutopilotContext
+    ) async throws {
+        guard let run = runs[appID], run.stage == .design, run.animatesEachConcept,
+              let index = run.conceptList.firstIndex(where: { $0.id == conceptID })
+        else {
+            throw AutopilotError(String(localized: "The run isn’t animating header concepts now. Call next_step to see what AppLocalizer wants."))
+        }
+        let concept = run.conceptList[index]
+        guard concept.isDesigned(run.plan.artworkKinds) else {
+            throw AutopilotError(String(localized: "Send \(concept.name)’s still pages with propose_artwork_concept first, then animate them."))
+        }
+        if let revision = run.revision {
+            guard revision.askedConcepts.contains(conceptID) else {
+                throw AutopilotError(String(localized: "The person’s note isn’t about \(concept.name): leave its loop as it is."))
+            }
+            guard (revision.revisedIDs ?? []).contains(conceptID) else {
+                throw AutopilotError(String(localized: "Send \(concept.name)’s changed still pages first (revise_artwork_concept), then animate them."))
+            }
+        }
+        let pages = design.laid(over: concept.motion ?? concept.design)
+        let missing = pages.missing(run.plan.artworkKinds)
+        guard missing.isEmpty else {
+            throw AutopilotError(String(localized: "Send the animated page for \(missing.map(\.rawValue).formatted(.list(type: .and))) too."))
+        }
+        update(appID) { run in
+            run.concepts?[index].motion = pages
+            run.concepts?[index].motionRetries = nil
+            let number = index + 1
+            let line = String(localized: "Header concept \(number) · \(concept.name) → \(AutopilotArtworkMotion.loopSeconds)-second loop sent by \(client)")
+            run.appendLog(line, kind: .event, at: now())
+            guard let revision = run.revision, run.conceptsLeft(for: revision).isEmpty,
+                  !revision.asksDirections || Self.directionsRevised(run)
+            else { return }
+            run.revision = nil
+            run.stage = .choose
+        }
+        if runs[appID]?.revision == nil, runs[appID]?.stage == .design { await advance(appID, context: context) }
+    }
+
+    /// The motion checks failed on a concept's animated pages at Design:
+    /// true when they're refused (the first time), false when they're taken
+    /// with the failures as a warning.
+    func refusesConceptMotion(_ problems: [String], conceptID: String, appID: StoreApp.ID) -> Bool {
+        guard !problems.isEmpty, let index = runs[appID]?.conceptList.firstIndex(where: { $0.id == conceptID }) else { return false }
+        if (runs[appID]?.conceptList[index].motionRetries ?? 0) == 0 {
+            update(appID) { $0.concepts?[index].motionRetries = 1 }
+            return true
+        }
+        update(appID) { run in
+            run.concepts?[index].motionWarnings = problems
+            let name = run.conceptList[index].name
+            run.appendLog(String(localized: "\(name)’s loop taken after one retry: \(problems[0])"), kind: .problem, at: now())
+        }
+        return false
+    }
+
+    /// Drops a concept's loop, to be animated again.
+    private static func clearMotion(of index: Int, in run: inout AutopilotRun) {
+        run.concepts?[index].motion = nil
+        run.concepts?[index].motionRetries = nil
+        run.concepts?[index].motionWarnings = nil
     }
 
     /// A note for the directions too has had at least one revised.

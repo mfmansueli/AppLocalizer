@@ -49,6 +49,13 @@ final class PushController {
     private let now: () -> Date
     private var task: Task<Void, Never>?
     private var isCancelling = false
+    /// In-App Texts drafts found or made during this push, by
+    /// `InAppDraftWrite.ownerKey`, so every locale's change goes into one.
+    private var inAppDrafts: [String: String] = [:]
+    /// Subscription groups found or made during this push, by
+    /// `SubscriptionGroupPlaceholder.token`, so new subscriptions in the
+    /// same new group share one.
+    private var subscriptionGroups: [String: String] = [:]
     /// Requests this hour, shared with screenshot pushes.
     let rateTracker: RequestRateTracker
     /// Screenshot pushes: images uploaded set by set beside these changes.
@@ -121,6 +128,8 @@ final class PushController {
         guard phase != .running else { return }
         items = changes.filter { !$0.isBlocked }.map { PushItem(change: $0) }
         notice = nil
+        inAppDrafts = [:]
+        subscriptionGroups = [:]
         guard !items.isEmpty else { return }
         run()
     }
@@ -351,38 +360,22 @@ final class PushController {
             }
         }
         for request in change.pushRequests.dropFirst(items[index].sentRequestCount) {
+            let request = try await resolvingSetupPlaceholders(request, at: index, transport: transport)
+            if try await sendSetupStep(request, at: index, transport: transport) {
+                items[index].sentRequestCount += 1
+                continue
+            }
             let resolved = try request.resolved(createdID: items[index].createdID) { try secrets.secret(named: $0) }
             do {
                 let response = try await transport.send(resolved)
                 noteRequest(response.rateLimit)
-                if request.method == .post, let id = Self.createdID(in: response.data) {
-                    items[index].createdID = id
-                }
+                if request.method == .post { noteCreated(response.data, at: index) }
             } catch let error as AppStoreConnectError where error.isDuplicate {
                 guard let update = ExistingLocalizationUpdate(resolved) else { throw error }
                 items[index].createdID = try await updateExisting(update, refusal: error, transport: transport)
             }
             items[index].sentRequestCount += 1
         }
-    }
-
-    /// A new locale's `POST` refused because the locale is there by now:
-    /// the same texts go onto that localization when that overwrites
-    /// nothing. Returns its ID; throws `refusal` when it can't be found.
-    private func updateExisting(
-        _ update: ExistingLocalizationUpdate,
-        refusal: AppStoreConnectError,
-        transport: any PushTransport
-    ) async throws -> String {
-        let found = try await transport.fetch(update.lookupPath)
-        noteRequest(found.rateLimit)
-        guard let existing = update.existing(in: found.data) else { throw refusal }
-        guard existing.overwritten.isEmpty else { throw update.otherText(in: existing.overwritten) }
-        if let request = update.update(id: existing.id) {
-            let response = try await transport.send(request)
-            noteRequest(response.rateLimit)
-        }
-        return existing.id
     }
 
     private func noteRequest(_ rateLimit: AppStoreConnectRateLimit?) {
@@ -443,12 +436,6 @@ final class PushController {
         var conflict: RemoteConflict
     }
 
-    /// The `data.id` of a `POST`'s response: the resource it created.
-    private static func createdID(in data: Data) -> String? {
-        let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        return (object?["data"] as? [String: Any])?["id"] as? String
-    }
-
     /// What happened to one item, for the loop that sends them.
     private enum ItemOutcome {
         case pushed(StoreApp.ID)
@@ -456,5 +443,85 @@ final class PushController {
         /// Not sent, and the rest stop too (rate limit, offline).
         case stopped(String)
         case skipped
+    }
+}
+
+// The writes a refused or versioned localization `POST` turns into, and a
+// new subscription's steps.
+extension PushController {
+    /// The `data` of a `POST`'s response: the resource it created, kept
+    /// for `{createdID}` and `{createdID:<type>}`.
+    private func noteCreated(_ data: Data, at index: Int) {
+        let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let resource = object?["data"] as? [String: Any]
+        guard let id = resource?["id"] as? String else { return }
+        items[index].createdID = id
+        if let type = resource?["type"] as? String { items[index].createdIDs[type] = id }
+    }
+
+    /// The request with its `{subscriptionGroup:…}` (found or created now,
+    /// once per push) and `{createdID:<type>}` filled in.
+    private func resolvingSetupPlaceholders(_ request: PushRequest, at index: Int, transport: any PushTransport) async throws -> PushRequest {
+        var request = request
+        while let group = SubscriptionGroupPlaceholder(in: request) {
+            let id: String
+            if let known = subscriptionGroups[group.token] {
+                id = known
+            } else {
+                let found = try await group.send(via: transport)
+                noteRequest(found.rateLimit)
+                id = found.id
+                subscriptionGroups[group.token] = id
+            }
+            request = request.replacing(group.token, with: id)
+        }
+        return try request.resolvingCreatedIDs(items[index].createdIDs)
+    }
+
+    /// Sends a request that's more than one write: an In-App Texts write
+    /// into a version, or a subscription's starting prices. False for any
+    /// other request.
+    private func sendSetupStep(_ request: PushRequest, at index: Int, transport: any PushTransport) async throws -> Bool {
+        if let write = InAppDraftWrite(request) {
+            items[index].createdID = try await send(write, transport: transport)
+            return true
+        }
+        guard let prices = SubscriptionStartingPrices(request) else { return false }
+        defer { items[index].progressNote = nil }
+        try await prices.send(via: transport) { set, total in
+            items[index].progressNote = String(localized: "Prices · \(set) of \(total)")
+        } note: { rateLimit in
+            noteRequest(rateLimit)
+        }
+        return true
+    }
+
+    /// An In-App Texts write into the owner's editable version, the one
+    /// found or made earlier in this push when there is one. Returns the
+    /// localization's ID.
+    private func send(_ write: InAppDraftWrite, transport: any PushTransport) async throws -> String? {
+        let sent = try await write.send(via: transport, knownVersionID: inAppDrafts[write.ownerKey])
+        inAppDrafts[write.ownerKey] = sent.versionID
+        noteRequest(sent.rateLimit)
+        return sent.localizationID
+    }
+
+    /// A new locale's `POST` refused because the locale is there by now:
+    /// the same texts go onto that localization when that overwrites
+    /// nothing. Returns its ID; throws `refusal` when it can't be found.
+    private func updateExisting(
+        _ update: ExistingLocalizationUpdate,
+        refusal: AppStoreConnectError,
+        transport: any PushTransport
+    ) async throws -> String {
+        let found = try await transport.fetch(update.lookupPath)
+        noteRequest(found.rateLimit)
+        guard let existing = update.existing(in: found.data) else { throw refusal }
+        guard existing.overwritten.isEmpty else { throw update.otherText(in: existing.overwritten) }
+        if let request = update.update(id: existing.id) {
+            let response = try await transport.send(request)
+            noteRequest(response.rateLimit)
+        }
+        return existing.id
     }
 }

@@ -17,6 +17,12 @@ struct PushItem: Identifiable, Hashable, Sendable {
     /// created, for later requests that use `{createdID}`. Kept across a
     /// retry, like `sentRequestCount`.
     var createdID: String?
+    /// Every resource this change's `POST`s created, by type, for later
+    /// requests that use `{createdID:<type>}`. Kept across a retry.
+    var createdIDs: [String: String] = [:]
+    /// How far a long step of a sending change got, e.g. "Prices · 40 of
+    /// 175"; nil otherwise.
+    var progressNote: String?
 
     var id: PendingChange.ID { change.id }
 

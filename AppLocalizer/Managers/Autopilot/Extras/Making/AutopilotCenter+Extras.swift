@@ -120,6 +120,7 @@ extension AutopilotCenter {
             update(appID) { run in
                 let total = run.extrasProgress?.artworkTotal ?? 0
                 run.extrasProgress?.artworkDone = total
+                run.extrasProgress?.artworkProblem = error.localizedDescription
                 run.appendLog(String(localized: "Couldn’t make the header and search artwork: \(error.localizedDescription)"), kind: .problem, at: now())
             }
             return []
