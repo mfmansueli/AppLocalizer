@@ -17,19 +17,25 @@ enum AppPreviewMaker {
             throw AppPreviewError.noSpec(request.displayType)
         }
         spec.targetSeconds = request.cut.targetSeconds
-        let segments: [AppPreviewSegment]
-        let endCardSeconds: Double
+        var segments: [AppPreviewSegment]
+        let momentEnds: [String: Double]
         if let clips = request.clips {
             segments = AppPreviewCutter.segments(clips: clips, cut: request.cut, spec: spec)
-            guard !segments.isEmpty else { throw AppPreviewError.noUsableMark }
-            endCardSeconds = AppPreviewCutter.momentsEndCardSeconds(forSegmentsTotal: segments.map(\.duration).reduce(0, +), cut: request.cut, spec: spec)
+            momentEnds = Dictionary(clips.map { ($0.screenID, $0.end) }, uniquingKeysWith: { first, _ in first })
         } else {
-            segments = AppPreviewCutter.segments(
-                marks: request.marks, recordingSeconds: request.recordingSeconds, screenIDs: request.cut.order(request.screens.map(\.id)), spec: spec
+            let screenIDs = request.cut.order(request.screens.map(\.id))
+            segments = AppPreviewCutter.segments(marks: request.marks, recordingSeconds: request.recordingSeconds, screenIDs: screenIDs, spec: spec)
+            momentEnds = Dictionary(
+                AutopilotRecordingMoment.marked(request.marks, recordingSeconds: request.recordingSeconds, screenIDs: screenIDs).map { ($0.screenID, $0.end) },
+                uniquingKeysWith: { first, _ in first }
             )
-            guard !segments.isEmpty else { throw AppPreviewError.noUsableMark }
-            endCardSeconds = AppPreviewCutter.endCardSeconds(forSegmentsTotal: segments.map(\.duration).reduce(0, +), spec: spec)
         }
+        guard !segments.isEmpty else { throw AppPreviewError.noUsableMark }
+        segments = await AppPreviewSettler.settled(segments, recording: request.recording, momentEnds: momentEnds, spec: spec)
+        let segmentsTotal = segments.map(\.duration).reduce(0, +)
+        let endCardSeconds = request.clips == nil
+            ? AppPreviewCutter.endCardSeconds(forSegmentsTotal: segmentsTotal, spec: spec)
+            : AppPreviewCutter.momentsEndCardSeconds(forSegmentsTotal: segmentsTotal, cut: request.cut, spec: spec)
         let styler = AppPreviewStyler(
             template: request.template, locale: request.locale, spec: spec, recordingSize: request.recordingSize, fonts: request.fonts,
             captionScale: request.cut.captionScaleValue

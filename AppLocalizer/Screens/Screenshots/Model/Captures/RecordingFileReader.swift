@@ -44,7 +44,7 @@ enum RecordingFileReader {
         let shown = natural.applying(transform)
         let seconds = try await asset.load(.duration).seconds
         guard seconds.isFinite, seconds > 0 else {
-            throw AutopilotError(String(localized: "The recording is empty. Stop recordVideo with Control-C (SIGINT) so it finishes the file."))
+            throw AutopilotError(String(localized: "The recording is empty. Stop recordVideo with Control-C or killall -INT simctl, so it finishes the file."))
         }
         return (PixelSize(width: Int(abs(shown.width).rounded()), height: Int(abs(shown.height).rounded())), seconds)
     }

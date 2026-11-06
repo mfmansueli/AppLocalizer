@@ -7,18 +7,43 @@ import SwiftUI
 
 /// Draws the panorama starter's picture: a horizontal gradient across all
 /// slots with soft circles and two waves, of which a slot shows its own
-/// window. Mirrored in right-to-left locales, keeping the slot order.
+/// window. Mirrored in right-to-left locales, keeping the slot order. The
+/// header and search artwork draw the whole picture, so they carry on the
+/// screenshots' look.
 struct PanoramaPainter {
     let panorama: LayoutPanorama
-    let canvas: ScreenshotCanvas
+    /// One slot's canvas: a screenshot's, or a share of the artwork's
+    /// width at its height.
+    let slotSize: CGSize
 
+    init(panorama: LayoutPanorama, canvas: ScreenshotCanvas) {
+        self.panorama = panorama
+        slotSize = canvas.size
+    }
+
+    init(panorama: LayoutPanorama, slotSize: CGSize) {
+        self.panorama = panorama
+        self.slotSize = slotSize
+    }
+
+    /// The panorama's slot, filling a slot-sized canvas.
     func draw(in context: inout GraphicsContext) {
-        let width = canvas.width
-        let height = canvas.height
+        draw(in: &context, window: CGRect(origin: .zero, size: slotSize), offset: CGFloat(panorama.slot) * slotSize.width)
+    }
+
+    /// Every slot side by side, from the leading edge.
+    func drawPicture(in context: inout GraphicsContext) {
+        let total = slotSize.width * CGFloat(max(1, panorama.slotCount))
+        draw(in: &context, window: CGRect(x: 0, y: 0, width: total, height: slotSize.height), offset: 0)
+    }
+
+    private func draw(in context: inout GraphicsContext, window: CGRect, offset: CGFloat) {
+        let width = slotSize.width
+        let height = slotSize.height
         let total = width * CGFloat(max(1, panorama.slotCount))
         context.drawLayer { layer in
-            layer.clip(to: Path(CGRect(origin: .zero, size: canvas.size)))
-            layer.translateBy(x: -CGFloat(panorama.slot) * width, y: 0)
+            layer.clip(to: Path(window))
+            layer.translateBy(x: -offset, y: 0)
             if panorama.isMirrored {
                 layer.translateBy(x: total, y: 0)
                 layer.scaleBy(x: -1, y: 1)
@@ -64,7 +89,7 @@ struct PanoramaPainter {
     }
 
     private func wave(amplitude: CGFloat, baseline: CGFloat, phase: CGFloat, total: CGFloat) -> Path {
-        let step = canvas.width * 0.9
+        let step = slotSize.width * 0.9
         var path = Path()
         path.move(to: CGPoint(x: 0, y: baseline))
         var x: CGFloat = 0

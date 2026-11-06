@@ -37,6 +37,14 @@ extension AutopilotRun {
         if recordingSkips?.isEmpty == true { recordingSkips = nil }
     }
 
+    /// The recordings the assistant couldn't make, in the order reported.
+    var skippedRecordings: [AutopilotRecordingSkip] { recordingSkips ?? [] }
+
+    /// Record Again: the skipped recordings are left to make once more.
+    mutating func recordSkippedAgain() {
+        recordingSkips = nil
+    }
+
     /// The assistant couldn't make a recording: the run goes on without it.
     mutating func skipRecording(_ skip: AutopilotRecordingSkip) {
         recordingSkips = (recordingSkips ?? []).filter { $0.target != skip.target } + [skip]

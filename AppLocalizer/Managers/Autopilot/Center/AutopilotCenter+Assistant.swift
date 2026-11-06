@@ -223,12 +223,12 @@ extension AutopilotCenter {
             if review.isRemaking {
                 return .wait(reason: String(localized: "AppLocalizer is making the header loop again."), seconds: 10)
             }
-            if let request = review.request, run.designKind.usesDesignAI { return .reviseLoop(note: request.note) }
+            if let request = review.request, run.designsArtwork { return .reviseLoop(note: request.note) }
         }
         if let review = run.previewReview, review.remake != nil {
             return .wait(reason: String(localized: "AppLocalizer is making the App Preview again."), seconds: 10)
         }
-        if let review = run.previewReview, let request = review.request, run.designKind.usesDesignAI {
+        if let review = run.previewReview, let request = review.request, run.reviser != nil {
             return .revisePreview(note: request.note, review: review)
         }
         return .wait(reason: String(localized: "The person is watching the App Preview."), seconds: 20)
@@ -241,7 +241,7 @@ extension AutopilotCenter {
     private func localizeStep(_ run: AutopilotRun) -> AutopilotNextStep {
         if !run.overflows.isEmpty { return .writeCaptions(run.overflows) }
         if let needs = run.artworkTextNeeds, !needs.isEmpty { return .writeArtworkTexts(needs) }
-        if let review = run.loopReview, review.waitsToMake, review.isAnimating, run.designKind.usesDesignAI {
+        if let review = run.loopReview, review.waitsToMake, review.isAnimating, run.designsArtwork {
             return .animateHeader(conceptID: review.conceptID)
         }
         if let extras = run.extrasProgress, !extras.isFinished {
@@ -269,6 +269,8 @@ extension AutopilotCenter {
     /// Designing: a revision first, then the directions still to come.
     private func designStep(_ run: AutopilotRun) -> AutopilotNextStep {
         guard run.designKind.usesDesignAI else {
+            // The starters are AppLocalizer's; the header concepts the assistant's.
+            if run.usesConcepts, run.conceptsLeft > 0 { return .design(remaining: 0) }
             return .wait(reason: String(localized: "AppLocalizer is making directions from its starters."), seconds: 5)
         }
         if let revision = run.revision { return .revise(note: revision.note) }

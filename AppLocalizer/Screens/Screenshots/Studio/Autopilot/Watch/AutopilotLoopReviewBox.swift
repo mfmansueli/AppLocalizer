@@ -49,7 +49,7 @@ struct AutopilotLoopReviewBox: View {
                 .font(.caption)
                 .accessibilityIdentifier("autopilot.loop.warnings")
             }
-            if isEditable, kind.usesDesignAI {
+            if isEditable, run.reviser != nil {
                 FlowLayout(spacing: Spacing.xSmall) {
                     ForEach(Self.quickAsks, id: \.self) { ask in
                         Button(ask) { add(ask) }
@@ -108,7 +108,9 @@ struct AutopilotLoopReviewBox: View {
     }
 
     private var review: AutopilotLoopReview? { run.loopReview }
-    private var kind: DesignProjectKind { run.designKind }
+    /// Who animated it and takes the asks: the design project's AI, or
+    /// Claude in a guided run without one.
+    private var kind: DesignProjectKind { run.reviser ?? run.designKind }
     private var isBusy: Bool { AutopilotCenter.loopIsBusy(run) }
     private var canAsk: Bool { !isBusy && !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 

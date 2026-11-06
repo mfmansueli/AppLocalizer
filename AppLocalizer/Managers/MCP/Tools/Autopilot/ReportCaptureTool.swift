@@ -17,9 +17,9 @@ struct ReportCaptureTool: MCPTool {
         AppLocalizer can read it, a file path). Give the attempt (1–3) and a score from 0 to 1 with notes saying why \
         (e.g. "Keyboard covers the prompt"); the best one is picked. The PNG must be the device's full size, e.g. \
         1320 × 2868 on iPhone, 2007 × 2853 on iPhone Duo's inner display. \
-        AppLocalizer reads the text in it: when the result has a check (text in another language, cut-off labels \
-        or a system prompt), fix what it says and capture it again as the next attempt; a clean attempt is used \
-        over one with a check. The result says how many are left.
+        AppLocalizer reads the text in it and measures how much is blank: when the result has a check (text in \
+        another language, cut-off labels, a system prompt or a mostly blank screen), fix what it says and capture \
+        it again as the next attempt; a clean attempt is used over one with a check. The result says how many are left.
         """,
         inputSchema: MCPToolDefinition.schema(
             [

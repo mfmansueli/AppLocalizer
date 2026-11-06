@@ -87,7 +87,7 @@ struct RerecordMomentTool: MCPTool {
 
     static let how = """
     Launch the app on this screen with the plan's launch arguments for the locale, start recording, hold the \
-    screen about 6 s with a gentle real interaction, stop with kill -INT, upload it with curl --data-binary and \
+    screen about 6 s with a gentle real interaction, stop it with exactly killall -INT simctl, upload it with curl --data-binary and \
     -H 'Content-Type: video/quicktime', and call rerecord_moment with the upload ID, device, locale, start_s and \
     end_s. Only the app may be on screen.
     """

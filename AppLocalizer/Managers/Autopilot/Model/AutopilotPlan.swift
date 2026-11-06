@@ -49,6 +49,12 @@ struct AutopilotPlan: Codable, Hashable, Sendable {
     /// the App Preview's devices, the languages. Nil in runs from before,
     /// which made screenshots. Use `runChoice`.
     var choice: AutopilotRunChoice?
+    /// Without a design AI, the assistant designs the header and search
+    /// concepts: the guided Look offers their style whatever the design
+    /// project (MB Admin, with none, chose Go freely and got no header to
+    /// choose). Nil in Classic plans, where AppLocalizer's starters draw
+    /// them in the chosen look.
+    var assistantDesignsArtwork: Bool?
 
     /// Stop for the person to watch the App Preview before Review & Push,
     /// when the run makes one.

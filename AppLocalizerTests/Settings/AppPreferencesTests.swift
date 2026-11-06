@@ -52,6 +52,19 @@ struct AppPreferencesTests {
         #expect(!relaunched.confirmsDiscarding)
     }
 
+    @Test func theGuidedAutopilotIsTheDefault() {
+        #expect(AppPreferences(defaults: nil).autopilotFront == .guided)
+        let defaults = defaults()
+        defaults.set("someday", forKey: "autopilotFront")
+        #expect(AppPreferences(defaults: defaults).autopilotFront == .guided, "An unknown front falls back to guided")
+    }
+
+    @Test func theClassicAutopilotSurvivesARelaunch() {
+        let defaults = defaults()
+        AppPreferences(defaults: defaults).autopilotFront = .classic
+        #expect(AppPreferences(defaults: defaults).autopilotFront == .classic)
+    }
+
     @Test func unreadablePricingDefaultsFallBackToRecommended() {
         let defaults = defaults()
         defaults.set(Data("not json".utf8), forKey: "pricingDefaults")

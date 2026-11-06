@@ -94,6 +94,11 @@ final class ScreenshotStudioModel {
     let artworkLoop = ArtworkLoopClock()
     /// The Claude Code run AppLocalizer started for this Autopilot run.
     var launchedRunID: ClaudeCodeRun.ID?
+    /// The guided sheet's own state.
+    var guided = GuidedSheetModel()
+    /// The Autopilot front DEBUG scenes show, whatever Settings say; nil
+    /// follows Settings.
+    var frontOverride: AutopilotFront?
     /// Starts Claude Code when its helper is saved; the Autopilot sheet
     /// sets it.
     @ObservationIgnored weak var launcher: ClaudeCodeLauncher?

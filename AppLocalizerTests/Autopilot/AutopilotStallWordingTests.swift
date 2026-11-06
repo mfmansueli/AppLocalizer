@@ -65,5 +65,14 @@ struct AutopilotStallWordingTests {
         #expect(AutopilotStall.notRunning.stageNote == "Paused · Continue picks it up")
         #expect(AutopilotStall.handedBack.stageNote == nil)
     }
+
+    /// A guided run without a design project: the starters are in, the
+    /// assistant's headers aren't.
+    @Test func onlyHeadersLeftAreCountedAsHeaders() {
+        var run = StudioDebugHeaderStyle.headerOnly(.design, style: .free)
+        run.concepts = nil
+        #expect(run.directionsLeft == 0)
+        #expect(AutopilotStall.notRunning.headline(of: run, now: Self.now) == "Paused when AppLocalizer closed, with 3 headers still to design.")
+    }
 }
 #endif

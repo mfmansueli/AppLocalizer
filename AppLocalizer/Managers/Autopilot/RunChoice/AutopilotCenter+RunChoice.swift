@@ -22,10 +22,11 @@ extension AutopilotCenter {
 
     /// Right after Start: with nothing left to capture or record (every
     /// target settled by reused captures), Capture and Pick are skipped and
-    /// the run goes straight to Design with the reused picks.
+    /// the run goes straight to Design with the reused picks. Not while the
+    /// plan waits for the assistant to pick its screens.
     func skipCapturingIfDone(_ appID: StoreApp.ID, context: AutopilotContext) async {
-        guard let run = runs[appID], run.stage == .waiting, run.remainingTargets.isEmpty, run.remainingRecordings.isEmpty,
-              run.openProblems.isEmpty
+        guard let run = runs[appID], run.stage == .waiting, !run.plan.awaitsScreens, run.remainingTargets.isEmpty,
+              run.remainingRecordings.isEmpty, run.openProblems.isEmpty
         else { return }
         update(appID) { run in
             run.pickMissing()

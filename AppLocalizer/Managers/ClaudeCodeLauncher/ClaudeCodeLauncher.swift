@@ -45,6 +45,14 @@ final class ClaudeCodeLauncher {
     /// Asks the person for an app's project folder: an Open panel, canned
     /// in tests and DEBUG scenes.
     @ObservationIgnored var folderChooser: @MainActor (_ appName: String, _ suggestion: String?) -> String?
+    /// Each app's bundle ID, for checking the folder chosen builds it; the
+    /// library sets it once the apps load.
+    @ObservationIgnored var bundleIDLookup: @MainActor (StoreApp.ID) -> String? = { _ in nil }
+    /// Reads what a chosen folder's projects build.
+    @ObservationIgnored var folderChecker: (_ folder: String) -> ProjectFolderCheck = { ProjectFolderCheck.check(folder: $0) }
+    /// Asked when they build other apps: true uses the folder anyway.
+    @ObservationIgnored var mismatchConfirmer: @MainActor (_ appName: String, _ bundleID: String, _ found: [String]) -> Bool
+        = ProjectFolderMismatchAlert.usesAnyway
     /// Told when a run ends, however it ended: Autopilot starts Claude Code
     /// again when it stopped with work left (`AutopilotContinuation`).
     @ObservationIgnored var onRunEnded: (@MainActor (ClaudeCodeRun) -> Void)?
@@ -181,12 +189,53 @@ final class ClaudeCodeLauncher {
 
     /// Choose…: the Open panel for `appName`'s folder. Returns the folder,
     /// or nil when the person cancelled.
+    /// A folder whose projects build other apps is asked about: choose
+    /// another (the panel opens again, one level up) or use it anyway.
     @discardableResult
     func chooseProjectFolder(for appID: StoreApp.ID, appName: String) -> String? {
-        guard let folder = folderChooser(appName, suggestedFolder(for: appID)) else { return nil }
-        setProjectFolder(folder, for: appID)
-        rememberApp(appID, name: appName)
-        return folder
+        var suggestion = panelFolder(for: appID)
+        while let folder = folderChooser(appName, suggestion) {
+            if let bundleID = bundleIDLookup(appID) {
+                let check = folderChecker(folder)
+                if !check.builds(bundleID), !mismatchConfirmer(appName, bundleID, check.appBundleIDs) {
+                    suggestion = Self.parent(of: folder)
+                    continue
+                }
+            }
+            setProjectFolder(folder, for: appID)
+            rememberApp(appID, name: appName)
+            return folder
+        }
+        return nil
+    }
+
+    /// Where the Open panel starts: the suggestion, or the folder around
+    /// it when it's another app's project, so the panel doesn't open inside
+    /// Bruma's folder for MB Admin.
+    func panelFolder(for appID: StoreApp.ID) -> String? {
+        guard let suggestion = suggestedFolder(for: appID) else { return nil }
+        return isOtherAppsFolder(suggestion, appID: appID) ? Self.parent(of: suggestion) : suggestion
+    }
+
+    /// The suggestion setup may keep for the app without asking: none when
+    /// it's another app's folder or its projects build other apps, so the
+    /// person chooses it instead of Claude Code capturing Bruma for MB Admin.
+    func keptSuggestion(for appID: StoreApp.ID) -> String? {
+        guard let suggestion = suggestedFolder(for: appID), !isOtherAppsFolder(suggestion, appID: appID) else { return nil }
+        if let bundleID = bundleIDLookup(appID), !folderChecker(suggestion).builds(bundleID) { return nil }
+        return suggestion
+    }
+
+    private func isOtherAppsFolder(_ folder: String, appID: StoreApp.ID) -> Bool {
+        projectFolders.contains { $0.key != appID && Self.standardized($0.value) == Self.standardized(folder) }
+    }
+
+    private static func standardized(_ path: String) -> String {
+        URL(filePath: path, directoryHint: .isDirectory).standardizedFileURL.path(percentEncoded: false)
+    }
+
+    private static func parent(of path: String) -> String {
+        URL(filePath: path, directoryHint: .isDirectory).deletingLastPathComponent().path(percentEncoded: false)
     }
 
     // MARK: - Runs

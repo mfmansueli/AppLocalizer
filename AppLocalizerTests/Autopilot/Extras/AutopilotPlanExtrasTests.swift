@@ -119,6 +119,36 @@ struct AutopilotPlanExtrasTests {
         #expect(run.previewRecording(for: AutopilotRecordingTarget(displayType: .iPhone, locale: "de-DE"))?.fileID == "abc")
     }
 
+    /// MB Admin's run left both recordings out (a refused command), and
+    /// only the details said so: Record Again makes them once more, and
+    /// Claude Code is started again for them.
+    @Test func skippedRecordingsCanBeRecordedAgain() {
+        var run = AutopilotTestFixtures.run(.capture)
+        run.captures = []
+        run.plan.alsoMakes.makesAppPreview = true
+        AutopilotTestFixtures.captureAll(&run)
+        let targets = run.plan.recordingTargets
+        for target in targets {
+            run.skipRecording(AutopilotRecordingSkip(target: target, reason: "kill -INT isn’t allowed.", reportedAt: .now))
+        }
+        #expect(run.skippedRecordings.count == targets.count)
+        #expect(run.remainingRecordings.isEmpty)
+        #expect(!run.assistantHasWork)
+
+        run.recordSkippedAgain()
+        #expect(run.skippedRecordings.isEmpty)
+        #expect(run.remainingRecordings == targets)
+        #expect(run.assistantHasWork, "Claude Code is started again to record")
+        #expect(!run.isCaptureComplete)
+    }
+
+    /// MB Admin's first iPad recording showed nothing: the UI tests ran on
+    /// clones of the simulator being recorded.
+    @Test func recordingRunsTheTestsOnTheRecordedSimulator() {
+        #expect(AutopilotRun.recordingHow.contains("-parallel-testing-enabled NO"))
+        #expect(AutopilotRun.recordingHow.contains("say in its reason which test to hold longer"))
+    }
+
     @Test func theFooterAddsTheExtrasAndTheirTime() {
         #expect(AutopilotEstimate.summary(for: plan(artwork: .headerAndSearch, preview: .all), design: .claudeDesign)
             == "120 captures in 12 languages, plus header and search artwork and an App Preview in every language"

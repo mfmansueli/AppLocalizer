@@ -47,7 +47,13 @@ struct ClaudeCodeToolUse: Hashable, Sendable {
         case "Edit", "Write", "NotebookEdit":
             return (.file, "\(name) \(string("file_path").map(fileName) ?? "")".trimmingCharacters(in: .whitespaces))
         case "Grep":
-            return (.search, String(localized: "Search for “\(string("pattern") ?? "")”"))
+            let pattern = string("pattern") ?? ""
+            if isPlain(pattern) { return (.search, String(localized: "Search for “\(pattern)”")) }
+            // A regular expression reads as noise in the run's card.
+            guard let place = string("path").map(fileName) ?? string("glob") else {
+                return (.search, String(localized: "Search the project’s files"))
+            }
+            return (.search, String(localized: "Search \(place)"))
         case "Glob":
             return (.search, String(localized: "Find \(string("pattern") ?? "files")"))
         default:
@@ -58,6 +64,12 @@ struct ClaudeCodeToolUse: Hashable, Sendable {
             }
             return (.other, name)
         }
+    }
+
+    /// Words to look for, not a regular expression: MB Admin's run showed
+    /// `"startTime":[0-9.]+,"title":"(Added attachment named '[^']+'|Tap …`.
+    static func isPlain(_ pattern: String) -> Bool {
+        !pattern.isEmpty && pattern.count <= 60 && !pattern.contains(where: "[](){}|\\^$*+?".contains)
     }
 
     /// One line, at most 160 characters.

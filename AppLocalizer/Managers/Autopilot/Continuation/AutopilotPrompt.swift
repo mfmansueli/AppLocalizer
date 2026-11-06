@@ -22,8 +22,9 @@ enum AutopilotPrompt {
         let screens = plan.displayTypes.contains(where: \.hasOwnScreens)
             ? String(localized: "every screen")
             : String(localized: "the \(plan.screens.count) screens")
-        // The assistant picks the screens unless the person keeps theirs.
-        let work = plan.choosesScreens
+        // The assistant picks the screens unless the person keeps theirs,
+        // and always when there are none yet.
+        let work = plan.choosesScreens || plan.awaitsScreens
             ? String(localized: "decide which screens show \(appName) best, build the app, capture them")
             : String(localized: "build the app, capture \(screens)")
         return String(localized: "Run \(appName)’s screenshot plan from AppLocalizer: \(work) on \(plan.devicesTitle) in \(languages), and send the captures back.")

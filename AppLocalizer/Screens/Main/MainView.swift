@@ -229,6 +229,8 @@ struct MainView: View {
     /// Lets connected assistants read and propose for this account, and
     /// the toolbar open any app's screenshot proposals.
     private func attachAssistants() {
+        // So a project folder that builds another app is asked about.
+        launcher.bundleIDLookup = { [viewModel] appID in viewModel.apps.first { $0.id == appID }?.bundleID }
         services.screenshots.documentCenter?.librarySource = { [viewModel, services] appID in
             guard let app = viewModel.apps.first(where: { $0.id == appID }),
                   let primaryLocale = app.primaryLocale.flatMap(StoreLocaleCatalog.locale(code:)) ?? StoreLocaleCatalog.locale(code: "en-US")

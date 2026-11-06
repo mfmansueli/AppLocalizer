@@ -11,7 +11,7 @@ import Foundation
 extension AutopilotRun {
     /// A capture in another language that reads as the primary language or
     /// English; cut-off labels beyond the primary language's on the same
-    /// screen; a system prompt in any language.
+    /// screen; a system prompt or a mostly blank screen in any language.
     func textIssues(of capture: AutopilotCapture) -> [CaptureTextIssue] {
         guard let facts = capture.text else { return [] }
         var issues: [CaptureTextIssue] = []
@@ -27,6 +27,9 @@ extension AutopilotRun {
             issues.append(.cutOff(facts.truncatedLines))
         }
         if let line = facts.promptLine { issues.append(.systemPrompt(line)) }
+        if let blank = facts.blankShare, blank >= CaptureBlankness.mostlyBlank {
+            issues.append(.mostlyBlank(percent: Int((blank * 100).rounded())))
+        }
         return issues
     }
 

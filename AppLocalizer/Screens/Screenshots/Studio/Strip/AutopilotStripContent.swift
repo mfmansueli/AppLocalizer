@@ -26,6 +26,9 @@ struct AutopilotStripContent: Hashable, Sendable {
     /// 0–1 while running.
     var progress: Double?
     var primary: AutopilotStripAction
+    /// The primary button's own title ("Start…", "Choose the Look…"), when
+    /// it isn't the action's.
+    var primaryTitle: String?
     var secondary: AutopilotStripAction?
     /// The assistant and design project pills.
     var showsConnections: Bool { kind == .idle }
@@ -149,7 +152,7 @@ struct AutopilotStripContent: Hashable, Sendable {
             String(localized: "Watch the App Preview and the header loop, then approve them or ask for changes.")
         case .watchPreview where run.watchesHeaderLoop(design: run.designKind):
             String(localized: "Watch the header loop, then approve it or ask \(designer(run)) for changes.")
-        case .watchPreview where run.designKind.usesDesignAI:
+        case .watchPreview where run.reviser != nil:
             String(localized: "Watch the App Preview, then approve it or ask \(designer(run)) for changes.")
         case .watchPreview: String(localized: "Watch the App Preview, then approve it.")
         case .choose where run.usesConcepts: String(localized: "Choose \(run.choicesTitle) from \(designer(run)).")
@@ -197,6 +200,10 @@ struct AutopilotStripContent: Hashable, Sendable {
 
     /// "Claude Design" or "AppLocalizer’s starters".
     static func designer(_ run: AutopilotRun) -> String {
-        run.designKind.usesDesignAI ? run.designKind.title : String(localized: "AppLocalizer’s starters")
+        if run.designKind.usesDesignAI { return run.designKind.title }
+        // Without a design project, Claude designs the header concepts and
+        // takes the asks at Watch; the screenshot looks are the starters.
+        if let reviser = run.reviser, run.stage == .watchPreview || run.stage == .choose && run.usesConcepts { return reviser.title }
+        return String(localized: "AppLocalizer’s starters")
     }
 }

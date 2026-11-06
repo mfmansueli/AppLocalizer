@@ -47,12 +47,15 @@ extension AutopilotRun {
     setup and launch arguments. Launch the app on the plan's first screen, start xcrun simctl io <udid> recordVideo \
     --codec h264 --force preview.mov in the background, then go through the plan's screens in order the way you \
     reach them for the captures, holding each about 4 s with a gentle real interaction (a scroll, a tap), and note \
-    the second each screen appears. Stop with kill -INT <pid> (Control-C) so the file is finished. Only the app may \
+    the second each screen appears. When UI tests drive the screens, run them on that simulator's id with \
+    -parallel-testing-enabled NO, or they run on clones the recording doesn't show. Stop it with exactly \
+    killall -INT simctl (Control-C) so the file is finished. Only the app may \
     be on screen when a screen appears: no Home screen, alert or keyboard; what's between screens (a relaunch) is \
     cut out. Upload it to the plan's upload URL with curl --data-binary and -H 'Content-Type: video/quicktime', then \
     call report_recording with the upload ID, displayType, locale and marks [{screen, seconds}], and moments \
     [{screen, start_s, end_s, reason, use}]: the stretch of each screen that works in an App Preview (about 6 s, \
-    settled, something gentle happening) and why; use: false for one you'd leave out. The person picks which go \
+    settled, something gentle happening) and why; use: false for one you'd leave out. When the tests leave a \
+    screen sooner, give the stretch it has and say in its reason which test to hold longer. The person picks which go \
     in. When it can't be recorded, call report_recording with problem instead: the run goes on without it.
     """
 

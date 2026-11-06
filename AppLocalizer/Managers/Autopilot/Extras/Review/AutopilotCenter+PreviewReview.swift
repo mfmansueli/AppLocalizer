@@ -82,11 +82,11 @@ extension AutopilotCenter {
         let note = note.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !note.isEmpty else { return }
         update(appID) { run in
-            guard run.stage == .watchPreview, run.designKind.usesDesignAI, var review = run.previewReview, !review.isBusy else { return }
+            guard run.stage == .watchPreview, let reviser = run.reviser, var review = run.previewReview, !review.isBusy else { return }
             review.request = AutopilotRevisionRequest(note: note, askedAt: now())
             run.previewReview = review
             run.handedBackAt = now()
-            run.appendLog(String(localized: "Asked \(run.designKind.title) for App Preview changes: “\(note)”"), kind: .command, at: now())
+            run.appendLog(String(localized: "Asked \(reviser.title) for App Preview changes: “\(note)”"), kind: .command, at: now())
         }
     }
 

@@ -109,6 +109,26 @@ struct NextStepToolTests {
         #expect(retry["note"]?.stringValue?.contains("don't run the refused command") == true)
     }
 
+    /// MB Admin's run stopped on a retry whose change wasn't made: Claude
+    /// Code is told to report it again, so the person sees it, not a stall.
+    @Test func aRetryThatChangesTheProjectIsReportedAgainWhenTheChangeIsMissing() async throws {
+        var run = AutopilotTestFixtures.run(.capture)
+        let target = AutopilotTestFixtures.target("week", .iPad, "de-DE")
+        AutopilotTestFixtures.captureAll(&run, except: [target])
+        run.problems = [AutopilotTestFixtures.problem(
+            target, fix: "In ScreenshotUITests.swift:12 rotate the iPad to landscape.", resolution: .retryWithFix
+        )]
+        let result = try await MCPAutopilotFixtures(run).call(NextStepTool()).result
+        let retry = try #require(result["retryWithFix"]?.arrayValue?.first)
+        #expect(retry["note"] == .string(AutopilotNextStep.projectChangeRetryNote))
+        #expect(AutopilotNextStep.projectChangeRetryNote.contains("call report_capture_problem for this screen again"))
+
+        // A command's retry needs no note.
+        run.problems = [AutopilotTestFixtures.problem(target, resolution: .retryWithFix)]
+        let command = try await MCPAutopilotFixtures(run).call(NextStepTool()).result
+        #expect(command["retryWithFix"]?.arrayValue?.first?["note"] == nil)
+    }
+
     // MARK: - JSON
 
     @Test(arguments: [

@@ -117,7 +117,7 @@ struct AutopilotStripView: View {
                     .buttonBorderShape(.capsule)
                     .accessibilityIdentifier(secondary.identifier)
             }
-            Button(content.primary.title) { perform(content.primary) }
+            Button(content.primaryTitle ?? content.primary.title) { perform(content.primary) }
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.capsule)
                 .accessibilityIdentifier(content.primary.identifier)

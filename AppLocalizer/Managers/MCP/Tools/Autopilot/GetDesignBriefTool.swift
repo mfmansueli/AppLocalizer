@@ -25,7 +25,8 @@ struct GetDesignBriefTool: MCPTool {
         says how you design the header and search yourself, as HTML pages AppLocalizer renders in every language \
         (the app's icon is attached after the picks); its askedByThePerson, when there, is what the person asked \
         those images to be, and comes first. When the run makes no screenshots, noScreenshots says what to design \
-        instead and the screenshot canvases are left out. Design around the real captures; never draw the interface. \
+        instead and the screenshot canvases are left out. personNote, when there, is what the person told the designer \
+        for the screenshots: every direction follows it. Design around the real captures; never draw the interface. \
         Send each direction with propose_direction.
         """,
         inputSchema: MCPToolDefinition.schema(
@@ -95,6 +96,7 @@ struct GetDesignBriefTool: MCPTool {
         }
         if let revision = run.revision { result["revisionNote"] = .string(revision.note) }
         Self.addScreenshotStyle(&result, run: run)
+        Self.addPersonNote(&result, run: run) { services.referenceURL($0, for: app) }
         if !run.directions.isEmpty {
             result["directionsSoFar"] = .array(run.directions.map { ["id": .string($0.id), "name": .string($0.name)] })
         }

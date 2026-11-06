@@ -139,6 +139,9 @@ extension AutopilotNextStep {
     static func directionsHow(run: AutopilotRun) -> String {
         let plan = run.plan
         let remaining = max(run.expectedDirections - run.directions.count, 0)
+        guard run.designKind.usesDesignAI else {
+            return "AppLocalizer makes the screenshot directions from its starters; only the concepts are yours. Don't call propose_direction."
+        }
         guard remaining > 0 else { return "Every screenshot direction has arrived; only the concepts are left." }
         let what = plan.makesScreenshots
             ? "the screenshots as an AppLocalizer template (template and/or ops on a base starter)"

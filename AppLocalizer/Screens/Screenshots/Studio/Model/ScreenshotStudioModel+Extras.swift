@@ -103,7 +103,7 @@ extension ScreenshotStudioModel {
     /// A place's image as it was drawn. The header shows no phone; the 16:9
     /// image and search the search screen's. A Claude Design page shows the
     /// screens it names.
-    private func artworkItem(_ place: ExtrasArtworkPlace, template: ScreenshotTemplate, locale: String) -> StudioArtworkItem {
+    func artworkItem(_ place: ExtrasArtworkPlace, template: ScreenshotTemplate, locale: String) -> StudioArtworkItem {
         let shows = place.shows ?? .phone
         let slots = place.page.map(AutopilotArtworkPages.slots) ?? (place.kind != .header && shows.needsCaptures ? [place.searchSlot] : [])
         return StudioArtworkItem(

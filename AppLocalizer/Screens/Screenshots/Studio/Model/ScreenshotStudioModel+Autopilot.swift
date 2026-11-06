@@ -26,7 +26,9 @@ extension ScreenshotStudioModel {
         reportMissingSimulators()
         viewedStep = nil
         launchedRunID = nil
-        if let run, run.remainingTargets.isEmpty, run.remainingRecordings.isEmpty {
+        // A first run has no screens yet: Claude Code picks them, so it
+        // starts like any run that captures.
+        if let run, !run.plan.awaitsScreens, run.remainingTargets.isEmpty, run.remainingRecordings.isEmpty {
             startWithoutCapturing()
             return
         }
@@ -197,6 +199,15 @@ extension ScreenshotStudioModel {
             await autopilot.resolveProblems(appID: appID, problemIDs: ids, with: resolution, context: context)
             await goOn()
         }
+    }
+
+    /// Record Again: the App Preview recordings the assistant left out are
+    /// made once more, by the Claude Code AppLocalizer starts again.
+    func recordAgain() {
+        guard let autopilot else { return }
+        autopilot.update(app.id) { $0.recordSkippedAgain() }
+        let goOn = goingOn()
+        Task { await goOn() }
     }
 
     /// Upload One by Hand…: the PNG becomes the screen's capture.

@@ -21,6 +21,11 @@ extension AutopilotPlan {
     /// Neither screenshots nor an extra: Start waits for one.
     var makesNothing: Bool { !makesScreenshots && artworkKinds.isEmpty && previewDisplays.isEmpty }
 
+    /// Screenshots, but no screens yet (an app's first run): the assistant
+    /// picks them once it's started, so the run still has everything to
+    /// capture rather than nothing.
+    var awaitsScreens: Bool { makesScreenshots && targets.isEmpty }
+
     /// The run uses the last run's captures and picks.
     var reusesCaptures: Bool { runChoice.reusesCaptures }
 

@@ -38,7 +38,12 @@ struct CapturePlanToolsTests {
         ])
         #expect(plan["devices"] == [
             ["displayType": "iphone", "simulator": "iPhone 17 Pro Max", "pixelSize": "1320 × 2868", "orientation": "portrait"],
-            ["displayType": "ipad", "simulator": "iPad Pro 13-inch (M5)", "pixelSize": "2752 × 2064", "orientation": "landscape"],
+            [
+                "displayType": "ipad", "simulator": "iPad Pro 13-inch (M5)",
+                "pixelSize": "2752 × 2064 (landscape) or 2064 × 2752 (portrait)",
+                "orientation": "landscape, or portrait when the UI tests can't rotate",
+                "how": .string(AutopilotRun.howToCapture(.iPad) ?? ""),
+            ],
         ])
         let german = plan["locales"]?.arrayValue?.first { $0["locale"] == "de-DE" }
         #expect(german?["launchArguments"] == "-AppleLanguages (de) -AppleLocale de_DE")

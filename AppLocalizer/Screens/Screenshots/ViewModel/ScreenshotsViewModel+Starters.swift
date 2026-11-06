@@ -23,25 +23,45 @@ extension ScreenshotsViewModel {
     /// locale's captions and captures, and renders them.
     func renderStarterPreviews() async {
         guard let document else { return }
-        let primary = context.primaryLocale
         let engine = ScreenshotLayoutEngine(catalog: fonts)
-        let slots = min(StarterPreview.slotCount, document.slotCount)
         let scripts = scopeScripts(of: document)
         starterPreviews = TemplateStarter.allCases.map { starter in
             let template = ScreenshotTemplate.starter(starter, id: app.id, title: app.name, slotCount: document.slotCount)
-            let jobs = (0..<slots).map { slot in
-                let caption = document.captions.caption(locale: primary.code, slot: slot) ?? Self.sampleCaptions[slot % Self.sampleCaptions.count]
-                let capture = document.captures.capture(locale: primary.code, displayType: .iPhone, slot: slot, primary: primary.code)
-                let layout = engine.layout(template, slot: slot, locale: primary, displayType: .iPhone, caption: caption)
-                let key = RenderKey(
-                    templateHash: template.contentHash, locale: primary.code, displayType: .iPhone, slot: slot,
-                    caption: caption, captureID: capture?.capture.id
-                )
-                return RenderJob(key: key, layout: layout, capture: capture?.capture)
-            }
+            let jobs = starterJobs(template, document: document, locale: context.primaryLocale, engine: engine)
             return StarterPreview(starter: starter, jobs: jobs, fontNote: fontNote(for: template.caption.headline.font, scripts: scripts))
         }
         renderQueue.render(starterPreviews.flatMap(\.jobs), pixelWidth: StarterPreview.pixelWidth)
+    }
+
+    /// `starter`'s first five slots laid out in `code`, with its captions
+    /// (the primary language's where it has none yet) and captures: the
+    /// guided Look step previews a template in another language. Nothing
+    /// is rendered here.
+    func starterJobs(_ starter: TemplateStarter, locale code: String) -> [RenderJob] {
+        guard let document else { return [] }
+        let primary = context.primaryLocale
+        let locale = code == primary.code ? primary : locales.first { $0.code == code } ?? primary
+        let template = ScreenshotTemplate.starter(starter, id: app.id, title: app.name, slotCount: document.slotCount)
+        return starterJobs(template, document: document, locale: locale, engine: ScreenshotLayoutEngine(catalog: fonts))
+    }
+
+    private func starterJobs(
+        _ template: ScreenshotTemplate, document: ScreenshotsDocument, locale: StoreLocale, engine: ScreenshotLayoutEngine
+    ) -> [RenderJob] {
+        let primary = context.primaryLocale.code
+        let slots = min(StarterPreview.slotCount, document.slotCount)
+        return (0..<slots).map { slot in
+            let caption = document.captions.caption(locale: locale.code, slot: slot)
+                ?? document.captions.caption(locale: primary, slot: slot)
+                ?? Self.sampleCaptions[slot % Self.sampleCaptions.count]
+            let capture = document.captures.capture(locale: locale.code, displayType: .iPhone, slot: slot, primary: primary)
+            let layout = engine.layout(template, slot: slot, locale: locale, displayType: .iPhone, caption: caption)
+            let key = RenderKey(
+                templateHash: template.contentHash, locale: locale.code, displayType: .iPhone, slot: slot,
+                caption: caption, captureID: capture?.capture.id
+            )
+            return RenderJob(key: key, layout: layout, capture: capture?.capture)
+        }
     }
 
     /// A gallery card's slots, each nil until it's rendered (all of them

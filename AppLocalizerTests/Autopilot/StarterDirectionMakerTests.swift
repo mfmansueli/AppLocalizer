@@ -37,6 +37,27 @@ struct StarterDirectionMakerTests {
         #expect(band.caption.band.color == palette.darkest)
         #expect(directions[2].template.background.stops == palette.panorama)
         #expect(directions[2].template.caption.ink == palette.darkest)
+        #expect(directions[0].template.caption.ink == "#FFFFFF", "White reads on the indigo")
+        #expect(band.caption.ink == "#FFFFFF")
+    }
+
+    /// MB Admin's pale pink icon: white captions on its pale gradient
+    /// couldn't be read, so the caption takes the icon's darkest shade.
+    @Test func aPaleIconGetsADarkCaption() throws {
+        let palette = IconPalette(light: "#EAD9D6", dark: "#B79C9E")
+        var above = ScreenshotTemplate.starter(.above, id: "mb", title: "MB Admin", slotCount: 2)
+        StarterDirectionMaker.color(&above, as: .above, with: palette)
+        let background = try #require(TemplateColor(palette.gradient[0]))
+        #expect(ArtworkContrast.ratio(.white, background) < ArtworkContrast.minimumTextRatio, "White was unreadable")
+        #expect(above.caption.ink != "#FFFFFF")
+        let ink = try #require(TemplateColor(above.caption.ink))
+        #expect(ArtworkContrast.ratio(ink, background) >= ArtworkContrast.minimumTextRatio)
+        #expect(above.caption.subInk.hasPrefix("rgba("))
+
+        // On a mid gray neither white nor a pale icon's darkest shade
+        // reads: near black.
+        let ghost = IconPalette(light: "#FFFFFF", dark: "#F4F4F4")
+        #expect(StarterDirectionMaker.ink(on: "#9A9A9A", palette: ghost) == StarterDirectionMaker.nearBlack)
     }
 
     @Test func withoutAnIconTheStartersKeepTheirOwnColors() async {

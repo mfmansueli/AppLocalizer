@@ -121,7 +121,9 @@ struct AutopilotPlanStageView: View {
         }
         Grid(alignment: .topLeading, horizontalSpacing: Spacing.medium, verticalSpacing: Spacing.medium) {
             GridRow {
-                AutopilotOptionGroup(title: String(localized: "Simulator")) { simulator }
+                AutopilotOptionGroup(title: String(localized: "Simulator")) {
+                    AutopilotSimulatorOptions(studio: studio, run: run, assistant: assistant)
+                }
                 AutopilotOptionGroup(title: String(localized: "Design and checkpoints")) { checkpoints }
             }
         }
@@ -159,48 +161,6 @@ struct AutopilotPlanStageView: View {
             return String(localized: "From your set’s slots, for now: \(client) picks the screens when it picks up the plan.")
         }
         return String(localized: "From your set’s slots. \(client) writes the steps; edit anything.")
-    }
-
-    @ViewBuilder
-    private var simulator: some View {
-        AutopilotOptionRow(
-            title: String(localized: "Capture the app in each language"),
-            detail: String(localized: "Launches with -AppleLanguages; otherwise \(studio.primaryLocale.shortName) captures are reused under translated captions"),
-            isOn: planBinding(\.capturesEachLanguage)
-        )
-        .accessibilityIdentifier("autopilot.plan.eachLanguage")
-        AutopilotOptionRow(
-            title: String(localized: "Status bar at 9:41, full battery and signal"),
-            detail: "xcrun simctl status_bar override",
-            isOn: planBinding(\.simulator.overridesStatusBar)
-        )
-        AutopilotOptionRow(
-            title: String(localized: "Sample data"),
-            detail: run.plan.simulator.sampleDataSteps.isEmpty
-                ? String(localized: "\(run.clientName(assistant: assistant, startsSentence: true)) finds the app’s sample-data switch")
-                : run.plan.simulator.sampleDataSteps,
-            isOn: planBinding(\.simulator.usesSampleData)
-        )
-        AutopilotOptionRow(
-            title: String(localized: "Sample data in each language"),
-            detail: String(localized: "Entries, names and places in the capture’s language, not just the interface"),
-            isOn: planBinding(\.simulator.sampleDataInEachLanguage),
-            isLocked: !run.plan.simulator.usesSampleData || !run.plan.capturesEachLanguage
-        )
-        .accessibilityIdentifier("autopilot.plan.sampleDataLanguage")
-        AutopilotOptionRow(
-            title: String(localized: "Light appearance, no notifications"),
-            detail: String(localized: "Any prompt is answered before capturing, so no alert lands in a screenshot"),
-            isOn: planBinding(\.simulator.lightAppearance)
-        )
-        AutopilotOptionRow(
-            title: String(localized: "Permissions granted before capturing"),
-            detail: "xcrun simctl privacy grant all",
-            isOn: planBinding(\.simulator.grantsPermissions)
-        )
-        ForEach(run.plan.simulator.extraCommands, id: \.self) { command in
-            AutopilotOptionRow(title: String(localized: "Added by a fix"), detail: command, isOn: .constant(true), isLocked: true)
-        }
     }
 
     @ViewBuilder

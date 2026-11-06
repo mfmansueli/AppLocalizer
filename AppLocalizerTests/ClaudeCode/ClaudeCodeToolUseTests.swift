@@ -41,6 +41,17 @@ struct ClaudeCodeToolUseTests {
         #expect(describe("Glob") == (.search, "Find files"))
     }
 
+    /// MB Admin's run card showed a regular expression as Claude Code's step.
+    @Test func aRegularExpressionSaysWhereItSearches() {
+        let pattern = #""startTime":[0-9.]+,"title":"(Added attachment named '[^']+'|Tap \"limpar fila)""#
+        #expect(describe("Grep", ["pattern": .string(pattern), "path": "/Users/sam/MB-Admin/build/preview-ipad.json"])
+            == (.search, "Search preview-ipad.json"))
+        #expect(describe("Grep", ["pattern": .string(pattern), "glob": "*.swift"]) == (.search, "Search *.swift"))
+        #expect(describe("Grep", ["pattern": "func launchApp|setUp"]) == (.search, "Search the project’s files"))
+        #expect(describe("Grep", ["pattern": "XCUIDevice.shared.orientation"]) == (.search, "Search for “XCUIDevice.shared.orientation”"))
+        #expect(describe("Grep") == (.search, "Search the project’s files"))
+    }
+
     @Test func otherToolsKeepTheirName() {
         #expect(describe("mcp__github__create_pull_request") == (.other, "create_pull_request"))
         #expect(describe("TodoWrite") == (.other, "TodoWrite"))

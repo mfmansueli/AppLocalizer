@@ -24,6 +24,16 @@ extension MCPServerController {
         return ready ?? .notSetUp
     }
 
+    /// The assistant Autopilot captures with: one connected now that can
+    /// run Xcode, else Claude Code when AppLocalizer can start it. Right
+    /// after AppLocalizer opens nothing is connected yet, and Screenshots
+    /// said "Needs an assistant" while the toolbar said Claude Code was
+    /// ready.
+    var xcodeAssistant: String? {
+        if let client = connectedClients.first(where: { $0.kind.canRunXcode }) { return client.name }
+        return launcher?.canStart == true ? MCPClientKind.claudeCode.title : nil
+    }
+
     /// The assistant the overview's card describes: Claude Code when
     /// AppLocalizer can start it (paired, or a stand-in until its first
     /// run pairs it), else the leading one.

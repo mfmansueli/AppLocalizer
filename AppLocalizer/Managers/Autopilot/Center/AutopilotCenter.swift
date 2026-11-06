@@ -43,6 +43,10 @@ final class AutopilotCenter {
     /// Where the header and search prompts, answers and renders are
     /// logged; nil logs nothing (tests, DEBUG scenes).
     @ObservationIgnored var promptLog: ArtworkPromptLog?
+    /// Called when a change moves a run to another stage, with the stage
+    /// it was at: the guided Autopilot's "Autopilot needs you"
+    /// notifications. Nil in tests and DEBUG scenes.
+    @ObservationIgnored var onStageChange: (@MainActor (AutopilotRun, AutopilotStage) -> Void)?
 
     init(persistence: (any AutopilotPersistence)? = nil, runs: [StoreApp.ID: AutopilotRun] = [:], designProjects: [StoreApp.ID: DesignProject] = [:]) {
         self.persistence = persistence
@@ -201,9 +205,11 @@ final class AutopilotCenter {
     /// Applies `change` to the app's run and saves.
     func update(_ appID: StoreApp.ID, _ change: (inout AutopilotRun) -> Void) {
         guard var run = runs[appID] else { return }
+        let stage = run.stage
         change(&run)
         runs[appID] = run
         scheduleSave()
+        if run.stage != stage { onStageChange?(run, stage) }
     }
 
     /// Puts a run in place as it is (DEBUG scenes, tests).

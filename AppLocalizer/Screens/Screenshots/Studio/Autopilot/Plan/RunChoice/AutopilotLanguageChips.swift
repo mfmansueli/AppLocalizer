@@ -38,7 +38,9 @@ struct AutopilotLanguageChips: View {
                 .overlay(Capsule().strokeBorder(isOn ? Color.accentColor.opacity(0.5) : Palette.separator, lineWidth: 0.5))
         }
         .buttonStyle(.plain)
-        .disabled(isPrimary)
+        // Not .disabled: that dims it, so the one language always in
+        // the run looked left out.
+        .allowsHitTesting(!isPrimary)
         .help(isPrimary ? Text("Always in the run: picks and the design start from it") : Text(name))
         .accessibilityValue(Text(isOn ? "On" : "Off"))
         .accessibilityAddTraits(isOn ? .isSelected : [])

@@ -13,10 +13,25 @@ extension AutopilotRun {
     /// screenshot direction.
     var usesConcepts: Bool { proposesConcepts == true && !plan.artworkKinds.isEmpty }
 
-    /// A run starts with concepts when its design source designs and it
-    /// makes header or search artwork.
+    /// A run starts with concepts when it makes header or search artwork
+    /// and someone designs them: its design source, or the assistant in a
+    /// guided plan without one.
     static func proposesConcepts(plan: AutopilotPlan, design: DesignProjectKind) -> Bool {
-        design.usesDesignAI && !plan.artworkKinds.isEmpty
+        (design.usesDesignAI || plan.assistantDesignsArtwork == true) && !plan.artworkKinds.isEmpty
+    }
+
+    /// Someone designs this run's artwork, its concepts' changes and
+    /// loops: the design AI, or the assistant for its concepts.
+    var designsArtwork: Bool { designKind.usesDesignAI || usesConcepts }
+
+    /// Who revises the App Preview and the header loop when the person
+    /// asks: the design project's AI, or without one, Claude, when a guided
+    /// plan has the assistant design (Claude Code, as for its concepts).
+    /// Nil when nobody does: MB Admin's ask box said "Needs a design
+    /// project" with every quick ask turned off.
+    var reviser: DesignProjectKind? {
+        if designKind.usesDesignAI { return designKind }
+        return plan.assistantDesignsArtwork == true ? .claudeDesign : nil
     }
 
     /// The directions Design waits for: the Screenshot style's (three of

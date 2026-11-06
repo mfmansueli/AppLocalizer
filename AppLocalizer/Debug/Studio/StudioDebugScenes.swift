@@ -59,6 +59,7 @@ enum StudioDebugScenes {
         "st-ready", "st-ready-de", "st-ready-ar", "st-ready-ipad", "st-asc-watch", "st-plan-link",
     ] + everyDeviceIDs + StudioDebugExtras.ids + StudioDebugRunChoice.ids + StudioDebugAddScreens.ids + StudioDebugPreviewReview.ids
         + StudioDebugDuoStates.ids + StudioDebugPick.ids + StudioDebugArtMotion.ids + StudioDebugWebArtwork.ids + StudioDebugHeaderStyle.ids
+        + StudioDebugGuided.ids
 
     static let everyDeviceIDs = [
         "st-plan-all", "st-cap-watch", "st-cap-vision", "st-pick-all", "st-choose-all", "st-loc-all", "st-ready-sheet-all",
@@ -75,16 +76,22 @@ enum StudioDebugScenes {
         if let run = duoRun(for: id) {
             return scene(run: run, project: StudioDebugRuns.northpier, sheet: true)
         }
+        if id == StudioDebugGuided.homeID {
+            return scene(front: .guided)
+        }
         if let extras = StudioDebugExtras.scene(for: id) ?? StudioDebugRunChoice.scene(for: id) ?? StudioDebugAddScreens.scene(for: id)
             ?? StudioDebugPreviewReview.scene(for: id) ?? StudioDebugDuoStates.scene(for: id) ?? StudioDebugPick.scene(for: id)
             ?? StudioDebugArtMotion.scene(for: id) ?? StudioDebugWebArtwork.scene(for: id) ?? StudioDebugHeaderStyle.scene(for: id)
+            ?? StudioDebugGuided.scene(for: id)
         {
             let saved = extras.savesExtras ? StudioDebugExtras.extras(for: extras.run) : nil
             let change = extras.documentChange
-            return scene(run: extras.run, sheet: extras.sheet, everyDevice: extras.everyDevice, setUp: extras.setUp, documentChange: { document in
+            return scene(
+                run: extras.run, sheet: extras.sheet, everyDevice: extras.everyDevice, front: extras.front, setUp: extras.setUp
+            ) { document in
                 if let saved { document.extras = saved }
                 change?(&document)
-            })
+            }
         }
         if id == "st-plan-link" {
             return scene(run: StudioDebugRuns.linkedPlan, project: StudioDebugRuns.unreadLink, sheet: true)
@@ -211,6 +218,7 @@ enum StudioDebugScenes {
         assistants: AssistantsDebugState = .paired,
         everyDevice: Bool = false,
         buildHasWatchApp: Bool = false,
+        front: AutopilotFront = .classic,
         setUp: (@MainActor (ScreenshotsViewModel) -> Void)? = nil,
         documentChange: (@Sendable (inout ScreenshotsDocument) -> Void)? = nil
     ) -> AnyView {
@@ -220,6 +228,8 @@ enum StudioDebugScenes {
         if let project { center.setDesignProject(project, for: StudioDebugRuns.appID) }
         if let run { center.install(run) }
         let screenshots = DebugScreenshotsServices(scenario: everyDevice ? .everyDevice : .standard, opening: ScreenshotsDebugOpening { model in
+            // The st-* scenes are the classic sheet's; the v2-* ones say guided.
+            model.studio.frontOverride = front
             setUp?(model)
             model.studio.isAutopilotPresented = sheet
         })

@@ -251,6 +251,38 @@ struct AutopilotCenterCaptureTests {
         #expect(!other.wasRefused)
     }
 
+    /// MB Admin's run: a portrait iPad capture reported as a problem (the
+    /// tests can't rotate), retried without the change; Claude Code can't
+    /// make it, so it reports it again, and the person keeps the capture.
+    @Test func aCapturedScreensProblemCanBeKeptAfterARetry() async throws {
+        let target = AutopilotTestFixtures.target("week", .iPad, "en-US")
+        var start = AutopilotTestFixtures.run(.capture)
+        AutopilotTestFixtures.captureAll(&start)
+        center.install(start)
+        let reported = AutopilotTestFixtures.now.addingTimeInterval(3600)
+        center.now = { reported }
+        let first = try center.reportProblem(
+            appID: appID, target: target, what: "The iPad stayed in portrait.",
+            proposedFix: "In ScreenshotUITests.swift:12 set XCUIDevice.shared.orientation = .landscapeLeft.", changesProject: true
+        )
+        await center.resolveProblem(appID: appID, problemID: first.id, with: .retryWithFix, context: context)
+        #expect(try #require(run).retries.map(\.id) == [first.id])
+        #expect(try #require(run).stage == .capture)
+
+        center.now = { reported.addingTimeInterval(60) }
+        let again = try center.reportProblem(
+            appID: appID, target: target, what: "The change isn't in the project yet.", proposedFix: first.proposedFix, changesProject: true
+        )
+        #expect(try #require(run).retries.isEmpty, "Reported again, it's open instead")
+        #expect(try #require(run).hasCapture(for: target))
+
+        await center.resolveProblem(appID: appID, problemID: again.id, with: .keptCapture, context: context)
+        let run = try #require(run)
+        #expect(run.openProblems.isEmpty)
+        #expect(run.retries.isEmpty, "Keeping the capture doesn't bring the retry back")
+        #expect(run.stage != .capture, "Everything is settled, so the run goes on")
+    }
+
     @Test func aProblemFromBeforeRefusalsWereNotedStillReads() throws {
         let old = Data(
             #"{"id":"pr-1","target":{"screenID":"week","displayType":"APP_IPHONE_67","locale":"de-DE"},"what":"Blank","reportedAt":0}"#.utf8

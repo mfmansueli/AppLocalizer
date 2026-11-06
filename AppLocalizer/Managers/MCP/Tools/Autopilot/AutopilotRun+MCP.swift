@@ -16,7 +16,7 @@ extension AutopilotRun {
                 "displayType": .string(display.mcpValue),
                 "simulator": .string(display.deviceName),
                 "pixelSize": .string(Self.capturePixelSize(display)),
-                "orientation": .string(display == .iPad || display == .visionPro ? "landscape" : "portrait"),
+                "orientation": .string(Self.orientation(display)),
             ]
             if display.hasOwnScreens {
                 device["screens"] = .array(plan.screens(on: display).enumerated().map { index, screen in
@@ -63,7 +63,7 @@ extension AutopilotRun {
             "app": .string(appName),
             "version": .string(versionString),
             "stage": .string(stage.rawValue),
-            "chooseScreens": .bool(plan.choosesScreens && captures.isEmpty),
+            "chooseScreens": .bool((plan.choosesScreens || plan.awaitsScreens) && captures.isEmpty),
             "screens": .array(screens),
             "devices": .array(devices),
             "primaryLocale": .string(plan.primaryLocale),
@@ -128,7 +128,8 @@ extension AutopilotRun {
     /// Vision Pro the app's window as it is.
     static func capturePixelSize(_ display: ScreenshotDisplayType) -> String {
         switch display {
-        case .iPad: display.portraitPixelSize.rotated.title
+        case .iPad:
+            String(localized: "\(display.portraitPixelSize.rotated.title) (landscape) or \(display.portraitPixelSize.title) (portrait)")
         case .iPhoneDuo:
             String(localized: """
             open: \(display.portraitPixelSize.rotated.title) or \(display.portraitPixelSize.title) (the inner display); \
@@ -140,7 +141,16 @@ extension AutopilotRun {
         }
     }
 
-    /// How a device with screens of its own is captured.
+    /// iPad prefers landscape but takes portrait (see `howToCapture`).
+    static func orientation(_ display: ScreenshotDisplayType) -> String {
+        switch display {
+        case .iPad: "landscape, or portrait when the UI tests can't rotate"
+        case .visionPro: "landscape"
+        default: "portrait"
+        }
+    }
+
+    /// How a device is captured, when it needs more than the steps.
     static func howToCapture(_ display: ScreenshotDisplayType) -> String? {
         switch display {
         case .watch:
@@ -168,6 +178,17 @@ extension AutopilotRun {
             crashed and xcrun simctl launch hangs (stuck), report one problem with affectsDevice: true saying which, with \
             "AppLocalizer opens iPhone Duo" as proposedFix, and go on with the other devices: next_step gives you its screens \
             again once it's ready.
+            """
+        case .iPad:
+            // MB Admin's UI tests never rotate, and the launched Claude
+            // Code can't change them: every iPad capture came out portrait
+            // and the run stopped for the person to edit their project.
+            """
+            Landscape shows the app best: rotate with XCUIDevice.shared.orientation = .landscapeLeft before launching when the \
+            UI tests already do, or when you can add it. When they can't rotate without changing the project, capture in \
+            portrait: AppLocalizer takes iPad either way up and lays the set out to match the captures, so a portrait \
+            capture is not a problem; don't report it. iPad shows a split view's sidebar and detail side by side: \
+            select an item before capturing, so the detail shows it and not a "select an item" placeholder.
             """
         case .visionPro:
             """

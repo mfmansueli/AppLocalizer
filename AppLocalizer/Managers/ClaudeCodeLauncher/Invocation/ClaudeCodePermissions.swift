@@ -47,6 +47,10 @@ enum ClaudeCodePermissions: Hashable, Sendable, CaseIterable {
                 "Bash(ls:*)",
                 "Bash(sleep:*)",
                 "Bash(echo:*)",
+                // Stops an App Preview's recordVideo the way Control-C does,
+                // so the file is finished. Without it, MB Admin's App Preview
+                // recordings were left out: kill -INT was refused.
+                "Bash(\(Self.stopRecordingCommand))",
                 // Captures go to AppLocalizer's upload endpoint, and nowhere else.
                 "Bash(curl * http://127.0.0.1:\(port)/autopilot/*)",
             ]
@@ -68,6 +72,11 @@ enum ClaudeCodePermissions: Hashable, Sendable, CaseIterable {
         }
     }
 
+    /// The one command that stops a recording: it can only interrupt
+    /// simulator commands, and never the shell running it (as `pkill -f`
+    /// would).
+    static let stopRecordingCommand = "killall -INT simctl"
+
     /// Read-only git subcommands.
     static let gitCommands = ["log", "show", "diff", "tag", "describe", "rev-parse", "ls-files", "status", "branch"]
 
@@ -84,7 +93,9 @@ enum ClaudeCodePermissions: Hashable, Sendable, CaseIterable {
         ]
         if self == .autopilot {
             lines.append(
-                "For screenshots you may also run xcodebuild, xcrun simctl, xcrun xcresulttool, open -a Simulator, mkdir, ls, sleep and echo. "
+                "For screenshots you may also run xcodebuild, xcrun simctl, xcrun xcresulttool, open -a Simulator, mkdir, ls, sleep and echo, "
+                    + "and stop an App Preview recording (xcrun simctl io … recordVideo, started in the background) with exactly "
+                    + "\(Self.stopRecordingCommand). "
                     + "Upload each capture with exactly: curl -s --data-binary @<file> -H 'Content-Type: image/png' <upload URL from get_capture_plan>. "
                     + "Run each command on its own, without chaining other commands. "
                     + "Each command must start with one of those programs: VAR=value in front of it, cd or a pipe is refused. "

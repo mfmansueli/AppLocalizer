@@ -17,6 +17,8 @@ struct AutopilotConceptCard: View {
     let isEditable: Bool
     /// The card's width; the header is as wide as fits, up to 250 pt.
     let width: CGFloat
+    /// "Claude’s pick", on the concept the guided Choose recommends.
+    var pickLabel: String?
     @State private var asks = false
     @State private var note = ""
 
@@ -33,7 +35,13 @@ struct AutopilotConceptCard: View {
             .accessibilityLabel(Text("View \(concept.name) larger"))
             .accessibilityIdentifier("autopilot.choose.concept.zoom")
             VStack(alignment: .leading, spacing: 2) {
-                Text(concept.name).font(.callout.weight(.semibold))
+                HStack(spacing: Spacing.xSmall) {
+                    Text(concept.name).font(.callout.weight(.semibold))
+                    if let pickLabel {
+                        Pill(text: pickLabel, style: .accent)
+                            .accessibilityIdentifier("autopilot.choose.concept.pick")
+                    }
+                }
                 Text(concept.sourceTitle).font(.caption).foregroundStyle(Palette.label2)
             }
             Text(concept.metaphor)

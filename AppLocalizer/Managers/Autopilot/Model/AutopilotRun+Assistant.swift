@@ -17,13 +17,15 @@ extension AutopilotRun {
         case .waiting:
             true
         case .capture:
-            !remainingTargets.isEmpty || !retries.isEmpty
+            // The App Preview's recordings too: Claude Code is started
+            // again for the ones left (Record Again).
+            !remainingTargets.isEmpty || !retries.isEmpty || !remainingRecordings.isEmpty
         case .design:
-            designKind.usesDesignAI && (revision != nil || directions.count < expectedDirections || conceptsLeft > 0)
+            designKind.usesDesignAI && (revision != nil || directions.count < expectedDirections) || conceptsLeft > 0
         case .localize:
             !overflows.isEmpty || artworkTextNeeds?.isEmpty == false || loopReview?.isAnimating == true
         case .watchPreview:
-            designKind.usesDesignAI && (previewReview?.request != nil && previewReview?.remake == nil
+            reviser != nil && (previewReview?.request != nil && previewReview?.remake == nil
                 || loopReview?.request != nil && loopReview?.isRemaking == false)
         case .ready:
             variantRequest != nil

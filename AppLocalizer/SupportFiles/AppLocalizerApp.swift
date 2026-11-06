@@ -12,7 +12,7 @@ struct AppLocalizerApp: App {
     @State private var history: PushHistory
     @State private var push: PushController
     @State private var pricingModes = PricingModeStore(defaults: Self.defaults)
-    @State private var preferences = AppPreferences(defaults: Self.defaults)
+    @State private var preferences: AppPreferences
     @State private var translation: TranslationPreferences
     @State private var assistants: MCPServerController
     @State private var keyAssistant: KeyAssistantController
@@ -25,6 +25,8 @@ struct AppLocalizerApp: App {
         _changes = State(initialValue: changes)
         _history = State(initialValue: history)
         _push = State(initialValue: PushController(queue: changes, history: history))
+        let preferences = AppPreferences(defaults: Self.defaults)
+        _preferences = State(initialValue: preferences)
         let translation = TranslationPreferences(defaults: Self.defaults, secrets: Self.secretStore)
         let keyAssistant = KeyAssistantController(
             service: Self.keyAssistantService,
@@ -45,6 +47,11 @@ struct AppLocalizerApp: App {
             launcher.onRunEnded = { [weak launcher] session in
                 guard let launcher else { return }
                 Task { await AutopilotContinuation.sessionEnded(session, center: .shared, launcher: launcher) }
+            }
+            // The guided Autopilot says when a run needs the person.
+            AutopilotCenter.shared.onStageChange = { [weak preferences] run, old in
+                guard preferences?.autopilotFront == .guided, let turn = AutopilotTurn.turn(from: old, to: run.stage) else { return }
+                AutopilotTurnNotifier.shared.post(turn, run: run, appName: AutopilotTurnNotifier.appName(of: run))
             }
         }
         _translation = State(initialValue: translation)

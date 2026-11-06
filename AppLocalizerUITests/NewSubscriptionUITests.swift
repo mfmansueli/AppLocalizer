@@ -59,6 +59,23 @@ final class NewSubscriptionUITests: XCTestCase {
         XCTAssertTrue(element("review.creation.subscriptionSetup.6450000006.dev.northpier.quiet.premium.monthly").waitForExistence(timeout: 5))
     }
 
+    /// The empty state's buttons keep their whole titles side by side: cut
+    /// to the actions' width they were about 110–118 pt wide each
+    /// ("Create Subscri…", "Open App Stor…"); whole, each is 150 pt or more.
+    func testEmptyStateButtonsShowTheirWholeTitles() {
+        app.launch(debugScene: "pricing-nosubs")
+        let create = app.buttons["pricing.createSubscription"]
+        XCTAssertTrue(create.waitForExistence(timeout: 10))
+        let buttons = [create, app.buttons["pricing.newSubscription.ask"], app.buttons["pricing.openAppStoreConnect"]]
+        let frames = buttons.map(\.frame)
+        for (button, frame) in zip(buttons, frames) {
+            XCTAssertGreaterThanOrEqual(frame.width, 140, "\(button.identifier) looks cut off")
+        }
+        XCTAssertLessThanOrEqual(frames[0].maxX, frames[1].minX)
+        XCTAssertLessThanOrEqual(frames[1].maxX, frames[2].minX)
+        XCTAssertEqual(frames[0].midY, frames[2].midY, accuracy: 1)
+    }
+
     /// Whether `element` gets the keyboard focus within a few seconds.
     private func waitForFocus(on element: XCUIElement) -> Bool {
         let focused = NSPredicate(format: "hasKeyboardFocus == true")

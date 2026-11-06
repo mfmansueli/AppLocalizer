@@ -23,13 +23,18 @@ struct AutopilotWatchInfoBox: View {
             Divider()
             row(String(localized: "Checks"), studio.previewChecksLine(file), identifier: "checks", isProblem: !file.problems.isEmpty)
             Divider()
-            HStack(spacing: Spacing.small) {
+            // The note goes under the menu: beside it, in Review's narrow
+            // column, it wrapped a syllable a line (MB Admin's run).
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.small) {
                 label(String(localized: "Music"))
-                music
-                Text("Required · always on")
-                    .font(.caption)
-                    .foregroundStyle(Palette.label2)
-                Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 2) {
+                    music
+                    Text("Required · always on")
+                        .font(.caption)
+                        .foregroundStyle(Palette.label2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal, Spacing.medium)
             .padding(.vertical, Spacing.xSmall)

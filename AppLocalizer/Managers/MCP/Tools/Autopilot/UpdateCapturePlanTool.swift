@@ -99,7 +99,9 @@ struct UpdateCapturePlanTool: MCPTool {
     /// Why the screens can't be replaced, if they can't.
     private static func replaceRefusal(canAdd: Bool, plan: AutopilotPlan) -> String? {
         if !canAdd { return String(localized: "Screens can only be replaced before the first capture.") }
-        if !plan.choosesScreens { return String(localized: "The person keeps these screens: send their steps without replace.") }
+        if !plan.choosesScreens, !plan.awaitsScreens {
+            return String(localized: "The person keeps these screens: send their steps without replace.")
+        }
         return nil
     }
 

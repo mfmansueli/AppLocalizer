@@ -127,7 +127,30 @@ struct AutopilotCenterPreviewReviewTests {
         watching.designKind = .none
         center.install(watching)
         center.requestPreviewChanges("Slower pace", appID: appID)
-        #expect(review?.request == nil, "Only a design project can make a new version")
+        #expect(review?.request == nil, "Classic without a design project: nobody makes a new version")
+    }
+
+    /// MB Admin's guided run had no design project, and its ask box said
+    /// "Needs a design project": a guided plan has Claude Code take the
+    /// asks, as it designs the header concepts.
+    @Test func withoutADesignProjectAGuidedRunAsksClaude() async throws {
+        var watching = lumen(.watchPreview)
+        watching.designKind = .none
+        watching.plan.assistantDesignsArtwork = true
+        center.install(watching)
+        #expect(run?.reviser == .claudeDesign)
+
+        center.requestPreviewChanges("Slower pace", appID: appID)
+        let review = try #require(review)
+        #expect(review.request?.note == "Slower pace")
+        #expect(run?.log.last?.text == "Asked Claude Design for App Preview changes: “Slower pace”")
+        #expect(run?.assistantHasWork == true, "AppLocalizer starts Claude Code for it")
+        #expect(await center.nextStep(appID: appID, client: AutopilotTestFixtures.client) == .revisePreview(note: "Slower pace", review: review))
+
+        watching.plan.assistantDesignsArtwork = nil
+        #expect(watching.reviser == nil)
+        watching.designKind = .claudeDesign
+        #expect(watching.reviser == .claudeDesign)
     }
 
     // MARK: - Revisions

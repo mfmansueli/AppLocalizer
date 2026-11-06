@@ -80,6 +80,9 @@ struct ArtworkView: View {
         case let .panorama(panorama):
             context.fill(Path(rect), with: .color((panorama.stops.first ?? .black).color))
         }
+        if let panorama = layout.panorama, let slotSize = layout.panoramaSlotSize {
+            PanoramaPainter(panorama: panorama, slotSize: slotSize).drawPicture(in: &context)
+        }
     }
 
     private func draw(_ phone: ArtworkPhone, in parent: GraphicsContext) {

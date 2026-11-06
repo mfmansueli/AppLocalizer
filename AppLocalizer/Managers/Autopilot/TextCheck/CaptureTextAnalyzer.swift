@@ -32,7 +32,8 @@ enum CaptureTextAnalyzer {
         return CaptureTextFacts(
             language: reading.readsLanguage ? dominantLanguage(of: lines.joined(separator: "\n")) : nil,
             truncatedLines: lines.filter(isTruncated),
-            promptLine: lines.first { quotesName(in: $0, appName: appName) }
+            promptLine: lines.first { quotesName(in: $0, appName: appName) },
+            blankShare: reading.blankShare.map { ($0 * 100).rounded() / 100 }
         )
     }
 

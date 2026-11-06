@@ -63,6 +63,21 @@ struct CaptureReportToolsTests {
         #expect(fixtures.run?.captures.last?.text == CaptureTextFacts(language: "en"))
     }
 
+    /// MB Admin's nearly empty sheet passed: a mostly blank capture comes
+    /// back with a check too.
+    @Test func aMostlyBlankCaptureComesBackWithACheck() async throws {
+        let fixtures = MCPAutopilotFixtures(StudioDebugRuns.run(.capture))
+        fixtures.services.textReadings["9f2c"] = CaptureTextReading(lines: [], readsLanguage: true, blankShare: 0.81)
+        let id = try upload(AutopilotTestFixtures.file(.iPad, landscape: true, id: "9f2c"), in: fixtures)
+        var arguments = Self.spanishWeek
+        arguments["upload"] = .string(id)
+        let outcome = try await fixtures.call(ReportCaptureTool(), arguments)
+
+        let issue = CaptureTextIssue.mostlyBlank(percent: 81)
+        #expect(outcome.result["check"] == [["issue": .string(issue.message), "fix": .string(issue.fix)]])
+        #expect(outcome.result["next"] == "Fix it and capture this screen again as attempt 2.")
+    }
+
     @Test func screensAreNamedByIDNameOrSlotAndLocalesByAnyCase() async throws {
         let fixtures = MCPAutopilotFixtures(AutopilotTestFixtures.run(.capture))
         for (screen, locale) in [("today", "en-US"), ("Week", "de-de"), ("2", "EN-us")] {

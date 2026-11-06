@@ -134,6 +134,14 @@ extension AutopilotNextStep {
         return ["action": "done", "say": .string(say)]
     }
 
+    /// MB Admin's run: the person pressed Retry without the change, and
+    /// Claude Code stopped with the run stuck on it.
+    static let projectChangeRetryNote = """
+    The fix is a change to the project. Read the file it names: when the change is there, capture the screen again. \
+    When it isn't, call report_capture_problem for this screen again with the same fix (the person then changes the \
+    project, keeps the capture they have or uploads one) and go on; don't stop on it.
+    """
+
     private static func captureJSON(targets: [AutopilotCaptureTarget], retries: [AutopilotProblem], run: AutopilotRun?) -> JSONValue {
         let items: [JSONValue] = targets.prefix(40).map { target in
             var item: [String: JSONValue] = [
@@ -159,6 +167,8 @@ extension AutopilotNextStep {
                 item["note"] = .string(
                     "This command was refused. The person may have changed the project since (see fix): read it again, and don't run the refused command."
                 )
+            } else if problem.needsProjectChange {
+                item["note"] = .string(Self.projectChangeRetryNote)
             }
             return .object(item)
         }
@@ -170,7 +180,10 @@ extension AutopilotNextStep {
             "how": """
             Capture each target up to 3 times, upload each PNG to the plan's upload URL and call report_capture \
             with the upload ID, attempt and a score from 0 to 1 (content filled in, no keyboard, alert or \
-            spinner, nothing private, matches the caption) with notes saying why. When a screen can't be \
+            spinner, nothing private, matches the caption) with notes saying why. Look at the PNG of each \
+            screen's first capture on each device before reporting it: an empty state, a "select an item" \
+            placeholder, a blank or black screen or an almost empty list is no store screenshot, so set the state \
+            up (sample data, select the first item) and capture it again. When a screen can't be \
             reached, call report_capture_problem and go on with the others. When the fix is a change to the \
             project, report it once with changesProject: true: AppLocalizer holds that screen on that device in \
             the other languages. When this Mac can't run a device at all, report it once with affectsDevice: true. \

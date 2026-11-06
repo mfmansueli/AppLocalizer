@@ -95,4 +95,20 @@ struct MCPServerControllerLaunchTests {
         MCPTestFixtures.pair(.cursor, in: controller, at: clock.now)
         #expect(controller.assistantClient?.id == claudeCode.id)
     }
+
+    /// Right after AppLocalizer opens, no assistant is connected yet:
+    /// Autopilot still captures with the Claude Code it starts itself.
+    @Test func autopilotCapturesWithTheClaudeCodeItCanStart() async throws {
+        #expect(controller.xcodeAssistant == nil, "No helper and nobody connected")
+
+        let launcher = ClaudeCodeTestFixtures.launcher(assistants: controller, clock: clock)
+        await launcher.refreshHelper()
+        #expect(controller.connectedClients.isEmpty)
+        #expect(controller.xcodeAssistant == "Claude Code")
+
+        // One connected now comes first.
+        let cursor = MCPTestFixtures.pair(.cursor, in: controller, at: clock.now)
+        _ = try await MCPTestFixtures.initialize(controller, token: cursor.token)
+        #expect(controller.xcodeAssistant == "Cursor")
+    }
 }

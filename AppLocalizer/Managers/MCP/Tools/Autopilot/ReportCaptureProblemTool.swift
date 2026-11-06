@@ -25,7 +25,7 @@ struct ReportCaptureProblemTool: MCPTool {
         iOS 27.1 runtime), report it once with affectsDevice: true and go on with the other devices; don't download \
         simulator runtimes yourself: AppLocalizer offers the person to install them. Don't stop: capture the \
         other screens. The person retries with the fix (next_step then lists it under retryWithFix), reuses the \
-        primary language's capture, or uploads one by hand.
+        primary language's capture, keeps the capture already sent, or uploads one by hand.
         """,
         inputSchema: MCPToolDefinition.schema(
             [

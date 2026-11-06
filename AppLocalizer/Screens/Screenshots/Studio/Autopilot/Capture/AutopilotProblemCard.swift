@@ -150,6 +150,12 @@ struct AutopilotProblemCard: View {
             .buttonStyle(.borderedProminent)
             .tint(simulatorStatus?.canCapture == false || isMakeable || opensInDeviceHub ? Palette.label2 : nil)
             .accessibilityIdentifier("autopilot.problem.retry")
+            if canKeepCapture {
+                Button(group.isSingle ? String(localized: "Keep the Capture") : String(localized: "Keep the Captures")) {
+                    studio.resolve(group, with: .keptCapture)
+                }
+                .accessibilityIdentifier("autopilot.problem.keep")
+            }
             if canUsePrimaryCapture {
                 Button("Use the \(primaryName) Capture") { studio.resolve(group, with: .usePrimaryCapture) }
                     .accessibilityIdentifier("autopilot.problem.usePrimary")
@@ -181,8 +187,9 @@ struct AutopilotProblemCard: View {
     private var headline: String {
         if group.isDeviceWide { return String(localized: "\(group.displayType.title): no screen can be captured. ") }
         let place = String(localized: "\(screenName), \(languages) on \(devices)")
-        return group.wasRefused
-            ? String(localized: "\(place): a command wasn’t allowed. ")
+        if group.wasRefused { return String(localized: "\(place): a command wasn’t allowed. ") }
+        return canKeepCapture
+            ? String(localized: "\(place): captured, with a problem. ")
             : String(localized: "\(place): couldn’t reach the screen. ")
     }
 
@@ -303,6 +310,12 @@ struct AutopilotProblemCard: View {
     private var installProgress: String? {
         guard group.isDeviceWide, let simulators, simulators.working == group.displayType else { return nil }
         return simulators.progress ?? String(localized: "Starting…")
+    }
+
+    /// Every one of these screens was captured before the problem was
+    /// reported (MB Admin's portrait iPad capture): the person can keep it.
+    private var canKeepCapture: Bool {
+        !group.isDeviceWide && group.problems.allSatisfy { run.hasCapture(for: $0.target) }
     }
 
     /// The primary language's captures of these screens are there to reuse.

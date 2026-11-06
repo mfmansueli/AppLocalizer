@@ -40,6 +40,16 @@ extension ScreenshotStudioModel {
         designProject?.kind.usesDesignAI == true ? headerDesignerName : String(localized: "AppLocalizer")
     }
 
+    /// What to make's line: who captures, who designs (in which brand) and
+    /// who localizes. Without a design project AppLocalizer designs, so it
+    /// doesn't promise a design AI or a brand there isn't.
+    var guidedMakeIntro: String {
+        guard let brand = shotStyleBrand else {
+            return String(localized: "Choose any mix. \(assistantTitle) captures the real app, and AppLocalizer designs, localizes and checks every image.")
+        }
+        return String(localized: "Choose any mix. \(assistantTitle) captures the real app, \(shotStyleDesigner) designs it in \(brand), and AppLocalizer localizes and checks every image.")
+    }
+
     /// The brand the design AI works in, if any.
     var shotStyleBrand: String? {
         designProject.flatMap { $0.kind.usesDesignAI ? $0.displayName : nil }

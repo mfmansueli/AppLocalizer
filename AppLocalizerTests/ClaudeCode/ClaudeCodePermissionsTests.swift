@@ -48,6 +48,18 @@ struct ClaudeCodePermissionsTests {
         #expect(ClaudeCodePermissions.autopilot.systemPrompt.contains("curl -s --data-binary"))
     }
 
+    /// MB Admin's App Preview recordings were left out: recordVideo
+    /// finishes its file only on SIGINT, and kill -INT was refused.
+    @Test func autopilotCanStopARecordingAndNothingElse() {
+        let rules = ClaudeCodePermissions.autopilot.allowRules(port: port)
+        #expect(rules.contains("Bash(killall -INT simctl)"))
+        #expect(!rules.contains { $0.hasPrefix("Bash(kill") && $0 != "Bash(killall -INT simctl)" })
+        #expect(ClaudeCodePermissions.autopilot.systemPrompt.contains("with exactly killall -INT simctl"))
+        #expect(AutopilotRun.recordingHow.contains("Stop it with exactly killall -INT simctl"))
+        #expect(!AutopilotRun.recordingHow.contains("kill -INT <pid>"))
+        #expect(!ClaudeCodePermissions.readProject.allowRules(port: port).contains("Bash(killall -INT simctl)"))
+    }
+
     /// `VAR=value xcodebuild …` doesn't match `Bash(xcodebuild:*)`, so
     /// Autopilot is told so, how UI tests get their language instead, and
     /// how to report a refusal.

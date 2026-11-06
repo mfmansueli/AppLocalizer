@@ -75,14 +75,41 @@ struct StarterDirectionMaker {
         switch starter {
         case .above:
             template.background.stops = palette.gradient
+            setInk(&template, on: palette.gradient[0], palette: palette)
         case .band:
             template.background.stops = [palette.darkest]
             template.caption.band.color = palette.darkest
+            setInk(&template, on: palette.darkest, palette: palette)
         case .panorama:
             template.background.stops = palette.panorama
-            template.caption.ink = palette.darkest
+            setInk(&template, on: palette.panorama[0], palette: palette, prefersWhite: false)
         default:
             break
         }
+    }
+
+    /// The caption's ink and its subtitle's on `background`, where the
+    /// caption sits.
+    private static func setInk(_ template: inout ScreenshotTemplate, on background: String, palette: IconPalette, prefersWhite: Bool = true) {
+        let ink = ink(on: background, palette: palette, prefersWhite: prefersWhite)
+        template.caption.ink = ink
+        template.caption.subInk = TemplateColor(ink).map { "rgba(\(Int($0.red * 255)),\(Int($0.green * 255)),\(Int($0.blue * 255)),0.84)" } ?? ink
+    }
+
+    /// The darkest the caption falls back to when the icon's own isn't dark
+    /// enough.
+    static let nearBlack = "#1C1A22"
+
+    /// White, the icon's darkest shade or near black: the first that reads
+    /// at 3:1 on `background` (white first on the colored starters, the
+    /// icon's shade first on the pale panorama), else the one that reads
+    /// best. MB Admin's pale pink icon gave white captions on a pale
+    /// gradient.
+    static func ink(on background: String, palette: IconPalette, prefersWhite: Bool = true) -> String {
+        guard let back = TemplateColor(background) else { return "#FFFFFF" }
+        let candidates = prefersWhite ? ["#FFFFFF", palette.darkest, nearBlack] : [palette.darkest, nearBlack, "#FFFFFF"]
+        let ratios = candidates.map { candidate in TemplateColor(candidate).map { ArtworkContrast.ratio($0, back) } ?? 0 }
+        if let readable = zip(candidates, ratios).first(where: { $0.1 >= ArtworkContrast.minimumTextRatio }) { return readable.0 }
+        return zip(candidates, ratios).max { $0.1 < $1.1 }?.0 ?? "#FFFFFF"
     }
 }

@@ -114,10 +114,11 @@ final class AssistantSetupViewModel {
 
     var testRun: ClaudeCodeRun? { launcher?.run(testRunID) }
 
-    /// The folder step 3 shows: the one chosen, else a suggestion.
+    /// The folder step 3 shows: the one chosen, else a suggestion that
+    /// isn't another app's project.
     var projectFolder: String? {
         guard let launcher, let appID else { return nil }
-        return launcher.projectFolder(for: appID) ?? launcher.suggestedFolder(for: appID)
+        return launcher.projectFolder(for: appID) ?? launcher.keptSuggestion(for: appID)
     }
 
     /// e.g. "Claude Code".
@@ -269,7 +270,7 @@ final class AssistantSetupViewModel {
             step = .snippet
         case .snippet:
             if launches, let launcher, let appID, launcher.projectFolder(for: appID) == nil,
-               let suggested = launcher.suggestedFolder(for: appID)
+               let suggested = launcher.keptSuggestion(for: appID)
             {
                 launcher.setProjectFolder(suggested, for: appID)
             }

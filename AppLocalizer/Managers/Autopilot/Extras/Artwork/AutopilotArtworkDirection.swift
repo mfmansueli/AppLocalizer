@@ -16,13 +16,14 @@ struct AutopilotArtworkDirection: Codable, Hashable, Sendable {
 
     var trimmedText: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
 
-    /// The quick additions under the text.
+    /// The quick additions under the text: ideas that fit any app (they
+    /// used to name the sample app's moon and winter, on every app).
     static let additions = [
-        String(localized: "Night sky with the moon"),
-        String(localized: "Hand holding the phone"),
+        String(localized: "Use the icon’s colors"),
         String(localized: "Bigger headline"),
-        String(localized: "Warmer colors"),
-        String(localized: "Winter season"),
+        String(localized: "Hand holding the phone"),
+        String(localized: "Light and airy"),
+        String(localized: "Bold and high-contrast"),
     ]
 
     /// Adds a quick addition: on its own, or after what's there, in lower

@@ -55,6 +55,12 @@ final class AppPreferences {
         didSet { defaults?.set(showsAssistantIntro, forKey: Key.showsAssistantIntro) }
     }
 
+    /// General → "Screenshot Autopilot": the guided steps, or the classic
+    /// sheet with every setting on one plan.
+    var autopilotFront: AutopilotFront {
+        didSet { defaults?.set(autopilotFront.rawValue, forKey: Key.autopilotFront) }
+    }
+
     private let defaults: UserDefaults?
 
     /// nil keeps everything in memory (DEBUG scenes, tests).
@@ -70,6 +76,7 @@ final class AppPreferences {
         confirmsPriceIncreases = defaults?.object(forKey: Key.confirmsPriceIncreases) as? Bool ?? true
         confirmsDiscarding = defaults?.object(forKey: Key.confirmsDiscarding) as? Bool ?? true
         showsAssistantIntro = defaults?.object(forKey: Key.showsAssistantIntro) as? Bool ?? true
+        autopilotFront = defaults?.string(forKey: Key.autopilotFront).flatMap(AutopilotFront.init(rawValue:)) ?? .guided
     }
 
     private enum Key {
@@ -81,5 +88,6 @@ final class AppPreferences {
         static let confirmsPriceIncreases = "confirmsPriceIncreases"
         static let confirmsDiscarding = "confirmsDiscarding"
         static let showsAssistantIntro = "showsAssistantIntro"
+        static let autopilotFront = "autopilotFront"
     }
 }

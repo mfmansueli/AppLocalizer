@@ -42,6 +42,19 @@ struct GeneralSettingsTab: View {
                 .toggleStyle(.switch)
                 .accessibilityIdentifier("settings.confirmsPriceIncreases")
             }
+            Section("Screenshot Autopilot") {
+                LabeledContent {
+                    FittingSegmentedPicker(
+                        label: String(localized: "Autopilot"),
+                        options: AutopilotFront.allCases.map { ($0, $0.title) },
+                        selection: $preferences.autopilotFront
+                    )
+                    .fixedSize()
+                    .accessibilityIdentifier("settings.autopilotFront")
+                } label: {
+                    SettingsRowLabel(title: "Autopilot", caption: AutopilotFront.note)
+                }
+            }
             Section("Proceeds") {
                 Picker(selection: $preferences.commissionRate) {
                     ForEach(Self.commissionRates, id: \.self) { Text(Self.title(forCommission: $0)).tag($0) }

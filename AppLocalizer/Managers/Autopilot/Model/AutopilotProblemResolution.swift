@@ -17,4 +17,7 @@ enum AutopilotProblemResolution: String, Codable, Hashable, Sendable {
     case captured
     /// The person left the device out of this run.
     case leftOut
+    /// The person kept the capture the screen already had: MB Admin's
+    /// portrait iPad capture, reported because the UI tests can't rotate.
+    case keptCapture
 }

@@ -118,6 +118,9 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     var screenRequest: AutopilotScreenRequest?
     /// The assistant's suggested screens, shown at Plan.
     var screenSuggestions: AutopilotScreenSuggestions?
+    /// The guided Review & push: approvals, confirmed shortenings and the
+    /// push; nil before, in classic runs and in runs from before.
+    var guidedReview: AutopilotGuidedReview?
     var createdAt: Date
     var startedAt: Date?
     var finishedAt: Date?
@@ -132,12 +135,17 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     /// Captured, or settled by the person (the primary language's capture
     /// reused, or one uploaded by hand).
     func isSettled(_ target: AutopilotCaptureTarget) -> Bool {
-        captures.contains { $0.target == target && plan.fits($0) }
+        hasCapture(for: target)
             || primaryCaptureTargets?.contains(target) == true
             || problems.contains { $0.target == target && ($0.resolution == .usePrimaryCapture || $0.resolution == .uploadedByHand) }
     }
 
     var capturedCount: Int { plan.targets.count(where: isSettled) }
+
+    /// A capture of `target` that fits the plan arrived.
+    func hasCapture(for target: AutopilotCaptureTarget) -> Bool {
+        captures.contains { $0.target == target && plan.fits($0) }
+    }
 
     /// What's left to capture, the rehearsal's first (see
     /// `AutopilotPlan.rehearsalLocale`), without the ones a problem holds.
@@ -213,10 +221,13 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
         problems.filter(isPendingRetry)
     }
 
+    /// A problem reported again on the same screen replaces the retry, so
+    /// keeping its capture doesn't bring the retry back.
     private func isPendingRetry(_ problem: AutopilotProblem) -> Bool {
         problem.resolution == .retryWithFix && plan.displayTypes.contains(problem.target.displayType)
             && !captures.contains { $0.target == problem.target && $0.receivedAt >= problem.reportedAt }
             && !problems.contains { $0.isOpen && ($0.target == problem.target || $0.holdsDevice(of: problem)) }
+            && !problems.contains { $0.target == problem.target && $0.reportedAt > problem.reportedAt }
     }
 
     /// Reuse the primary language's capture for a screen on a device in

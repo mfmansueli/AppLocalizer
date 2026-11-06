@@ -83,6 +83,11 @@ extension AutopilotStall {
         case .design:
             if run.revision != nil { return String(localized: "your changes still to make") }
             let left = run.directionsLeft
+            // Starters are made at once: only the assistant's headers wait.
+            if left == 0, run.conceptsLeft > 0 {
+                let headers = run.conceptsLeft
+                return headers == 1 ? String(localized: "1 header still to design") : String(localized: "\(headers) headers still to design")
+            }
             return left == 1 ? String(localized: "1 direction still to design") : String(localized: "\(left) directions still to design")
         case .watchPreview:
             return String(localized: "your App Preview changes still to make")

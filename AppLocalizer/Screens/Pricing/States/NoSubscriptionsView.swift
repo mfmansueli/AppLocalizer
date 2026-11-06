@@ -34,6 +34,10 @@ struct NoSubscriptionsView: View {
                     .accessibilityIdentifier("pricing.openAppStoreConnect")
                 }
                 .buttonBorderShape(.capsule)
+                // The actions are only about 360 pt wide, which cut the
+                // titles off; the buttons' own width is fixed, so this can't
+                // loop like the whole view's size did.
+                .fixedSize(horizontal: true, vertical: false)
                 if !viewModel.queuedNewSubscriptions.isEmpty {
                     QueuedNewSubscriptionsList(viewModel: viewModel)
                         .frame(maxWidth: .infinity)

@@ -16,7 +16,7 @@ struct AutopilotWatchAskBox: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.small) {
             HStack(spacing: Spacing.small) {
-                if kind.usesDesignAI {
+                if canRevise {
                     Pill(text: "\(kind.monogram) \(kind.title)", style: .outline)
                 }
                 Text("Ask for changes").font(.callout.weight(.semibold))
@@ -31,10 +31,10 @@ struct AutopilotWatchAskBox: View {
                     TextField(String(localized: "e.g. “end on the Week screen, shorter captions”"), text: $studio.previewNote)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { if canAsk { studio.askForPreviewChanges() } }
-                        .disabled(!kind.usesDesignAI || isBusy)
+                        .disabled(!canRevise || isBusy)
                         .accessibilityLabel(Text("Ask \(kind.title) for changes"))
                         .accessibilityIdentifier("autopilot.watch.note")
-                    Button(kind.usesDesignAI ? String(localized: "Ask \(kind.title)") : String(localized: "Needs a design project")) {
+                    Button(canRevise ? String(localized: "Ask \(kind.title)") : String(localized: "Needs a design project")) {
                         studio.askForPreviewChanges()
                     }
                     .buttonStyle(.borderedProminent)
@@ -80,12 +80,15 @@ struct AutopilotWatchAskBox: View {
         .accessibilityIdentifier("autopilot.watch.askBox")
     }
 
-    private var kind: DesignProjectKind { run.designKind }
+    /// Who takes the asks: the design project's AI, or Claude in a guided
+    /// run without one.
+    private var kind: DesignProjectKind { run.reviser ?? run.designKind }
+    private var canRevise: Bool { run.reviser != nil }
     private var review: AutopilotPreviewReview? { run.previewReview }
     private var isBusy: Bool { review?.isBusy == true }
 
     private var canAsk: Bool {
-        kind.usesDesignAI && !isBusy && !studio.previewNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        canRevise && !isBusy && !studio.previewNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var quickAsks: some View {
@@ -95,7 +98,7 @@ struct AutopilotWatchAskBox: View {
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.capsule)
                     .controlSize(.small)
-                    .disabled(!kind.usesDesignAI || isBusy)
+                    .disabled(!canRevise || isBusy)
                     .fixedSize()
                     .accessibilityIdentifier("autopilot.watch.quick.\(ask)")
             }

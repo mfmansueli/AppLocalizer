@@ -32,6 +32,13 @@ struct CapturePlanDevicesToolsTests {
         #expect(watch["how"]?.stringValue?.contains("xcrun simctl pair") == true)
         #expect(watch["screens"]?.arrayValue?.map { $0["name"] } == ["Mood check-in", "Today’s prompt", "Week", "Watch face"])
 
+        // MB Admin's UI tests never rotate: portrait iPad captures are
+        // fine, not a problem that stops the run for the person.
+        let iPad = try #require(devices.first { $0["displayType"] == "ipad" })
+        #expect(iPad["orientation"] == "landscape, or portrait when the UI tests can't rotate")
+        #expect(iPad["pixelSize"] == "2752 × 2064 (landscape) or 2064 × 2752 (portrait)")
+        #expect(iPad["how"]?.stringValue?.contains("a portrait capture is not a problem; don't report it") == true)
+
         let vision = try #require(devices.first { $0["displayType"] == "vision" })
         #expect(vision["orientation"] == "landscape")
         #expect(vision["screens"]?.arrayValue?.compactMap { $0["sameMomentAs"]?.stringValue } == ["today", "week", "search"])

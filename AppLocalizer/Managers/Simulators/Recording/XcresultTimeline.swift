@@ -30,13 +30,16 @@ enum XcresultTimeline {
             var steps: [Double] = []
             var attached: [(name: String, time: Double)] = []
             func walk(_ activity: Activity) {
-                if let attachments = activity.attachments, !attachments.isEmpty {
-                    for attachment in attachments {
+                let own = (activity.attachments ?? []).filter { isTestsOwn($0, of: activity) }
+                if !own.isEmpty {
+                    for attachment in own {
                         guard let time = attachment.timestamp ?? activity.startTime else { continue }
                         attached.append((name(of: activity, attachment: attachment), time))
                     }
                     return
                 }
+                // A step XCTest attached its own record to (a tap's
+                // synthesized event) is a step like any other.
                 if let start = activity.startTime { steps.append(start) }
                 activity.childActivities?.forEach(walk)
             }
@@ -49,6 +52,24 @@ enum XcresultTimeline {
             }
         }
         return screenshots.sorted { $0.time < $1.time }
+    }
+
+    /// XCTest's own attachments, which aren't the test's screenshots.
+    static let automaticPrefixes = [
+        "Synthesized Event", "UI Snapshot", "Screen Recording", "App UI hierarchy", "Complete Issue Description",
+        "Debug description", "kXCTAttachment",
+    ]
+
+    /// An image the test attached: not one XCTest adds by itself (MB Admin's
+    /// iPhone Duo run had 40 of them, "Synthesized Event …", "UI Snapshot
+    /// …", a screen recording and texts, each made into a full-size capture
+    /// for Claude Code to look at).
+    private static func isTestsOwn(_ attachment: Attachment, of activity: Activity) -> Bool {
+        let file = attachment.name ?? ""
+        let type = (file as NSString).pathExtension.lowercased()
+        guard type.isEmpty || ["png", "jpg", "jpeg", "heic"].contains(type) else { return false }
+        let name = name(of: activity, attachment: attachment)
+        return !automaticPrefixes.contains { name.hasPrefix($0) || file.hasPrefix($0) }
     }
 
     /// "Added attachment named 'streak'", or its file's name without the

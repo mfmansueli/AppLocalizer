@@ -67,6 +67,7 @@ struct ArtworkLayoutEngine {
             : nil
         return ArtworkLayout(
             kind: kind, locale: locale.code, isMirrored: isMirrored, background: background,
+            panorama: shows == .scene ? nil : Self.panorama(template, size: size, isMirrored: isMirrored),
             safeArea: ArtworkSafeArea.rect(for: kind), headlineBox: parts.headlineBox, lines: parts.lines, headline: parts.fit,
             phones: parts.phones, appLabel: parts.label, fonts: catalog, scene: scene
         )
@@ -238,6 +239,19 @@ struct ArtworkLayoutEngine {
         let background = LayoutBackground(template.background, slot: 0, slotCount: 1, isMirrored: isMirrored)
         guard case let .panorama(panorama) = background else { return background }
         return panorama.stops.count > 1 ? .linear(angle: isMirrored ? 270 : 90, stops: panorama.stops) : .solid(panorama.stops[0])
+    }
+
+    /// A panorama look's picture across the artwork, in slots of about a
+    /// portrait iPhone screenshot's shape: 5 on the header, 3 on search
+    /// results, 4 on the 16:9 image. Nil for other looks.
+    static func panorama(_ template: ScreenshotTemplate, size: CGSize, isMirrored: Bool) -> LayoutPanorama? {
+        guard template.background.kind == .panorama else { return nil }
+        let stops = template.background.stops.compactMap { TemplateColor($0) }
+        guard stops.count > 1 else { return nil }
+        let portrait = ScreenshotDisplayType.iPhone.portraitPixelSize
+        let slotWidth = size.height * CGFloat(portrait.width) / CGFloat(portrait.height)
+        let slots = max(1, Int((size.width / slotWidth).rounded()))
+        return LayoutPanorama(stops: stops, slotCount: slots, slot: 0, isMirrored: isMirrored)
     }
 
     /// A light background with dark text: the scene's stars and hills go

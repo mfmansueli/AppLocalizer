@@ -153,6 +153,37 @@ struct AssistantSetupLaunchTests {
         #expect(launcher.projectFolder(for: ClaudeCodeTestFixtures.lumenID) == "/Users/sam/Developer/Lumen")
     }
 
+    /// MB Admin's setup after Bruma's: the folder Claude Code last worked in
+    /// is Bruma's, so it isn't kept for MB Admin; the person chooses it.
+    @Test func anotherAppsFolderIsntKeptForThisOne() async {
+        await launcher.refreshHelper()
+        launcher.setProjectFolder("/Users/sam/Developer/Lumen", for: ClaudeCodeTestFixtures.tempoID)
+        var paired = MCPTestFixtures.pair(.claudeCode, in: assistants, at: clock.now).client
+        paired.workingDirectory = "/Users/sam/Developer/Lumen"
+        assistants.restorePairings([paired], tokens: assistants.tokens)
+        let setup = setup()
+        toSnippet(setup)
+        #expect(setup.projectFolder == nil, "Step 3 says Not chosen yet, with Choose…")
+        _ = setup.advance()
+        #expect(launcher.projectFolder(for: ClaudeCodeTestFixtures.lumenID) == nil)
+    }
+
+    /// A suggested folder whose projects plainly build another app isn't
+    /// kept either.
+    @Test func aSuggestionThatBuildsAnotherAppIsntKept() async {
+        await launcher.refreshHelper()
+        var paired = MCPTestFixtures.pair(.claudeCode, in: assistants, at: clock.now).client
+        paired.workingDirectory = "/Users/sam/Developer/Tempo"
+        assistants.restorePairings([paired], tokens: assistants.tokens)
+        launcher.bundleIDLookup = { _ in "com.northpier.lumen" }
+        launcher.folderChecker = { _ in ProjectFolderCheck(bundleIDs: ["com.northpier.tempo"], hasVariables: false) }
+        let setup = setup()
+        toSnippet(setup)
+        #expect(setup.projectFolder == nil)
+        launcher.folderChecker = { _ in ProjectFolderCheck(bundleIDs: ["com.northpier.lumen"], hasVariables: false) }
+        #expect(setup.projectFolder == "/Users/sam/Developer/Tempo")
+    }
+
     @Test func cancellingStopsTheTestAndUnpairs() async throws {
         runner.lines = [Lines.initLine()]
         runner.exitStatus = nil
