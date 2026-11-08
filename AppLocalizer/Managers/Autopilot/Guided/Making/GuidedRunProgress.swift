@@ -44,7 +44,7 @@ struct GuidedRunProgress: Hashable, Sendable {
     /// in about 4 min" with about 14 min of capturing still to come.
     private static func waiting(_ run: AutopilotRun) -> GuidedRunProgress {
         let client = run.client ?? String(localized: "Claude Code")
-        let kept = run.plan.reusesCaptures ? run.keptCaptureCount : 0
+        let kept = run.capturesKeptAtStart
         let capturing = run.plan.makesScreenshots || !run.plan.artworkTargets.isEmpty
             ? AutopilotEstimate.captureMinutes(for: run.plan, kept: kept) : 0
         let left = capturing + AutopilotEstimate.recordingMinutes(for: run.plan)
@@ -65,10 +65,22 @@ struct GuidedRunProgress: Hashable, Sendable {
         // are all in and only its recordings are left.
         guard total > 0, run.capturedCount < total || run.remainingRecordings.isEmpty else { return recording(run) }
         let done = run.capturedCount
-        // The pace from the first capture (building the app and picking the
-        // screens come before it), with pauses cut short.
-        let since = activeStart(of: run.captures.map(\.receivedAt).sorted(), now: now)
-        let left = (minutesLeft(done: done, total: total, since: since, now: now)
+        if run.waitsOnlyOnProblems {
+            let waiting = total - done
+            let line = waiting == 1
+                ? String(localized: "\(done) of \(total) captures · 1 waits on you")
+                : String(localized: "\(done) of \(total) captures · \(waiting) wait on you")
+            return GuidedRunProgress(title: String(localized: "Capturing in Simulator"), fraction: fraction(done, total), line: line)
+        }
+        // The pace from this start's first capture (building the app and
+        // picking the screens come before it), with pauses cut short. The
+        // captures kept from the last run arrived before it: Bruma's run,
+        // reusing 54 of 432, said "about 4 h 9 min left" before its first
+        // new one, the old run's hours and its pause counted as this one's.
+        let fresh = run.captures.filter { $0.receivedAt >= run.startedAt ?? .distantPast && run.plan.fits($0) }
+        let freshDone = min(done, Set(fresh.map(\.target)).count)
+        let since = activeStart(of: fresh.map(\.receivedAt).sorted(), now: now)
+        let left = (minutesLeft(done: freshDone, total: freshDone + total - done, since: since, now: now)
             ?? AutopilotEstimate.captureMinutes(for: total - done)) + recordingMinutesLeft(run)
         let line = String(localized: "\(done) of \(total) captures") + aboutLeft(left)
         return GuidedRunProgress(title: String(localized: "Capturing in Simulator"), fraction: fraction(done, total), line: line, minutesLeft: left)
@@ -119,22 +131,75 @@ struct GuidedRunProgress: Hashable, Sendable {
         return GuidedRunProgress(title: title, fraction: fraction(done, total), line: line, minutesLeft: left)
     }
 
-    private static func localize(_ run: AutopilotRun, now _: Date) -> GuidedRunProgress {
-        let total = run.plan.localeCodes.count
-        let done: Int
-        if run.plan.makesScreenshots {
-            done = run.plan.localeCodes.count { run.localeStatus[$0]?.isDone == true }
-        } else if !run.plan.artworkKinds.isEmpty {
-            done = min(run.extrasProgress?.artworkDone ?? 0, total)
-        } else {
-            let previews = run.extrasProgress
-            done = previews.map { $0.previewsTotal > 0 ? total * $0.previewsDone / $0.previewsTotal : 0 } ?? 0
+    private static func localize(_ run: AutopilotRun, now: Date) -> GuidedRunProgress {
+        let plan = run.plan
+        let total = plan.localeCodes.count
+        let checking = Double(GuidedMakeSummary.checkMinutes(plan))
+        let making = AutopilotEstimate.artworkMinutes(for: plan) + AutopilotEstimate.previewsMinutes(for: plan)
+        // The share of the bar checking the languages takes.
+        let checkShare = checking / max(checking + making, 1)
+        // Then the header and search artwork and the App Previews: Bruma's
+        // run said "12 of 12 languages · about 1 min left" over a full bar
+        // for the hour and more its 24 loops and two App Previews took.
+        if let extras = run.extrasProgress, !extras.isFinished {
+            return makingExtras(run, extras: extras, checkShare: checkShare, now: now)
         }
-        let left = share(of: GuidedMakeSummary.localizeMinutes(run.plan), left: total - done, total: total)
+        let done = if plan.makesScreenshots {
+            plan.localeCodes.count { run.localeStatus[$0]?.isDone == true }
+        } else {
+            // Only the extras: nothing to check but their texts.
+            run.extrasProgress?.isFinished == true ? total : 0
+        }
+        let left = share(of: GuidedMakeSummary.checkMinutes(plan), left: total - done, total: total)
+            + AutopilotEstimate.extrasMakingMinutes(for: plan)
         let line = (total == 1
             ? String(localized: "\(done) of 1 language")
             : String(localized: "\(done) of \(total) languages")) + aboutLeft(left)
-        return GuidedRunProgress(title: String(localized: "Localizing and checking"), fraction: fraction(done, total), line: line, minutesLeft: left)
+        return GuidedRunProgress(
+            title: String(localized: "Localizing and checking"), fraction: checkShare * fraction(done, total), line: line, minutesLeft: left
+        )
+    }
+
+    /// "Header and search artwork · 3 of 12 languages · about 9 min left",
+    /// then "App Previews · 1 of 2 · about 1 min left"; the time from the
+    /// pace so far once something is made.
+    private static func makingExtras(
+        _ run: AutopilotRun, extras: AutopilotExtrasProgress, checkShare: Double, now: Date
+    ) -> GuidedRunProgress {
+        let plan = run.plan
+        let artworkMinutes = AutopilotEstimate.artworkMinutes(for: plan)
+        let previewsMinutes = AutopilotEstimate.previewsMinutes(for: plan)
+        let artworkLeft = extras.artworkMinutesLeft(estimate: artworkMinutes, now: now)
+        let previewsLeft = extras.arePreviewsDone ? 0 : partLeft(
+            done: extras.previewsDone, total: extras.previewsTotal, since: extras.previewsStartedAt, estimate: previewsMinutes, now: now
+        )
+        let left = max(1, Int((artworkLeft + previewsLeft).rounded(.up)))
+        let part: String
+        if !extras.isArtworkDone {
+            let title = plan.alsoMakes.artworkSize.artworkTitle
+            part = extras.artworkTotal == 1 ? title : String(localized: "\(title) · \(extras.artworkDone) of \(extras.artworkTotal) languages")
+        } else {
+            part = extras.previewsTotal == 1
+                ? String(localized: "App Preview")
+                : String(localized: "App Previews · \(extras.previewsDone) of \(extras.previewsTotal)")
+        }
+        let made = artworkMinutes * fraction(extras.artworkDone, extras.artworkTotal, empty: 1)
+            + previewsMinutes * fraction(extras.previewsDone, extras.previewsTotal, empty: 1)
+        let madeShare = artworkMinutes + previewsMinutes > 0 ? made / (artworkMinutes + previewsMinutes) : 0
+        return GuidedRunProgress(
+            title: String(localized: "Localizing and checking"), fraction: checkShare + (1 - checkShare) * madeShare,
+            line: part + aboutLeft(left), minutesLeft: left
+        )
+    }
+
+    /// Minutes for what's left of one part: from its pace once some of it
+    /// is made, else its share of `estimate`.
+    private static func partLeft(done: Int, total: Int, since start: Date?, estimate: Double, now: Date) -> Double {
+        guard total > done else { return 0 }
+        if let start, done > 0 {
+            return now.timeIntervalSince(start) / Double(done) * Double(total - done) / 60
+        }
+        return estimate * Double(total - done) / Double(max(total, 1))
     }
 
     // MARK: - Helpers
@@ -180,6 +245,14 @@ struct GuidedRunProgress: Hashable, Sendable {
         return max(1, Int(part.rounded(.up)))
     }
 
+    /// "about 6 min", "about 1 h 20 min".
+    static func about(_ minutes: Int) -> String {
+        guard minutes >= 60 else { return String(localized: "about \(minutes) min") }
+        let hours = minutes / 60
+        let rest = minutes % 60
+        return rest == 0 ? String(localized: "about \(hours) h") : String(localized: "about \(hours) h \(rest) min")
+    }
+
     /// " · about 6 min left", " · about 1 h 20 min left".
     static func aboutLeft(_ minutes: Int) -> String {
         guard minutes > 0 else { return "" }
@@ -191,7 +264,7 @@ struct GuidedRunProgress: Hashable, Sendable {
             : String(localized: "about \(hours) h \(rest) min left"))
     }
 
-    private static func fraction(_ done: Int, _ total: Int) -> Double {
-        total > 0 ? min(1, Double(done) / Double(total)) : 0
+    private static func fraction(_ done: Int, _ total: Int, empty: Double = 0) -> Double {
+        total > 0 ? min(1, Double(done) / Double(total)) : empty
     }
 }

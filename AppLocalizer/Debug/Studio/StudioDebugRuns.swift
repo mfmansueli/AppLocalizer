@@ -102,7 +102,12 @@ enum StudioDebugRuns {
         // A new plan has iPhone Duo, as Autopilot plans it now; the runs
         // past it stay iPhone and iPad, like the sample data.
         if stage == .plan { run.plan.setPlans(.iPhoneDuo, true) }
-        if stage != .plan { run.startedAt = date(day: 31, month: 10, hour: 14) }
+        if stage != .plan {
+            run.startedAt = date(day: 31, month: 10, hour: 14)
+            // Lumen's iPad screens existed in 4 languages before the run.
+            let gaps = AutopilotInterfaceGap.gaps(in: run.plan, captures: ScreenshotsDebugDocuments.document(for: .standard).captures)
+            run.interfaceGaps = gaps.isEmpty ? nil : gaps
+        }
         if stage.number > AutopilotStage.capture.number || stage == .capture {
             run.environment = everyDevice
                 ? AutopilotEnvironment(xcode: "26.1", simulators: ["iPhone", "iPad", "Apple Watch", "Apple Vision Pro"])
@@ -216,6 +221,35 @@ enum StudioDebugRuns {
             proposedFix: "Install the iOS simulator (xcodebuild -downloadPlatform iOS).", affectsDevice: true, reportedAt: reported
         )]
         run.appendLog("iPhone Duo: no simulator for it on this Mac", kind: .problem, at: reported)
+        return run
+    }
+
+    /// Capturing, with no Mac screen capturable because the project's UI
+    /// tests don't build for macOS (Bruma's run): a change to the project,
+    /// not to this Mac.
+    static var macProjectChange: AutopilotRun {
+        var run = run(.capture)
+        run.plan.setPlans(.mac, true)
+        let reported = date(day: 31, month: 10, hour: 14, minute: 6, second: 40)
+        let target = AutopilotCaptureTarget(screenID: run.plan.screens[0].id, displayType: .mac, locale: run.plan.primaryLocale)
+        run.problems = [AutopilotProblem(
+            id: "pr-mac", target: target,
+            what: "The Mac screens can only be captured through a macOS UI test, and LumenUITests doesn’t compile for macOS (it uses UIDevice).",
+            proposedFix: "In LumenUITests/ScreenshotTests.swift, wrap lines 43 and 80–86 in #if os(iOS).",
+            changesProject: true, affectsDevice: true, reportedAt: reported
+        )]
+        run.appendLog("Mac: LumenUITests doesn’t build for macOS", kind: .problem, at: reported)
+        return run
+    }
+
+    /// `macProjectChange` with every other device captured: only the Mac
+    /// is left, waiting on the person.
+    static var macProjectChangeAlone: AutopilotRun {
+        var run = macProjectChange
+        run.plan.alsoMakes.makesAppPreview = false
+        var others = run.plan
+        others.setPlans(.mac, false)
+        run.captures = captures(of: others, count: others.targets.count)
         return run
     }
 

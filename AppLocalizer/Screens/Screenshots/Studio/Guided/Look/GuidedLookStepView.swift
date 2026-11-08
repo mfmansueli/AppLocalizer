@@ -14,22 +14,33 @@ struct GuidedLookStepView: View {
     let run: AutopilotRun
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.large) {
-                GuidedStepTitle(title: String(localized: "How should it look?"), subtitle: subtitle)
-                if plan.makesScreenshots {
-                    screenshots
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.large) {
+                    GuidedStepTitle(title: String(localized: "How should it look?"), subtitle: subtitle)
+                    if plan.makesScreenshots {
+                        screenshots
+                    }
+                    if plan.alsoMakes.makesArtwork {
+                        artwork
+                    }
+                    if plan.alsoMakes.makesAppPreview, !plan.previewDisplays.isEmpty {
+                        GuidedMusicRow(studio: studio, plan: plan)
+                    }
+                    GuidedDesignerNote(studio: studio, direction: plan.alsoMakes.artworkDirection)
                 }
-                if plan.alsoMakes.makesArtwork {
-                    artwork
-                }
-                if plan.alsoMakes.makesAppPreview, !plan.previewDisplays.isEmpty {
-                    GuidedMusicRow(studio: studio, plan: plan)
-                }
-                GuidedDesignerNote(studio: studio, direction: plan.alsoMakes.artworkDirection)
+                .padding(.horizontal, 22)
+                .padding(.vertical, 18)
             }
-            .padding(.horizontal, 22)
-            .padding(.vertical, 18)
+            // The preview opens under the thumbnails: brought just into
+            // view (not scrolled when it already is), its pick button
+            // above the footer.
+            .onChange(of: studio.guided.templateFocus) {
+                withAnimation(.smooth) { proxy.scrollTo(GuidedLookScrollTarget.templateFocus) }
+            }
+            .onChange(of: studio.guided.headerFocus) {
+                withAnimation(.smooth) { proxy.scrollTo(GuidedLookScrollTarget.sceneFocus) }
+            }
         }
         .task { await studio.loadHeaderColors() }
     }

@@ -126,6 +126,13 @@ extension ScreenshotStudioModel {
         }
     }
 
+    /// The track an earlier run picked for this app, on the plan before
+    /// the assistant starts.
+    func useKnownMusicPick() {
+        guard let pick = appSupport?.knowledge(for: app.id)?.music else { return }
+        autopilot?.suggestPreviewMusic(pick, appID: app.id)
+    }
+
     /// Picks a music choice: a library track, or Your File… to choose one.
     func pickMusic(_ track: AppPreviewTrack) {
         guard track == .ownFile else {

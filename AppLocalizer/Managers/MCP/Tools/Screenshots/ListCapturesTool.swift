@@ -28,7 +28,7 @@ struct ListCapturesTool: MCPTool {
 
     func call(_ arguments: MCPToolArguments, in context: MCPToolContext) async throws -> MCPToolOutcome {
         let draft = try await MCPScreenshotsDraft.load(app: arguments.string("appId"), in: context.workspace)
-        let displays = try arguments.optionalString("displayType").map { try [draft.displayType($0)] } ?? ScreenshotDisplayType.rendered
+        let displays = try arguments.optionalString("displayType").map { try [draft.displayType($0)] } ?? draft.document.renderedDisplays
         let locales = try arguments.optionalString("locale").map { try [draft.locale($0)] } ?? draft.scopeLocales
         var captures: [JSONValue] = []
         for locale in locales {

@@ -52,6 +52,25 @@ struct AutopilotTextCheckTests {
         #expect(run.textIssues(of: cut) == [.cutOff(["Schreib etwas…", "Wochenübersi…"])])
     }
 
+    /// Bruma's Duo chat: Vision read English's placeholder as "Message…."
+    /// (not counted as cut) and Thai's as "ข้อความ...", so counting flagged
+    /// it. By place, it's the same field; only a new cut is listed.
+    @Test func aLineCutWhereThePrimaryLanguageHasAnEllipsisIsThatElement() {
+        var run = Self.run
+        let today = run.plan.screens[0].id
+        let english = CaptureTextFacts(
+            language: "en", truncatedLines: ["We should go back together s..."], truncatedTops: [0.504], ellipsisTops: [0.504, 0.887]
+        )
+        run.captures = [Self.capture("en-US", screen: today, text: english)]
+        let thai = CaptureTextFacts(language: "th", truncatedLines: ["ข้อความ..."], truncatedTops: [0.879], ellipsisTops: [0.879])
+        #expect(run.textIssues(of: Self.capture("ja", screen: today, text: thai)).isEmpty, "The message field's placeholder")
+
+        let cut = CaptureTextFacts(
+            language: "ja", truncatedLines: ["今週のまと…", "メッセージ..."], truncatedTops: [0.31, 0.88], ellipsisTops: [0.31, 0.88]
+        )
+        #expect(run.textIssues(of: Self.capture("ja", screen: today, text: cut)) == [.cutOff(["今週のまと…"])])
+    }
+
     @Test func aSystemPromptIsAnIssueInAnyLanguage() {
         let run = Self.run
         let prompt = CaptureTextFacts(language: "en", promptLine: "“Lumen” Would Like to Send You Notifications")

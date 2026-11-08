@@ -31,6 +31,8 @@ struct StressStripPlanner {
         var previewCaption: (String) -> ScreenshotCaption?
         /// The capture the locale's render uses.
         var capture: (String) -> ResolvedCapture?
+        /// The capture a Two phones slot shows behind, for the locale.
+        var behind: (String) -> ScreenshotCapture? = { _ in nil }
     }
 
     func entries(_ inputs: Inputs) -> [StressStripEntry] {
@@ -72,7 +74,7 @@ struct StressStripPlanner {
         if caption == nil { source = .none }
         let preview = SlotPreview.make(
             SlotPreview.Placement(template: inputs.template, locale: locale, displayType: inputs.displayType, slot: inputs.slot),
-            caption: caption, capture: inputs.capture(code), engine: engine, primaryLocaleName: inputs.primary.name
+            caption: caption, capture: inputs.capture(code), behind: inputs.behind(code), engine: engine, primaryLocaleName: inputs.primary.name
         )
         return StressStripEntry(locale: locale, role: role, caption: caption, captionSource: source, preview: preview)
     }

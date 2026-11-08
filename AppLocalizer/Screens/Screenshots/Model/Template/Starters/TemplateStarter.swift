@@ -25,6 +25,8 @@ enum TemplateStarter: String, Codable, Hashable, Sendable, CaseIterable, Identif
     case editorial
     case playful
     case highlight
+    case socialProof = "proof"
+    case arcade
 
     /// The gallery's filters.
     enum Style: String, Hashable, Sendable, CaseIterable, Identifiable {
@@ -55,10 +57,13 @@ enum TemplateStarter: String, Codable, Hashable, Sendable, CaseIterable, Identif
         allCases.filter { style == nil || $0.style == style }
     }
 
+    /// Added lately: marked “New” where templates are picked.
+    var isNew: Bool { self == .socialProof || self == .arcade }
+
     var style: Style {
         switch self {
         case .above, .band, .panorama: .simple
-        case .boldStack, .swoosh, .poster: .bold
+        case .boldStack, .swoosh, .poster, .socialProof, .arcade: .bold
         case .cinema, .spotlight, .editorial: .elegant
         case .sparkle, .playful, .highlight: .playful
         }
@@ -78,6 +83,8 @@ enum TemplateStarter: String, Codable, Hashable, Sendable, CaseIterable, Identif
         case .editorial: String(localized: "Editorial")
         case .playful: String(localized: "Playful")
         case .highlight: String(localized: "Highlight")
+        case .socialProof: String(localized: "Social Proof")
+        case .arcade: String(localized: "Arcade")
         }
     }
 
@@ -99,6 +106,16 @@ enum TemplateStarter: String, Codable, Hashable, Sendable, CaseIterable, Identif
         case .editorial: String(localized: "A light first line over a bold statement, aligned left, on dusk and lavender. Calm and confident.")
         case .playful: String(localized: "A hand-lettered script with a soft drop shadow, white petal shapes and a laurel. Warm and casual.")
         case .highlight: String(localized: "Every line sits on its own tilted marker, with a purple phone and a laurel on slot 1.")
+        case .socialProof:
+            String(localized: """
+            A light kicker over a heavy headline on ink, lilac and mist. Big tilted phones bleed off the edge; slot 2 is real \
+            App Store reviews; slot 3 has an illustration and slot 5 a hand holding the phone.
+            """)
+        case .arcade:
+            String(localized: """
+            Huge white caps on electric blue, big straight phones that run off the bottom, hand-drawn marks and props. Slot 3 \
+            stacks two phones, and one figure spans slots 4 and 5.
+            """)
         }
     }
 
@@ -117,6 +134,8 @@ enum TemplateStarter: String, Codable, Hashable, Sendable, CaseIterable, Identif
         case .editorial: [String(localized: "Left aligned"), String(localized: "Light first line"), String(localized: "Angled phone")]
         case .playful: [String(localized: "Script"), String(localized: "Petal shapes"), String(localized: "Rating")]
         case .highlight: [String(localized: "Marker bars"), String(localized: "Rounded type"), String(localized: "Rating")]
+        case .socialProof: [String(localized: "Kicker line"), String(localized: "Reviews slot"), String(localized: "Hand and illustration")]
+        case .arcade: [String(localized: "Condensed caps"), String(localized: "Two phones"), String(localized: "Props across slots")]
         }
     }
 }

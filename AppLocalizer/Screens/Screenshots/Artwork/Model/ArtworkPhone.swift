@@ -6,9 +6,9 @@
 import CoreGraphics
 import Foundation
 
-/// One phone in the header or search artwork, in artwork pixels: a rounded
-/// body in the template's device color around a real capture, turned by a
-/// few degrees about its center.
+/// One phone in the header or search artwork, in artwork pixels: the
+/// screenshots' 3D iPhone frame in the template's device color around a
+/// real capture, turned by a few degrees about its center.
 struct ArtworkPhone: Hashable, Sendable {
     /// The slot whose picked capture it shows.
     var slot: Int
@@ -24,6 +24,22 @@ struct ArtworkPhone: Hashable, Sendable {
     var shadowRadius: CGFloat
     /// The app without a device: only the screen, rounded and floating.
     var isBare = false
+
+    /// The phone as the screenshots draw it (`DeviceFramePainter`): body
+    /// with thickness, buttons, rim, Dynamic Island and glare, flat (the
+    /// artwork turns it). Nil without a device.
+    var device: LayoutDevice? {
+        guard !isBare else { return nil }
+        // The island where the layout engine puts an iPhone's.
+        let island = CGRect(
+            x: screen.midX - screen.width * 0.15, y: screen.minY + screen.width * 0.03,
+            width: screen.width * 0.3, height: screen.width * 0.085
+        )
+        return LayoutDevice(
+            frame: frame, cornerRadius: cornerRadius, bezel: screen.minX - frame.minX, color: color, island: island,
+            shadowOffset: shadowOffset, shadowRadius: shadowRadius, tilt: nil, base: nil
+        )
+    }
 
     /// The body as turned: the box it covers on the artwork.
     var bounds: CGRect {

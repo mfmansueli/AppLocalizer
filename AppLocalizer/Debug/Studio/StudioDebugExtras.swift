@@ -42,9 +42,6 @@ enum StudioDebugExtras {
         var documentChange: (@Sendable (inout ScreenshotsDocument) -> Void)?
         /// Lumen on every device: Apple Watch and Apple Vision Pro too.
         var everyDevice = false
-        /// The Autopilot front the scene shows: classic, unless a guided
-        /// scene says so.
-        var front: AutopilotFront = .classic
     }
 
     static func scene(for id: String) -> Scene? {

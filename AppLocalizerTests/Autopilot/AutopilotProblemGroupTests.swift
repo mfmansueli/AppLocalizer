@@ -54,6 +54,20 @@ struct AutopilotProblemGroupTests {
         #expect(!device.needsProjectChange)
     }
 
+    /// Bruma's run: the UI tests didn't build for macOS, so no Mac screen
+    /// could be captured. The assistant said the project had to change;
+    /// the card said to retry "once this Mac can run the Mac simulator".
+    @Test func aDeviceWideProblemCanBeTheProjects() {
+        let fix = "In BrumaUITests/ShowcaseUITests.swift, wrap lines 43 and 80–86 in #if os(iOS)."
+        var mac = problem("nearby", .mac, "en-US", id: "1", fix: fix, changesProject: true)
+        mac.affectsDevice = true
+        #expect(mac.needsProjectChange)
+        #expect(!mac.fixIsCommand)
+        var unsaid = mac
+        unsaid.changesProject = nil
+        #expect(!unsaid.needsProjectChange, "Without the assistant's word, a device-wide problem is about this Mac")
+    }
+
     @Test func aDeviceWideProblemIsOneGroupForTheDevice() throws {
         var first = problem("today", .iPhoneDuo, "en-US", id: "pr-1", fix: nil)
         var second = problem("week", .iPhoneDuo, "ko", id: "pr-2", fix: "Install the iOS simulator.")

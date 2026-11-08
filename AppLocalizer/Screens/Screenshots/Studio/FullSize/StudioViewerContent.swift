@@ -12,8 +12,9 @@ enum StudioViewerContent: Hashable {
     /// A screenshot on the product page or in search results, rendered or
     /// live.
     case shot(StudioShot)
-    /// A direction's screenshot, drawn from its layout with its capture.
-    case layout(ScreenshotLayout, capture: AutopilotCapture?)
+    /// A direction's screenshot, drawn from its layout with its capture
+    /// (and, in a Two phones slot, the capture of the phone behind).
+    case layout(ScreenshotLayout, capture: AutopilotCapture?, behind: AutopilotCapture? = nil)
     /// A capture as it is: Apple Watch's.
     case capture(AutopilotCapture)
     case artwork(StudioArtworkItem)
@@ -28,7 +29,7 @@ enum StudioViewerContent: Hashable {
     var aspect: Double {
         switch self {
         case let .shot(shot): shot.aspect
-        case let .layout(layout, _): layout.canvas.width > 0 ? layout.canvas.height / layout.canvas.width : 2.17
+        case let .layout(layout, _, _): layout.canvas.width > 0 ? layout.canvas.height / layout.canvas.width : 2.17
         case let .capture(capture): Self.aspect(capture.pixelSize)
         case let .artwork(item): Self.aspect(item.kind.pixelSize)
         case let .appPreview(file): Self.aspect(file.pixelSize)
@@ -41,7 +42,7 @@ enum StudioViewerContent: Hashable {
     var pixelSize: PixelSize? {
         switch self {
         case let .shot(shot): shot.pixelSize
-        case let .layout(layout, _): layout.canvas.pixelSize
+        case let .layout(layout, _, _): layout.canvas.pixelSize
         case let .capture(capture): capture.pixelSize
         case let .artwork(item): item.kind.pixelSize
         case let .appPreview(file): file.pixelSize

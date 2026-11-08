@@ -28,6 +28,18 @@ struct AppLookProfile: Codable, Hashable, Sendable {
     var audience: String?
     /// "At night, before bed, alone."
     var usageMoment: String?
+    /// "Quiet, warm and discreet: a mist that shields you until you
+    /// choose to be seen": the brand's character, from its design docs.
+    var personality: String?
+    /// "drifting mist bands", "a low ember sun": the images and shapes the
+    /// app's own design is built from.
+    var motifs: [String]?
+    /// "rainbow gradients", "loud neon": what the brand's design docs rule
+    /// out. Designers treat these as clichés to leave out.
+    var avoid: [String]?
+    /// "DESIGN_PROJECT.md, Bruma/DesignSystem/Tokens/Palette.swift": where
+    /// the assistant read the look.
+    var designSource: String?
     /// The scene template the assistant recommends, with why.
     var headerTemplate: AutopilotHeaderTemplate?
     var headerReason: String?
@@ -38,4 +50,17 @@ struct AppLookProfile: Codable, Hashable, Sendable {
     }
 
     var isEmpty: Bool { self == AppLookProfile() }
+
+    /// The brand's own character is known: its personality, motifs or what
+    /// it avoids, beyond colors and fonts. A look without it came from an
+    /// older scan, and the run asks for the project to be read again.
+    var hasDesignLanguage: Bool {
+        personality != nil || !(motifs ?? []).isEmpty || !(avoid ?? []).isEmpty
+    }
+
+    /// What a run's designers need is known: what the app does, who it's
+    /// for, and its design language.
+    var isComplete: Bool {
+        whatItDoes != nil && audience != nil && hasDesignLanguage
+    }
 }

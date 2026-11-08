@@ -25,7 +25,7 @@ struct ScreenshotStudioPromptCopyTests {
             #expect(run.startedAt == StudioTestFixtures.now)
             #expect(run.designKind == .none)
             #expect(model.studio.viewedStep == nil)
-            #expect(model.studio.shownStep == .capture)
+            #expect(model.studio.guidedStep == .making)
             #expect(model.studio.didCopyPrompt)
             #expect(!model.studio.prompt.isEmpty)
             #expect(NSPasteboard.general.string(forType: .string) == model.studio.prompt)

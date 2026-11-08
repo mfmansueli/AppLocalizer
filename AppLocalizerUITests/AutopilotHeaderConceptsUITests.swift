@@ -6,10 +6,11 @@
 import XCTest
 
 /// Header concepts (board 33), on `StudioDebugHeaderStyle`'s scenes: the
-/// plan's Header style (templates or Go freely) and Screenshot style,
-/// Design's concept rows as they arrive, Choose's header and direction
-/// apart with Use These, a concept full size, and Watch the header loop.
-/// Each test attaches the window's screenshot.
+/// Look step's header (scene templates or Go freely) and screenshots
+/// from gallery templates, Making it's concepts as they arrive, Choose's
+/// look and header apart with Use These, a concept and its loop full
+/// size, and the header loop on Review & push. Each test attaches the
+/// window's screenshot.
 @MainActor
 final class AutopilotHeaderConceptsUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -23,156 +24,162 @@ final class AutopilotHeaderConceptsUITests: XCTestCase {
         app.terminate()
     }
 
-    // MARK: - Plan
+    // MARK: - Look
 
-    func testTheHeaderStyleStartsFromThreeTemplates() {
+    /// A header-only run from three scene templates: the three are picked,
+    /// a fourth replaces the last, and ✕ in My picks takes one out.
+    func testTheHeaderStartsFromThreeSceneTemplates() {
         app.launch(debugScene: "st-plan-tpl")
-        let box = element("autopilot.plan.headerStyleBox")
-        XCTAssertTrue(box.waitForExistence(timeout: 20))
-        reveal(box)
-        XCTAssertTrue(element("autopilot.plan.headerStyle.templates").isSelected)
-        let note = element("autopilot.plan.headerStyle.note")
-        XCTAssertTrue(text(of: note).hasSuffix("3 of 3 picked."), text(of: note))
-        XCTAssertEqual(element("autopilot.plan.headerTemplate.night").label, "Remove Day to Night")
-        XCTAssertEqual(element("autopilot.plan.headerTemplate.hero").label, "Add Hero Object")
-        attachScreenshot("Plan · header style from templates")
+        goToTheLook(showing: "autopilot.guided.look.headerStyle.templates")
+        XCTAssertTrue(element("autopilot.guided.look.headerStyle.templates").isSelected)
+        let night = element("autopilot.guided.look.scene.night")
+        let land = element("autopilot.guided.look.scene.land")
+        let window = element("autopilot.guided.look.scene.window")
+        let hero = element("autopilot.guided.look.scene.hero")
+        XCTAssertTrue(night.label.contains("pick 1"), night.label)
+        XCTAssertTrue(land.label.contains("pick 2"), land.label)
+        XCTAssertTrue(window.label.contains("pick 3"), window.label)
+        XCTAssertFalse(hero.label.contains("pick"), hero.label)
+        let pick = element("autopilot.guided.look.scene.pick")
+        XCTAssertEqual(pick.label, "✓ Pick 1 · Remove", "Day to Night, the first pick, is previewed")
+        attachScreenshot("Look · header from scene templates")
 
-        tap("autopilot.plan.headerTemplate.hero")
-        XCTAssertTrue(waitUntil { self.element("autopilot.plan.headerTemplate.hero").label == "Remove Hero Object" })
-        XCTAssertEqual(element("autopilot.plan.headerTemplate.window").label, "Add Window View", "A fourth replaces the last")
-        tap("autopilot.plan.headerTemplate.land")
-        XCTAssertTrue(waitUntil { self.text(of: note).hasSuffix("2 of 3 picked.") }, text(of: note))
+        click(hero)
+        XCTAssertTrue(waitUntil { pick.label == "Replace Pick 3 With This" }, pick.label)
+        click(pick)
+        XCTAssertTrue(waitUntil { hero.label.contains("pick 3") }, hero.label)
+        XCTAssertFalse(window.label.contains("pick"), "A fourth replaces the last")
+
+        tap("autopilot.guided.look.scene.tray.remove.2")
+        XCTAssertTrue(element("autopilot.guided.look.scene.tray.empty.3").waitForExistence(timeout: 5))
+        XCTAssertFalse(land.label.contains("pick"), land.label)
+        XCTAssertTrue(hero.label.contains("pick 2"), hero.label)
     }
 
-    func testGoingFreelyShowsWhatTheDesignerGets() {
+    /// Going freely: no scenes to pick, the designer gets the person's
+    /// words, and scene templates bring the scenes back.
+    func testGoingFreelyLeavesTheHeaderToTheDesigner() {
         app.launch(debugScene: "st-plan-free")
-        let free = element("autopilot.plan.headerStyle.freeText")
-        XCTAssertTrue(free.waitForExistence(timeout: 20))
-        reveal(free)
+        goToTheLook(showing: "autopilot.guided.look.headerFree")
+        let free = element("autopilot.guided.look.headerFree")
+        XCTAssertTrue(element("autopilot.guided.look.headerStyle.free").isSelected)
         XCTAssertTrue(text(of: free).hasPrefix("Claude Design studies Lumen Journal and proposes 3 concepts of its own"), text(of: free))
-        let scan = element("autopilot.plan.headerStyle.scan")
-        XCTAssertTrue(scan.exists)
-        XCTAssertFalse(element("autopilot.plan.headerTemplate.night").exists, "No templates to pick")
-        attachScreenshot("Plan · go freely")
+        XCTAssertFalse(element("autopilot.guided.look.scene.night").exists, "No scenes to pick")
+        XCTAssertEqual(text(of: element("autopilot.guided.look.note")), "Calm, like writing before bed", "The person's words go to the designer")
+        attachScreenshot("Look · go freely")
 
-        tap("autopilot.plan.headerStyle.templates")
-        XCTAssertTrue(element("autopilot.plan.headerTemplate.night").waitForExistence(timeout: 5))
+        tap("autopilot.guided.look.headerStyle.templates")
+        XCTAssertTrue(element("autopilot.guided.look.scene.night").waitForExistence(timeout: 5))
+        XCTAssertFalse(free.exists)
     }
 
-    func testTheScreenshotStyleTakesGalleryTemplates() {
+    /// Screenshots from gallery templates: the two picked are numbered,
+    /// the style filter narrows the gallery, a third is added from its
+    /// preview, ✕ takes one out, and a new look leaves the templates.
+    func testTheScreenshotsStartFromGalleryTemplates() {
         app.launch(debugScene: "st-plan-shotstyle")
-        let note = element("autopilot.plan.shotStyle.note")
-        XCTAssertTrue(note.waitForExistence(timeout: 20))
-        reveal(note)
-        XCTAssertTrue(element("autopilot.plan.shotStyle.templates").isSelected)
-        XCTAssertTrue(text(of: note).hasSuffix("2 of 3 picked."), text(of: note))
-        // The picks show as previews, with a place for a third.
-        XCTAssertTrue(element("autopilot.plan.shotTemplate.cinema").exists)
-        XCTAssertTrue(element("autopilot.plan.shotTemplate.editorial").exists)
-        XCTAssertTrue(element("autopilot.plan.shotTemplate.add").exists)
-        attachScreenshot("Plan · screenshot style from templates")
+        goToTheLook(showing: "autopilot.guided.look.templateBrowser")
+        XCTAssertTrue(element("autopilot.guided.look.shotStyle.templates").isSelected)
+        let cinema = element("autopilot.guided.look.template.cinema")
+        let editorial = element("autopilot.guided.look.template.editorial")
+        let above = element("autopilot.guided.look.template.above")
+        XCTAssertTrue(cinema.label.contains("pick 1"), cinema.label)
+        XCTAssertTrue(editorial.label.contains("pick 2"), editorial.label)
+        XCTAssertTrue(element("autopilot.guided.look.template.tray.empty.3").exists, "A place for a third")
+        attachScreenshot("Look · screenshots from templates")
 
-        tap("autopilot.plan.shotTemplate.choose")
-        let picker = element("autopilot.shotTemplatePicker")
-        XCTAssertTrue(picker.waitForExistence(timeout: 5))
-        let count = element("autopilot.shotTemplatePicker.count")
-        XCTAssertTrue(text(of: count).hasPrefix("12 templates"), text(of: count))
-        // The grid is lazy: the style filter, not a count of cards, says what it shows.
-        let filter = element("screenshots.gallery.style")
+        let filter = element("autopilot.guided.look.templateBrowser").descendants(matching: .any)["screenshots.gallery.style"]
+        reveal(filter)
         filter.radioButtons["Elegant"].click()
-        XCTAssertTrue(waitUntil { self.text(of: count).hasPrefix("3 templates") }, text(of: count))
-        XCTAssertTrue(element("screenshots.gallery.card.cinema.pick").exists, "Cinema is pick 1")
-        XCTAssertTrue(element("screenshots.gallery.card.above").waitForNonExistence(timeout: 5))
+        XCTAssertTrue(above.waitForNonExistence(timeout: 5), "Only the elegant ones")
+        XCTAssertTrue(cinema.exists, "Cinema is elegant")
         filter.radioButtons["All"].click()
-        XCTAssertTrue(waitUntil { self.text(of: count).hasPrefix("12 templates") }, text(of: count))
-        let picked = element("autopilot.shotTemplatePicker.picked")
-        XCTAssertEqual(text(of: picked), "2 of 3 picked.")
-        XCTAssertEqual(element("screenshots.starter.cinema").label, "Remove: Cinema")
-        // The picker's own controls: reveal would scroll the plan behind it.
-        element("screenshots.starter.above").click()
-        XCTAssertTrue(waitUntil { self.text(of: picked) == "3 of 3 picked. Picking another replaces the last." }, text(of: picked))
-        XCTAssertTrue(element("screenshots.gallery.card.above.pick").exists, "Numbered once picked")
-        attachScreenshot("Template picker · 3 picked")
-        element("autopilot.shotTemplatePicker.done").click()
-        XCTAssertTrue(waitUntil { !picker.exists })
+        XCTAssertTrue(above.waitForExistence(timeout: 5))
 
-        XCTAssertTrue(waitUntil { self.text(of: note).hasSuffix("3 of 3 picked.") }, text(of: note))
-        XCTAssertTrue(element("autopilot.plan.shotTemplate.above").exists)
-        XCTAssertFalse(element("autopilot.plan.shotTemplate.add").exists, "Three picked: no place left")
-        tap("autopilot.plan.shotTemplate.editorial.remove")
-        XCTAssertTrue(waitUntil { self.text(of: note).hasSuffix("2 of 3 picked.") }, text(of: note))
-        XCTAssertFalse(element("autopilot.plan.shotTemplate.editorial").exists)
+        click(above)
+        let pick = element("autopilot.guided.look.template.pick")
+        XCTAssertTrue(waitUntil { pick.label == "Add to My Picks" }, pick.label)
+        click(pick)
+        XCTAssertTrue(waitUntil { above.label.contains("pick 3") }, above.label)
+        XCTAssertFalse(element("autopilot.guided.look.template.tray.empty.3").exists, "Three picked: no place left")
 
-        tap("autopilot.plan.shotStyle.free")
-        XCTAssertTrue(waitUntil { self.text(of: note).contains("designs 3 directions of its own") }, text(of: note))
-        XCTAssertFalse(element("autopilot.plan.shotTemplate.choose").exists)
+        tap("autopilot.guided.look.template.tray.remove.2")
+        XCTAssertTrue(waitUntil { !editorial.label.contains("pick") }, editorial.label)
+        XCTAssertTrue(above.label.contains("pick 2"), above.label)
+
+        tap("autopilot.guided.look.shotStyle.free")
+        XCTAssertTrue(element("autopilot.guided.look.templateBrowser").waitForNonExistence(timeout: 5), "A new look: no templates to pick")
     }
 
-    // MARK: - Design
+    // MARK: - Making it
 
     func testConceptsFillInAsTheyArrive() {
         app.launch(debugScene: "st-des-tpl")
         let concepts = element("autopilot.design.concepts")
         XCTAssertTrue(concepts.waitForExistence(timeout: 20))
-        let next = element("autopilot.design.next")
-        XCTAssertTrue(text(of: next).hasPrefix("Next, you choose: 1 of 3 headers."), text(of: next))
+        let line = text(of: element("autopilot.guided.making.line"))
+        XCTAssertTrue(line.contains("1 of 3 headers"), line)
         XCTAssertTrue(text(of: element("autopilot.design.concept.0")).contains("Moonrise"))
         XCTAssertTrue(text(of: element("autopilot.design.concept.1")).contains("Evening Hills"), "An idea shows before its pages")
         XCTAssertTrue(text(of: element("autopilot.design.concept.2")).contains("Concept 3 · from the Window View template"))
-        XCTAssertFalse(element("autopilot.design.direction.0").exists, "Only the header: no directions")
-        attachScreenshot("Design · concepts from templates")
+        XCTAssertFalse(element("autopilot.guided.making.looks").exists, "Only the header: no screenshot looks")
+        attachScreenshot("Making it · concepts from templates")
+    }
+
+    /// Making it while the loops come: the first plays, the others say
+    /// they're being animated.
+    func testDesignSaysWhichLoopsAreComing() {
+        app.launch(debugScene: "st-des-header-loop")
+        let second = element("autopilot.design.concept.1")
+        XCTAssertTrue(second.waitForExistence(timeout: 20))
+        let line = text(of: element("autopilot.guided.making.line"))
+        XCTAssertTrue(line.contains("1 of 3 headers"), line)
+        XCTAssertTrue(second.label.contains("is animating its 20-second loop"), second.label)
+        attachScreenshot("Making it · loops coming")
     }
 
     // MARK: - Choose
 
     func testChooseTakesADirectionAndAHeader() {
         app.launch(debugScene: "st-choose-tpl")
-        let title = element("autopilot.choose.title")
-        XCTAssertTrue(title.waitForExistence(timeout: 20))
-        XCTAssertEqual(text(of: title), "Choose a direction and a header")
-        XCTAssertTrue(text(of: element("autopilot.choose.conceptsFrom")).hasPrefix("From your templates · header and search share one look"))
-        XCTAssertTrue(element("autopilot.choose.concept.A").exists)
-        let use = element("autopilot.choose.useChoices")
+        let moonrise = element("autopilot.choose.concept.A")
+        XCTAssertTrue(moonrise.waitForExistence(timeout: 20))
+        XCTAssertEqual(text(of: element("autopilot.guided.title")), "Choose the look")
+        let use = element("autopilot.guided.useChoices")
         XCTAssertEqual(use.label, "Use These")
-        XCTAssertTrue(use.isEnabled, "A direction and a header are chosen")
-        XCTAssertTrue(text(of: element("autopilot.footer.text")).hasPrefix("Your direction becomes template v"), text(of: element("autopilot.footer.text")))
-        attachScreenshot("Choose · direction and header")
+        XCTAssertTrue(use.isEnabled, "A look and a header are chosen")
+        let footer = text(of: element("autopilot.guided.footer.text"))
+        XCTAssertTrue(footer.hasPrefix("Next, AppLocalizer "), footer)
+        attachScreenshot("Choose · a look and a header")
 
         let evening = element("autopilot.choose.concept.B")
         evening.descendants(matching: .any).matching(identifier: "autopilot.choose.concept.use").firstMatch.click()
         XCTAssertTrue(waitUntil { evening.descendants(matching: .any).matching(identifier: "autopilot.choose.concept.use").firstMatch.label == "Chosen" })
-        let moonrise = element("autopilot.choose.concept.A").descendants(matching: .any).matching(identifier: "autopilot.choose.concept.use").firstMatch
-        XCTAssertEqual(moonrise.label, "Choose", "One header at a time")
+        let moonriseUse = moonrise.descendants(matching: .any).matching(identifier: "autopilot.choose.concept.use").firstMatch
+        XCTAssertEqual(moonriseUse.label, "Choose", "One header at a time")
     }
 
     func testAHeaderOnlyRunWaitsForTheHeader() {
         app.launch(debugScene: "st-choose-free")
-        let title = element("autopilot.choose.title")
-        XCTAssertTrue(title.waitForExistence(timeout: 20))
-        XCTAssertEqual(text(of: title), "Choose a header")
-        let use = element("autopilot.choose.useChoices")
-        XCTAssertEqual(use.label, "Use This Header")
+        let ink = element("autopilot.choose.concept.A")
+        XCTAssertTrue(ink.waitForExistence(timeout: 20))
+        let use = element("autopilot.guided.useChoices")
         XCTAssertFalse(use.isEnabled, "No header chosen yet")
-        XCTAssertEqual(text(of: element("autopilot.footer.text")), "Choose a header.")
-        XCTAssertFalse(element("autopilot.direction.use").exists, "No directions")
+        XCTAssertEqual(text(of: element("autopilot.guided.footer.text")), "Choose a header.")
+        XCTAssertFalse(app.buttons.matching(identifier: "autopilot.guided.choose.look.use").firstMatch.exists, "No screenshot looks")
         attachScreenshot("Choose · a header only")
 
-        let ink = element("autopilot.choose.concept.A")
         ink.descendants(matching: .any).matching(identifier: "autopilot.choose.concept.use").firstMatch.click()
         XCTAssertTrue(waitUntil { use.isEnabled })
     }
 
-    /// Header 21:9 only with Motion loop: the section names the header,
-    /// says each concept plays its loop, and the three cards fit the
-    /// sheet, the stage list and Ask Claude Design too; a concept full
-    /// size plays with the player's controls.
+    /// Header 21:9 only with Motion loop: the three concepts fit the
+    /// sheet, Use These and Cancel Run… too, and a concept full size plays
+    /// its loop.
     func testAHeaderLoopOnlyRunFitsTheSheet() {
         app.launch(debugScene: "st-choose-header-loop")
-        let title = element("autopilot.choose.conceptsTitle")
-        XCTAssertTrue(title.waitForExistence(timeout: 20))
-        XCTAssertEqual(text(of: title), "Header")
-        let from = text(of: element("autopilot.choose.conceptsFrom"))
-        XCTAssertTrue(from.hasSuffix("each plays its 20-second loop"), from)
+        let first = element("autopilot.choose.concept.A")
+        XCTAssertTrue(first.waitForExistence(timeout: 20))
         attachScreenshot("Choose · header loops")
 
         let sheet = app.sheets.firstMatch
@@ -182,42 +189,49 @@ final class AutopilotHeaderConceptsUITests: XCTestCase {
             let card = element("autopilot.choose.concept.\(id)").frame
             XCTAssertTrue(bounds.contains(card), "Concept \(id) at \(card) is cut off by the sheet at \(bounds).")
         }
-        for identifier in ["autopilot.choose.ask", "autopilot.stage.plan"] {
-            let frame = app.buttons[identifier].frame
+        for identifier in ["autopilot.guided.useChoices", "autopilot.cancelRun.later", "autopilot.guided.step.make"] {
+            let frame = element(identifier).frame
             XCTAssertTrue(bounds.contains(frame), "\(identifier) at \(frame) is cut off by the sheet at \(bounds).")
         }
 
-        element("autopilot.choose.concept.A").descendants(matching: .any).matching(identifier: "autopilot.choose.concept.zoom").firstMatch.click()
+        first.descendants(matching: .any).matching(identifier: "autopilot.choose.concept.zoom").firstMatch.click()
         XCTAssertTrue(app.buttons["artwork.loop.play"].waitForExistence(timeout: 20), "The concept's loop plays full size")
         XCTAssertTrue(text(of: element("studio.viewer.subtitle")).hasPrefix("20-second loop · plays muted on repeat"))
         attachScreenshot("Viewer · a concept's loop")
     }
 
-    /// Design while the loops come: the first plays, the others say
-    /// they're being animated.
-    func testDesignSaysWhichLoopsAreComing() {
-        app.launch(debugScene: "st-des-header-loop")
-        let next = element("autopilot.design.next")
-        XCTAssertTrue(next.waitForExistence(timeout: 20))
-        XCTAssertTrue(text(of: next).hasPrefix("Next, you choose: 1 of 3 headers, each playing its 20-second loop."), text(of: next))
-        XCTAssertEqual(text(of: element("autopilot.design.count")), "1 of 3")
-        let second = element("autopilot.design.concept.1")
-        XCTAssertTrue(second.label.contains("is animating its 20-second loop"), second.label)
-        attachScreenshot("Design · loops coming")
-    }
+    /// A loop full size plays, pauses, scrubs and skips with the player's
+    /// controls, and Space plays it without closing the viewer.
+    func testALoopFullSizeHasThePlayersControls() {
+        app.launch(debugScene: "st-choose-header-loop")
+        let first = element("autopilot.choose.concept.A")
+        XCTAssertTrue(first.waitForExistence(timeout: 20))
+        first.descendants(matching: .any).matching(identifier: "autopilot.choose.concept.zoom").firstMatch.click()
+        XCTAssertTrue(element("studio.viewer").waitForExistence(timeout: 10))
+        let time = element("artwork.loop.time")
+        XCTAssertTrue(time.waitForExistence(timeout: 20), "The loop plays")
+        let start = text(of: time)
+        XCTAssertTrue(waitUntil(timeout: 5) { self.text(of: time) != start }, "The time moves while it plays: \(start)")
+        attachScreenshot("Viewer · loop playing")
 
-    /// The header couldn't be made: Ready for review says it isn't in
-    /// Review & Push and offers Make Again, not See in Preview.
-    func testAHeaderThatWasntMadeOffersMakeAgain() {
-        app.launch(debugScene: "st-ready-header-failed")
-        let summary = element("autopilot.ready.summary")
-        XCTAssertTrue(summary.waitForExistence(timeout: 20))
-        XCTAssertTrue(text(of: summary).hasPrefix("Header artwork couldn’t be made, so it isn’t in Review & Push."), text(of: summary))
-        let note = element("autopilot.ready.artworkMissing")
-        XCTAssertTrue(note.exists)
-        XCTAssertTrue(note.buttons["Make Again"].exists)
-        XCTAssertFalse(element("autopilot.ready.artwork").exists, "No See in Preview for what isn't there")
-        attachScreenshot("Ready · header not made")
+        app.buttons["artwork.loop.play"].click()
+        let paused = text(of: time)
+        RunLoop.current.run(until: .now.addingTimeInterval(2.5))
+        XCTAssertEqual(text(of: time), paused, "Paused, it stays put")
+
+        // Scrub, then skip forward and back.
+        element("artwork.loop.scrubber").coordinate(withNormalizedOffset: CGVector(dx: 0.27, dy: 0.5)).click()
+        XCTAssertTrue(waitUntil { self.text(of: time).hasPrefix("0:05 / 0:20") }, text(of: time))
+        app.buttons["artwork.loop.forward"].click()
+        XCTAssertTrue(waitUntil { self.text(of: time).hasPrefix("0:10 / 0:20") }, text(of: time))
+        app.buttons["artwork.loop.back"].click()
+        app.buttons["artwork.loop.back"].click()
+        XCTAssertTrue(waitUntil { self.text(of: time).hasPrefix("0:00 / 0:20") }, text(of: time))
+        XCTAssertEqual(app.buttons["artwork.loop.play"].label, "Play the loop", "Still paused")
+        app.typeKey(.space, modifierFlags: [])
+        XCTAssertTrue(waitUntil { self.app.buttons["artwork.loop.play"].label == "Pause the loop" }, "Space plays it")
+        XCTAssertTrue(element("studio.viewer").exists, "And doesn't close the viewer")
+        attachScreenshot("Viewer · loop controls")
     }
 
     func testAskingForChangesToOneConcept() {
@@ -231,7 +245,7 @@ final class AutopilotHeaderConceptsUITests: XCTestCase {
         note.typeText("Warmer sky")
         attachScreenshot("Choose · ask for changes to one concept")
         element("autopilot.choose.concept.send").click()
-        XCTAssertTrue(element("autopilot.design").waitForExistence(timeout: 10), "Back to Design for that concept")
+        XCTAssertTrue(element("autopilot.guided.making.steps").waitForExistence(timeout: 10), "Back to Making it for that concept")
     }
 
     func testAConceptOpensFullSize() {
@@ -243,19 +257,42 @@ final class AutopilotHeaderConceptsUITests: XCTestCase {
         attachScreenshot("Viewer · a concept's header")
     }
 
-    // MARK: - Watch the header loop
+    // MARK: - Review & push
+
+    /// The header couldn't be made: Review & push's checks say so, and
+    /// what went wrong.
+    func testAHeaderThatWasntMadeNeedsALook() {
+        app.launch(debugScene: "st-ready-header-failed")
+        let made = element("autopilot.guided.review.check.made")
+        XCTAssertTrue(made.waitForExistence(timeout: 20))
+        XCTAssertTrue(text(of: made).hasPrefix("Needs a look: Couldn’t render the header page in English (U.S.)"), text(of: made))
+        let title = element("autopilot.guided.review.artworkMissing.title")
+        XCTAssertTrue(title.waitForExistence(timeout: 10), "The header part says it wasn't made")
+        XCTAssertEqual(text(of: title), "Header artwork couldn’t be made")
+        XCTAssertTrue(text(of: element("autopilot.guided.review.artworkMissing.detail")).hasSuffix("Approving pushes the rest without it."))
+        XCTAssertFalse(element("autopilot.guided.review.artwork.header").exists, "No empty header thumbnail")
+        let makeAgain = app.buttons["autopilot.guided.review.makeAgain"]
+        XCTAssertTrue(makeAgain.exists)
+        XCTAssertTrue(element("autopilot.guided.review.approve").isEnabled, "Approving pushes the rest without it")
+        attachScreenshot("Review · header not made")
+
+        makeAgain.click()
+        XCTAssertTrue(element("autopilot.guided.review.artworkMissing").waitForNonExistence(timeout: 10), "Make Again takes the run back to making it")
+        attachScreenshot("Review · Make Again")
+    }
 
     func testWatchTheHeaderLoop() {
         app.launch(debugScene: "st-vid-loop")
         let loop = element("autopilot.loop")
         XCTAssertTrue(loop.waitForExistence(timeout: 20))
-        XCTAssertEqual(text(of: element("autopilot.watch.title")), "Watch the header loop")
-        XCTAssertEqual(text(of: element("autopilot.loop.subtitle")), "Moonrise · 20 s · loops · muted · v1")
-        let approve = element("autopilot.watch.approve")
-        XCTAssertEqual(approve.label, "Approve Header Loop")
-        XCTAssertEqual(text(of: element("autopilot.footer.text")), "Approving keeps this loop for the header and search in every language.")
-        XCTAssertFalse(element("autopilot.watch.subtitle").exists, "No App Preview")
-        attachScreenshot("Watch · header loop v1")
+        XCTAssertEqual(text(of: element("autopilot.guided.title")), "Review everything")
+        XCTAssertEqual(text(of: element("autopilot.loop.subtitle")), "Moonrise · 20 s · loops · muted")
+        let approve = element("autopilot.guided.review.approve")
+        XCTAssertTrue(approve.label.hasPrefix("Approve Header"), approve.label)
+        let footer = text(of: element("autopilot.guided.footer.text"))
+        XCTAssertTrue(footer.hasSuffix("Nothing is sent until you push."), footer)
+        XCTAssertFalse(element("autopilot.guided.review.tabs").exists, "Only the header and search: no App Preview tab")
+        attachScreenshot("Review · header loop v1")
 
         let quick = element("autopilot.loop.quickAsks").buttons["Slower movement"]
         quick.click()
@@ -267,34 +304,63 @@ final class AutopilotHeaderConceptsUITests: XCTestCase {
         XCTAssertFalse(approve.isEnabled, "Approve waits for the new version")
     }
 
+    /// The new version arrived: the bar, the languages and the time left,
+    /// and why Approve is off.
+    func testTheNewLoopBeingMadeSaysHowFarAndHowLong() {
+        app.launch(debugScene: "st-vid-loop-making")
+        let line = element("autopilot.loop.busy.line")
+        XCTAssertTrue(line.waitForExistence(timeout: 20))
+        XCTAssertTrue(text(of: line).contains(" languages · about "), text(of: line))
+        XCTAssertFalse(element("autopilot.guided.review.approve").isEnabled)
+        let note = text(of: element("autopilot.guided.review.approveNote"))
+        XCTAssertTrue(note.hasPrefix("You can approve once the new loop is made · about "), note)
+        attachScreenshot("Review · new loop being made")
+    }
+
     func testTheLoopsVersionsSoFar() {
         app.launch(debugScene: "st-vid-loop-rev")
         let revisions = element("autopilot.loop.revisions")
         XCTAssertTrue(revisions.waitForExistence(timeout: 20))
-        XCTAssertEqual(text(of: element("autopilot.loop.subtitle")), "Evening Hills · 20 s · loops · muted · v2")
-        XCTAssertTrue(element("autopilot.watch.approve").isEnabled)
-        attachScreenshot("Watch · header loop v2")
-        element("autopilot.watch.approve").click()
-        XCTAssertTrue(waitUntil(timeout: 10) { !self.element("autopilot.loop").exists }, "On to Review & Push")
+        XCTAssertEqual(text(of: element("autopilot.loop.subtitle")), "Evening Hills · 20 s · loops · muted · Revised")
+        let approve = element("autopilot.guided.review.approve")
+        XCTAssertTrue(approve.isEnabled)
+        attachScreenshot("Review · header loop v2")
+        approve.click()
+        XCTAssertTrue(waitUntil(timeout: 10) { !self.element("autopilot.loop").exists }, "Approved: the loop is kept and the run is ready to push")
     }
 
     // MARK: - Helpers
 
-    /// Scrolls the plan until `target` is inside what it shows.
+    /// The sheet opens a planned run at What to make: on to the Look.
+    private func goToTheLook(showing identifier: String) {
+        let next = element("autopilot.guided.next")
+        XCTAssertTrue(next.waitForExistence(timeout: 20))
+        next.click()
+        XCTAssertTrue(element(identifier).waitForExistence(timeout: 5), "At Look")
+    }
+
+    /// Scrolls the step until `target` is above the footer: the content
+    /// scrolls under it, so a click on what's below would hit the footer.
     private func reveal(_ target: XCUIElement) {
-        let plan = element("autopilot.plan")
-        guard plan.exists else { return }
+        let scroll = element("autopilot.guided.sheet").scrollViews.firstMatch
+        guard scroll.exists else { return }
+        let footer = element("autopilot.guided.footer.text")
         var tries = 0
-        while !(target.frame.minY >= plan.frame.minY && target.frame.maxY <= plan.frame.maxY), tries < 12 {
-            plan.scroll(byDeltaX: 0, deltaY: target.frame.minY < plan.frame.minY ? 200 : -200)
+        while tries < 12 {
+            let bottom = min(scroll.frame.maxY, footer.exists ? footer.frame.minY - 12 : scroll.frame.maxY)
+            if target.frame.minY >= scroll.frame.minY, target.frame.maxY <= bottom { return }
+            scroll.scroll(byDeltaX: 0, deltaY: target.frame.minY < scroll.frame.minY ? 200 : -200)
             tries += 1
         }
     }
 
-    private func tap(_ identifier: String) {
-        let target = element(identifier)
+    private func click(_ target: XCUIElement) {
         reveal(target)
         target.click()
+    }
+
+    private func tap(_ identifier: String) {
+        click(element(identifier))
     }
 
     private func attachScreenshot(_ name: String) {

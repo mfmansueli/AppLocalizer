@@ -47,8 +47,9 @@ struct IPhoneDuoTests {
     }
 
     @Test func templatesRenderItBetweenIPhoneAndIPadWithTheSetsCaptions() {
-        #expect(ScreenshotDisplayType.rendered == [.iPhone, .iPhoneDuo, .iPad])
-        #expect(ScreenshotDisplayType.studio == [.iPhone, .iPhoneDuo, .iPad, .watch, .visionPro])
+        #expect(ScreenshotDisplayType.rendered == [.iPhone, .iPhoneDuo, .iPad, .mac])
+        #expect(ScreenshotDisplayType.standard == [.iPhone, .iPhoneDuo, .iPad])
+        #expect(ScreenshotDisplayType.studio == [.iPhone, .iPhoneDuo, .iPad, .mac, .watch, .visionPro])
         let duo = ScreenshotDisplayType.iPhoneDuo
         #expect(duo.isRendered)
         #expect(duo.hasCaptions)

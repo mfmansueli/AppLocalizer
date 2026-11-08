@@ -29,6 +29,7 @@ struct ArtworkPromptValues {
             "categories": facts.profile?.categories.joined(separator: ", ") ?? "",
             "description_summary": AutopilotAppProfile.opening(of: facts.profile?.description ?? "", limit: 360),
             "keywords_by_locale": keywordsByLocale,
+            "what_it_does": facts.look?.whatItDoes ?? Self.unknownHint,
             "screen_list_with_captions": screens,
             "audience_hint": facts.look?.audience ?? Self.unknownHint,
             "age_rating": facts.ageRating ?? "",
@@ -41,6 +42,9 @@ struct ArtworkPromptValues {
             "app_fonts": facts.look?.fonts.joined(separator: ", ") ?? "",
             "supports_dark": facts.look?.supportsDarkMode.map { $0 ? "yes" : "no" } ?? "",
             "design_system_summary": designSystem,
+            "brand_personality": facts.look?.personality ?? Self.unknownHint,
+            "brand_motifs": Self.list(facts.look?.motifs),
+            "brand_avoid": Self.list(facts.look?.avoid),
             "run_locales": plan.localeCodes.joined(separator: ", "),
             "rtl_locales": rightToLeft.isEmpty ? "none" : rightToLeft.joined(separator: ", "),
             "primary_locale": plan.primaryLocale,
@@ -65,6 +69,12 @@ struct ArtworkPromptValues {
 
     /// What an unknown hint reads.
     static let unknownHint = "unknown"
+
+    /// `“a”, “b”`, or unknown.
+    static func list(_ items: [String]?) -> String {
+        guard let items, !items.isEmpty else { return unknownHint }
+        return items.map { "“\($0)”" }.joined(separator: ", ")
+    }
 
     // MARK: - The app
 
@@ -113,6 +123,9 @@ struct ArtworkPromptValues {
     /// typefaces New York, SF Pro", or none.
     private var designSystem: String {
         guard let project = facts.designProject, project.kind.usesDesignAI else {
+            if let source = facts.look?.designSource, facts.look?.hasDesignLanguage == true {
+                return "no design project connected; the project's own design docs (\(source)), as below, with the icon and theme"
+            }
             return "none: the app's icon and theme are its brand"
         }
         var line = "\(project.displayName) in \(project.kind.title)"

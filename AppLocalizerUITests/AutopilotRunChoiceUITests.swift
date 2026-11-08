@@ -5,11 +5,12 @@
 
 import XCTest
 
-/// The Autopilot plan's "What this run makes" (presets, rows, languages,
-/// captures) and its two ways to add a screen ("+ Add a Screen…" and
-/// Suggest Screens), driven through the DEBUG scenes in
-/// `StudioDebugRunChoice` and `StudioDebugAddScreens`. Each test attaches
-/// the sheet's screenshot to check the layout.
+/// What the run makes (languages at What to make, reused captures in the
+/// plan, Review & push of a header-only run) and the plan's two ways to
+/// add a screen ("+ Add a Screen…" and Suggest Screens, under Show
+/// screens), driven through the DEBUG scenes in `StudioDebugRunChoice` and
+/// `StudioDebugAddScreens`. Each test attaches the sheet's screenshot to
+/// check the layout.
 @MainActor
 final class AutopilotRunChoiceUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -25,69 +26,63 @@ final class AutopilotRunChoiceUITests: XCTestCase {
 
     // MARK: - What this run makes
 
-    func testAPresetSetsTheRowsAndNothingSelectedKeepsStartOff() {
-        launch(scene: "st-plan")
-        let summary = element("autopilot.plan.runSummary")
-        XCTAssertTrue(summary.waitForExistence(timeout: 15))
-        XCTAssertTrue(text(of: summary).hasPrefix("This run makes 180 screenshots for iPhone"), text(of: summary))
-        XCTAssertTrue(element("autopilot.plan.preset.screenshots").isSelected)
-        attachScreenshot("Plan · Screenshots")
-
-        tap("autopilot.plan.preset.headerAndSearch")
-        XCTAssertTrue(waitUntil {
-            self.text(of: summary) == "This run makes header and search artwork in 12 languages. Everything else on the App Store stays as it is."
-        }, text(of: summary))
-        XCTAssertEqual(element("autopilot.plan.screenshots").value as? Int, 0)
-        XCTAssertFalse(element("autopilot.plan.iPad").isEnabled, "No screenshots, no devices to pick")
-        XCTAssertTrue(text(of: element("autopilot.plan.captureNote")).hasPrefix("Claude Code runs this build and captures again"))
-        attachScreenshot("Plan · Header and search")
-
-        tap("autopilot.plan.artwork")
-        XCTAssertTrue(waitUntil { self.text(of: summary) == "Nothing selected. Turn on at least one row." }, text(of: summary))
-        XCTAssertTrue(element("autopilot.plan.preset.custom").exists)
-        XCTAssertFalse(app.buttons["autopilot.start"].isEnabled)
-        attachScreenshot("Plan · Nothing selected")
-
-        tap("autopilot.plan.preset.screenshots")
-        XCTAssertTrue(waitUntil { self.app.buttons["autopilot.start"].isEnabled })
-    }
-
     func testOnlyThePrimaryLanguageOrTheOnesChosen() {
         launch(scene: "st-plan")
-        let summary = element("autopilot.plan.runSummary")
-        XCTAssertTrue(summary.waitForExistence(timeout: 15))
-        tap("autopilot.plan.languages.primary")
-        XCTAssertTrue(waitUntil { self.text(of: summary).contains("in English (U.S.).") }, text(of: summary))
+        let primary = element("autopilot.guided.make.languages.primary")
+        XCTAssertTrue(primary.waitForExistence(timeout: 15))
+        let footer = element("autopilot.guided.footer.text")
+        click(primary)
+        XCTAssertTrue(waitUntil { self.text(of: footer).contains("in English (U.S.).") }, text(of: footer))
 
-        tap("autopilot.plan.languages.chosen")
+        tap("autopilot.guided.make.languages.chosen")
         let german = element("autopilot.plan.language.de-DE")
         XCTAssertTrue(german.waitForExistence(timeout: 5))
-        reveal(german)
-        german.click()
-        XCTAssertTrue(waitUntil { self.text(of: summary).contains("in 2 languages") }, text(of: summary))
-        attachScreenshot("Plan · Chosen languages")
+        click(german)
+        XCTAssertTrue(waitUntil { self.text(of: footer).contains("in 2 languages") }, text(of: footer))
+        attachScreenshot("What to make · Chosen languages")
     }
 
-    func testReusingTheLastCapturesSkipsCaptureAndPick() {
+    /// Reusing the last captures: nothing to capture, and turned off, the
+    /// plan captures again.
+    func testReusingTheLastCapturesSkipsCapture() {
         launch(scene: "st-plan-reuse")
-        let note = element("autopilot.plan.captureNote")
-        XCTAssertTrue(note.waitForExistence(timeout: 15))
-        XCTAssertTrue(element("autopilot.plan.captureSource.reuse").isSelected)
-        XCTAssertTrue(text(of: note).contains("Faster, but shows the app as it was on"), text(of: note))
+        goToThePlan()
+        showScreens()
+        let reuse = element("autopilot.guided.plan.reuse")
+        XCTAssertTrue(reuse.waitForExistence(timeout: 5))
+        XCTAssertTrue(reuse.label.hasPrefix("Reuse "), reuse.label)
+        XCTAssertEqual(reuse.value as? Int, 1, "Reuse is on")
+        // The last run made iPhone and iPad; this plan has iPhone Duo too.
+        let title = element("autopilot.guided.plan.row.capture.title")
+        XCTAssertTrue(text(of: title).hasPrefix("Reuses "), text(of: title))
+        XCTAssertTrue(text(of: title).contains(" more in Simulator"), text(of: title))
+        let detail = text(of: element("autopilot.guided.plan.row.capture.detail"))
+        XCTAssertTrue(detail.hasPrefix("The captures and picks of the last run"), detail)
         attachScreenshot("Plan · Reuse captures")
+
+        click(reuse)
+        XCTAssertTrue(waitUntil { self.text(of: title).hasPrefix("Captures") }, text(of: title))
     }
 
-    func testTheReadyStageOfAnArtworkRunSaysTheScreenshotsStay() {
+    /// Review & push in a run that makes only the header and search: one
+    /// part and no tabs, and the sheet says the run made no screenshots.
+    func testReviewingAnArtworkRunShowsNoScreenshots() {
         launch(scene: "st-ready-art")
-        let ready = element("autopilot.ready")
-        XCTAssertTrue(ready.waitForExistence(timeout: 15))
-        attachScreenshot("Ready · header and search only")
+        let artwork = element("autopilot.guided.review.artwork")
+        XCTAssertTrue(artwork.waitForExistence(timeout: 15))
+        XCTAssertFalse(element("autopilot.guided.review.tabs").exists, "One part: no tabs")
+        let subtitle = text(of: element("autopilot.guided.sheetSubtitle"))
+        XCTAssertTrue(subtitle.contains("header and search"), subtitle)
+        XCTAssertFalse(subtitle.contains("screenshots"), subtitle)
+        attachScreenshot("Review · header and search only")
     }
 
     // MARK: - Add or suggest screens
 
     func testAScreenAddedByNameIsTaggedAndLeftToClaudeCode() {
         launch(scene: "st-plan")
+        goToThePlan()
+        showScreens()
         let add = element("autopilot.plan.addScreen")
         XCTAssertTrue(add.waitForExistence(timeout: 15))
         reveal(add)
@@ -100,7 +95,7 @@ final class AutopilotRunChoiceUITests: XCTestCase {
         name.click()
         name.typeText("Insights")
         let confirm = element("autopilot.plan.form.add")
-        XCTAssertTrue(confirm.isHittable, "The form scrolls into view")
+        reveal(confirm)
         attachScreenshot("Plan · Add a Screen form")
         confirm.click()
 
@@ -115,6 +110,8 @@ final class AutopilotRunChoiceUITests: XCTestCase {
 
     func testSuggestionsAreAddedOrDismissedOneByOne() {
         launch(scene: "st-plan-suggest")
+        goToThePlan()
+        showScreens()
         let insights = element("autopilot.plan.suggestion.sg-insights.add")
         XCTAssertTrue(insights.waitForExistence(timeout: 15))
         reveal(insights)
@@ -136,6 +133,8 @@ final class AutopilotRunChoiceUITests: XCTestCase {
 
     func testAskingForAScreenShowsWhatWasAskedFor() {
         launch(scene: "st-plan-suggest-ask")
+        goToThePlan()
+        showScreens()
         let title = element("autopilot.plan.suggestions.title")
         XCTAssertTrue(title.waitForExistence(timeout: 15))
         reveal(title)
@@ -145,10 +144,12 @@ final class AutopilotRunChoiceUITests: XCTestCase {
 
     func testSuggestingCanBeCancelledWhileClaudeCodeReads() {
         launch(scene: "st-plan-suggest-busy")
-        let busy = element("autopilot.plan.suggestions.busy")
+        goToThePlan()
+        showScreens()
+        let busy = element("autopilot.plan.suggestions.busyText")
         XCTAssertTrue(busy.waitForExistence(timeout: 15))
         reveal(busy)
-        let reading = text(of: element("autopilot.plan.suggestions.busyText"))
+        let reading = text(of: busy)
         XCTAssertTrue(reading.hasPrefix("Claude Code is reading LumenUITests, the "), reading)
         XCTAssertFalse(element("autopilot.plan.suggestScreens").isEnabled)
         attachScreenshot("Plan · Suggesting")
@@ -159,6 +160,8 @@ final class AutopilotRunChoiceUITests: XCTestCase {
 
     func testTheAddedScreensSceneShowsBothTags() {
         launch(scene: "st-plan-added")
+        goToThePlan()
+        showScreens()
         let suggested = element("autopilot.plan.origin.5")
         XCTAssertTrue(suggested.waitForExistence(timeout: 15))
         reveal(element("autopilot.plan.origin.6"))
@@ -173,6 +176,8 @@ final class AutopilotRunChoiceUITests: XCTestCase {
     /// goes after the watch's, not the set's.
     func testAWatchScreenIsAddedAfterTheWatchsOwn() {
         launch(scene: "st-plan-all")
+        goToThePlan()
+        showScreens()
         let add = element("autopilot.plan.addScreen.watch")
         XCTAssertTrue(add.waitForExistence(timeout: 15))
         reveal(add)
@@ -196,6 +201,8 @@ final class AutopilotRunChoiceUITests: XCTestCase {
 
     func testWatchSuggestionsAreAddedToTheWatch() {
         launch(scene: "st-plan-watch-suggest")
+        goToThePlan()
+        showScreens()
         let add = element("autopilot.plan.suggestion.sg-watch-stack.add")
         XCTAssertTrue(add.waitForExistence(timeout: 15))
         reveal(add)
@@ -211,10 +218,12 @@ final class AutopilotRunChoiceUITests: XCTestCase {
     /// can ask.
     func testSuggestingForTheWatchWaitsUnderTheWatch() {
         launch(scene: "st-plan-watch-busy")
-        let busy = element("autopilot.plan.suggestions.busy")
+        goToThePlan()
+        showScreens()
+        let busy = element("autopilot.plan.suggestions.busyText")
         XCTAssertTrue(busy.waitForExistence(timeout: 15))
         reveal(busy)
-        let reading = text(of: element("autopilot.plan.suggestions.busyText"))
+        let reading = text(of: busy)
         XCTAssertTrue(reading.hasPrefix("Claude Code is reading the watch app"), reading)
         XCTAssertFalse(element("autopilot.plan.suggestScreens.watch").isEnabled)
         XCTAssertFalse(element("autopilot.plan.suggestScreens").isEnabled)
@@ -226,22 +235,48 @@ final class AutopilotRunChoiceUITests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// Scrolls `identifier` into view and clicks it.
-    private func tap(_ identifier: String) {
-        let target = element(identifier)
+    /// The sheet opens a planned run at What to make: on to the plan.
+    private func goToThePlan() {
+        let next = element("autopilot.guided.next")
+        XCTAssertTrue(next.waitForExistence(timeout: 20))
+        next.click()
+        XCTAssertTrue(element("autopilot.guided.back").waitForExistence(timeout: 5), "At Look")
+        element("autopilot.guided.next").click()
+        XCTAssertTrue(element("autopilot.guided.plan.timeline").waitForExistence(timeout: 5), "At the plan")
+    }
+
+    /// The plan's screens are folded under the capture line: shows them.
+    private func showScreens() {
+        let toggle = element("autopilot.guided.plan.screens.toggle")
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        if (toggle.value as? String) != "Shown" { click(toggle) }
+        XCTAssertTrue(element("autopilot.plan.addScreen").waitForExistence(timeout: 5), "The screens are shown")
+    }
+
+    /// Scrolls the step until `target` is above the footer: the content
+    /// scrolls under it, so a click on what's below would hit the footer
+    /// (`isHittable` is true for rows the scroll view clips).
+    private func reveal(_ target: XCUIElement) {
+        let scroll = element("autopilot.guided.sheet").scrollViews.firstMatch
+        guard scroll.exists else { return }
+        let footer = element("autopilot.guided.footer.text")
+        var tries = 0
+        while tries < 12 {
+            let bottom = min(scroll.frame.maxY, footer.exists ? footer.frame.minY - 12 : scroll.frame.maxY)
+            if target.frame.minY >= scroll.frame.minY, target.frame.maxY <= bottom { return }
+            scroll.scroll(byDeltaX: 0, deltaY: target.frame.minY < scroll.frame.minY ? 200 : -200)
+            tries += 1
+        }
+    }
+
+    private func click(_ target: XCUIElement) {
         reveal(target)
         target.click()
     }
 
-    /// Scrolls the plan until `target` is inside what it shows
-    /// (`isHittable` is true for rows the scroll view clips).
-    private func reveal(_ target: XCUIElement) {
-        let plan = element("autopilot.plan")
-        var tries = 0
-        while !(target.frame.minY >= plan.frame.minY && target.frame.maxY <= plan.frame.maxY), tries < 12 {
-            plan.scroll(byDeltaX: 0, deltaY: target.frame.minY < plan.frame.minY ? 200 : -200)
-            tries += 1
-        }
+    /// Scrolls `identifier` into view and clicks it.
+    private func tap(_ identifier: String) {
+        click(element(identifier))
     }
 
     private func attachScreenshot(_ name: String) {

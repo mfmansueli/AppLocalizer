@@ -52,9 +52,10 @@ extension AutopilotNextStep {
                 "action": "record_again",
                 "moments": .array(screenIDs.map { .string($0) }),
                 "how": """
-                The person asked to record these App Preview moments again before the design step. For each, call \
-                rerecord_moment with moment_id to see where, record only that screen, upload it and call \
-                rerecord_moment again with the upload ID. The rest of the recording stays.
+                These App Preview moments are to be recorded again before the design step: the person asked, or almost \
+                nothing moves in them. For each, call rerecord_moment with moment_id to see where and why, record only \
+                that screen with something happening on camera, upload it and call rerecord_moment again with the \
+                upload ID. The rest of the recording stays.
                 """,
             ]
         case let .design(remaining):
@@ -69,7 +70,7 @@ extension AutopilotNextStep {
                 [
                     "action": "design",
                     "remaining": .int(remaining),
-                    "how": .string(Self.designHow(plan: run?.plan)),
+                    "how": .string(Self.designHow(plan: run?.plan, ownDesign: run?.designsFromTheApp == true)),
                 ]
             }
         default:
@@ -80,8 +81,9 @@ extension AutopilotNextStep {
     /// How to design the directions: the screenshots as a template and the
     /// header and search as pages; without screenshots, only what the run
     /// makes.
-    static func designHow(plan: AutopilotPlan?) -> String {
-        let lead = "Call get_design_brief, design with the person's design project, and send each direction with propose_direction: "
+    static func designHow(plan: AutopilotPlan?, ownDesign: Bool = false) -> String {
+        let source = ownDesign ? AutopilotRun.ownDesignHow : "design with the person's design project"
+        let lead = "Call get_design_brief, \(source), and send each direction with propose_direction: "
         let pages = """
         \(plan?.alsoMakes.artworkSize.mcpPlaces ?? "the header and search") as your own HTML pages (try them with \
         render_artwork first) that show what the person asked, its askedByThePerson, first
@@ -100,6 +102,19 @@ extension AutopilotNextStep {
             : "No screenshot template: base, template and ops only style the App Preview's captions and end card."
         return lead + "this run makes no screenshots (the live set stays), so only " + pages + ", in artworkDesign. " + preview + end
     }
+
+    /// After the rehearsal every language reaches its screens the same way,
+    /// and AppLocalizer checks each capture's text itself: Bruma's run took
+    /// a minute a capture looking at each one, over 5 hours for 324.
+    static let batchCaptureHow = """
+    The rehearsal passed, so the other languages reach their screens the same way. Capture a device's screens for \
+    a language in one go: the UI test with the locale's testArguments (its screenshots exported with xcrun \
+    xcresulttool), or one script that launches each with its arguments, waits as long as the rehearsal needed and \
+    screenshots it. Where commands run one at a time and no script can (AppLocalizer's own Claude Code), send the \
+    calls that don't wait on each other together: upload and report one capture while the next screen launches. \
+    Look only at the captures whose file size stands out or that report_capture's check flags: AppLocalizer \
+    reads every capture's text, language, cut-offs, prompts and blank space itself.
+    """
 
     /// `revise_direction` and `revise_app_preview`: the person's changes.
     private func revisionJSON(run: AutopilotRun?) -> JSONValue {
@@ -204,6 +219,8 @@ extension AutopilotNextStep {
                 languages, which come once it's done: check that it reaches its screen in \(rehearsal) too, in that \
                 language, with nothing cut off. A screen or device that can't go on holds back only its own languages.
                 """)
+            } else {
+                json["pace"] = .string(Self.batchCaptureHow)
             }
         }
         return .object(json)

@@ -49,7 +49,11 @@ extension AutopilotCenter {
 
     /// Captions the assistant wrote or shortened while localizing, saved
     /// right away; the shortened ones are listed for the person to check.
-    func applyCaptions(_ captions: [AutopilotCaptionUpdate], client: String, appID: StoreApp.ID, context: AutopilotContext) async throws {
+    /// `waitsForExtras` false: once they all fit, the extras are made
+    /// without holding up the caller (`finishInBackground`).
+    func applyCaptions(
+        _ captions: [AutopilotCaptionUpdate], client: String, appID: StoreApp.ID, context: AutopilotContext, waitsForExtras: Bool = true
+    ) async throws {
         guard let run = runs[appID], run.stage == .localize else {
             throw AutopilotError(String(localized: "The run isn’t localizing now. Without run, propose_captions queues a proposal instead."))
         }
@@ -68,19 +72,19 @@ extension AutopilotCenter {
                 kind: .command, at: now()
             )
         }
-        await check(appID, with: localizer)
+        await check(appID, with: localizer, waitsForExtras: waitsForExtras)
     }
 
     /// Checks every language, one at a time; ready when every caption fits.
     /// Cancel Run stops it between languages.
-    func check(_ appID: StoreApp.ID, with localizer: AutopilotLocalizer) async {
-        await whileLocalizing(appID) { await checkEveryLanguage(appID, with: localizer) }
+    func check(_ appID: StoreApp.ID, with localizer: AutopilotLocalizer, waitsForExtras: Bool = true) async {
+        await whileLocalizing(appID) { await checkEveryLanguage(appID, with: localizer, waitsForExtras: waitsForExtras) }
     }
 
-    private func checkEveryLanguage(_ appID: StoreApp.ID, with localizer: AutopilotLocalizer) async {
+    private func checkEveryLanguage(_ appID: StoreApp.ID, with localizer: AutopilotLocalizer, waitsForExtras: Bool) async {
         // The set's captions stay as they are: only the artwork's texts.
         if runs[appID]?.plan.makesScreenshots == false {
-            await checkExtrasOnly(appID, context: localizer.context)
+            await checkExtrasOnly(appID, context: localizer.context, waitsForExtras: waitsForExtras)
             return
         }
         guard let run = runs[appID], run.stage == .localize, let document = await localizer.document() else { return }
@@ -114,6 +118,31 @@ extension AutopilotCenter {
         // The header, search artwork and App Preview are made with them
         // (once a header loop's animated pages are here), then the person
         // watches, or the set is ready.
-        await finishLocalizing(appID, context: localizer.context)
+        await finish(appID, context: localizer.context, waitsForExtras: waitsForExtras)
+    }
+
+    /// Makes the extras, waiting for them or not (`finishInBackground`).
+    func finish(_ appID: StoreApp.ID, context: AutopilotContext, waitsForExtras: Bool) async {
+        if waitsForExtras {
+            await finishLocalizing(appID, context: context)
+        } else {
+            finishInBackground(appID, context: context)
+        }
+    }
+
+    /// Makes the extras without holding up the caller, once: the MCP call
+    /// whose texts let everything fit answers at once. Bruma's last
+    /// propose_captions waited for 12 languages of header and search loops
+    /// and two App Previews, timed out, and Claude Code told the person its
+    /// phrases might not have been saved. Counted as localizing, so a
+    /// resume doesn't start a second one.
+    func finishInBackground(_ appID: StoreApp.ID, context: AutopilotContext) {
+        guard finishing[appID] == nil else { return }
+        localizing[appID, default: 0] += 1
+        finishing[appID] = Task {
+            await finishLocalizing(appID, context: context)
+            localizing[appID, default: 1] -= 1
+            finishing[appID] = nil
+        }
     }
 }

@@ -34,8 +34,9 @@ enum AutopilotShotStyle: String, Codable, CaseIterable, Hashable, Sendable {
         case .free:
             return String(localized: "\(design) designs 3 directions of its own\(inBrand). You choose one.")
         case .templates:
+            let count = TemplateStarter.allCases.count
             return String(localized: """
-            Pick up to 3 of the 12 templates (a 4th replaces the last). \(design) makes one direction from each\(inBrand). \
+            Pick up to 3 of the \(count) templates (a 4th replaces the last). \(design) makes one direction from each\(inBrand). \
             \(picked) of 3 picked.
             """)
         case .keep:

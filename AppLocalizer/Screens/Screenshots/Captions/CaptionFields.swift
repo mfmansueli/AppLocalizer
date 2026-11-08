@@ -5,13 +5,26 @@
 
 import SwiftUI
 
-/// The headline and, on hero slots, the subhead, in the locale's reading
-/// direction. The headline's edge turns red while it overflows.
+/// The kicker line where the template sets one, the headline and, on hero
+/// slots, the subhead, in the locale's reading direction. The headline's
+/// edge turns red while it overflows.
 struct CaptionFields: View {
     let model: CaptionsViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.medium) {
+            if model.showsKickerField {
+                VStack(alignment: .leading, spacing: Spacing.xSmall) {
+                    Text("\(Text("Kicker").fontWeight(.semibold)) \(Text("· the line over the headline").foregroundStyle(Palette.label2))")
+                        .font(.callout)
+                    field(
+                        Binding { model.kicker } set: { model.setKicker($0) },
+                        prompt: String(localized: "Optional: empty shows the headline alone"), isOverflowing: false
+                    )
+                    .accessibilityLabel(Text("Kicker"))
+                    .accessibilityIdentifier("screenshots.captions.editor.kicker")
+                }
+            }
             VStack(alignment: .leading, spacing: Spacing.xSmall) {
                 Text("Headline")
                     .font(.callout.weight(.semibold))

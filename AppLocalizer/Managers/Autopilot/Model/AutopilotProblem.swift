@@ -47,11 +47,14 @@ struct AutopilotProblem: Codable, Hashable, Sendable, Identifiable {
     /// The project has to change before a retry can work: the assistant
     /// said so, a command was refused, or the fix doesn't read as a command
     /// ("In ScreenshotUITests.swift:78 tap … instead of …"). A device-wide
-    /// problem is about this Mac, not the project.
+    /// problem is about this Mac unless the assistant says it's the
+    /// project: Bruma's UI tests didn't build for macOS, so no Mac screen
+    /// could be captured, and the card said to retry "once this Mac can run
+    /// the Mac simulator".
     var needsProjectChange: Bool {
         if wasRefused { return true }
-        if isDeviceWide { return false }
         if let changesProject { return changesProject }
+        if isDeviceWide { return false }
         guard let fix = trimmedFix else { return false }
         return !Self.looksLikeCommand(fix)
     }

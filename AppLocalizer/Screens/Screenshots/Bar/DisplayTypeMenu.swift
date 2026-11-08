@@ -14,7 +14,7 @@ struct DisplayTypeMenu: View {
     var body: some View {
         Menu {
             Section(String(localized: "Required by Apple")) {
-                ForEach(ScreenshotDisplayType.rendered) { type in
+                ForEach(viewModel.renderedDisplays) { type in
                     Toggle(isOn: selection(type)) {
                         Text(type.title)
                         Text(verbatim: Self.subtitle(type, size: viewModel.pixelSize(for: type)))

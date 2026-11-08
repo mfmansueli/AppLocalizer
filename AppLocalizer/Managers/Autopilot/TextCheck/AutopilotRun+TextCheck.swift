@@ -10,8 +10,8 @@ import Foundation
 // are listed for the person.
 extension AutopilotRun {
     /// A capture in another language that reads as the primary language or
-    /// English; cut-off labels beyond the primary language's on the same
-    /// screen; a system prompt or a mostly blank screen in any language.
+    /// English; cut-off labels where the primary language's capture of the
+    /// same screen has none; a system prompt or a mostly blank screen in any language.
     func textIssues(of capture: AutopilotCapture) -> [CaptureTextIssue] {
         guard let facts = capture.text else { return [] }
         var issues: [CaptureTextIssue] = []
@@ -23,8 +23,9 @@ extension AutopilotRun {
                 issues.append(.otherLanguage(found: CaptureTextLanguage.name(of: found), expected: expected.name))
             }
         }
-        if !isPrimary, facts.truncatedLines.count > (primaryCounterpart(of: capture)?.text?.truncatedLines.count ?? 0) {
-            issues.append(.cutOff(facts.truncatedLines))
+        if !isPrimary {
+            let cut = facts.cutOffs(beyond: primaryCounterpart(of: capture)?.text)
+            if !cut.isEmpty { issues.append(.cutOff(cut)) }
         }
         if let line = facts.promptLine { issues.append(.systemPrompt(line)) }
         if let blank = facts.blankShare, blank >= CaptureBlankness.mostlyBlank {

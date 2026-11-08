@@ -91,11 +91,18 @@ struct ArtworkView: View {
         context.concatenate(
             CGAffineTransform(translationX: center.x, y: center.y).rotated(by: phone.rotation * .pi / 180).translatedBy(x: -center.x, y: -center.y)
         )
-        let body = Path(roundedRect: phone.frame, cornerRadius: phone.cornerRadius, style: .continuous)
-        context.drawLayer { layer in
-            layer.addFilter(.shadow(color: .black.opacity(0.3), radius: phone.shadowRadius / 2, x: 0, y: phone.shadowOffset))
+        let device = phone.device
+        let painter = device.map { DeviceFramePainter(device: $0, canvasHeight: layout.size.height) }
+        if let painter {
+            // The screenshots' 3D frame, with its own shadow.
+            painter.drawBody(in: &context)
+        } else {
             // Without a device, the shadow falls from the screen itself.
-            layer.fill(body, with: .color(phone.isBare ? ScreenshotPainter.emptyScreen : phone.color.color))
+            let body = Path(roundedRect: phone.frame, cornerRadius: phone.cornerRadius, style: .continuous)
+            context.drawLayer { layer in
+                layer.addFilter(.shadow(color: .black.opacity(0.3), radius: phone.shadowRadius / 2, x: 0, y: phone.shadowOffset))
+                layer.fill(body, with: .color(ScreenshotPainter.emptyScreen))
+            }
         }
         let screen = Path(roundedRect: phone.screen, cornerRadius: phone.screenCornerRadius, style: .continuous)
         context.drawLayer { layer in
@@ -104,6 +111,10 @@ struct ArtworkView: View {
             guard let capture = captures[phone.slot] else { return }
             let frame = phone.captureFrame(for: PixelSize(width: capture.width, height: capture.height))
             layer.draw(Image(decorative: capture, scale: 1), in: frame)
+        }
+        if let painter, let island = device?.island {
+            context.fill(Path(roundedRect: island, cornerRadius: island.height / 2, style: .continuous), with: .color(.black))
+            painter.drawGlare(over: screen, rect: phone.screen, in: &context)
         }
     }
 

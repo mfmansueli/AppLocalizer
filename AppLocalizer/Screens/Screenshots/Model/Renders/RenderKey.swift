@@ -19,8 +19,15 @@ struct RenderKey: Codable, Hashable, Sendable, CustomStringConvertible {
         self.rawValue = rawValue
     }
 
-    init(templateHash: String, locale: String, displayType: ScreenshotDisplayType, slot: Int, caption: ScreenshotCaption?, captureID: String?) {
-        let parts = [templateHash, locale, displayType.rawValue, "\(slot)", caption?.renderText ?? "", captureID ?? "-"]
+    /// `store` is what the App Store put in the render (a laurel's rating,
+    /// the reviews quoted), so a new rating or review renders again; left
+    /// out, the key is the one it was before.
+    init(
+        templateHash: String, locale: String, displayType: ScreenshotDisplayType, slot: Int, caption: ScreenshotCaption?, captureID: String?,
+        store: String? = nil
+    ) {
+        var parts = [templateHash, locale, displayType.rawValue, "\(slot)", caption?.renderText ?? "", captureID ?? "-"]
+        if let store { parts.append(store) }
         let digest = SHA256.hash(data: Data(parts.joined(separator: "\u{1E}").utf8))
         rawValue = digest.prefix(16).map { String(format: "%02x", $0) }.joined()
     }

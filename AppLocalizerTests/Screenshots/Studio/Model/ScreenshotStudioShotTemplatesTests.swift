@@ -79,13 +79,12 @@ struct ScreenshotStudioShotTemplatesTests {
         model.renderQueue.cancel()
         #expect(model.starterImages(.cinema).count == min(StarterPreview.slotCount, model.document?.slotCount ?? 0))
         #expect(!model.starterFontNote(.cinema).isEmpty)
-        #expect(AutopilotShotTemplateCard.slotCount <= StarterPreview.slotCount, "A pick shows the first of the rendered slots")
     }
 
     @Test func thePickerCountsTheStyleItShows() async {
         let (model, _) = await screenshots()
-        #expect(model.galleryCount(in: .bold) == "3 templates · previewed with Lumen’s captions and captures")
-        #expect(model.galleryCount(in: nil) == "12 templates · previewed with Lumen’s captions and captures")
+        #expect(model.galleryCount(in: .bold) == "5 templates · previewed with Lumen’s captions and captures")
+        #expect(model.galleryCount(in: nil) == "14 templates · previewed with Lumen’s captions and captures")
     }
 }
 #endif

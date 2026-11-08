@@ -14,6 +14,8 @@ import SwiftUI
 struct SlotPreviewImage: View {
     let preview: SlotPreview
     let capture: CGImage?
+    /// The phone behind on a Two phones slot.
+    var companion: CGImage?
     let width: CGFloat
     var showsGuides = false
 
@@ -23,7 +25,7 @@ struct SlotPreviewImage: View {
         let height = (layout.canvas.height * scale).rounded()
         Canvas(opaque: true, rendersAsynchronously: false) { context, _ in
             context.scaleBy(x: scale, y: scale)
-            ScreenshotPainter(layout: layout, capture: capture).draw(in: &context)
+            ScreenshotPainter(layout: layout, capture: capture, companion: companion).draw(in: &context)
             if showsGuides { drawGuides(in: &context, scale: scale) }
         }
         .frame(width: width, height: height)

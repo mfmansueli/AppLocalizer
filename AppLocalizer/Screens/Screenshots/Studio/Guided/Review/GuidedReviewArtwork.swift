@@ -6,7 +6,8 @@
 import SwiftUI
 
 /// The new set's header and search images in Review & push, in the
-/// language chosen: the header, and the search result beside it.
+/// language chosen: the header, and the search result beside it. When
+/// they couldn't be made, why, with Make Again.
 struct GuidedReviewArtwork: View {
     @Bindable var studio: ScreenshotStudioModel
     let locale: String
@@ -15,12 +16,14 @@ struct GuidedReviewArtwork: View {
     var body: some View {
         let items = studio.guidedArtwork(locale: locale)
         HStack(alignment: .bottom, spacing: 10) {
-            if items.isEmpty {
+            if let missing = studio.guidedArtworkMissing {
+                missingView(missing)
+            } else if items.isEmpty {
                 Text("The header and search images are on their way.")
                     .foregroundStyle(Palette.label2)
                     .frame(maxWidth: .infinity, minHeight: 200)
             }
-            ForEach(items, id: \.kind) { item in
+            ForEach(studio.guidedArtworkMissing == nil ? items : [], id: \.kind) { item in
                 ArtworkThumbnail(
                     studio: studio, kind: item.kind, template: item.template, locale: item.locale, headline: item.headline,
                     slots: item.slots, captures: item.captures, width: itemWidth(item, count: items.count), shows: item.shows,
@@ -35,6 +38,31 @@ struct GuidedReviewArtwork: View {
         .modifier(GuidedSelectableCard(padding: 0))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("autopilot.guided.review.artwork")
+    }
+
+    /// "Header artwork couldn’t be made", why, and Make Again, which takes
+    /// the run back to Making until it's made.
+    private func missingView(_ missing: GuidedArtworkMissing) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.small) {
+            Label(missing.title, systemImage: "exclamationmark.triangle.fill")
+                .font(.headline)
+                .foregroundStyle(Palette.label)
+                .symbolRenderingMode(.multicolor)
+                .accessibilityIdentifier("autopilot.guided.review.artworkMissing.title")
+            Text(missing.detail)
+                .font(.callout)
+                .foregroundStyle(Palette.label2)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("autopilot.guided.review.artworkMissing.detail")
+            Button("Make Again") { studio.makeExtrasAgain() }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .accessibilityIdentifier("autopilot.guided.review.makeAgain")
+        }
+        .frame(maxWidth: 460, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 200)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("autopilot.guided.review.artworkMissing")
     }
 
     /// The header takes about 70% of the room beside the search image.

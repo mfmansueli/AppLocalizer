@@ -111,6 +111,28 @@ struct ExtrasPushControllerTests {
         #expect(extras.checkedItems(in: plan).map(\.id) == ["header-en-US", "search-en-US", "header-fr-FR", "search-de-DE", "iphone-en-US"])
     }
 
+    /// The card's checkbox: every header out at once, the search images
+    /// untouched, and an error still keeping its header out when all go
+    /// back in.
+    @Test func aWholeCardComesOutAndGoesBackAtOnce() async throws {
+        let harness = try harness()
+        await harness.load()
+        let extras = harness.controller.extras
+        let plan = try #require(extras.plans[harness.app.id])
+        let headers = plan.items.filter { $0.artworkKind == .header }
+
+        extras.setChecked(headers, to: false)
+        #expect(!headers.contains(where: extras.isChecked))
+        #expect(extras.checkedItems(in: plan).map(\.id) == ["search-en-US", "search-fr-FR", "search-de-DE", "iphone-en-US"])
+
+        extras.setChecked(headers, to: true)
+        #expect(extras.checkedItems(in: plan).map(\.id) == [
+            "header-en-US", "search-en-US", "header-fr-FR", "search-fr-FR", "search-de-DE", "iphone-en-US",
+        ])
+        let german = try #require(headers.first { $0.id == "header-de-DE" })
+        #expect(!extras.isChecked(german), "An error keeps it out")
+    }
+
     @Test func pushingSendsTheCheckedOnesAndNotesThemInTheSet() async throws {
         let harness = try harness()
         await harness.load()

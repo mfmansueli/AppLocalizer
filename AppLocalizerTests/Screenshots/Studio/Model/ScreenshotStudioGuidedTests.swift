@@ -21,18 +21,6 @@ struct ScreenshotStudioGuidedTests {
         return await (StudioTestFixtures.screenshots(center: center), center)
     }
 
-    @Test func theFrontIsSettingsUnlessAScenePicksOne() async {
-        let (model, _) = await screenshots()
-        let studio = model.studio
-        let preferences = AppPreferences(defaults: nil)
-        #expect(studio.front(nil) == .guided)
-        #expect(studio.front(preferences) == .guided)
-        preferences.autopilotFront = .classic
-        #expect(studio.front(preferences) == .classic)
-        studio.frontOverride = .guided
-        #expect(studio.front(preferences) == .guided)
-    }
-
     @Test func aNewGuidedRunStartsAtWhatToMake() async throws {
         let (model, center) = await screenshots()
         let studio = model.studio

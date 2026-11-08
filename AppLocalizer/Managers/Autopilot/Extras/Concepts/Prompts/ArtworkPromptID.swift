@@ -26,8 +26,10 @@ enum ArtworkPromptID: String, CaseIterable, Hashable, Sendable {
     /// 4: the person's note, appended to 2 or 3.
     case change = "artwork-change"
 
-    /// The prompts' version, logged with every use.
-    static let version = "v4"
+    /// The prompts' version, logged with every use. v5 adds the brand's
+    /// design language from the project scan (personality, motifs, what it
+    /// avoids) and why artwork stays 4+.
+    static let version = "v5"
 
     /// A block other prompts include as `{{block:<id>}}`.
     var isBlock: Bool { self == .appContext || self == .referenceHeaders }

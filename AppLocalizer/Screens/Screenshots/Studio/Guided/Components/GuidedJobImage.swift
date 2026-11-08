@@ -12,10 +12,12 @@ struct GuidedJobImage: View {
     let job: RenderJob
     let width: CGFloat
     var label: String = ""
+    /// As in `StudioShotImage`: Apple Watch's screen is much rounder.
+    var cornerFraction: CGFloat = 0.05
     @State private var image: CGImage?
 
     var body: some View {
-        StudioShotImage(image: image, width: width, aspect: aspect)
+        StudioShotImage(image: image, width: width, aspect: aspect, cornerFraction: cornerFraction)
             .task(id: TaskKey(key: job.key, width: width)) {
                 image = await studio.renderQueue.largeImage(for: job, pixelWidth: Int((width * 2).rounded()))
             }

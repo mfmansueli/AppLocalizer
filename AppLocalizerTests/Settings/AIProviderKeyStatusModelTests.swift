@@ -52,15 +52,16 @@ struct AIProviderKeyStatusModelTests {
         #expect(checker.checkedKeys.count == 1)
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    /// The limit only catches a check that never ends: in the full run the
+    /// main actor is shared by every suite, and even a trivial test there
+    /// took 108 seconds (this one, spinning on `Task.yield`, ran out at 60).
+    @Test(.timeLimit(.minutes(5)))
     func aCancelledCheckLeavesTheStatusToTheNextOne() async {
         let (model, checker, preferences) = make(secrets: [AIProviderVendor.openAI.secretName: "sk-123"])
         preferences.vendor = .openAI
         checker.waitsForCancellation = true
         let running = Task { await model.check(preferences) }
-        while checker.checkedKeys.isEmpty {
-            await Task.yield()
-        }
+        await checker.waitForACheck()
         #expect(model.status == .checking(.openAI))
         running.cancel()
         await running.value

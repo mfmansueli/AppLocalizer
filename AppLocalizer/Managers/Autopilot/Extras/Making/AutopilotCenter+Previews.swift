@@ -20,6 +20,7 @@ extension AutopilotCenter {
         let music = musicSource(plan.alsoMakes.previewMusic, context: context)
         var files: [ExtrasPreviewFile] = []
         var done = 0
+        update(appID) { $0.extrasProgress?.previewsStartedAt = now() }
         for display in plan.previewDisplays {
             for code in plan.previewLocales {
                 // Cancel Run: the rest isn't made.

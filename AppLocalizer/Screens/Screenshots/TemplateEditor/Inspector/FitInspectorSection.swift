@@ -14,16 +14,13 @@ struct FitInspectorSection: View {
         if let template = model.template {
             let headline = template.caption.headline
             TemplateInspectorSection(title: String(localized: "Fit")) {
-                TemplateInspectorRow(label: String(localized: "Max lines")) {
-                    Picker("Max lines", selection: Binding { headline.maxLines } set: { model.set("caption.headline.maxLines", to: .int($0)) }) {
-                        ForEach(1...3, id: \.self) { lines in
-                            Text("\(lines)").tag(lines)
-                        }
+                TemplateInspectorPicker(
+                    String(localized: "Max lines"), selection: Binding { headline.maxLines } set: { model.set("caption.headline.maxLines", to: .int($0)) },
+                    identifier: "screenshots.template.maxLines"
+                ) {
+                    ForEach(1...3, id: \.self) { lines in
+                        Text("\(lines)").tag(lines)
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
-                    .accessibilityIdentifier("screenshots.template.maxLines")
                 }
                 TemplateInspectorSlider(label: String(localized: "Smallest size"), value: headline.min, range: 56...120, step: 2, unit: " u") {
                     model.set("caption.headline.min", to: .double(min($0, headline.size)))

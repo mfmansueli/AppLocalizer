@@ -6,10 +6,17 @@
 import Foundation
 
 extension ScreenshotsDocument {
-    /// The devices the set has: iPhone and iPad (the template's slots),
-    /// then Apple Watch and Apple Vision Pro when they have screens.
+    /// The devices the set has: iPhone, iPhone Duo and iPad (the template's
+    /// slots), Mac once it has captures, then Apple Watch and Apple Vision
+    /// Pro when they have screens.
     var displays: [ScreenshotDisplayType] {
-        ScreenshotDisplayType.rendered + ScreenshotDisplayType.ownScreens.filter { !(screens(on: $0)?.isEmpty ?? true) }
+        renderedDisplays + ScreenshotDisplayType.ownScreens.filter { !(screens(on: $0)?.isEmpty ?? true) }
+    }
+
+    /// The devices the template lays the set out on: iPhone, iPhone Duo and
+    /// iPad, and Mac once it has captures.
+    var renderedDisplays: [ScreenshotDisplayType] {
+        ScreenshotDisplayType.standard + (captures.hasCaptures(on: .mac) ? [.mac] : [])
     }
 
     /// A device's own screens; nil for iPhone and iPad, and for iPhone Duo

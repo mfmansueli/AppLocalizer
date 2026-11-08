@@ -16,6 +16,7 @@ struct PricingSectionBar: View {
             HStack(spacing: Spacing.medium) {
                 browserButton
                 Spacer(minLength: Spacing.medium)
+                RetentionPageSwitch(page: $viewModel.page)
                 viewPicker
                 modeControls
             }
@@ -23,6 +24,7 @@ struct PricingSectionBar: View {
                 HStack(spacing: Spacing.medium) {
                     browserButton
                     Spacer(minLength: Spacing.medium)
+                    RetentionPageSwitch(page: $viewModel.page)
                     viewPicker
                 }
                 HStack(spacing: Spacing.small) { modeControls }

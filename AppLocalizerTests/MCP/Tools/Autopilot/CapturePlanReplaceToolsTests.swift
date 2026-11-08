@@ -105,6 +105,21 @@ struct CapturePlanReplaceToolsTests {
         #expect(try await MCPAutopilotFixtures(capturing).call(GetCapturePlanTool()).result["chooseScreens"] == false)
     }
 
+    /// The captions the assistant writes when it chooses the screens are
+    /// the set's headlines in every language: how to write them comes with
+    /// the choice, and only then.
+    @Test func choosingTheScreensSaysHowToWriteTheCaptions() async throws {
+        let picks = try await MCPAutopilotFixtures(Fixtures.run(.waiting)).call(GetCapturePlanTool()).result
+        let how = try #require(picks["choosingScreens"]?.stringValue)
+        #expect(how.contains("search results show only the first three"))
+        #expect(how.contains("not the screen's name"))
+        #expect(how.contains("avoid puns and idioms"))
+
+        var kept = Fixtures.run(.waiting)
+        kept.plan.choosesScreens = false
+        #expect(try await MCPAutopilotFixtures(kept).call(GetCapturePlanTool()).result["choosingScreens"] == nil)
+    }
+
     @Test func thePromptAsksForTheBestScreens() {
         let text = MCPPrompt.runScreenshots.message(app: "Lumen Journal")["messages"]?.arrayValue?.first?["content"]?["text"]?.stringValue ?? ""
         #expect(text.contains("When chooseScreens is true, decide first which screens show the app best"))

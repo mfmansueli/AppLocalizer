@@ -48,9 +48,9 @@ struct AppLocalizerApp: App {
                 guard let launcher else { return }
                 Task { await AutopilotContinuation.sessionEnded(session, center: .shared, launcher: launcher) }
             }
-            // The guided Autopilot says when a run needs the person.
-            AutopilotCenter.shared.onStageChange = { [weak preferences] run, old in
-                guard preferences?.autopilotFront == .guided, let turn = AutopilotTurn.turn(from: old, to: run.stage) else { return }
+            // Autopilot says when a run needs the person.
+            AutopilotCenter.shared.onStageChange = { run, old in
+                guard let turn = AutopilotTurn.turn(from: old, to: run.stage) else { return }
                 AutopilotTurnNotifier.shared.post(turn, run: run, appName: AutopilotTurnNotifier.appName(of: run))
             }
         }
@@ -125,9 +125,11 @@ struct AppLocalizerApp: App {
     }
 
     /// DEBUG scenes never open a port for the MCP server, except
-    /// `cc-live`, which runs the real Claude Code on a port of its own.
+    /// `cc-live`, which runs the real Claude Code on a port of its own;
+    /// nor does the unit tests' host (`UnitTestHost`).
     private static var httpServer: any LocalHTTPServing {
         #if DEBUG
+        if UnitTestHost.isRunning { return DebugHTTPServer() }
         if let id = DebugScene.requestedID, !ClaudeCodeDebugScenes.isLive(id) { return DebugHTTPServer() }
         #endif
         return LocalHTTPServer()

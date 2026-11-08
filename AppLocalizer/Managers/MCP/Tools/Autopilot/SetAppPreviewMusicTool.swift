@@ -14,15 +14,17 @@ struct SetAppPreviewMusicTool: MCPTool {
         title: "Set the App Preview's music",
         description: """
         Changes the music under the run's App Preview to one of AppLocalizer's library tracks (warm_acoustic, \
-        calm_piano, bright_pop), made on this Mac and free to use on the App Store. At the plan it's the plan's \
-        music; at Watch the App Preview, every App Preview is mixed again with it. Only the person can choose \
-        their own file.
+        calm_piano, bright_pop, soft_ambient, lofi_beat, cinematic_build, playful_marimba), made on this Mac and free \
+        to use on the App Store. At the plan it's the plan's music; at Watch the App Preview, every App Preview is \
+        mixed again with it. Only the person can choose their own file.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
                 "appId": MCPToolDefinition.string("The app's Apple ID, bundle ID, SKU or name, from list_apps."),
                 "run": MCPToolDefinition.string("The run's ID from get_capture_plan."),
-                "track": MCPToolDefinition.string("warm_acoustic, calm_piano or bright_pop."),
+                "track": MCPToolDefinition.string(
+                    "A library track: warm_acoustic, calm_piano, bright_pop, soft_ambient, lofi_beat, cinematic_build or playful_marimba."
+                ),
                 "track_id": MCPToolDefinition.string("The same as track."),
                 "file": MCPToolDefinition.string("Not taken: only the person chooses their own file, which confirms they hold the rights."),
             ],
@@ -40,7 +42,7 @@ struct SetAppPreviewMusicTool: MCPTool {
             """), target: session.target)
         }
         guard let value = try arguments.optionalString("track") ?? arguments.optionalString("track_id") else {
-            throw MCPToolError.invalidArgument(name: "track", expected: String(localized: "a library track: warm_acoustic, calm_piano or bright_pop"))
+            throw MCPToolError.invalidArgument(name: "track", expected: String(localized: "a library track: \(AppPreviewTrack.library.map(\.rawValue).formatted(.list(type: .or)))"))
         }
         guard let track = AppPreviewTrack(rawValue: value), track.isLibrary else {
             let ids = AppPreviewTrack.library.map(\.rawValue).formatted(.list(type: .or))

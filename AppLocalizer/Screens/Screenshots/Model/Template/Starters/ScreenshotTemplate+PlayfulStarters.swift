@@ -76,7 +76,7 @@ extension ScreenshotTemplate {
     }
 
     private static var highlight: ScreenshotTemplate {
-        recipe(
+        var template = recipe(
             background: TemplateBackground(kind: .solid, stops: ["#EBDDFF"]),
             ink: "#4B10A8", subInk: "rgba(75,16,168,0.82)", placement: .above, align: .center,
             safe: TemplateSafeArea(top: 0.06, side: 0.08, bottom: 0),
@@ -94,5 +94,13 @@ extension ScreenshotTemplate {
                 [:], slotOverrides(tilt: TemplateTilt(rotate: 0, turn: 14, lean: 4)), [:], slotOverrides(tilt: TemplateTilt(rotate: 0, turn: -14, lean: 4)),
             ]
         )
+        // Lying down, more room under the caption and the phone a little
+        // off center, tilted.
+        template.landscape = landscapeOverrides([
+            "caption.gap": .double(0.07),
+            "device.dx": .double(0.1),
+            "device.tilt": encoded(TemplateTilt(rotate: 8, turn: -8, lean: 10)),
+        ])
+        return template
     }
 }

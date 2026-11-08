@@ -6,7 +6,7 @@
 import SwiftUI
 
 /// Ask for changes: quick asks or the person's own words go to the design
-/// source, which sends a new version (v2, v3…). Only pacing, order,
+/// source, which sends a revised version. Only pacing, order,
 /// captions and the end card change; the recordings stay.
 struct AutopilotWatchAskBox: View {
     @Bindable var studio: ScreenshotStudioModel
@@ -59,8 +59,8 @@ struct AutopilotWatchAskBox: View {
                 VStack(alignment: .leading, spacing: Spacing.xSmall) {
                     ForEach(revisions.reversed(), id: \.version) { revision in
                         HStack(alignment: .firstTextBaseline, spacing: Spacing.small) {
-                            Pill(text: "v\(revision.version)", style: .accent)
-                            Text("Revised: \(revision.changes)")
+                            Pill(text: RevisionLabel.title(version: revision.version), style: .accent)
+                            Text(revision.changes)
                                 .font(.callout)
                                 .foregroundStyle(Palette.label2)
                                 .fixedSize(horizontal: false, vertical: true)

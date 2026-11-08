@@ -77,6 +77,7 @@ struct ExtrasReviewSection: View {
     private func card(title: String, items: [ExtrasReviewItem], placements: [ProductPageTestPlacement], identifier: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: Spacing.small) {
+                wholeCardCheck(items, title: title, identifier: identifier)
                 Text(title).font(.callout.weight(.semibold))
                 Spacer(minLength: Spacing.small)
                 testButton(placements)
@@ -112,6 +113,30 @@ struct ExtrasReviewSection: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("review.extras.card.\(identifier)")
+    }
+
+    /// Includes or leaves out every language in the card at once; a dash
+    /// when only some are in. Those an error keeps out don't count.
+    @ViewBuilder
+    private func wholeCardCheck(_ items: [ExtrasReviewItem], title: String, identifier: String) -> some View {
+        let pushable = items.filter { !$0.isBlocked }
+        if !pushable.isEmpty {
+            Toggle(sources: pushable.map(itemBinding), isOn: \.self) { EmptyView() }
+                .toggleStyle(.checkbox)
+                .labelsHidden()
+                .disabled(extras.isPushing)
+                .help(String(localized: "Include or leave out every language here"))
+                .accessibilityLabel(Text("Include every \(title)"))
+                .accessibilityIdentifier("review.extras.cardCheck.\(identifier)")
+        }
+    }
+
+    private func itemBinding(_ item: ExtrasReviewItem) -> Binding<Bool> {
+        Binding {
+            extras.isChecked(item)
+        } set: { isOn in
+            extras.setChecked([item], to: isOn)
+        }
     }
 
     /// "28 extras discarded: App Store Connect keeps what it has. Undo"

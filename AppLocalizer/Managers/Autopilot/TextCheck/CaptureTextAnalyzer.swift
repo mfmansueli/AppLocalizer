@@ -25,17 +25,37 @@ enum CaptureTextAnalyzer {
     static let quotes: Set<Character> = ["“", "”", "„", "«", "»", "「", "」", "『", "』", "\"", "‘", "’", "‚", "‹", "›"]
 
     static func facts(of reading: CaptureTextReading, appName: String) -> CaptureTextFacts {
-        let lines = reading.lines
+        let read = reading.lines
             .filter { $0.confidence >= minimumConfidence && $0.top >= statusBarHeight }
-            .map { $0.text.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
+            .map { RecognizedTextLine(text: $0.text.trimmingCharacters(in: .whitespaces), confidence: $0.confidence, top: $0.top) }
+            .filter { !$0.text.isEmpty }
+        let lines = read.map(\.text)
+        let truncated = read.filter { isTruncated($0.text) }
         return CaptureTextFacts(
             language: reading.readsLanguage ? dominantLanguage(of: lines.joined(separator: "\n")) : nil,
-            truncatedLines: lines.filter(isTruncated),
+            truncatedLines: truncated.map(\.text),
+            truncatedTops: truncated.map { rounded($0.top) },
+            ellipsisTops: read.filter { endsInEllipsis($0.text) }.map { rounded($0.top) },
             promptLine: lines.first { quotesName(in: $0, appName: appName) },
             blankShare: reading.blankShare.map { ($0 * 100).rounded() / 100 }
         )
     }
+
+    private static func rounded(_ value: Double) -> Double { (value * 1000).rounded() / 1000 }
+
+    /// The line without its ellipsis ("…", "...", or Vision's "…." for
+    /// "…"), nil when it doesn't end in one.
+    static func withoutEllipsis(_ line: String) -> Substring? {
+        var text = Substring(line)
+        if text.hasSuffix("….") { text = text.dropLast() }
+        if text.hasSuffix("…") { return text.dropLast() }
+        if text.hasSuffix("....") { return text.dropLast(4) }
+        if text.hasSuffix("...") { return text.dropLast(3) }
+        return nil
+    }
+
+    /// Any line ending in an ellipsis, a word cut or not.
+    static func endsInEllipsis(_ line: String) -> Bool { withoutEllipsis(line) != nil }
 
     /// "en", "de", "zh-Hans"; nil when there's too little text or no clear
     /// winner.
@@ -50,15 +70,7 @@ enum CaptureTextAnalyzer {
     /// "Einträge durchsu…": an ellipsis straight after a letter, as a label
     /// cuts a word. "Loading …" or "…" alone isn't.
     static func isTruncated(_ line: String) -> Bool {
-        var text = Substring(line)
-        if text.hasSuffix("…") {
-            text = text.dropLast()
-        } else if text.hasSuffix("...") {
-            text = text.dropLast(3)
-        } else {
-            return false
-        }
-        guard text.last?.isLetter == true else { return false }
+        guard let text = withoutEllipsis(line), text.last?.isLetter == true else { return false }
         return text.count(where: \.isLetter) >= 3
     }
 

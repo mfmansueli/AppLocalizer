@@ -7,6 +7,7 @@ APP CONTEXT (from App Store Connect and the Xcode project; the only truth about 
 - Subtitle: {{subtitle}} · Categories: {{categories}}
 - Description summary: {{description_summary}}
 - Keywords in each language: {{keywords_by_locale}}
+- What it does, as the project shows it: {{what_it_does}}
 - Main features, as the screenshot plan shows them:
 {{screen_list_with_captions}}
 - Who it's for: {{audience_hint}} · Age rating: {{age_rating}}
@@ -14,6 +15,9 @@ APP CONTEXT (from App Store Connect and the Xcode project; the only truth about 
 - App icon: {{app_icon_image}}. In words: {{icon_description}}. Colors: {{icon_colors}}.
 - Theme in the code: accent {{accent_color}}; other colors {{theme_colors}}; fonts {{app_fonts}}; dark mode: {{supports_dark}}
 - Brand or design system: {{design_system_summary}}
+- The brand's personality, in its own design docs' words: {{brand_personality}}
+- Motifs the app's own design is built from: {{brand_motifs}}
+- What the brand avoids (leave these out unless the person asks for them): {{brand_avoid}}
 - Run languages: {{run_locales}} (right-to-left: {{rtl_locales}})
 
 THIS RUN MAKES: {{places_sentence}}

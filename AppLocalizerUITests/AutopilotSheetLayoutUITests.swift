@@ -6,9 +6,9 @@
 import XCTest
 
 /// The Autopilot sheet fits its window: a design project connected by a
-/// long link no longer wraps down the stage list and makes the sheet's
-/// content taller than the sheet, which cut off its header and its
-/// buttons; and long screen names wrap in the plan.
+/// long link is shortened in the plan, the sheet keeps its header, steps
+/// and buttons in a short window, and long screen names wrap in the
+/// plan's screens.
 @MainActor
 final class AutopilotSheetLayoutUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -22,18 +22,18 @@ final class AutopilotSheetLayoutUITests: XCTestCase {
         app.terminate()
     }
 
-    func testTheLinkIsShortenedInTheStageList() {
+    func testTheLinkIsShortenedInThePlan() {
         app.launch(debugScene: "st-plan-link")
-        let design = app.buttons["autopilot.stage.design"]
-        XCTAssertTrue(design.waitForExistence(timeout: 15))
-        XCTAssertTrue(design.label.contains("Claude Design · claude.ai/artifact/KxcpHYis…"), design.label)
-        XCTAssertFalse(design.label.contains("org="), design.label)
+        goToThePlan()
+        let design = element("autopilot.guided.plan.design")
+        XCTAssertTrue(design.waitForExistence(timeout: 5))
+        XCTAssertTrue(text(of: design).contains("Claude Design · claude.ai/artifact/KxcpHYis…"), text(of: design))
+        XCTAssertFalse(text(of: design).contains("org="), text(of: design))
     }
 
     func testTheSheetKeepsItsHeaderAndButtonsInAShortWindow() {
         app.launch(debugScene: "st-plan-link")
-        let start = app.buttons["autopilot.start"]
-        XCTAssertTrue(start.waitForExistence(timeout: 15))
+        goToThePlan()
         let window = app.windows.firstMatch
         let height = window.frame.height
         // The window keeps its size for the next launch, the other tests'
@@ -51,8 +51,10 @@ final class AutopilotSheetLayoutUITests: XCTestCase {
 
     func testALongScreenNameWraps() {
         app.launch(debugScene: "st-plan-link")
+        goToThePlan()
+        showScreens()
         let long = element("autopilot.plan.name.1")
-        XCTAssertTrue(long.waitForExistence(timeout: 15))
+        XCTAssertTrue(long.waitForExistence(timeout: 5))
         XCTAssertEqual(long.value as? String, "Customize the background of every phrase")
         XCTAssertGreaterThan(long.frame.height, element("autopilot.plan.name.0").frame.height + 8, "The name wraps instead of being cut")
         let caption = element("autopilot.plan.caption.1")
@@ -76,17 +78,37 @@ final class AutopilotSheetLayoutUITests: XCTestCase {
         edge.click(forDuration: 0.2, thenDragTo: edge.withOffset(CGVector(dx: 0, dy: delta)))
     }
 
-    /// Close, the stages, Cancel and Start Autopilot are inside the sheet.
+    /// Cancel, the first step, Back and Start are inside the sheet.
     private func assertTheSheetFits(file: StaticString = #filePath, line: UInt = #line) {
         let sheet = app.sheets.firstMatch
         XCTAssertTrue(sheet.exists, "No sheet", file: file, line: line)
         let bounds = sheet.frame.insetBy(dx: -1, dy: -1)
-        for identifier in ["autopilot.close", "autopilot.cancel", "autopilot.start"] {
-            let frame = app.buttons[identifier].frame
+        for identifier in ["autopilot.guided.cancel", "autopilot.guided.step.make", "autopilot.guided.back", "autopilot.guided.start"] {
+            let frame = element(identifier).frame
             XCTAssertTrue(bounds.contains(frame), "\(identifier) at \(frame) is cut off by the sheet at \(bounds).", file: file, line: line)
         }
-        let plan = app.buttons["autopilot.stage.plan"].frame
-        XCTAssertTrue(bounds.contains(plan), "The first stage at \(plan) is cut off by the sheet at \(bounds).", file: file, line: line)
+    }
+
+    /// The sheet opens a planned run at What to make: on to the plan.
+    private func goToThePlan() {
+        let next = element("autopilot.guided.next")
+        XCTAssertTrue(next.waitForExistence(timeout: 15))
+        next.click()
+        XCTAssertTrue(element("autopilot.guided.back").waitForExistence(timeout: 5), "At Look")
+        element("autopilot.guided.next").click()
+        XCTAssertTrue(element("autopilot.guided.start").waitForExistence(timeout: 5), "At the plan")
+    }
+
+    /// The plan's screens are folded under the capture line: shows them.
+    private func showScreens() {
+        let toggle = element("autopilot.guided.plan.screens.toggle")
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        if (toggle.value as? String) != "Shown" { toggle.click() }
+        XCTAssertTrue(element("autopilot.plan.addScreen").waitForExistence(timeout: 5), "The screens are shown")
+    }
+
+    private func text(of element: XCUIElement) -> String {
+        (element.value as? String).flatMap { $0.isEmpty ? nil : $0 } ?? element.label
     }
 
     private func element(_ identifier: String) -> XCUIElement {

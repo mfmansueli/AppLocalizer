@@ -36,6 +36,36 @@ struct AppSupportCenterTests {
         #expect(AppSupportCenter(persistence: persistence).profile(for: appID) == newer)
     }
 
+    @Test func whatItLearnedIsKeptBetweenLaunches() {
+        let persistence = MemoryPersistence()
+        let center = AppSupportCenter(persistence: persistence)
+        var first = AppKnowledge()
+        first.set(.voice, text: "Plain", by: nil, at: .now)
+        center.remember(first, for: appID)
+        var second = AppKnowledge()
+        second.set(.soundMood, text: "Quiet", by: nil, at: .now)
+        center.remember(second, for: appID)
+
+        let reopened = AppSupportCenter(persistence: persistence).knowledge(for: appID)
+        #expect(reopened?.answer(to: .voice) == "Plain")
+        #expect(reopened?.answer(to: .soundMood) == "Quiet")
+    }
+
+    @Test func aScanLeavesWhatItLearnedAlone() {
+        let center = AppSupportCenter()
+        var knowledge = AppKnowledge()
+        knowledge.set(.voice, text: "Plain", by: nil, at: .now)
+        center.remember(knowledge, for: appID)
+        center.report(AppSupportProfileTests.lumen, for: appID)
+        #expect(center.knowledge(for: appID)?.answer(to: .voice) == "Plain")
+    }
+
+    @Test func anArchiveFromBeforeStillLoads() throws {
+        let saved = #"{"profiles":{},"declinedLanguages":{}}"#
+        let archive = try JSONDecoder().decode(AppSupportArchive.self, from: Data(saved.utf8))
+        #expect(archive.knowledge == nil)
+    }
+
     @Test func notNowHidesALanguageUntilItsUndone() {
         let persistence = MemoryPersistence()
         let center = AppSupportCenter(persistence: persistence, profiles: [appID: AppSupportProfileTests.lumen])

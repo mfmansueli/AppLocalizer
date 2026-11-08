@@ -21,21 +21,39 @@ enum GuidedPreviewLocales {
         ["ar", "he", "fa", "ur"],
     ]
 
-    /// Up to `maximum` of `codes`, primary first.
+    /// Up to `maximum` of `codes`: the primary one, then each group's
+    /// first language the run has, in the group's order (German before
+    /// Dutch, Japanese before Chinese, however `codes` is sorted), then
+    /// the rest in `codes`' order.
     static func pick(from codes: [String], primary: String) -> [String] {
         var picked = codes.contains(primary) ? [primary] : []
         for group in groups {
             guard picked.count < maximum else { break }
-            if let code = codes.first(where: { !picked.contains($0) && group.contains(language(of: $0)) }) {
-                picked.append(code)
-            }
+            let code = group.lazy.compactMap { wanted in
+                codes.first { !picked.contains($0) && language(of: $0) == wanted }
+            }.first
+            if let code { picked.append(code) }
         }
         for code in codes where picked.count < maximum && !picked.contains(code) {
             picked.append(code)
         }
-        return codes.filter(picked.contains).sorted { first, second in
-            (first == primary ? 0 : 1, codes.firstIndex(of: first) ?? 0) < (second == primary ? 0 : 1, codes.firstIndex(of: second) ?? 0)
+        return picked
+    }
+
+    /// What a language switch says: "English", "German", "Japanese";
+    /// the whole name ("Spanish (Mexico)") where two of `codes` would read
+    /// the same.
+    static func titles(_ codes: [String]) -> [String: String] {
+        let names = codes.map { code in
+            (code, StoreLocaleCatalog.locale(code: code)?.shortName ?? code, StoreLocaleCatalog.locale(code: code)?.name ?? code)
         }
+        let repeated = Dictionary(grouping: names) { $0.1 }.filter { $0.value.count > 1 }.keys
+        return Dictionary(uniqueKeysWithValues: names.map { code, short, full in (code, repeated.contains(short) ? full : short) })
+    }
+
+    /// One language's title among `codes`.
+    static func title(of code: String, among codes: [String]) -> String {
+        titles(codes.contains(code) ? codes : codes + [code])[code] ?? code
     }
 
     /// "de" for "de-DE", "zh" for "zh-Hans".

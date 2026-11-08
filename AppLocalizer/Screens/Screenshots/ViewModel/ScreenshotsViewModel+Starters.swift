@@ -13,9 +13,9 @@ extension ScreenshotsViewModel {
         [
             ScreenshotCaption(headline: String(localized: "Your headline goes here"), subhead: String(localized: "A short line that supports it")),
             ScreenshotCaption(headline: String(localized: "One caption per screenshot")),
-            ScreenshotCaption(headline: String(localized: "Every locale, the same layout")),
-            ScreenshotCaption(headline: String(localized: "Fits every language")),
-            ScreenshotCaption(headline: String(localized: "Ready for the App Store")),
+            ScreenshotCaption(headline: String(localized: "Every locale, the same layout"), kicker: String(localized: "A short topic")),
+            ScreenshotCaption(headline: String(localized: "Fits every language"), kicker: String(localized: "Every language")),
+            ScreenshotCaption(headline: String(localized: "Ready for the App Store"), kicker: String(localized: "Ready to ship")),
         ]
     }
 
@@ -23,7 +23,7 @@ extension ScreenshotsViewModel {
     /// locale's captions and captures, and renders them.
     func renderStarterPreviews() async {
         guard let document else { return }
-        let engine = ScreenshotLayoutEngine(catalog: fonts)
+        let engine = layoutEngine
         let scripts = scopeScripts(of: document)
         starterPreviews = TemplateStarter.allCases.map { starter in
             let template = ScreenshotTemplate.starter(starter, id: app.id, title: app.name, slotCount: document.slotCount)
@@ -42,7 +42,7 @@ extension ScreenshotsViewModel {
         let primary = context.primaryLocale
         let locale = code == primary.code ? primary : locales.first { $0.code == code } ?? primary
         let template = ScreenshotTemplate.starter(starter, id: app.id, title: app.name, slotCount: document.slotCount)
-        return starterJobs(template, document: document, locale: locale, engine: ScreenshotLayoutEngine(catalog: fonts))
+        return starterJobs(template, document: document, locale: locale, engine: layoutEngine)
     }
 
     private func starterJobs(
@@ -55,12 +55,17 @@ extension ScreenshotsViewModel {
                 ?? document.captions.caption(locale: primary, slot: slot)
                 ?? Self.sampleCaptions[slot % Self.sampleCaptions.count]
             let capture = document.captures.capture(locale: locale.code, displayType: .iPhone, slot: slot, primary: primary)
+            // Two phones shows the slot before it behind.
+            let behind = capture == nil ? nil : template.behindSlot(slot, templateSlot: slot, count: slots).flatMap {
+                document.captures.capture(locale: locale.code, displayType: .iPhone, slot: $0, primary: primary)?.capture
+            }
             let layout = engine.layout(template, slot: slot, locale: locale, displayType: .iPhone, caption: caption)
             let key = RenderKey(
                 templateHash: template.contentHash, locale: locale.code, displayType: .iPhone, slot: slot,
-                caption: caption, captureID: capture?.capture.id
+                caption: caption, captureID: capture.map { [$0.capture.id, behind?.id].compactMap(\.self).joined(separator: "+") },
+                store: layout.storeSignature
             )
-            return RenderJob(key: key, layout: layout, capture: capture?.capture)
+            return RenderJob(key: key, layout: layout, capture: capture?.capture, companion: behind)
         }
     }
 
@@ -78,7 +83,7 @@ extension ScreenshotsViewModel {
         starterPreviews.first { $0.starter == starter }?.fontNote ?? ""
     }
 
-    /// "12 templates · previewed with Lumen’s captions and captures".
+    /// "14 templates · previewed with Lumen’s captions and captures".
     var galleryCount: String { galleryCount(in: galleryStyle) }
 
     /// The count for `style`'s templates, every one's when nil.

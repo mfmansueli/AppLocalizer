@@ -10,7 +10,8 @@ import SwiftUI
 /// Draws the sample app's mock captures at the size a render asks for,
 /// remembering the last few dozen. A capture recorded as an iPad screenshot
 /// draws the iPad layout even in an iPhone slot, as a real wrong-size file
-/// would; Apple Watch captures draw LumenWatch.
+/// would; Apple Watch captures draw LumenWatch, Mac captures the desktop
+/// with Lumen's window.
 @MainActor
 final class MockLumenCaptureRenderer {
     private var cache: [String: CGImage] = [:]
@@ -35,6 +36,13 @@ final class MockLumenCaptureRenderer {
             let screen = MockLumenWatchScreen(kind: MockLumenWatchKind(slot: capture.slot), locale: capture.locale)
             let renderer = ImageRenderer(content: screen)
             renderer.scale = max(0.1, width / MockLumenWatchScreen.logicalSize.width)
+            renderer.isOpaque = true
+            return renderer.cgImage
+        }
+        if capture.displayType == .mac, CaptureSizeRules.isMacScreen(capture.pixelSize) {
+            let desktop = MockLumenMacDesktop(kind: MockLumenScreenKind(slot: capture.slot), locale: capture.locale)
+            let renderer = ImageRenderer(content: desktop)
+            renderer.scale = max(0.1, width / MockLumenMacDesktop.logicalSize.width)
             renderer.isOpaque = true
             return renderer.cgImage
         }

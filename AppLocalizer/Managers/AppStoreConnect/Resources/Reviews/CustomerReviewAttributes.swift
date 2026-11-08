@@ -11,4 +11,5 @@ struct CustomerReviewAttributes: Decodable, Sendable {
     var title: String?
     var body: String?
     var territory: String?
+    var reviewerNickname: String?
 }

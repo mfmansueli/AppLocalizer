@@ -132,9 +132,28 @@ struct LiveScreenshotsServices: ScreenshotsServices {
         await ratingLookup.ratings(appID: app.id, countries: countries)
     }
 
+    /// The newest 5-star reviews in each country's storefront, the ones a
+    /// screenshot can quote. A country that can't be read stays unread.
+    func storeReviews(for app: StoreApp, countries: Set<String>) async -> StoreReviews {
+        var reviews = StoreReviews.none
+        for country in countries.sorted() {
+            guard let territory = TerritoryCatalog.standard.territory(alpha2: country),
+                  let found = try? await client.fiveStarReviews(appID: app.id, territory: territory.id) else { continue }
+            let quotes = found.compactMap { resource -> StoreQuote? in
+                let text = (resource.attributes.body ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let name = (resource.attributes.reviewerNickname ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                guard resource.attributes.rating == 5, !text.isEmpty else { return nil }
+                return StoreQuote(text: text, name: name, country: country.uppercased())
+            }
+            reviews.record(StoreReviews.pick(quotes), inCountry: country)
+        }
+        return reviews
+    }
+
     func otherDisplayTypeNotes(for _: StoreApp) -> [ScreenshotDisplayType: String] {
         let note = String(localized: "Templates render iPhone and iPad screenshots; these stay as they are in App Store Connect.")
-        return [.mac: note, .watch: note, .appleTV: note, .visionPro: note]
+        let mac = String(localized: "This app has no macOS version, so the Mac App Store shows its iPad screenshots.")
+        return [.mac: mac, .watch: note, .appleTV: note, .visionPro: note]
     }
 
     private nonisolated static func thumbnail(at url: URL, pixelWidth: Int) -> CGImage? {

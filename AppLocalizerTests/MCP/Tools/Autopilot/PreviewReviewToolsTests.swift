@@ -39,7 +39,7 @@ struct PreviewReviewToolsTests {
         #expect(current["music"] == "warm_acoustic")
         #expect(result["planScreens"]?.arrayValue?.count == 5)
         #expect(result["planScreens"]?.arrayValue?.first?["name"] == "Today")
-        #expect(result["musicLibrary"]?.arrayValue?.compactMap { $0["id"]?.stringValue } == ["warm_acoustic", "calm_piano", "bright_pop"])
+        #expect(result["musicLibrary"]?.arrayValue?.compactMap { $0["id"]?.stringValue } == AppPreviewTrack.library.map(\.rawValue))
         #expect(result["how"]?.stringValue?.contains("revise_app_preview") == true)
     }
 

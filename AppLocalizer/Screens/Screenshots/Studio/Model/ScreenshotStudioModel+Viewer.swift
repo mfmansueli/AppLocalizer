@@ -62,7 +62,7 @@ extension ScreenshotStudioModel {
                 id: "direction.\(offset)",
                 title: asNewSet ? String(localized: "New screenshot \(offset + 1) · \(name)") : "\(direction.name) · \(offset + 1)",
                 subtitle: directionSubtitle(direction, size: layout.canvas.pixelSize, display: .iPhone, language: primary, asNewSet: asNewSet),
-                content: .layout(layout, capture: capture)
+                content: .layout(layout, capture: capture, behind: behindCapture(in: direction, slot: offset))
             )
         }
         if let vision = visionPreview(for: direction) {
@@ -132,6 +132,8 @@ extension ScreenshotStudioModel {
         previewPlayer.pause()
         recordingPlayer.pause()
         viewer = nil
+        viewerTemplate = nil
+        viewerReviewDevice = nil
     }
 
     /// The top bar's button: uses the attempt shown, or shows the part of
@@ -154,12 +156,14 @@ extension ScreenshotStudioModel {
         previewPlayer.pause()
         recordingPlayer.pause()
         viewer = StudioViewer(items: items, index: index)
+        viewerTemplate = nil
+        viewerReviewDevice = nil
     }
 
-    /// "App Preview · v2", "0:24 · ♫ Warm acoustic · click the video to
+    /// "App Preview · Revised", "0:24 · ♫ Warm acoustic · click the video to
     /// play or pause".
     func appPreviewItem(_ file: ExtrasPreviewFile) -> StudioViewerItem {
-        let version = run?.previewReview.map { String(localized: "App Preview · v\($0.version)") } ?? String(localized: "App Preview")
+        let version = String(localized: "App Preview") + RevisionLabel.suffix(version: run?.previewReview?.version)
         let language = StoreLocaleCatalog.locale(code: file.locale)?.name ?? file.locale
         let music = screenshots.document?.extras?.previewMusic ?? previewMusic
         let subtitle = [
@@ -171,12 +175,16 @@ extension ScreenshotStudioModel {
 
     /// "Product page header · 21:9 · 3840 × 1646 · motion", "20-second
     /// loop · plays muted on repeat · English (U.S.) · New set · not pushed".
-    func artworkItem(_ item: StudioArtworkItem, title: String, subtitle: String? = nil) -> StudioViewerItem {
+    /// A `subtitle` that says how its loop plays (`saysLoop`) gets no
+    /// second note: a concept's said "20-second loop · plays muted on
+    /// repeat" twice.
+    func artworkItem(_ item: StudioArtworkItem, title: String, subtitle: String? = nil, saysLoop: Bool = false) -> StudioViewerItem {
         let language = StoreLocaleCatalog.locale(code: item.locale)?.name ?? item.locale
         let subtitle = subtitle ?? [language, String(localized: "New set"), String(localized: "not pushed")].joined(separator: " · ")
+        let notesLoop = item.isMotion && !saysLoop
         return StudioViewerItem(
             id: "artwork.\(item.kind.rawValue)", title: item.isMotion ? title + String(localized: " · motion") : title,
-            subtitle: item.isMotion ? String(localized: "20-second loop · plays muted on repeat · ") + subtitle : subtitle,
+            subtitle: notesLoop ? String(localized: "20-second loop · plays muted on repeat · ") + subtitle : subtitle,
             content: .artwork(item)
         )
     }

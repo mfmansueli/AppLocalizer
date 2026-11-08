@@ -149,7 +149,9 @@ final class CaptionTranslationViewModel {
 
     private func translated(_ item: CaptionTranslationItem, protector: GlossaryProtector) async throws -> ScreenshotCaption {
         if item.method == .copy {
-            return ScreenshotCaption(headline: item.source.headline, subhead: item.source.subhead, provenance: .machineTranslated)
+            return ScreenshotCaption(
+                headline: item.source.headline, subhead: item.source.subhead, kicker: item.source.kicker, provenance: .machineTranslated
+            )
         }
         let target = item.locale
         let active = aiTranslator ?? translator
@@ -169,7 +171,13 @@ final class CaptionTranslationViewModel {
             let protected = protector.protect(text)
             subhead = try await protected.restore(active.translateCaption(protected.text, from: source, to: target))
         }
-        return ScreenshotCaption(headline: headline.restore(translatedHeadline), subhead: subhead, provenance: .machineTranslated)
+        // The kicker is translated like the headline.
+        var kicker: String?
+        if let text = item.source.visibleKicker {
+            let protected = protector.protect(text)
+            kicker = try await protected.restore(active.translateCaption(protected.text, from: source, to: target))
+        }
+        return ScreenshotCaption(headline: headline.restore(translatedHeadline), subhead: subhead, kicker: kicker, provenance: .machineTranslated)
     }
 
     /// Writes one arrival and measures it on every rendered display type.

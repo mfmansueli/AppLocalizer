@@ -64,7 +64,24 @@ struct GetStorePageTool: MCPTool {
             }),
             "languagesNotOnAppStore": draft.languagesNotOnAppStoreJSON,
         ]
-        return .read(result, target: draft.target)
+        return .read(Self.addingKnowledge(to: result, appID: draft.app.id, in: context), target: draft.target)
+    }
+
+    /// What's known of the app for the texts, and what AppLocalizer still
+    /// wants to know.
+    private static func addingKnowledge(to result: JSONValue, appID: StoreApp.ID, in context: MCPToolContext) -> JSONValue {
+        guard let center = context.workspace.services.storePage.appSupport, case var .object(json) = result else { return result }
+        let knowledge = center.knowledge(for: appID) ?? AppKnowledge()
+        if !knowledge.isEmpty { json["appKnowledge"] = knowledge.mcpJSON }
+        let due = knowledge.due(now: .now)
+        if !due.isEmpty {
+            json["appQuestions"] = AppKnowledge.questionsJSON(due)
+            json["appQuestionsHow"] = """
+            If you can read the app's project, answer these with answer_app_questions: AppLocalizer keeps the answers for \
+            every later suggestion and run.
+            """
+        }
+        return .object(json)
     }
 
     private static func entry(for locale: StoreLocale, in listing: StoreListing, isNew: Bool, suggestions: [FieldSuggestion]) -> JSONValue {

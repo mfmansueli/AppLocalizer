@@ -6,9 +6,9 @@
 import Foundation
 
 /// What the app runs on and in, for a new plan: the devices beyond iPhone
-/// (from the project's report; on App Store Connect, a visionOS version or
-/// a build with a watch app; or live Apple Watch screenshots) and the
-/// languages it supports that the App Store page doesn't have yet.
+/// (from the project's report; on App Store Connect, a visionOS or macOS
+/// version or a build with a watch app; or live screenshots of them) and
+/// the languages it supports that the App Store page doesn't have yet.
 struct AutopilotSupport: Hashable, Sendable {
     var devices: Set<ScreenshotDisplayType> = []
     var newLocaleCodes: [String] = []
@@ -23,13 +23,15 @@ struct AutopilotSupport: Hashable, Sendable {
         storeLocales: [String],
         hasVisionVersion: Bool,
         hasWatchApp: Bool = false,
+        hasMacVersion: Bool = false,
         live: LiveScreenshots
     ) -> AutopilotSupport {
         var devices = Set(profile?.devices.map(\.displayType) ?? [])
         if hasVisionVersion { devices.insert(.visionPro) }
         if hasWatchApp { devices.insert(.watch) }
+        if hasMacVersion { devices.insert(.mac) }
         let liveDevices = Set(live.screenshotSets.filter { !$0.screenshots.isEmpty }.map(\.displayType))
-        for display in [ScreenshotDisplayType.iPhoneDuo, .watch, .visionPro] where liveDevices.contains(display) {
+        for display in [ScreenshotDisplayType.iPhoneDuo, .mac, .watch, .visionPro] where liveDevices.contains(display) {
             devices.insert(display)
         }
         let new = (profile?.languagesMissing(from: storeLocales) ?? []).compactMap(\.storeLocale?.code).filter { !declined.contains($0) }

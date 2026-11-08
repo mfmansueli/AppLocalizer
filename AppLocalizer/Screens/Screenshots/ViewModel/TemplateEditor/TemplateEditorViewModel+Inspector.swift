@@ -13,7 +13,7 @@ extension TemplateEditorViewModel {
     /// The canvas's orientation, as the canvas shows it: iPhone Duo without
     /// one of its own lies the way the capture on it does.
     var orientation: ScreenshotOrientation {
-        guard let canvas = template?.canvas else { return displayType.isTablet ? .landscape : .portrait }
+        guard let canvas = template?.canvas else { return displayType.isTablet || displayType.isAlwaysLandscape ? .landscape : .portrait }
         let document = screenshots.document
         let capture = document?.captures.capture(locale: localeCode, displayType: displayType, slot: slot, primary: document?.scope.primary ?? localeCode)
         return canvas.following(capture?.capture.pixelSize, on: displayType).orientation(for: displayType)
@@ -89,8 +89,10 @@ extension TemplateEditorViewModel {
         ("#141416", String(localized: "Black")), ("#C9CBD1", String(localized: "Silver")), ("#F4F4F6", String(localized: "White")),
     ]
 
-    /// "iPhone 17 Pro Max", "iPad Pro 13″ · landscape", "iPhone Duo · inner display".
+    /// "iPhone 17 Pro Max", "iPad Pro 13″ · landscape", "iPhone Duo · inner
+    /// display", "MacBook Pro" (always landscape).
     var frameName: String {
+        if displayType == .mac { return String(localized: "MacBook Pro") }
         let name = switch displayType {
         case .iPad: String(localized: "iPad Pro 13″")
         case .iPhoneDuo: String(localized: "iPhone Duo · inner display")
@@ -139,10 +141,16 @@ extension TemplateEditorViewModel {
     // MARK: - Fit
 
     /// "Caption box 1122 × 259 px on iPhone 6.9″ portrait, reserved at the
-    /// maximum lines so the device never moves between locales."
+    /// maximum lines so the device never moves between locales.", or sized
+    /// to each language's lines in a tight box.
     var captionBoxText: String {
         guard let box = canvas?.layout.captionBox else { return "" }
         let size = "\(Int(box.width.rounded())) × \(Int(box.height.rounded()))"
+        if template?.caption.headline.isTight == true {
+            return String(
+                localized: "Caption box \(size) px on \(displayType.title) \(orientation.title.lowercased()), sized to each language’s lines: the device moves down when a language needs one more line."
+            )
+        }
         return String(localized: "Caption box \(size) px on \(displayType.title) \(orientation.title.lowercased()), reserved at the maximum lines so the device never moves between locales.")
     }
 

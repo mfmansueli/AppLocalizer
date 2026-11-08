@@ -26,6 +26,11 @@ struct FullSizeViewer: View {
             onClose: studio.closeViewer,
             onSpace: space
         ) {
+            if studio.viewerTemplate != nil, let plan = studio.run?.plan {
+                languages(plan)
+            } else if studio.viewerReviewDevice != nil {
+                reviewLanguages
+            }
             if let action = viewer.current.action {
                 actionButton(action)
             }
@@ -44,6 +49,35 @@ struct FullSizeViewer: View {
             studio.artworkLoop.toggle()
         } else {
             studio.closeViewer()
+        }
+    }
+
+    /// A previewed template's languages: switching one keeps the screen.
+    @ViewBuilder
+    private func languages(_ plan: AutopilotPlan) -> some View {
+        let locales = studio.templatePreviewLocales(plan)
+        if locales.count > 1 {
+            StudioSegmentedControl(
+                label: String(localized: "Preview language"),
+                options: locales.map { .init(value: $0, title: GuidedPreviewLocales.title(of: $0, among: locales), key: $0) },
+                selection: Binding { studio.templatePreviewLocale(plan) } set: { studio.setViewerTemplateLocale($0) },
+                identifier: "studio.viewer.language"
+            )
+        }
+    }
+
+    /// Review & push's screenshots: switching the language keeps the
+    /// screen.
+    @ViewBuilder
+    private var reviewLanguages: some View {
+        let locales = studio.viewerReviewLocales
+        if locales.count > 1 {
+            StudioSegmentedControl(
+                label: String(localized: "Language"),
+                options: locales.map { .init(value: $0, title: GuidedPreviewLocales.title(of: $0, among: locales), key: $0) },
+                selection: Binding { studio.guidedReviewLocale } set: { studio.setViewerReviewLocale($0) },
+                identifier: "studio.viewer.language"
+            )
         }
     }
 

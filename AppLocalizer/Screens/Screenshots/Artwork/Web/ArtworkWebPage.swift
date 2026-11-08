@@ -115,10 +115,29 @@ final class ArtworkWebPage: NSObject, WKNavigationDelegate {
         try await run(ArtworkWebScript.play, arguments: ["playing": playing])
     }
 
-    /// An onscreen page's view `width` points wide shows the whole canvas.
-    func fit(width: CGFloat) {
-        guard window == nil, size.width > 0, width > 0 else { return }
-        webView.pageZoom = width / CGFloat(size.width)
+    /// The least an onscreen page is zoomed to. WebKit keeps zoomed text at
+    /// 9 pt at least: Bruma's search results 96 pt wide (a zoom of 0.025)
+    /// drew a 200 px headline at 360 px, over the app's name. Smaller views
+    /// show the page laid out at this zoom, scaled down.
+    static let minimumZoom: CGFloat = 0.25
+
+    /// The zoom an onscreen page `width` points wide is laid out at, and
+    /// its size in points then: the whole canvas, the zoom `minimumZoom`
+    /// at least.
+    static func fitting(width: CGFloat, canvas: PixelSize) -> (zoom: CGFloat, size: CGSize)? {
+        guard canvas.width > 0, canvas.height > 0, width > 0 else { return nil }
+        let zoom = max(width / CGFloat(canvas.width), minimumZoom)
+        return (zoom, CGSize(width: CGFloat(canvas.width) * zoom, height: CGFloat(canvas.height) * zoom))
+    }
+
+    /// An onscreen page's view `width` points wide shows the whole canvas:
+    /// the size in points it's laid out at, which the view scales to
+    /// `width` when that's smaller.
+    @discardableResult
+    func fit(width: CGFloat) -> CGSize? {
+        guard window == nil, let fitting = Self.fitting(width: width, canvas: size) else { return nil }
+        webView.pageZoom = fitting.zoom
+        return fitting.size
     }
 
     /// Hides the filled-in text, to see what's behind it, or shows it.

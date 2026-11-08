@@ -20,25 +20,19 @@ struct CaptionInspectorSection: View {
     var body: some View {
         if let caption = model.template?.caption {
             TemplateInspectorSection(title: String(localized: "Caption")) {
-                TemplateInspectorRow(label: String(localized: "Placement")) {
-                    Picker("Placement", selection: Binding { caption.placement } set: { model.set("caption.placement", to: .string($0.rawValue)) }) {
-                        Text("Above").tag(TemplateCaption.Placement.above)
-                        Text("Below").tag(TemplateCaption.Placement.below)
-                        Text("Band").tag(TemplateCaption.Placement.band)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
-                    .accessibilityIdentifier("screenshots.template.placement")
+                TemplateInspectorPicker(
+                    String(localized: "Placement"), selection: Binding { caption.placement } set: { model.set("caption.placement", to: .string($0.rawValue)) },
+                    identifier: "screenshots.template.placement"
+                ) {
+                    Text("Above").tag(TemplateCaption.Placement.above)
+                    Text("Below").tag(TemplateCaption.Placement.below)
+                    Text("Band").tag(TemplateCaption.Placement.band)
                 }
-                TemplateInspectorRow(label: String(localized: "Alignment")) {
-                    Picker("Alignment", selection: Binding { caption.align } set: { model.set("caption.align", to: .string($0.rawValue)) }) {
-                        Text("Center").tag(TemplateCaption.Alignment.center)
-                        Text("Start").tag(TemplateCaption.Alignment.start)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
+                TemplateInspectorPicker(
+                    String(localized: "Alignment"), selection: Binding { caption.align } set: { model.set("caption.align", to: .string($0.rawValue)) }
+                ) {
+                    Text("Center").tag(TemplateCaption.Alignment.center)
+                    Text("Start").tag(TemplateCaption.Alignment.start)
                 }
                 TemplateInspectorRow(label: String(localized: "Headline font")) {
                     Picker("Headline font", selection: Binding { caption.headline.font } set: { model.setDisplayFont($0) }) {

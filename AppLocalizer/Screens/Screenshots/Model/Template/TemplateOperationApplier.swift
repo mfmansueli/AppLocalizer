@@ -104,7 +104,7 @@ struct TemplateOperationApplier: Sendable {
             value.isNull ? nil : checkFallback(value, script: script, path: path)
         case .text:
             (value.stringValue ?? "").trimmingCharacters(in: .whitespaces).isEmpty ? wrongType(path, String(localized: "non-empty text")) : nil
-        case .tilt, .emphasis, .highlight, .shadow, .decorations, .background:
+        case .tilt, .devicePair, .emphasis, .highlight, .textStyle, .shadow, .decorations, .background:
             checkStyle(value, against: rule, path: path)
         }
     }

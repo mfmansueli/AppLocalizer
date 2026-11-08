@@ -120,7 +120,7 @@ enum ScreenshotsSampleData {
     }
 
     static func capture(locale: String, display: ScreenshotDisplayType, slot: Int, pixelSize: PixelSize? = nil) -> ScreenshotCapture {
-        let canvas = display.isTablet ? display.portraitPixelSize.rotated : display.portraitPixelSize
+        let canvas = display.isTablet ? display.portraitPixelSize.rotated : display.defaultPixelSize
         return ScreenshotCapture(
             id: "\(locale)|\(display.rawValue)|\(slot)", locale: locale, displayType: display, slot: slot, source: .fastlane,
             fileName: "\(locale)/\(display.deviceName)-0\(slot + 1)_\(slotNames[slot]).png", pixelSize: pixelSize ?? canvas,

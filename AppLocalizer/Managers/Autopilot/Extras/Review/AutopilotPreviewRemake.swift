@@ -19,11 +19,12 @@ struct AutopilotPreviewRemake: Codable, Hashable, Sendable {
     var done = 0
     var total = 0
 
-    /// "Mixing again with Calm piano · 1 of 2", "Making App Preview v2 · 1 of 2".
+    /// "Mixing again with Calm piano · 1 of 2", "Making the revised App
+    /// Preview · 1 of 2".
     var title: String {
         let what = switch reason {
         case let .music(name): String(localized: "Mixing again with \(name)")
-        case let .revision(version): String(localized: "Making App Preview v\(version)")
+        case .revision: String(localized: "Making the revised App Preview")
         }
         guard total > 1 else { return what }
         return what + " · " + String(localized: "\(done) of \(total)")

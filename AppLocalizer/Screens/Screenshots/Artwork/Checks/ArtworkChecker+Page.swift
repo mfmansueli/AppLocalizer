@@ -13,7 +13,11 @@ extension ArtworkChecker {
     func pageChecks(_ input: ArtworkCheckInput) -> [ArtworkCheck] {
         var checks: [ArtworkCheck] = []
         if let page = input.page {
-            if page.elements(.headline).isEmpty {
+            // A page that writes its own phrases (a header concept) needs no
+            // place for the placement's text, and with no text there's
+            // nothing to show: Bruma's concepts were told so on every render.
+            let hasLine = !input.line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            if page.elements(.headline).isEmpty, hasLine, page.elements(.text).isEmpty {
                 checks.append(ArtworkCheck(
                     kind: .page,
                     text: String(localized: "\(input.place): the page has no data-al=\"headline\", so the placement’s own text never shows.")

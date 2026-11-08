@@ -46,7 +46,7 @@ struct GetScreenshotContextTool: MCPTool {
             "appId": .string(draft.app.id),
             "app": .string(draft.app.name),
             "primaryLocale": .string(draft.primary.code),
-            "displayTypes": .array(ScreenshotDisplayType.rendered.map(\.mcpJSON)),
+            "displayTypes": .array(document.renderedDisplays.map(\.mcpJSON)),
             "slots": .array(slots),
             "localesInScope": .array(draft.scopeLocales.map { ["code": .string($0.code), "name": .string($0.name)] }),
             "templateVersion": document.history.map { .int($0.currentNumber) } ?? .null,

@@ -12,6 +12,9 @@ import SwiftUI
 /// measurement).
 struct AutopilotDesignCardsLayout: Layout {
     var spacing: CGFloat = Spacing.medium
+    /// Every card as tall as the tallest, the way an `HStack` that's fixed
+    /// vertically has them.
+    var equalHeights = false
 
     /// One card's share of `width`.
     static func cardWidth(in width: CGFloat, count: Int, spacing: CGFloat = Spacing.medium) -> CGFloat {
@@ -28,9 +31,10 @@ struct AutopilotDesignCardsLayout: Layout {
 
     func placeSubviews(in bounds: CGRect, proposal _: ProposedViewSize, subviews: Subviews, cache _: inout Void) {
         let card = Self.cardWidth(in: bounds.width, count: subviews.count, spacing: spacing)
+        let height = equalHeights ? bounds.height : nil
         for (index, subview) in subviews.enumerated() {
             let x = bounds.minX + CGFloat(index) * (card + spacing)
-            subview.place(at: CGPoint(x: x, y: bounds.minY), anchor: .topLeading, proposal: ProposedViewSize(width: card, height: nil))
+            subview.place(at: CGPoint(x: x, y: bounds.minY), anchor: .topLeading, proposal: ProposedViewSize(width: card, height: height))
         }
     }
 

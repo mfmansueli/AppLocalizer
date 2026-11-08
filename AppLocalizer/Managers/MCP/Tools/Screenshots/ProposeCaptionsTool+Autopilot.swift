@@ -50,23 +50,44 @@ extension ProposeCaptionsTool {
             ))
         }
         do {
+            // Answers once the texts are saved and measured: the artwork and
+            // App Preview they let AppLocalizer make take minutes, longer
+            // than an MCP call waits (next_step says wait meanwhile).
             let center = session.center
-            try await center.applyArtworkTexts(texts, client: context.clientName, appID: session.app.id, context: session.context, recheck: updates.isEmpty)
+            try await center.applyArtworkTexts(
+                texts, client: context.clientName, appID: session.app.id, context: session.context, recheck: updates.isEmpty, waitsForExtras: false
+            )
             if !updates.isEmpty {
-                try await center.applyCaptions(updates, client: context.clientName, appID: session.app.id, context: session.context)
+                try await center.applyCaptions(updates, client: context.clientName, appID: session.app.id, context: session.context, waitsForExtras: false)
             }
         } catch {
             return .refused(error.localizedDescription, target: session.target)
         }
         let run = session.center.run(for: session.app.id)
-        let left = (run?.overflows.count ?? 0) + (run?.artworkTextNeeds?.count ?? 0)
-        let result: JSONValue = ["status": "saved", "saved": .int(updates.count + texts.count), "stillNotFitting": .int(left)]
+        let result = Self.savedResult(saved: updates.count + texts.count, run: run)
         var lines = updates.map { MCPToolOutcome.LogLine(target: "\(session.app.name) · \($0.locale) · " + String(localized: "slot \($0.slot + 1)"), outcome: .proposed) }
         lines += texts.map { text in
             let place = text.phrase.map { "“\(ArtworkCheckGeometry.snippet($0))”" } ?? text.role.title
             return MCPToolOutcome.LogLine(target: "\(session.app.name) · \(text.locale) · \(place)", outcome: .proposed)
         }
         return MCPToolOutcome(result: result, isError: false, logLines: lines)
+    }
+
+    /// What's saved and what's left, apart: Bruma's localize assistant read
+    /// "stillNotFitting": 22 (the artwork's 22 phrases still to translate,
+    /// counted with the captions) and told the person 22 captions didn't fit.
+    static func savedResult(saved: Int, run: AutopilotRun?) -> JSONValue {
+        let captions = run?.overflows.count ?? 0
+        let texts = run?.artworkTextNeeds?.count ?? 0
+        let next = if captions + texts > 0 {
+            String(localized: "Call next_step: it lists what’s still to write.")
+        } else {
+            String(localized: "Every caption and artwork text fits. Call next_step: AppLocalizer makes the rest, and it says wait meanwhile.")
+        }
+        return [
+            "status": "saved", "saved": .int(saved),
+            "captionsNotFitting": .int(captions), "artworkTextsToWrite": .int(texts), "next": .string(next),
+        ]
     }
 
     /// A phrase item {locale, placement: "text", phrase, headline}: one of

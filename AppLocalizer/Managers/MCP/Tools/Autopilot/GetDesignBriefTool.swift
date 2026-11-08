@@ -20,7 +20,9 @@ struct GetDesignBriefTool: MCPTool {
         attached), every caption in every language with its length, the longest caption per slot, canvas sizes \
         and safe areas per device, right-to-left languages, the design project to use, the starters you can \
         base a direction on, the template fields you can set, and aboutTheApp: its subtitle, categories, \
-        description, keywords per language and icon colors, so each direction is about what this app does. When the run also makes product page header and \
+        description, keywords per language, icon colors and the look the project scan reported (what it does, who it's for, \
+        its personality, motifs, what it avoids, theme colors and fonts; lookMissing says to read it first), so each \
+        direction is about what this app does and looks like its brand. When the run also makes product page header and \
         search results artwork or an App Preview, extras says which canvases and what each is for, and artworkDesign \
         says how you design the header and search yourself, as HTML pages AppLocalizer renders in every language \
         (the app's icon is attached after the picks); its askedByThePerson, when there, is what the person asked \
@@ -91,9 +93,9 @@ struct GetDesignBriefTool: MCPTool {
             result["aboutTheApp"] = profile.mcpJSON
             session.center.noteStoreNames(profile.names, appID: app.id)
         }
-        if let project = session.center.designProject(for: session.app.id) {
-            result["designProject"] = designProject(project)
-        }
+        Self.addLook(&result, look: context.workspace.services.storePage.appSupport?.profile(for: app.id)?.look)
+        Self.addKnowledge(&result, knowledge: context.workspace.services.storePage.appSupport?.knowledge(for: app.id))
+        addDesignSource(&result, project: session.center.designProject(for: session.app.id), run: run)
         if let revision = run.revision { result["revisionNote"] = .string(revision.note) }
         Self.addScreenshotStyle(&result, run: run)
         Self.addPersonNote(&result, run: run) { services.referenceURL($0, for: app) }
@@ -102,6 +104,40 @@ struct GetDesignBriefTool: MCPTool {
         }
         session.center.noteBriefRead(appID: session.app.id, by: context.clientName)
         return MCPToolOutcome(result: .object(result), isError: false, logLines: [.init(target: session.target, outcome: .read)], images: images)
+    }
+
+    /// The design project to design in, or without one, the app's own
+    /// design when the assistant designs the looks.
+    private func addDesignSource(_ result: inout [String: JSONValue], project: DesignProject?, run: AutopilotRun) {
+        if let project {
+            result["designProject"] = designProject(project)
+        } else if run.designsFromTheApp {
+            result["designFrom"] = .string("No design project: \(AutopilotRun.ownDesignHow).")
+        }
+    }
+
+    /// `aboutTheApp.knowledge`: what the assistant told AppLocalizer of the
+    /// app: what sets it apart, its voice, what's off limits.
+    static func addKnowledge(_ result: inout [String: JSONValue], knowledge: AppKnowledge?) {
+        guard let knowledge, !knowledge.isEmpty else { return }
+        var about = result["aboutTheApp"]?.objectValue ?? [:]
+        about["knowledge"] = knowledge.mcpJSON
+        result["aboutTheApp"] = .object(about)
+    }
+
+    /// `aboutTheApp.look`: the app's look and design language as the
+    /// project scan reported it. Without a complete one, `lookMissing` says
+    /// to read the project and report it before designing, since a
+    /// direction made from the App Store texts alone can't know the brand.
+    static func addLook(_ result: inout [String: JSONValue], look: AppLookProfile?) {
+        var about = result["aboutTheApp"]?.objectValue ?? [:]
+        if let look { about["look"] = look.mcpJSON }
+        if !about.isEmpty { result["aboutTheApp"] = .object(about) }
+        guard look?.isComplete != true else { return }
+        result["lookMissing"] = .string("""
+        AppLocalizer doesn't know the app's design language yet. Before designing, read it in the project and send \
+        report_app_support with look, then call get_design_brief again: \(AppLookProfile.scanHow)
+        """)
     }
 
     /// The Screenshot style: the design source's own directions, one per
@@ -116,9 +152,12 @@ struct GetDesignBriefTool: MCPTool {
             break
         case .templates:
             result["shot_templates"] = .array(plan.screenshotTemplates.map { .string($0) })
+            let subjects = TemplateArt.subjects.map(\.rawValue).joined(separator: ", ")
             result["shotStyleSays"] = .string("""
             Make one direction per template in shot_templates, adapting that gallery template (its base and layout) to \
-            the app and the design project, named “<Template> · for \(result["app"]?.stringValue ?? "the app")”.
+            the app and the design project, named “<Template> · for \(result["app"]?.stringValue ?? "the app")”. The \
+            gallery's art props that show a subject (\(subjects)) were drawn for its sample app: keep one only where it \
+            fits this app, and hide the others (off: true on that decoration). Its hand-drawn marks suit any app.
             """)
         case .keep:
             result["shotStyleSays"] = """
@@ -257,6 +296,13 @@ struct GetDesignBriefTool: MCPTool {
                 canvas["note"] = """
                 AppLocalizer lays Apple Vision Pro out itself: the template's background and headline style, the headline centered at the \
                 top, the capture in a floating window below. Design for iPhone and iPad.
+                """
+            }
+            if display == .mac {
+                canvas["note"] = """
+                Always landscape, 16:10. The capture is the Mac's whole screen (menu bar and the app's window), shown on a MacBook: \
+                the template's device settings place the MacBook, a little narrower than the device width, and keep it and its \
+                base inside the canvas. A template's "lan" (landscape) overrides, as for iPad lying down, apply here too.
                 """
             }
             return .object(canvas)

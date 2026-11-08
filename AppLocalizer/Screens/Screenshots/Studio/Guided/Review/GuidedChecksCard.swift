@@ -46,6 +46,7 @@ struct GuidedChecksCard: View {
             .disabled(!studio.canApprove(part))
             .accessibilityAddTraits(isApproved ? .isSelected : [])
             .accessibilityIdentifier("autopilot.guided.review.approve")
+            approveNote
             if part == .screenshots {
                 Button("Edit Captions…") { studio.editGuidedCaptions() }
                     .buttonStyle(.link)
@@ -61,6 +62,23 @@ struct GuidedChecksCard: View {
         .accessibilityIdentifier("autopilot.guided.review.checks")
     }
 
+    /// Why Approve is off and until when, while the header loop is made
+    /// again.
+    @ViewBuilder
+    private var approveNote: some View {
+        if !studio.canApprove(part), let progress = AutopilotLoopProgress.make(run, now: .now) {
+            TimelineView(.periodic(from: .now, by: 30)) { context in
+                Text((AutopilotLoopProgress.make(run, now: context.date) ?? progress).approveNote)
+                    .font(.caption)
+                    .foregroundStyle(Palette.label2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .multilineTextAlignment(.center)
+            }
+            .accessibilityIdentifier("autopilot.guided.review.approveNote")
+        }
+    }
+
     private func row(_ check: GuidedCheck) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xxSmall) {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.xSmall) {
@@ -72,6 +90,19 @@ struct GuidedChecksCard: View {
                 Text(check.text)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if check.state == .attention, !check.details.isEmpty {
+                VStack(alignment: .leading, spacing: Spacing.xxSmall) {
+                    ForEach(check.details, id: \.self) { line in
+                        Text(line)
+                            .font(.caption)
+                            .foregroundStyle(Palette.label2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.leading, 18)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("autopilot.guided.review.check.\(check.id).details")
             }
             if check.state == .toConfirm {
                 VStack(alignment: .leading, spacing: Spacing.xxSmall) {
@@ -103,6 +134,7 @@ struct GuidedChecksCard: View {
         switch state {
         case .passed: "✓"
         case .toConfirm, .attention: "!"
+        case .working: "…"
         }
     }
 
@@ -111,6 +143,7 @@ struct GuidedChecksCard: View {
         case .passed: Palette.decrease
         case .toConfirm: Palette.warning
         case .attention: Palette.danger
+        case .working: Palette.label2
         }
     }
 
@@ -119,6 +152,7 @@ struct GuidedChecksCard: View {
         case .passed: String(localized: "Passed")
         case .toConfirm: String(localized: "To confirm")
         case .attention: String(localized: "Needs a look")
+        case .working: String(localized: "In progress")
         }
     }
 }

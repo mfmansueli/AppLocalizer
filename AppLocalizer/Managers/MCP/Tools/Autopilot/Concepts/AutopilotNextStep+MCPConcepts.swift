@@ -146,7 +146,8 @@ extension AutopilotNextStep {
         let what = plan.makesScreenshots
             ? "the screenshots as an AppLocalizer template (template and/or ops on a base starter)"
             : "the App Preview's captions and end card, as a template"
-        var line = "Call get_design_brief and send \(remaining) direction(s) with propose_direction: \(what), with no artworkDesign. "
+        let source = run.designsFromTheApp ? ", \(AutopilotRun.ownDesignHow)," : ""
+        var line = "Call get_design_brief\(source) and send \(remaining) direction(s) with propose_direction: \(what), with no artworkDesign. "
         if plan.makesScreenshots, plan.screenshotStyle == .templates {
             let names = plan.screenshotTemplates.joined(separator: ", ")
             line += "Make one direction per template the person picked (\(names)), each named “<Template> · for <App>”, adapting the gallery template to the app. "

@@ -149,7 +149,7 @@ struct TemplateEditorStylesTests {
         #expect(screen.editor.slotDecorations.count == 4)
         #expect(screen.editor.refusals == nil)
         #expect(screen.editor.slotDecorations.filter(\.isRating).count == 2)
-        #expect(screen.editor.ratingNote.contains("Lumen’s App Store rating"))
+        #expect(screen.editor.ratingNote.contains("Lumen’s rating in that country"))
     }
 }
 #endif

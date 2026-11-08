@@ -21,10 +21,17 @@ struct ProposeTemplateTool: MCPTool {
         as the next version, and the result's stress lists how the stress locales (primary, longest, right to \
         left, CJK) fit across every slot with it. Check captions with measure_caption first. Besides the \
         fields get_template shows, a template may set device.tilt {rz, ry, rx} in degrees, device.dx/dy, \
-        caption.placement below, caption.headline.upper/italic/shadow/emph {on: first|last, weight, font, \
-        italic}/mark {color, pad, rot, radius}, caption.subhead.italic and deco (shapes, laurels, badges); a \
-        null value removes one. A slot override may also replace the whole bg. Laurels and badges show a \
-        rating: use the app's real App Store rating, which AppLocalizer checks before every push.
+        device.top (pin the phone's top edge, a fraction of the height), device.empty "black" (a switched-off \
+        screen without a capture), device.pair {dx, top} (the phone behind on a slot whose layout is "pair": \
+        its own capture in front, the slot before it's behind), caption.placement below, \
+        caption.headline.upper/italic/shadow/tight (box sized to each language's lines)/emph {on: first|last, \
+        weight, font, italic}/mark {color, pad, rot, radius}, caption.subhead.italic and deco (shapes, \
+        laurels, badges, and art props: controller, chess, dice, person, underline, asterisk, arrow, corner, \
+        pointer, star, white and in front unless color or z says otherwise, each with optional anchor \
+        cap|l1end, avoid down|squeeze|hide, span (the slot a figure continues on) and off); a null value \
+        removes one. slots.<i>.layout is standard, hero or \
+        pair. A slot override may also replace the whole bg. Laurels and badges show a rating: use the \
+        app's real App Store rating, which AppLocalizer checks before every push.
         """,
         inputSchema: MCPToolDefinition.schema(
             [

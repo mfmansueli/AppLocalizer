@@ -56,6 +56,8 @@ struct CapturePlanToolsTests {
                 "xcrun simctl privacy booted grant photos dev.northpier.lumen",
             ],
             "alerts": .string(AutopilotSimulatorSetup.alertsNote),
+            // iPhone and iPad: `booted` reaches one of them (Bruma's run).
+            "eachSimulator": .string(AutopilotSimulatorSetup.eachSimulatorNote),
             "sampleData": "Settings → Debug → Add Sample Week",
             "sampleDataLanguage": .string(AutopilotSimulatorSetup.sampleDataLanguageNote),
         ])
@@ -67,6 +69,59 @@ struct CapturePlanToolsTests {
         #expect(run.stage == .capture)
         #expect(run.client == "Claude Code")
         #expect(run.environment == AutopilotEnvironment(xcode: "26.1", simulators: ["iPhone 17 Pro Max", "iPad Pro 13″"]))
+    }
+
+    /// Bruma's first capture had a notification prompt over its debug
+    /// scene: simctl can't grant notifications or tap it.
+    @Test func theAlertsNoteSaysHowToAnswerAPromptSimctlCant() {
+        let note = AutopilotSimulatorSetup.alertsNote
+        #expect(note.contains("captures' own launch arguments"))
+        #expect(note.contains("-parallel-testing-enabled NO"))
+        #expect(note.contains("com.apple.springboard"))
+        #expect(note.contains("never by erasing the simulator"))
+    }
+
+    /// Bruma's run set the iPhone up by its id and captured iPhone Duo with
+    /// the status bar an earlier run left: with one simulator, `booted` is it.
+    @Test func severalSimulatorsAreEachSetUp() async throws {
+        var several = AutopilotTestFixtures.run(.waiting)
+        several.plan.setPlans(.iPhoneDuo, true)
+        let found = try await MCPAutopilotFixtures(several).call(GetCapturePlanTool()).result
+        #expect(found["simulatorSetup"]?["eachSimulator"] == .string(AutopilotSimulatorSetup.eachSimulatorNote))
+
+        var one = several
+        for display in one.plan.displayTypes where display != .iPhone { one.plan.setPlans(display, false) }
+        try #require(one.plan.displayTypes == [.iPhone])
+        let alone = try await MCPAutopilotFixtures(one).call(GetCapturePlanTool()).result
+        #expect(alone["simulatorSetup"]?["eachSimulator"] == nil)
+
+        var nothingToRun = several
+        nothingToRun.plan.simulator.lightAppearance = false
+        nothingToRun.plan.simulator.overridesStatusBar = false
+        nothingToRun.plan.simulator.grantsPermissions = false
+        let bare = try await MCPAutopilotFixtures(nothingToRun).call(GetCapturePlanTool()).result
+        #expect(bare["simulatorSetup"]?["commands"] == [])
+        #expect(bare["simulatorSetup"]?["eachSimulator"] == nil, "no commands to run on each simulator")
+    }
+
+    /// Bruma's plan named only "iPad Pro 13-inch (M5)": three were made, and
+    /// its iPad captures came from iOS 26.5 while Plan showed 27.2.
+    @Test func eachDeviceNamesTheSimulatorPlanChecked() async throws {
+        var run = AutopilotTestFixtures.run(.waiting)
+        run.plan.setPlans(.iPhoneDuo, true)
+        var plan = try await MCPAutopilotFixtures(run).call(GetCapturePlanTool()).result
+        #expect(plan["devices"]?.arrayValue?.first?["simulatorId"] == nil, "Unknown until This Mac is checked")
+
+        let inventory = try SimulatorInventory.parse(DebugSimulators.json(DebugSimulators.Mac(hasNewRuntime: true, hasDuo: true)))
+        GetCapturePlanTool.addSimulatorIDs(&plan, inventory: inventory)
+        let devices = plan["devices"]?.arrayValue ?? []
+        let iPhone = try #require(devices.first { $0["displayType"] == .string(ScreenshotDisplayType.iPhone.mcpValue) })
+        #expect(iPhone["simulatorId"] == "00000000-0000-0000-0000-000000000001")
+        #expect(iPhone["runtime"] == "iOS 27.0")
+        let duo = try #require(devices.first { $0["displayType"] == .string(ScreenshotDisplayType.iPhoneDuo.mcpValue) })
+        #expect(duo["simulatorId"] == "00000000-0000-0000-0000-000000000004")
+        #expect(duo["runtime"] == "iOS 27.2")
+        #expect(devices.allSatisfy { $0["simulator"] != nil })
     }
 
     @Test func thePlanSaysToFindTheSampleDataSwitchAndLeavesOutWhatsOff() async throws {
@@ -145,6 +200,10 @@ struct CapturePlanToolsTests {
             "xcrun simctl privacy booted grant all dev.northpier.lumen",
         ])
         #expect(AutopilotSimulatorSetup.statusBarCommand.contains("--dataNetwork wifi"))
+        #expect(
+            AutopilotSimulatorSetup.statusBarCommand.contains("--batteryState discharging --batteryLevel 100"),
+            "A plain full battery, not charged's green one with a bolt"
+        )
         #expect(AutopilotSimulatorSetup.statusBarCommand.hasSuffix("--operatorName ''"))
         #expect(!run.simulatorCommands(bundleID: "").contains { $0.contains("privacy") }, "No bundle ID, nothing to grant")
 

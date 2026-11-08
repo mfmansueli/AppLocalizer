@@ -8,8 +8,8 @@ import XCTest
 /// Screenshots → Preview, driven through the DEBUG scenes in
 /// `StudioDebugScenes` (Lumen Journal with sample runs held at each
 /// stage; nothing moves on by itself and nothing leaves the Mac): the App
-/// Store preview, the Autopilot strip, the Autopilot sheet and Connect a
-/// Design Project.
+/// Store preview, the Autopilot strip, the guided Autopilot sheet (What to
+/// make, the plan, Making it, Choose) and Connect a Design Project.
 @MainActor
 final class ScreenshotStudioUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -68,8 +68,8 @@ final class ScreenshotStudioUITests: XCTestCase {
         XCTAssertTrue(pill.waitForExistence(timeout: 15))
         XCTAssertEqual(text(of: pill), "1 problem")
         app.buttons["studio.autopilot.open"].click()
-        XCTAssertTrue(element("autopilot.sheet").waitForExistence(timeout: 5))
-        XCTAssertTrue(element("autopilot.problem").exists)
+        XCTAssertTrue(element("autopilot.guided.sheet").waitForExistence(timeout: 5))
+        XCTAssertTrue(element("autopilot.problem").waitForExistence(timeout: 5), "Making it shows the problem")
     }
 
     func testTheReadySetSwitchesBetweenNewAndLive() {
@@ -77,7 +77,9 @@ final class ScreenshotStudioUITests: XCTestCase {
         let title = element("studio.setCard.title")
         XCTAssertTrue(title.waitForExistence(timeout: 15))
         XCTAssertEqual(text(of: title), "New set")
-        XCTAssertTrue(app.buttons["studio.autopilot.reviewPush"].exists)
+        let review = app.buttons["studio.autopilot.open"]
+        XCTAssertTrue(review.exists)
+        XCTAssertEqual(review.title.isEmpty ? review.label : review.title, "Review…", "Guided: the review comes before the push")
         app.buttons["studio.set.live"].click()
         XCTAssertTrue(waitForText(of: title, toBe: "Live set"))
         app.buttons["studio.set.new"].click()
@@ -86,80 +88,70 @@ final class ScreenshotStudioUITests: XCTestCase {
 
     // MARK: - Autopilot sheet
 
-    func testRunAutopilotPlansAndCancelKeepsNothing() {
+    func testStartSetsUpARunAndCancelKeepsNothing() {
         launch(scene: "st-home")
         let run = app.buttons["studio.autopilot.run"]
         XCTAssertTrue(run.waitForExistence(timeout: 15))
         run.click()
-        XCTAssertTrue(element("autopilot.sheet").waitForExistence(timeout: 5))
-        XCTAssertTrue(element("autopilot.plan").exists)
-        XCTAssertTrue(app.buttons["autopilot.start"].exists)
-        app.buttons["autopilot.cancel"].click()
-        XCTAssertTrue(element("autopilot.sheet").waitForNonExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["studio.autopilot.run"].waitForExistence(timeout: 5))
+        XCTAssertTrue(element("autopilot.guided.sheet").waitForExistence(timeout: 5))
+        XCTAssertTrue(element("autopilot.guided.make.screenshots").waitForExistence(timeout: 5))
+        app.buttons["autopilot.guided.cancel"].click()
+        XCTAssertTrue(element("autopilot.guided.sheet").waitForNonExistence(timeout: 5))
+        XCTAssertTrue(run.waitForExistence(timeout: 5))
+        XCTAssertEqual(run.label, "Start…", "The plan is gone: nothing to continue")
     }
 
     func testStartCopiesThePromptAndCancelRunGoesBackToThePlan() {
         launch(scene: "st-plan")
-        let start = app.buttons["autopilot.start"]
-        XCTAssertTrue(start.waitForExistence(timeout: 15))
+        let start = goToThePlan()
         start.click()
         XCTAssertTrue(element("autopilot.wait").waitForExistence(timeout: 5))
         XCTAssertTrue(element("autopilot.wait.copied").exists)
         XCTAssertFalse(text(of: element("autopilot.wait.prompt")).isEmpty)
-        app.buttons["autopilot.cancelRun"].click()
-        XCTAssertTrue(element("autopilot.plan").waitForExistence(timeout: 5))
+        app.buttons["autopilot.guided.cancelRun"].click()
+        XCTAssertTrue(element("autopilot.guided.plan.timeline").waitForExistence(timeout: 5), "Back at the plan")
     }
 
     func testThePersonCanKeepTheirScreens() {
         launch(scene: "st-plan")
-        let picks = element("autopilot.plan.choosesScreens")
-        XCTAssertTrue(picks.waitForExistence(timeout: 15))
+        let start = goToThePlan()
+        element("autopilot.guided.plan.screens.toggle").click()
+        let picks = element("autopilot.guided.plan.choosesScreens")
+        XCTAssertTrue(picks.waitForExistence(timeout: 5))
         XCTAssertEqual(picks.value as? Int, 1, "Claude Code picks the screens unless the person keeps theirs")
         picks.click()
-        app.buttons["autopilot.start"].click()
+        start.click()
         let prompt = element("autopilot.wait.prompt")
         XCTAssertTrue(prompt.waitForExistence(timeout: 5))
         XCTAssertTrue(text(of: prompt).contains("capture the 5 screens"))
         XCTAssertFalse(text(of: prompt).contains("decide which screens"))
     }
 
-    /// iPhone Duo is Apple's rule from April 2027, so a plan has it.
+    /// iPhone Duo is Apple's rule from April 2027, so a plan has it; the
+    /// iPad can be left out on What to make.
     func testThePlanHasIPhoneDuoAndCanDropTheIPad() {
         launch(scene: "st-plan")
-        let iPad = element("autopilot.plan.iPad")
+        let iPad = element("autopilot.guided.make.device.iPad")
         XCTAssertTrue(iPad.waitForExistence(timeout: 15))
-        XCTAssertEqual(element("autopilot.plan.iphone_duo").value as? Int, 1)
-        let captures = element("autopilot.plan.captures")
-        XCTAssertTrue(text(of: captures).contains("iPhone Duo is in every plan"), text(of: captures))
-        let rehearsal = element("autopilot.plan.rehearsal")
-        XCTAssertTrue(text(of: rehearsal).contains("shows up once"), text(of: rehearsal))
-        let scope = element("autopilot.scope")
-        // "Lumen Journal 1.4 · iPhone, iPhone Duo, and iPad · 12 languages · 5 screens"
-        XCTAssertTrue(text(of: scope).contains("iPhone Duo"), text(of: scope))
-        XCTAssertTrue(text(of: scope).contains("iPad"), text(of: scope))
-        // The devices are cells of "What this run makes", under This Mac's
-        // check while iPhone Duo's simulator is missing.
-        var tries = 0
-        while !iPad.isHittable, tries < 6 {
-            element("autopilot.plan").scroll(byDeltaX: 0, deltaY: -200)
-            tries += 1
-        }
+        let duo = element("autopilot.guided.make.device.iphone_duo")
+        XCTAssertTrue(duo.isSelected, "iPhone Duo is in every plan")
+        XCTAssertTrue(iPad.isSelected)
+        let footer = element("autopilot.guided.footer.text")
+        let before = text(of: footer)
         iPad.click()
-        let deadline = Date.now.addingTimeInterval(5)
-        while Date.now < deadline, text(of: scope).contains("iPad") {
-            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
-        }
-        XCTAssertFalse(text(of: scope).contains("iPad"))
-        XCTAssertTrue(text(of: scope).contains("iPhone and iPhone Duo"), text(of: scope))
+        XCTAssertTrue(waitUntil { !iPad.isSelected })
+        XCTAssertTrue(duo.isSelected)
+        XCTAssertTrue(waitUntil { self.text(of: footer) != before }, "Fewer screenshots without the iPad: \(text(of: footer))")
     }
 
     func testRetryingWithTheFixClearsTheProblem() {
         launch(scene: "st-fail")
         let problem = element("autopilot.problem")
         XCTAssertTrue(problem.waitForExistence(timeout: 15))
-        XCTAssertTrue(element("autopilot.log").exists)
-        app.buttons["autopilot.problem.retry"].click()
+        XCTAssertTrue(element("autopilot.guided.making.details").exists, "The log is under Show details")
+        let retry = app.buttons["autopilot.problem.retry"]
+        reveal(retry)
+        retry.click()
         XCTAssertTrue(problem.waitForNonExistence(timeout: 5))
     }
 
@@ -176,6 +168,8 @@ final class ScreenshotStudioUITests: XCTestCase {
         XCTAssertTrue(element("autopilot.problem.refusedNote").exists)
         let retry = app.buttons["autopilot.problem.retry"]
         XCTAssertEqual(retry.title.isEmpty ? retry.label : retry.title, "Retry")
+        // The card's buttons sit under the footer until the step scrolls.
+        reveal(retry)
         retry.click()
         XCTAssertTrue(problem.waitForNonExistence(timeout: 5))
     }
@@ -210,15 +204,27 @@ final class ScreenshotStudioUITests: XCTestCase {
         XCTAssertTrue(element("autopilot.pick.toCheck.de-DE.search").exists)
     }
 
+    /// The plan's Simulator options: sample data in each language while the
+    /// app is captured in each; one switch, plain sample data, once the
+    /// English captures are reused.
     func testThePlanUsesSampleDataInEachLanguage() {
         launch(scene: "st-plan")
+        openThePlan()
+        let simulator = element("autopilot.guided.plan.simulator")
+        reveal(simulator)
+        simulator.click()
         let sampleData = element("autopilot.plan.sampleDataLanguage")
-        XCTAssertTrue(sampleData.waitForExistence(timeout: 15))
+        XCTAssertTrue(sampleData.waitForExistence(timeout: 5))
+        reveal(sampleData)
         XCTAssertEqual(sampleData.value as? Int, 1)
         XCTAssertTrue(sampleData.isEnabled)
+        let name = { "\(sampleData.title) \(sampleData.label)" }
+        XCTAssertTrue(name().contains("Sample data in each language"), name())
+        reveal(element("autopilot.plan.eachLanguage"))
         element("autopilot.plan.eachLanguage").click()
-        let locked = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isEnabled == false"), object: sampleData)
-        XCTAssertEqual(XCTWaiter().wait(for: [locked], timeout: 5), .completed, "English captures are reused: one language's data")
+        XCTAssertTrue(waitUntil { !name().contains("in each language") }, "English captures are reused: one language's data")
+        XCTAssertEqual(sampleData.value as? Int, 1, "Sample data stays on")
+        XCTAssertTrue(sampleData.isEnabled)
     }
 
     func testPickingAnotherCaptureThenUsingThePicksStartsDesign() {
@@ -238,8 +244,9 @@ final class ScreenshotStudioUITests: XCTestCase {
         use.click()
         element("studio.viewer.close").click()
         XCTAssertTrue(waitForText(of: badge, toBe: "Your pick"), text(of: badge))
-        app.buttons["autopilot.usePicks"].click()
-        XCTAssertTrue(element("autopilot.design").waitForExistence(timeout: 5))
+        app.buttons["autopilot.guided.usePicks"].click()
+        XCTAssertTrue(pick.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(element("autopilot.guided.making.line").waitForExistence(timeout: 5), "Making it goes on to the design")
     }
 
     /// The full-size viewer zooms like Review & Push's: a double-click
@@ -270,26 +277,20 @@ final class ScreenshotStudioUITests: XCTestCase {
 
     func testUsingADirectionMovesOnToLocalize() {
         launch(scene: "st-choose")
-        let use = app.buttons.matching(identifier: "autopilot.direction.use").firstMatch
-        XCTAssertTrue(use.waitForExistence(timeout: 15))
-        XCTAssertTrue(element("autopilot.choose.ask").exists)
+        let choose = app.buttons.matching(identifier: "autopilot.guided.choose.look.use").firstMatch
+        XCTAssertTrue(choose.waitForExistence(timeout: 15))
+        choose.click()
+        let use = element("autopilot.guided.useChoices")
+        XCTAssertTrue(waitUntil { use.isEnabled }, "A look is chosen")
         use.click()
-        XCTAssertTrue(element("autopilot.localize").waitForExistence(timeout: 5))
+        XCTAssertTrue(element("autopilot.guided.making.checking").waitForExistence(timeout: 5), "Making it checks every image")
     }
 
     func testARevisedDirectionSaysSo() {
         launch(scene: "st-choose-rev")
-        XCTAssertTrue(element("autopilot.direction.revised").waitForExistence(timeout: 15))
-    }
-
-    func testTheReadyStageListsWhatToCheckAndClosesOnThePreview() {
-        launch(scene: "st-ready-sheet")
-        XCTAssertTrue(element("autopilot.ready").waitForExistence(timeout: 15))
-        XCTAssertTrue(element("autopilot.ready.caption.de-DE.2").exists)
-        XCTAssertTrue(element("autopilot.ready.toCheck").exists)
-        app.buttons["autopilot.seePreview"].click()
-        XCTAssertTrue(element("autopilot.sheet").waitForNonExistence(timeout: 5))
-        XCTAssertEqual(text(of: element("studio.setCard.title")), "New set")
+        let revised = element("autopilot.guided.choose.look.revised")
+        XCTAssertTrue(revised.waitForExistence(timeout: 15))
+        XCTAssertEqual(text(of: revised), "Revised")
     }
 
     // MARK: - Design project
@@ -307,6 +308,51 @@ final class ScreenshotStudioUITests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// What to make → Look → the plan, with iPhone Duo left out first: the
+    /// pretend Mac has no iPhone Duo simulator, and Start waits for one.
+    /// Start Autopilot, once it can go.
+    private func goToThePlan() -> XCUIElement {
+        let duo = element("autopilot.guided.make.device.iphone_duo")
+        XCTAssertTrue(duo.waitForExistence(timeout: 15))
+        if duo.isSelected { duo.click() }
+        XCTAssertTrue(waitUntil { !duo.isSelected }, "iPhone Duo left out")
+        openThePlan()
+        let start = element("autopilot.guided.start")
+        XCTAssertTrue(waitUntil(timeout: 10) { start.isEnabled }, "Start can go")
+        return start
+    }
+
+    /// What to make → Look → the plan.
+    private func openThePlan() {
+        let next = element("autopilot.guided.next")
+        XCTAssertTrue(next.waitForExistence(timeout: 15))
+        next.click()
+        XCTAssertTrue(element("autopilot.guided.look.noteCard").waitForExistence(timeout: 5), "At Look")
+        next.click()
+        XCTAssertTrue(element("autopilot.guided.plan.timeline").waitForExistence(timeout: 5), "At the plan")
+    }
+
+    /// Scrolls the guided sheet's step until `target` is inside what it
+    /// shows.
+    private func reveal(_ target: XCUIElement) {
+        let step = element("autopilot.guided.sheet").scrollViews.firstMatch
+        guard step.waitForExistence(timeout: 5), target.waitForExistence(timeout: 5) else { return }
+        var tries = 0
+        while !(target.frame.minY >= step.frame.minY && target.frame.maxY <= step.frame.maxY), tries < 12 {
+            step.scroll(byDeltaX: 0, deltaY: target.frame.minY < step.frame.minY ? 200 : -200)
+            tries += 1
+        }
+    }
+
+    private func waitUntil(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
+        let deadline = Date.now.addingTimeInterval(timeout)
+        while Date.now < deadline {
+            if condition() { return true }
+            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
+        }
+        return condition()
+    }
 
     private func waitForText(of element: XCUIElement, toBe expected: String, timeout: TimeInterval = 5) -> Bool {
         let deadline = Date.now.addingTimeInterval(timeout)

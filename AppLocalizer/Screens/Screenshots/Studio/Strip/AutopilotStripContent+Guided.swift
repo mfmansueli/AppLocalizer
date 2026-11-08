@@ -43,10 +43,17 @@ extension AutopilotStripContent {
                 title: String(localized: "Choose the Look…")
             )
         case .watchPreview:
+            if let loop = AutopilotLoopProgress.make(run, now: now) { return makingLoop(loop) }
             return yourTurn(text: reviewText, title: String(localized: "Review…"))
         case .ready:
             guard run.guidedReview?.pushedAt != nil else {
-                return yourTurn(text: reviewText, title: String(localized: "Review…"))
+                // A set the person doesn't want to push can be dropped for
+                // a new run (the captures stay to reuse); Review was the
+                // only way out before.
+                var review = yourTurn(text: reviewText, title: String(localized: "Review…"))
+                review.secondary = .runAutopilot
+                review.secondaryTitle = String(localized: "New Run…")
+                return review
             }
             return AutopilotStripContent(
                 kind: .ready,
@@ -120,6 +127,18 @@ extension AutopilotStripContent {
         content.text = stall?.headline(of: run, now: now) ?? content.text
         content.primaryTitle = String(localized: "Continue…")
         return content
+    }
+
+    /// The new header loop on its way: not the person's turn yet, though
+    /// the run is at Review.
+    private static func makingLoop(_ loop: AutopilotLoopProgress) -> AutopilotStripContent {
+        AutopilotStripContent(
+            kind: .running,
+            title: String(localized: "Autopilot is running"),
+            text: loop.line.isEmpty ? loop.title : "\(loop.title) · \(loop.line)",
+            progress: loop.fraction.map { min(max($0, 0.02), 1) },
+            primary: .open
+        )
     }
 
     private static func yourTurn(text: String, title: String) -> AutopilotStripContent {

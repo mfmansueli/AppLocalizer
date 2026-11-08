@@ -30,7 +30,27 @@ struct AutopilotExtrasProgress: Codable, Hashable, Sendable {
     var previewSizes: [PixelSize] = []
     /// Everything is rendered, assembled and checked.
     var isFinished = false
+    /// When the artwork's languages started, and the App Previews: the
+    /// pace so far says how long the rest takes.
+    var artworkStartedAt: Date?
+    var previewsStartedAt: Date?
+    /// When the last artwork language was finished.
+    var artworkDoneAt: Date?
 
     var isArtworkDone: Bool { artworkDone >= artworkTotal }
     var arePreviewsDone: Bool { previewsDone >= previewsTotal }
+
+    /// Minutes until every artwork language is made: the pace up to the
+    /// last one finished, less the time since it, so the figure counts
+    /// down between languages (each takes minutes) instead of climbing.
+    /// Before the first, `estimate` less the time gone.
+    func artworkMinutesLeft(estimate: Double, now: Date) -> Double {
+        guard artworkTotal > artworkDone else { return 0 }
+        let left = Double(artworkTotal - artworkDone)
+        guard let start = artworkStartedAt else { return estimate * left / Double(artworkTotal) }
+        guard artworkDone > 0 else { return max(0, estimate - now.timeIntervalSince(start) / 60) }
+        guard let last = artworkDoneAt else { return now.timeIntervalSince(start) / Double(artworkDone) * left / 60 }
+        let each = last.timeIntervalSince(start) / Double(artworkDone)
+        return max(0, (each * left - now.timeIntervalSince(last)) / 60)
+    }
 }

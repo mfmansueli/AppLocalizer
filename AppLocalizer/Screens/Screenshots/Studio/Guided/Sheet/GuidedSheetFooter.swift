@@ -61,13 +61,21 @@ struct GuidedSheetFooter: View {
         case .look:
             return String(localized: "Everything here can be changed later with Ask for Changes.")
         case .plan:
-            if let missing = launcher?.simulators.missing(in: plan.runDisplays), !missing.isEmpty {
-                return String(localized: "This Mac can’t capture \(missing.map(\.title).formatted(.list(type: .and))) yet: install the simulator, or turn it off.")
+            if let simulators = launcher?.simulators {
+                let check = GuidedMacCheck(run: run, state: simulators.state)
+                if check.helperCantCheck {
+                    return String(localized: "Save the helper again so AppLocalizer can check this Mac before Start.")
+                }
+                if !check.missing.isEmpty {
+                    let names = check.missing.map(\.title).formatted(.list(type: .and))
+                    return String(localized: "Start waits for \(names): make or install its simulator in This Mac, or turn it off.")
+                }
             }
-            let minutes = GuidedMakeSummary.minutes(plan, design: studio.designProject?.kind ?? .none, kept: plan.reusesCaptures ? run.keptCaptureCount : 0)
+            let minutes = GuidedMakeSummary.minutes(plan, design: studio.plannedDesignKind, kept: run.capturesKeptAtStart)
             return String(localized: "About \(minutes) min. Autopilot stops only where it says You.")
         case .making:
             if run.stage == .pick { return studio.pickFooterText(run) }
+            if run.waitsOnlyOnProblems { return String(localized: "Everything else is in. The run goes on once you decide what’s left above.") }
             if !run.openProblems.isEmpty { return String(localized: "A problem needs you before this part goes on; the rest keeps going.") }
             return String(localized: "You can close this window; Autopilot keeps going.")
         case .choose:
@@ -133,10 +141,12 @@ struct GuidedSheetFooter: View {
         case .plan:
             Button("Back") { studio.guided.setupStep = .look }
                 .accessibilityIdentifier("autopilot.guided.back")
+            let macWaits = launcher.map { GuidedMacCheck(run: run, state: $0.simulators.state).blocksStart } == true
             Button("Start Autopilot") { studio.startGuided() }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
-                .disabled(plan.makesNothing)
+                .disabled(plan.makesNothing || macWaits)
+                .help(macWaits ? Text(GuidedMacCheck.blockedHelp) : Text("Starts Autopilot; it stops only where the plan says You."))
                 .accessibilityIdentifier("autopilot.guided.start")
         case .making:
             makingButtons

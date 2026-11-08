@@ -89,18 +89,49 @@ struct GuidedPlanTimelineTests {
         #expect(capture?.time == "a moment")
     }
 
+    /// Reuse on, with a device the last run didn't make: the row still
+    /// says it reuses, and how many are new.
+    @Test func reusingSomeCapturesSaysBoth() {
+        let plan = Self.plan()
+        let kept = plan.targets.count - 4
+        let capture = Self.rows(plan, kept: kept).first
+        #expect(capture?.title == "Reuses \(kept) captures, captures 4 more in Simulator")
+        #expect(capture?.detail.hasPrefix("The captures and picks of the last run, and new ones on ") == true, "\(capture?.detail ?? "")")
+        #expect(capture?.time != "a moment")
+    }
+
+    /// Bruma's run, stopped with 54 captures in and back at Plan: Start
+    /// keeps them even with reuse off, so the plan counts them. It said
+    /// "Captures 9 screens" and the time for all 432.
+    @Test func aStoppedRunCountsTheCapturesItKeeps() {
+        var run = AutopilotTestFixtures.run(.capture)
+        GuidedDefaults.apply(to: &run.plan)
+        #expect(!run.plan.reusesCaptures)
+        AutopilotTestFixtures.captureAll(&run, except: Set(run.plan.targets.suffix(4)))
+        run.stage = .plan
+        run.keptCaptureCount = run.keptTargetCount
+        #expect(run.capturesKeptAtStart == run.plan.targets.count - 4)
+        let capture = Self.rows(run.plan, kept: run.capturesKeptAtStart).first
+        #expect(capture?.title == "Reuses \(run.plan.targets.count - 4) captures, captures 4 more in Simulator")
+
+        // A new run that doesn't reuse the last one's: Start drops them.
+        run.startedAt = nil
+        #expect(run.capturesKeptAtStart == 0)
+    }
+
     @Test func theSimulatorLineSaysWhatItSetsUp() {
         var plan = Self.plan()
+        plan.capturesEachLanguage = true
         plan.simulator.overridesStatusBar = true
-        plan.simulator.usesSampleData = false
+        plan.simulator.usesSampleData = true
         plan.simulator.lightAppearance = true
         plan.simulator.grantsPermissions = false
-        #expect(GuidedPlanTimeline.simulatorLine(plan).hasPrefix("Simulator: status bar 9:41, light appearance"))
+        #expect(GuidedPlanTimeline.simulatorLine(plan) == "Simulator: each language, status bar 9:41, sample data, light appearance")
+        plan.capturesEachLanguage = false
         plan.simulator.overridesStatusBar = false
+        plan.simulator.usesSampleData = false
         plan.simulator.lightAppearance = false
-        if plan.capturesEachLanguage {
-            #expect(GuidedPlanTimeline.simulatorLine(plan) == "Simulator: as it is")
-        }
+        #expect(GuidedPlanTimeline.simulatorLine(plan) == "Simulator: captured in one language")
     }
 }
 #endif

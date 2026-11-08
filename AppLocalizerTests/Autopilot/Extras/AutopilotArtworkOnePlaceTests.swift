@@ -171,13 +171,6 @@ struct AutopilotArtworkOnePlaceTests {
         #expect(needs(.searchOnly).map(\.locale) == ["en-US", "de-DE"])
     }
 
-    @Test func localizeSaysTheTextsTheRunHas() {
-        #expect(AutopilotLocalizeStageView.headlinesDone(size: .headerOnly, hasPhrases: false) == "Every language’s header line fits")
-        #expect(AutopilotLocalizeStageView.headlinesDone(size: .headerOnly, hasPhrases: true)
-            == "Every language has the page’s phrases and its header line, and they fit")
-        #expect(AutopilotLocalizeStageView.headlinesDone(size: .searchOnly, hasPhrases: false) == "Every language has its search headline, and it fits")
-    }
-
     // MARK: - The other place
 
     @Test func onlyTheHeaderKeepsTheSearchImageMadeBefore() {

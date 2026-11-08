@@ -46,11 +46,11 @@ extension AutopilotCenter {
 
     /// Without screenshots: the artwork's texts in every language, then the
     /// extras are made and the run is ready. The set is never touched.
-    func checkExtrasOnly(_ appID: StoreApp.ID, context: AutopilotContext) async {
-        await whileLocalizing(appID) { await checkTheExtras(appID, context: context) }
+    func checkExtrasOnly(_ appID: StoreApp.ID, context: AutopilotContext, waitsForExtras: Bool = true) async {
+        await whileLocalizing(appID) { await checkTheExtras(appID, context: context, waitsForExtras: waitsForExtras) }
     }
 
-    private func checkTheExtras(_ appID: StoreApp.ID, context: AutopilotContext) async {
+    private func checkTheExtras(_ appID: StoreApp.ID, context: AutopilotContext, waitsForExtras: Bool) async {
         guard let run = runs[appID], run.stage == .localize,
               let document = try? await context.services.loadDocument(for: context.app, primaryLocale: context.primaryLocale)
         else { return }
@@ -63,6 +63,6 @@ extension AutopilotCenter {
             run.appendLog(String(localized: "Sent to \(client): \(AutopilotArtworkTextWork(needs).summary)"), kind: .command, at: now())
         }
         guard needs.isEmpty else { return }
-        await finishLocalizing(appID, context: context)
+        await finish(appID, context: context, waitsForExtras: waitsForExtras)
     }
 }

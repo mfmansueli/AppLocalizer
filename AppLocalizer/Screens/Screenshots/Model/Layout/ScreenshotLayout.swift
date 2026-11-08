@@ -30,6 +30,8 @@ struct ScreenshotLayout: Hashable, Sendable {
     var screenCornerRadius: CGFloat
     /// The screen floats with a shadow (device hidden).
     var screenHasShadow: Bool
+    /// What a screen without a capture shows: black (`device.empty`).
+    var emptyScreen: TemplateColor? = .black
     /// The capture fills the canvas (band placement).
     var isFullBleed: Bool
     /// A visionOS window's light rim around the floating screen, in pixels.
@@ -37,10 +39,16 @@ struct ScreenshotLayout: Hashable, Sendable {
     /// The window bar under a visionOS window.
     var windowBar: CGRect?
     /// iPhone Duo's folded cover display beside the inner one (both, side
-    /// by side), with the companion capture.
+    /// by side), or a Two phones slot's phone behind, with the companion
+    /// capture.
     var companion: LayoutCompanion?
-    /// Shapes, laurels and badges, behind or in front of the device.
+    /// Shapes, laurels, badges and props, behind or in front of the device.
     var decorations: [LayoutDecoration] = []
+    /// A Reviews slot: no device or capture, reviews under the headline.
+    var reviews: LayoutReviews?
+    /// Laurels left out because the app has no App Store rating in the
+    /// locale's country yet.
+    var unratedLaurels = 0
     var headline: CaptionFit
     var subhead: CaptionFit?
     var headlineFont: FontChoice
@@ -48,6 +56,23 @@ struct ScreenshotLayout: Hashable, Sendable {
     /// The catalog the fonts were measured with; the renderer draws with
     /// the same one.
     var fonts: ScreenshotFontCatalog
+
+    /// What the App Store put in this render, for its render key: the
+    /// ratings laurels show, the laurels left out for want of one, and the
+    /// reviews quoted. Nil when nothing came from it, so the key stays what
+    /// it was. Without the left-out laurels, a render that showed the
+    /// template's sample rating before the App Store answered (the same
+    /// key) would be used again after it said there's none. A Reviews slot
+    /// showing its capture for want of reviews is keyed apart too: Bruma's
+    /// Review kept showing the empty slot an earlier build had cached
+    /// under the same key, while the push would have sent the capture.
+    var storeSignature: String? {
+        let ratings = decorations.filter(\.isFromStore).compactMap(\.text)
+        guard !ratings.isEmpty || reviews != nil || unratedLaurels > 0 else { return nil }
+        let unrated = unratedLaurels > 0 ? ["unrated \(unratedLaurels)"] : []
+        let quoted = reviews.map { $0.showsCapture ? "capture for want of reviews" : $0.signature } ?? ""
+        return (ratings + unrated + [quoted]).joined(separator: "\u{1D}")
+    }
 
     /// Where a capture of `size` is drawn: aspect-fill in the screen,
     /// centered horizontally and top-aligned, clipped to the screen.

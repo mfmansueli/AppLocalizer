@@ -23,7 +23,7 @@ struct TemplateGalleryTests {
 
     @Test func theCountFollowsTheStyle() async {
         let (model, _) = await ScreenshotsTestFixtures.viewModel()
-        #expect(model.galleryCount == "12 templates · previewed with Lumen’s captions and captures")
+        #expect(model.galleryCount == "14 templates · previewed with Lumen’s captions and captures")
         model.galleryStyle = .elegant
         #expect(model.galleryCount == "3 templates · previewed with Lumen’s captions and captures")
         #expect(TemplateStarter.starters(in: model.galleryStyle).map(\.title) == ["Cinema", "Spotlight", "Editorial"])

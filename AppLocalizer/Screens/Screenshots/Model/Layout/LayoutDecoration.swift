@@ -7,15 +7,18 @@ import CoreGraphics
 import Foundation
 
 /// One decoration as drawn, in canvas pixels, already mirrored for
-/// right-to-left locales.
+/// right-to-left locales and moved, narrowed or left out where a
+/// language's headline runs into it.
 struct LayoutDecoration: Hashable, Sendable {
     var kind: TemplateDecoration.Kind
     /// For `kind == .shape`.
     var shape: TemplateDecoration.Shape?
+    /// For `kind == .art`.
+    var art: TemplateArt?
     var frame: CGRect
     /// Degrees, clockwise, about the frame's center.
     var rotation: Double
-    /// A shape drawn flipped left to right; text never flips.
+    /// A shape or prop drawn flipped left to right; text never flips.
     var isFlipped: Bool
     var opacity: Double
     var color: TemplateColor
@@ -31,6 +34,9 @@ struct LayoutDecoration: Hashable, Sendable {
     var starColor: TemplateColor?
     var starSize: CGFloat
     var starGap: CGFloat
+    /// A laurel showing the App Store's rating rather than the template's
+    /// value.
+    var isFromStore = false
 
     /// The rating a laurel or badge shows.
     var ratingValue: Double? {

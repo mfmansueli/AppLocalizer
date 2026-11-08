@@ -21,7 +21,7 @@ struct TemplateCanvas: Codable, Hashable, Sendable {
         case .iPhone: iphone
         case .iPhoneDuo: duo ?? .portrait
         case .iPad: ipad
-        case .visionPro: .landscape
+        case .visionPro, .mac: .landscape
         default: .portrait
         }
     }
@@ -43,7 +43,7 @@ struct TemplateCanvas: Codable, Hashable, Sendable {
     }
 
     /// Sets `display`'s orientation; display types without a key of their
-    /// own (Apple Vision Pro, Apple Watch) keep theirs.
+    /// own (Apple Vision Pro, Mac, Apple Watch) keep theirs.
     mutating func setOrientation(_ orientation: ScreenshotOrientation, for display: ScreenshotDisplayType) {
         switch display {
         case .iPhone: iphone = orientation

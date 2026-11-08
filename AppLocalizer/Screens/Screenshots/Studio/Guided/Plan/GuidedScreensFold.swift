@@ -6,9 +6,9 @@
 import SwiftUI
 
 /// Under the capture line: "17 screens from LumenUITests · Show", and,
-/// shown, the screens and how the assistant reaches each, Add a Screen…,
-/// Suggest Screens, the Duo's screens and whether to reuse the last
-/// captures.
+/// shown, the screens and how the assistant reaches each (the table's own
+/// footers hold Add a Screen… and Suggest Screens, for the set and for
+/// Apple Watch), the Duo's screens and whether to reuse the last captures.
 struct GuidedScreensFold: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -43,19 +43,6 @@ struct GuidedScreensFold: View {
                             .help(Text(studio.capturesNote(run.plan, client: client)))
                             .accessibilityIdentifier("autopilot.guided.plan.reuse")
                     }
-                    HStack(spacing: Spacing.xSmall) {
-                        Button("Add a Screen…") { studio.openScreenForm() }
-                            .disabled(studio.plansMaximumScreens)
-                            .accessibilityIdentifier("autopilot.guided.plan.addScreen")
-                        Button {
-                            studio.suggestScreens()
-                        } label: {
-                            Label("Suggest Screens", systemImage: "sparkles")
-                        }
-                        .disabled(studio.plansMaximumScreens || run.screenRequest != nil)
-                        .accessibilityIdentifier("autopilot.guided.plan.suggestScreens")
-                    }
-                    .controlSize(.small)
                 }
                 .padding(Spacing.small)
                 .background(Palette.content, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))

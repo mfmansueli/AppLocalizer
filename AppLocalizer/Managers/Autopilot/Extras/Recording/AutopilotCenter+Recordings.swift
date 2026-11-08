@@ -47,6 +47,7 @@ extension AutopilotCenter {
             run.addRecording(recording)
             run.appendLog(Self.recordingLogLine(recording, screens: marks.count), kind: .event, at: now())
         }
+        await measureMotion(of: recording, file: upload.file.url, appID: appID)
         await advance(appID, context: context)
         return recording
     }

@@ -25,7 +25,8 @@ struct ScreenshotMatrixBuilder {
             guard let count = document.screens(on: display)?.count, count > 0 else { continue }
             matrix.ownSlotCounts[display] = count
         }
-        let engine = ScreenshotLayoutEngine(catalog: snapshot.fonts)
+        matrix.hasMac = document.displays.contains(.mac)
+        let engine = ScreenshotLayoutEngine(catalog: snapshot.fonts, ratings: snapshot.ratings, reviews: snapshot.reviews)
         for display in document.displays {
             for slot in 0..<document.slotCount(on: display) {
                 for code in localized {
@@ -58,22 +59,31 @@ struct ScreenshotMatrixBuilder {
             }
             return cell
         }
-        let capture = document.captures.capture(locale: key.locale, displayType: key.displayType, slot: key.slot, primary: document.scope.primary)
-        let companion = capture == nil ? nil : document.captures.companion(
-            locale: key.locale, displayType: key.displayType, slot: key.slot, primary: document.scope.primary
+        let primary = document.scope.primary
+        let capture = document.captures.capture(locale: key.locale, displayType: key.displayType, slot: key.slot, primary: primary)
+        let duoCompanion = capture == nil ? nil : document.captures.companion(
+            locale: key.locale, displayType: key.displayType, slot: key.slot, primary: primary
         )
         // Turned the way an iPhone Duo capture is, in the render key too.
         template.canvas = template.canvas.following(capture?.capture.pixelSize, on: key.displayType)
         let captionSlot = document.captionSlot(key.slot, on: key.displayType)
         let caption = captionSlot.flatMap { document.captions.caption(locale: key.locale, slot: $0) }
         let templateSlot = min(captionSlot ?? key.slot, max(0, template.slots.count - 1))
+        // Two phones: the slot before it's capture stands behind this one.
+        var companion = duoCompanion
+        if companion == nil, capture != nil,
+           let behind = template.behindSlot(key.slot, templateSlot: templateSlot, count: document.slotCount(on: key.displayType))
+        {
+            companion = document.captures.capture(locale: key.locale, displayType: key.displayType, slot: behind, primary: primary)?.capture
+        }
         let layout = engine.layout(
             template, slot: templateSlot, locale: locale, displayType: key.displayType, caption: caption,
-            captureSize: capture?.capture.pixelSize, companionSize: companion?.pixelSize
+            captureSize: capture?.capture.pixelSize, companionSize: duoCompanion?.pixelSize
         )
         let renderKey = RenderKey(
             templateHash: template.contentHash, locale: key.locale, displayType: key.displayType, slot: key.slot,
-            caption: caption, captureID: capture.map { [$0.capture.id, companion?.id].compactMap(\.self).joined(separator: "+") }
+            caption: caption, captureID: capture.map { [$0.capture.id, companion?.id].compactMap(\.self).joined(separator: "+") },
+            store: layout.storeSignature
         )
         cell.caption = caption
         cell.capture = capture

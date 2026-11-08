@@ -5,9 +5,9 @@
 
 import Foundation
 
-/// The Screenshots tab's device switch: iPhone's picks (iPad and Apple
-/// Vision Pro use the same moments), iPhone Duo's displays, and Apple
-/// Watch's own screens.
+/// The Screenshots tab's device switch: iPhone's picks (iPad, Mac and
+/// Apple Vision Pro use the same moments), iPhone Duo's displays, and
+/// Apple Watch's own screens.
 enum AutopilotPickDevice: String, CaseIterable, Hashable, Sendable {
     case phones
     case duo

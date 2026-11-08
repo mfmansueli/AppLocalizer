@@ -5,10 +5,10 @@
 
 import XCTest
 
-/// The plan's iPhone Duo row (board 30), on `StudioDebugDuoStates`'
-/// scenes: inner display, cover display or both, side by side or
-/// separate, each with its note; and the side-by-side screenshot full
-/// size.
+/// The plan's iPhone Duo row (board 30), under the guided plan's
+/// screens, on `StudioDebugDuoStates`' scenes: inner display, cover
+/// display or both, side by side or separate, each with its note; and the
+/// side-by-side screenshot full size.
 @MainActor
 final class IPhoneDuoRowUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -24,8 +24,15 @@ final class IPhoneDuoRowUITests: XCTestCase {
 
     func testEachChoiceSaysWhatItMakes() {
         app.launch(debugScene: "st-plan-duo-pair")
+        let next = element("autopilot.guided.next")
+        XCTAssertTrue(next.waitForExistence(timeout: 20))
+        next.click()
+        XCTAssertTrue(element("autopilot.guided.look.noteCard").waitForExistence(timeout: 5), "At Look")
+        next.click()
+        XCTAssertTrue(element("autopilot.guided.plan.screens.toggle").waitForExistence(timeout: 5), "At the plan")
+        tap("autopilot.guided.plan.screens.toggle")
         let note = element("autopilot.plan.duoNote")
-        XCTAssertTrue(note.waitForExistence(timeout: 20))
+        XCTAssertTrue(note.waitForExistence(timeout: 5), "The screens show the iPhone Duo row")
         reveal(note)
         XCTAssertTrue(text(of: note).hasPrefix("Each screenshot shows the Duo unfolded with the folded cover beside it: "), text(of: note))
         XCTAssertTrue(text(of: note).hasSuffix(" per language, both states in one image."), text(of: note))
@@ -60,12 +67,14 @@ final class IPhoneDuoRowUITests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// Scrolls the plan until `target` is inside what it shows.
+    /// Scrolls the guided sheet's step until `target` is inside what it
+    /// shows.
     private func reveal(_ target: XCUIElement) {
-        let plan = element("autopilot.plan")
+        let step = element("autopilot.guided.sheet").scrollViews.firstMatch
+        guard step.waitForExistence(timeout: 5), target.waitForExistence(timeout: 5) else { return }
         var tries = 0
-        while !(target.frame.minY >= plan.frame.minY && target.frame.maxY <= plan.frame.maxY), tries < 12 {
-            plan.scroll(byDeltaX: 0, deltaY: target.frame.minY < plan.frame.minY ? 200 : -200)
+        while !(target.frame.minY >= step.frame.minY && target.frame.maxY <= step.frame.maxY), tries < 12 {
+            step.scroll(byDeltaX: 0, deltaY: target.frame.minY < step.frame.minY ? 200 : -200)
             tries += 1
         }
     }

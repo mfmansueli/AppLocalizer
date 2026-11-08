@@ -5,8 +5,9 @@
 
 import XCTest
 
-/// Screenshot Autopilot checks this Mac's simulators before it starts, and
-/// installs a missing one. The DEBUG scenes' pretend Mac has iOS 26.5 and
+/// Screenshot Autopilot checks this Mac's simulators on the plan before it
+/// starts, and installs a missing one; on Making it, a device's card and
+/// the log (under Show details) say what happened to it. The DEBUG scenes' pretend Mac has iOS 26.5 and
 /// 27.0, so it can't run iPhone Duo (iOS 27.1 or later) until "iOS 27.2"
 /// is installed; nothing is downloaded.
 @MainActor
@@ -23,32 +24,27 @@ final class AutopilotSimulatorsUITests: XCTestCase {
     }
 
     /// The plan lists each device's simulator, says what iPhone Duo needs,
-    /// and installs it.
+    /// keeps Start off until it's there, and installs it.
     func testThePlanChecksThisMacAndInstallsWhatsMissing() {
         app.launch(debugScene: "st-plan")
-        let duo = element("autopilot.mac.iphone_duo")
+        goToThePlan()
+        let duo = element("autopilot.mac.iphone_duo.status")
         XCTAssertTrue(duo.waitForExistence(timeout: 15))
         XCTAssertTrue(text(of: duo).contains("Needs the iOS 27.1 simulator or later"), text(of: duo))
-        XCTAssertTrue(text(of: element("autopilot.mac.iphone")).contains("iPhone 17 Pro Max · iOS 27.0"), text(of: element("autopilot.mac.iphone")))
-        let footer = element("autopilot.footer.text")
-        XCTAssertTrue(text(of: footer).contains("can’t capture iPhone Duo yet"), text(of: footer))
+        let iPhone = element("autopilot.mac.iphone.status")
+        XCTAssertTrue(text(of: iPhone).contains("iPhone 17 Pro Max · iOS 27.0"), text(of: iPhone))
+        let footer = element("autopilot.guided.footer.text")
+        XCTAssertTrue(text(of: footer).hasPrefix("Start waits for iPhone Duo"), text(of: footer))
+        let start = element("autopilot.guided.start")
+        XCTAssertFalse(start.isEnabled, "Start waits for the simulator")
 
-        app.buttons["autopilot.mac.install"].click()
+        let install = app.buttons["autopilot.mac.install"]
+        reveal(install)
+        install.click()
         XCTAssertTrue(wait(until: { self.text(of: duo).contains("iPhone Duo · iOS 27.2") }, timeout: 15), text(of: duo))
         XCTAssertFalse(app.buttons["autopilot.mac.install"].exists)
-        XCTAssertFalse(text(of: footer).contains("can’t capture"), text(of: footer))
-    }
-
-    /// Starting without the simulator puts one problem on the device
-    /// before the assistant tries it.
-    func testStartingWithoutASimulatorReportsTheDeviceOnce() {
-        app.launch(debugScene: "st-plan")
-        XCTAssertTrue(element("autopilot.mac.iphone_duo").waitForExistence(timeout: 15))
-        app.buttons["autopilot.start"].click()
-        // While it runs, the row's spinner makes it a progress indicator.
-        let capture = element("autopilot.stage.capture")
-        XCTAssertTrue(capture.waitForExistence(timeout: 5))
-        XCTAssertTrue(wait(until: { capture.label.contains("Capture, 1 problem needs you") }, timeout: 5), capture.label)
+        XCTAssertFalse(text(of: footer).contains("Start waits"), text(of: footer))
+        XCTAssertTrue(wait(until: { start.isEnabled }, timeout: 5), "Start is on once it's installed")
     }
 
     /// The device's card installs the simulator, and the run tries the
@@ -76,8 +72,7 @@ final class AutopilotSimulatorsUITests: XCTestCase {
     /// without a Retry: the card goes, and the log says so.
     func testAClosedIPhoneDuoIsOpenedByAppLocalizer() {
         app.launch(debugScene: "st-duo-closed")
-        let log = element("autopilot.log")
-        XCTAssertTrue(log.waitForExistence(timeout: 15))
+        let log = showDetails()
         XCTAssertTrue(wait(until: {
             self.text(of: log).contains("iPhone Duo was closed: AppLocalizer opened it in Device Hub")
         }, timeout: 15), text(of: log))
@@ -103,7 +98,7 @@ final class AutopilotSimulatorsUITests: XCTestCase {
         XCTAssertFalse(element("autopilot.problem.fix").exists)
         XCTAssertTrue(app.buttons["autopilot.problem.leaveOut"].exists)
 
-        let log = element("autopilot.log")
+        let log = showDetails()
         XCTAssertTrue(wait(until: {
             self.text(of: log).contains("AppLocalizer needs Accessibility to open iPhone Duo: macOS asked for it")
         }, timeout: 5), text(of: log))
@@ -121,7 +116,7 @@ final class AutopilotSimulatorsUITests: XCTestCase {
         let problem = element("autopilot.problem")
         XCTAssertTrue(problem.waitForExistence(timeout: 15))
         XCTAssertTrue(problem.waitForNonExistence(timeout: 15))
-        let log = element("autopilot.log")
+        let log = showDetails()
         XCTAssertTrue(wait(until: { self.text(of: log).contains("iPhone Duo is open: its screens are captured next") }, timeout: 5), text(of: log))
         XCTAssertFalse(text(of: log).contains("AppLocalizer opened it"), text(of: log))
     }
@@ -131,8 +126,7 @@ final class AutopilotSimulatorsUITests: XCTestCase {
     /// opened.
     func testAStuckIPhoneDuoIsRestartedAndOpened() {
         app.launch(debugScene: "st-duo-stuck")
-        let log = element("autopilot.log")
-        XCTAssertTrue(log.waitForExistence(timeout: 15))
+        let log = showDetails()
         XCTAssertTrue(wait(until: {
             self.text(of: log).contains("iPhone Duo was stuck, its SpringBoard crashed: AppLocalizer restarted it")
         }, timeout: 15), text(of: log))
@@ -167,17 +161,18 @@ final class AutopilotSimulatorsUITests: XCTestCase {
     /// run needs it; Open Now opens it before Start.
     func testThePlanSaysAppLocalizerOpensIPhoneDuo() {
         app.launch(debugScene: "st-plan-duo")
-        let duo = element("autopilot.mac.iphone_duo")
+        goToThePlan()
+        let duo = element("autopilot.mac.iphone_duo.status")
         XCTAssertTrue(duo.waitForExistence(timeout: 15))
-        XCTAssertTrue(wait(until: { self.text(of: duo).contains("Closed: AppLocalizer opens it when the run needs it.") }, timeout: 10), text(of: duo))
+        XCTAssertTrue(wait(until: { self.text(of: duo).contains("closed: AppLocalizer opens it when the run needs it") }, timeout: 10), text(of: duo))
         XCTAssertTrue(text(of: duo).contains("iPhone Duo · iOS 27.2"), text(of: duo))
         XCTAssertFalse(app.buttons["autopilot.mac.deviceHub"].exists)
         let openNow = app.buttons["autopilot.mac.openDuo"]
         XCTAssertTrue(openNow.exists)
         // The row sits under the sheet's footer until the plan scrolls.
-        element("autopilot.plan").scroll(byDeltaX: 0, deltaY: -600)
+        reveal(openNow)
         openNow.click()
-        XCTAssertTrue(wait(until: { self.text(of: duo).contains("Open: ready to capture.") }, timeout: 10), text(of: duo))
+        XCTAssertTrue(wait(until: { self.text(of: duo).contains("iOS 27.2 · open") }, timeout: 10), text(of: duo))
         XCTAssertFalse(openNow.exists)
     }
 
@@ -185,22 +180,100 @@ final class AutopilotSimulatorsUITests: XCTestCase {
     /// open iPhone Duo, with a way to System Settings.
     func testThePlanSaysWhenAppLocalizerNeedsAccessibility() {
         app.launch(debugScene: "st-plan-duo-access")
-        let duo = element("autopilot.mac.iphone_duo")
+        goToThePlan()
+        let duo = element("autopilot.mac.iphone_duo.status")
         XCTAssertTrue(duo.waitForExistence(timeout: 15))
         XCTAssertTrue(wait(until: {
-            self.text(of: duo).contains("Closed: allow AppLocalizer in Privacy & Security › Accessibility")
+            self.text(of: duo).contains("Closed. Allow AppLocalizer in Privacy & Security › Accessibility")
         }, timeout: 10), text(of: duo))
         XCTAssertTrue(app.buttons["autopilot.mac.accessibility"].exists)
         XCTAssertFalse(app.buttons["autopilot.mac.openDuo"].exists)
     }
 
     /// Leaving iPhone Duo out closes its card.
+    /// Bruma's run: no Mac screen could be captured because the UI tests
+    /// didn't build for macOS. The card said to retry "once this Mac can run
+    /// the Mac simulator"; it's a change to the project, and says so.
+    func testAMacThatNeedsAProjectChangeSaysSo() {
+        app.launch(debugScene: "st-mac-project")
+        let problem = element("autopilot.problem")
+        XCTAssertTrue(problem.waitForExistence(timeout: 15))
+        let label = "What to change in the project:"
+        XCTAssertTrue(problem.staticTexts.matching(NSPredicate(format: "value == %@ OR label == %@", label, label)).firstMatch.exists)
+        let note = element("autopilot.problem.note")
+        XCTAssertTrue(note.exists)
+        let text = (note.value as? String) ?? note.label
+        XCTAssertTrue(text.hasPrefix("This is a change to the project"), text)
+        XCTAssertFalse(text.contains("simulator"), text)
+        XCTAssertTrue(app.buttons["autopilot.problem.leaveOut"].exists)
+        XCTAssertFalse(app.buttons["autopilot.problem.helper"].exists)
+        XCTAssertFalse(app.buttons["autopilot.problem.install"].exists)
+    }
+
+    /// Bruma's run, only its Mac left to decide, said "about 52 min left"
+    /// and "the rest keeps going" with nothing going on.
+    func testOnlyTheMacLeftWaitsOnThePerson() {
+        app.launch(debugScene: "st-mac-alone")
+        XCTAssertTrue(element("autopilot.problem").waitForExistence(timeout: 15))
+        let line = element("autopilot.guided.making.line")
+        XCTAssertTrue(line.exists)
+        let lineText = (line.value as? String) ?? line.label
+        XCTAssertTrue(lineText.hasSuffix("wait on you"), lineText)
+        XCTAssertFalse(lineText.contains("min left"), lineText)
+        let footer = element("autopilot.guided.footer.text")
+        let footerText = (footer.value as? String) ?? footer.label
+        XCTAssertTrue(footerText.hasPrefix("Everything else is in."), footerText)
+    }
+
     func testLeavingTheDeviceOutClosesItsCard() {
         app.launch(debugScene: "st-device")
         let problem = element("autopilot.problem")
         XCTAssertTrue(problem.waitForExistence(timeout: 15))
         app.buttons["autopilot.problem.leaveOut"].click()
         XCTAssertTrue(problem.waitForNonExistence(timeout: 5))
+    }
+
+    /// The sheet opens a planned run at What to make: on to the plan.
+    private func goToThePlan() {
+        let next = element("autopilot.guided.next")
+        XCTAssertTrue(next.waitForExistence(timeout: 15))
+        next.click()
+        XCTAssertTrue(element("autopilot.guided.back").waitForExistence(timeout: 5), "At Look")
+        element("autopilot.guided.next").click()
+        XCTAssertTrue(element("autopilot.guided.plan.timeline").waitForExistence(timeout: 5), "At the plan")
+    }
+
+    /// Making it keeps the log under Show details: shows it. The link moves
+    /// up when a card above it goes (the Duo opened), so a click that lands
+    /// where it was is tried again.
+    private func showDetails() -> XCUIElement {
+        let details = element("autopilot.guided.making.details")
+        XCTAssertTrue(details.waitForExistence(timeout: 15))
+        let log = element("autopilot.log")
+        var tries = 0
+        while !log.waitForExistence(timeout: tries == 0 ? 0.5 : 3), tries < 3 {
+            // Below the problem cards, under the footer until scrolled to.
+            reveal(details)
+            details.click()
+            tries += 1
+        }
+        XCTAssertTrue(log.exists, "The log is shown")
+        return log
+    }
+
+    /// Scrolls the step until `target` is above the footer: the content
+    /// scrolls under it, so a click on what's below would hit the footer.
+    private func reveal(_ target: XCUIElement) {
+        let scroll = element("autopilot.guided.sheet").scrollViews.firstMatch
+        guard scroll.exists else { return }
+        let footer = element("autopilot.guided.footer.text")
+        var tries = 0
+        while tries < 12 {
+            let bottom = min(scroll.frame.maxY, footer.exists ? footer.frame.minY - 12 : scroll.frame.maxY)
+            if target.frame.minY >= scroll.frame.minY, target.frame.maxY <= bottom { return }
+            scroll.scroll(byDeltaX: 0, deltaY: target.frame.minY < scroll.frame.minY ? 200 : -200)
+            tries += 1
+        }
     }
 
     private func wait(until condition: @escaping () -> Bool, timeout: TimeInterval) -> Bool {

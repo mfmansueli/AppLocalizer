@@ -61,7 +61,7 @@ struct ScreenshotReadToolsTests {
     }
 
     @Test func aBadDisplayTypeOrLocaleIsAnInvalidArgument() async {
-        await #expect(throws: MCPToolError.invalidArgument(name: "displayType", expected: "“iphone”, “iphone_duo” or “ipad”")) {
+        await #expect(throws: MCPToolError.invalidArgument(name: "displayType", expected: "“iphone”, “iphone_duo”, “ipad” or “mac”")) {
             try await call(ListCapturesTool(), ["displayType": "watch"])
         }
         await #expect(throws: MCPToolError.self) { try await call(ListCapturesTool(), ["locale": "xx-YY"]) }

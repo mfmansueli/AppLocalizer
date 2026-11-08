@@ -20,6 +20,10 @@ import SwiftUI
 ///   same screen in two languages on iPhone and iPad (one card).
 /// - `st-device`: capturing, with no iPhone Duo simulator on this Mac (one
 ///   card for the device, which installs it).
+/// - `st-mac-project`: capturing, with no Mac screen capturable until the
+///   project's UI tests build for macOS (one card, a change to the project);
+///   `st-mac-alone`: the same with every other device captured, so only the
+///   Mac waits, on the person.
 /// - `st-duo-closed`: capturing, with iPhone Duo's simulator made, running
 ///   and closed: AppLocalizer opens it and the run tries it again;
 ///   `st-duo-access`: AppLocalizer isn't allowed in Accessibility yet (the
@@ -53,6 +57,7 @@ import SwiftUI
 enum StudioDebugScenes {
     static let ids: [String] = [
         "st-home", "st-live-ar", "st-noasst", "st-design", "st-plan", "st-wait", "st-cap", "st-fail", "st-refused", "st-group", "st-device",
+        "st-mac-project", "st-mac-alone",
         "st-duo-closed", "st-duo-access", "st-duo-opens", "st-duo-stuck", "st-duo-old", "st-plan-duo", "st-plan-duo-access",
         "st-stalled", "st-cap-page",
         "st-pick", "st-pick-page", "st-des", "st-des-paused", "st-choose", "st-choose-rev", "st-nodesign", "st-loc", "st-loc-captions", "st-ready-sheet",
@@ -77,7 +82,7 @@ enum StudioDebugScenes {
             return scene(run: run, project: StudioDebugRuns.northpier, sheet: true)
         }
         if id == StudioDebugGuided.homeID {
-            return scene(front: .guided)
+            return scene()
         }
         if let extras = StudioDebugExtras.scene(for: id) ?? StudioDebugRunChoice.scene(for: id) ?? StudioDebugAddScreens.scene(for: id)
             ?? StudioDebugPreviewReview.scene(for: id) ?? StudioDebugDuoStates.scene(for: id) ?? StudioDebugPick.scene(for: id)
@@ -87,7 +92,7 @@ enum StudioDebugScenes {
             let saved = extras.savesExtras ? StudioDebugExtras.extras(for: extras.run) : nil
             let change = extras.documentChange
             return scene(
-                run: extras.run, sheet: extras.sheet, everyDevice: extras.everyDevice, front: extras.front, setUp: extras.setUp
+                run: extras.run, sheet: extras.sheet, everyDevice: extras.everyDevice, setUp: extras.setUp
             ) { document in
                 if let saved { document.extras = saved }
                 change?(&document)
@@ -162,6 +167,8 @@ enum StudioDebugScenes {
         let runs: [String: () -> AutopilotRun] = [
             "st-fail": { StudioDebugRuns.failing }, "st-refused": { StudioDebugRuns.refused },
             "st-group": { StudioDebugRuns.grouped }, "st-device": { StudioDebugRuns.noDuoSimulator },
+            "st-mac-project": { StudioDebugRuns.macProjectChange },
+            "st-mac-alone": { StudioDebugRuns.macProjectChangeAlone },
             "st-stalled": { StudioDebugRuns.stalled }, "st-des-paused": { StudioDebugRuns.designPaused },
             "st-loc-captions": { StudioDebugRuns.writingCaptions }, "st-choose-rev": { StudioDebugRuns.revised },
             "st-nodesign": { StudioDebugRuns.run(.choose, design: false) },
@@ -218,7 +225,6 @@ enum StudioDebugScenes {
         assistants: AssistantsDebugState = .paired,
         everyDevice: Bool = false,
         buildHasWatchApp: Bool = false,
-        front: AutopilotFront = .classic,
         setUp: (@MainActor (ScreenshotsViewModel) -> Void)? = nil,
         documentChange: (@Sendable (inout ScreenshotsDocument) -> Void)? = nil
     ) -> AnyView {
@@ -228,8 +234,6 @@ enum StudioDebugScenes {
         if let project { center.setDesignProject(project, for: StudioDebugRuns.appID) }
         if let run { center.install(run) }
         let screenshots = DebugScreenshotsServices(scenario: everyDevice ? .everyDevice : .standard, opening: ScreenshotsDebugOpening { model in
-            // The st-* scenes are the classic sheet's; the v2-* ones say guided.
-            model.studio.frontOverride = front
             setUp?(model)
             model.studio.isAutopilotPresented = sheet
         })

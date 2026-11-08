@@ -32,7 +32,9 @@ struct ProposeCaptionsAutopilotTests {
 
         #expect(outcome.result["status"] == "saved")
         #expect(outcome.result["saved"] == 1)
-        #expect(outcome.result["stillNotFitting"]?.intValue != nil)
+        #expect(outcome.result["captionsNotFitting"]?.intValue != nil)
+        #expect(outcome.result["artworkTextsToWrite"]?.intValue != nil)
+        #expect(outcome.result["next"]?.stringValue?.contains("Call next_step") == true)
         #expect(outcome.logLines == [.init(target: "Lumen Journal · de-DE · slot 3", outcome: .proposed)])
         let document = try await fixtures.services.document(for: AutopilotTestFixtures.app, primaryLocale: .englishUS)
         let saved = document.captions.caption(locale: "de-DE", slot: 2)
@@ -40,6 +42,24 @@ struct ProposeCaptionsAutopilotTests {
         #expect(saved?.subhead == "In Sekunden")
         #expect(document.proposals == ScreenshotsDebugDocuments.standard.proposals, "Nothing is queued")
         #expect(fixtures.run?.shortenings.map(\.after) == ["Einträge aus Jahren finden"])
+    }
+
+    /// Bruma's run: 22 phrases still to translate read as 22 captions that
+    /// didn't fit.
+    @Test func whatsLeftIsSaidApart() {
+        var run = localizing
+        run.artworkTextNeeds = (0..<22).map { AutopilotArtworkTextNeed(locale: "de-DE", role: .header, problem: .missing, headline: "\($0)") }
+        let left = ProposeCaptionsTool.savedResult(saved: 99, run: run)
+        #expect(left["captionsNotFitting"] == 1)
+        #expect(left["artworkTextsToWrite"] == 22)
+        #expect(left["next"] == "Call next_step: it lists what’s still to write.")
+
+        run.overflows = []
+        run.artworkTextNeeds = nil
+        let done = ProposeCaptionsTool.savedResult(saved: 3, run: run)
+        #expect(done["captionsNotFitting"] == 0)
+        #expect(done["artworkTextsToWrite"] == 0)
+        #expect(done["next"]?.stringValue?.hasPrefix("Every caption and artwork text fits.") == true)
     }
 
     @Test(arguments: [

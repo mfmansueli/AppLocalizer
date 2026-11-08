@@ -22,46 +22,49 @@ final class ScreenshotStudioDevicesUITests: XCTestCase {
         app.terminate()
     }
 
-    // MARK: - Plan
+    // MARK: - What to make
 
-    func testThePlanListsEveryDeviceTheAppRunsOn() {
+    func testWhatToMakeListsEveryDeviceTheAppRunsOn() {
         launch(scene: "st-plan-all")
-        let found = element("autopilot.plan.found")
-        XCTAssertTrue(found.waitForExistence(timeout: 15))
-        XCTAssertTrue(text(of: found).hasPrefix("Found in Lumen"))
+        let watch = element("autopilot.guided.make.device.watch")
+        XCTAssertTrue(watch.waitForExistence(timeout: 15))
         for device in ["iphone", "iPad", "watch", "vision"] {
-            XCTAssertTrue(element("autopilot.plan.\(device)").exists, device)
+            XCTAssertTrue(element("autopilot.guided.make.device.\(device)").exists, device)
         }
-        let scope = element("autopilot.scope")
-        XCTAssertTrue(text(of: scope).contains("Apple Watch"))
-        XCTAssertTrue(text(of: scope).contains("Apple Vision Pro"))
+        let vision = element("autopilot.guided.make.device.vision")
+        XCTAssertTrue(watch.isSelected)
+        XCTAssertTrue(vision.isSelected)
+        let footer = element("autopilot.guided.footer.text")
+        let before = text(of: footer)
 
-        element("autopilot.plan.watch").click()
-        XCTAssertTrue(waitUntil { !self.text(of: scope).contains("Apple Watch") })
-        XCTAssertTrue(text(of: scope).contains("Apple Vision Pro"))
+        watch.click()
+        XCTAssertTrue(waitUntil { !watch.isSelected })
+        XCTAssertTrue(vision.isSelected)
+        XCTAssertTrue(waitUntil { self.text(of: footer) != before }, "Fewer screenshots without the watch: \(text(of: footer))")
     }
 
-    func testTheNewLanguagesCanBeLeftOutOfThePlan() throws {
+    func testTheNewLanguagesCanBeLeftOut() throws {
         launch(scene: "st-plan-all")
-        let newLanguages = element("autopilot.plan.newLanguages")
+        let newLanguages = element("autopilot.guided.make.newLanguages")
         XCTAssertTrue(newLanguages.waitForExistence(timeout: 15))
-        let scope = element("autopilot.scope")
-        let before = try XCTUnwrap(languageCount(in: text(of: scope)))
+        XCTAssertTrue(newLanguages.label.contains("Polish"), newLanguages.label)
+        XCTAssertTrue(newLanguages.label.contains("Hebrew"), newLanguages.label)
+        let footer = element("autopilot.guided.footer.text")
+        let before = try XCTUnwrap(languageCount(in: text(of: footer)), text(of: footer))
         newLanguages.click()
-        XCTAssertTrue(waitUntil { self.languageCount(in: self.text(of: scope)) == before - 3 }, "Polish, Turkish and Hebrew")
+        XCTAssertTrue(waitUntil { self.languageCount(in: self.text(of: footer)) == before - 3 }, "Polish, Turkish and Hebrew")
     }
 
     func testAWatchAppOnAppStoreConnectAddsAppleWatch() {
         launch(scene: "st-asc-watch")
         XCTAssertTrue(element("studio.device.APP_WATCH_ULTRA").waitForExistence(timeout: 15))
         app.buttons["studio.autopilot.run"].click()
-        let watch = element("autopilot.plan.watch")
+        let watch = element("autopilot.guided.make.device.watch")
         XCTAssertTrue(watch.waitForExistence(timeout: 5))
-        XCTAssertTrue(watch.label.contains("required: the 1.4 build has an Apple Watch app"))
-        XCTAssertTrue(text(of: element("autopilot.plan.found")).hasSuffix("on App Store Connect: its build has an Apple Watch app."))
+        XCTAssertTrue(watch.isSelected, "The build's watch app puts Apple Watch in the run")
     }
 
-    // MARK: - Pick, choose, localize
+    // MARK: - Pick and choose
 
     func testWatchPicksApplyToEveryLanguage() {
         launch(scene: "st-pick-all")
@@ -75,23 +78,9 @@ final class ScreenshotStudioDevicesUITests: XCTestCase {
         launch(scene: "st-choose-all")
         let thumbnails = app.descendants(matching: .any).matching(identifier: "autopilot.direction.thumbnails").firstMatch
         XCTAssertTrue(thumbnails.waitForExistence(timeout: 15))
-        XCTAssertTrue(thumbnails.label.contains("an Apple Vision Pro screenshot"))
-        XCTAssertTrue(thumbnails.label.contains("an Apple Watch capture"))
-        XCTAssertTrue(app.buttons.matching(identifier: "autopilot.direction.use").firstMatch.exists)
-    }
-
-    func testTheNewLanguagesAreLocalizedWithTheRest() {
-        launch(scene: "st-loc-all")
-        let polish = element("autopilot.localize.pl")
-        XCTAssertTrue(polish.waitForExistence(timeout: 15))
-        XCTAssertTrue(text(of: polish).hasPrefix("Polish · new"))
-        XCTAssertTrue(text(of: element("autopilot.localize.he")).hasPrefix("Hebrew · new"))
-    }
-
-    func testTheReadyStageNotesTheNewLanguages() {
-        launch(scene: "st-ready-sheet-all")
-        XCTAssertTrue(element("autopilot.ready").waitForExistence(timeout: 15))
-        XCTAssertTrue(element("autopilot.ready.newLanguages").exists)
+        XCTAssertTrue(thumbnails.label.contains("an Apple Vision Pro screenshot"), thumbnails.label)
+        XCTAssertTrue(thumbnails.label.contains("an Apple Watch capture"), thumbnails.label)
+        XCTAssertTrue(app.buttons.matching(identifier: "autopilot.guided.choose.look.use").firstMatch.exists)
     }
 
     // MARK: - Preview
@@ -131,7 +120,7 @@ final class ScreenshotStudioDevicesUITests: XCTestCase {
         return condition()
     }
 
-    /// 13 in "Lumen Journal 1.4 · iPhone, iPad… · 13 languages · …".
+    /// 15 in "You’ll get 135 screenshots in 15 languages."
     private func languageCount(in scope: String) -> Int? {
         guard let match = scope.firstMatch(of: /(\d+) languages/) else { return nil }
         return Int(match.1)

@@ -23,6 +23,10 @@ enum AppPreviewSynth {
         case .warmAcoustic: warmAcoustic(into: &mix)
         case .calmPiano: calmPiano(into: &mix)
         case .brightPop: brightPop(into: &mix)
+        case .softAmbient: softAmbient(into: &mix)
+        case .lofiBeat: lofiBeat(into: &mix)
+        case .cinematicBuild: cinematicBuild(into: &mix)
+        case .playfulMarimba: playfulMarimba(into: &mix)
         case .ownFile: return []
         }
         return mix.finished()
@@ -55,6 +59,7 @@ enum AppPreviewSynth {
             bar += 1
         }
         mix.echo(left: 0.19, right: 0.27, feedback: 0.28, wet: 0.22)
+        mix.room(seconds: 1.2, wet: 0.14)
     }
 
     /// C – Am – F – G at 70 bpm: block chords on a soft piano, a few high
@@ -84,6 +89,7 @@ enum AppPreviewSynth {
             bar += 1
         }
         mix.echo(left: 0.23, right: 0.31, feedback: 0.35, wet: 0.3)
+        mix.room(seconds: 2, wet: 0.2)
     }
 
     /// D – A – Bm – G at 118 bpm: a sixteenth-note synth arpeggio, eighth
@@ -118,6 +124,7 @@ enum AppPreviewSynth {
             bar += 1
         }
         mix.echo(left: 0.127, right: 0.19, feedback: 0.2, wet: 0.14)
+        mix.room(seconds: 0.9, wet: 0.1)
     }
 
     // MARK: - The mix
@@ -125,12 +132,17 @@ enum AppPreviewSynth {
     /// Two channels being written, note by note.
     /// A tone's sound: a few harmonics (`harmonics[i]` is the (i + 1)th's
     /// level) and an exponential decay of `decay` seconds.
-    private struct Timbre {
+    struct Timbre {
         var harmonics: [Float]
         var decay: Double
+        /// Seconds to full level, and to silence at the end of the note.
+        var attack = 0.006
+        var release = 0.04
+        /// Off pitch by this many cents: two a little apart sound wide.
+        var detune = 0.0
     }
 
-    private struct Mix {
+    struct Mix {
         var left: [Float]
         var right: [Float]
         private var random = Noise(seed: 0x9E37_79B9)
@@ -188,10 +200,10 @@ enum AppPreviewSynth {
             let first = Int(start * AppPreviewSynth.sampleRate)
             guard first < frames else { return }
             let count = min(Int(length * AppPreviewSynth.sampleRate), frames - first)
-            let base = Self.frequency(midi: midi)
+            let base = Self.frequency(midi: midi) * pow(2, timbre.detune / 1200)
             let (gainL, gainR) = Self.gains(pan: pan)
-            let attack = max(1, Int(0.006 * AppPreviewSynth.sampleRate))
-            let release = min(count, Int(0.04 * AppPreviewSynth.sampleRate))
+            let attack = max(1, Int(timbre.attack * AppPreviewSynth.sampleRate))
+            let release = min(count, Int(timbre.release * AppPreviewSynth.sampleRate))
             let fall = Float(exp(-1 / (decay * AppPreviewSynth.sampleRate)))
             for (index, level) in harmonics.enumerated() where level > 0 {
                 let omega = 2 * Double.pi * base * Double(index + 1) / AppPreviewSynth.sampleRate
@@ -251,6 +263,20 @@ enum AppPreviewSynth {
             }
         }
 
+        /// A snare: a burst of noise over a short 190 Hz thump.
+        mutating func snare(at start: Double, amplitude: Float) {
+            let first = Int(start * AppPreviewSynth.sampleRate)
+            guard first < frames else { return }
+            let count = min(Int(0.16 * AppPreviewSynth.sampleRate), frames - first)
+            for offset in 0..<count {
+                let time = Double(offset) / AppPreviewSynth.sampleRate
+                let body = Float(sin(2 * .pi * 190 * time) * exp(-time * 40)) * 0.6
+                let value = (random.next() * Float(exp(-time * 24)) + body) * amplitude
+                left[first + offset] += value
+                right[first + offset] += value
+            }
+        }
+
         /// A ping-pong echo for a little room: each side hears the other a
         /// moment later.
         mutating func echo(left delayLeft: Double, right delayRight: Double, feedback: Float, wet: Float) {
@@ -267,6 +293,36 @@ enum AppPreviewSynth {
                 left[index] += echoL[index] * wet / max(feedback, 0.01)
                 right[index] += echoR[index] * wet / max(feedback, 0.01)
             }
+        }
+
+        /// A room around the sound (four comb filters and two all-passes a
+        /// side, the sides a little apart): `seconds` is how long it rings.
+        mutating func room(seconds: Double, wet: Float) {
+            let wetLeft = Self.reverberated(left, spread: 0, seconds: seconds)
+            let wetRight = Self.reverberated(right, spread: 23, seconds: seconds)
+            for index in 0..<frames {
+                left[index] += wetLeft[index] * wet
+                right[index] += wetRight[index] * wet
+            }
+        }
+
+        private static func reverberated(_ dry: [Float], spread: Int, seconds: Double) -> [Float] {
+            var out = [Float](repeating: 0, count: dry.count)
+            for delay in [1557, 1617, 1491, 1422].map({ $0 + spread }) {
+                let feedback = Float(pow(10, -3 * Double(delay) / AppPreviewSynth.sampleRate / max(seconds, 0.05)))
+                var line = dry
+                for index in delay..<max(delay, dry.count) { line[index] += line[index - delay] * feedback }
+                for index in dry.indices { out[index] += (line[index] - dry[index]) * 0.25 }
+            }
+            for delay in [225, 556].map({ $0 + spread }) {
+                let input = out
+                for index in dry.indices {
+                    let earlierIn = index >= delay ? input[index - delay] : 0
+                    let earlierOut = index >= delay ? out[index - delay] : 0
+                    out[index] = -0.5 * input[index] + earlierIn + 0.5 * earlierOut
+                }
+            }
+            return out
         }
 
         /// Interleaved, peaking at 0.95.

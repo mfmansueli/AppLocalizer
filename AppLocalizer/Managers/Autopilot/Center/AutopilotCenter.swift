@@ -14,10 +14,19 @@ import Observation
 @Observable
 final class AutopilotCenter {
     static let shared: AutopilotCenter = {
-        let center = AutopilotCenter(persistence: FileAutopilotPersistence())
+        let center = AutopilotCenter(persistence: sharedPersistence)
         center.promptLog = .shared
         return center
     }()
+
+    /// `Autopilot.json`; nothing in the unit tests' host, which would write
+    /// its own copy over the open app's (`UnitTestHost`).
+    private static var sharedPersistence: (any AutopilotPersistence)? {
+        #if DEBUG
+        if UnitTestHost.isRunning { return nil }
+        #endif
+        return FileAutopilotPersistence()
+    }
 
     /// Each app's current run, or its last one.
     private(set) var runs: [StoreApp.ID: AutopilotRun]
@@ -32,6 +41,11 @@ final class AutopilotCenter {
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored var now: () -> Date = { .now }
     @ObservationIgnored var makeID: () -> String = { UUID().uuidString.lowercased() }
+    /// How much a stretch of a recording moves.
+    @ObservationIgnored var readMotion: @Sendable (URL, Double, Double) async -> AutopilotMomentMotion? = { file, start, end in
+        await AppPreviewMotionReader.motion(of: file, from: start, to: end)
+    }
+
     /// DEBUG scenes hold a run where it is: nothing moves on by itself.
     @ObservationIgnored var holdsStages = false
     /// What each app's run is making on this Mac (the artwork, loops and
@@ -40,6 +54,9 @@ final class AutopilotCenter {
     /// How many uses of a direction or checks of every language are going
     /// for each app: a resume waits until none is (`resumeInterruptedWork`).
     @ObservationIgnored var localizing: [StoreApp.ID: Int] = [:]
+    /// The extras each app's run makes after an MCP call let every text
+    /// fit, while that call has answered (`finishInBackground`).
+    @ObservationIgnored var finishing: [StoreApp.ID: Task<Void, Never>] = [:]
     /// Where the header and search prompts, answers and renders are
     /// logged; nil logs nothing (tests, DEBUG scenes).
     @ObservationIgnored var promptLog: ArtworkPromptLog?
@@ -165,11 +182,13 @@ final class AutopilotCenter {
     }
 
     /// Start Autopilot: waits for the assistant to pick the plan up.
-    func start(appID: StoreApp.ID) {
+    /// `interfaceGaps`: the devices captured in only some languages so far.
+    func start(appID: StoreApp.ID, interfaceGaps: [AutopilotInterfaceGap] = []) {
         guard var run = runs[appID], run.stage == .plan else { return }
         replaced[appID] = nil
+        run.interfaceGaps = interfaceGaps.isEmpty ? nil : interfaceGaps
         let project = designProjects[appID]
-        run.designKind = project?.kind ?? .none
+        run.designKind = run.plan.designKind(for: project)
         run.designName = project?.displayName
         applyCaptureChoice(to: &run)
         // A design AI makes the header and search as concepts of their own.

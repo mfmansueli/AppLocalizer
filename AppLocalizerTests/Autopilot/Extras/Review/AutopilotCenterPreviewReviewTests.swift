@@ -252,7 +252,7 @@ struct AutopilotCenterPreviewReviewTests {
         var remake = AutopilotPreviewRemake(reason: .music("Calm piano"), done: 1, total: 2)
         #expect(remake.title == "Mixing again with Calm piano · 1 of 2")
         remake = AutopilotPreviewRemake(reason: .revision(2), total: 1)
-        #expect(remake.title == "Making App Preview v2")
+        #expect(remake.title == "Making the revised App Preview")
         var plan = lumen(.plan).plan
         plan.alsoMakes.previewLanguages = .all
         plan.runChoice.previewDisplays = [.iPhone, .iPad]

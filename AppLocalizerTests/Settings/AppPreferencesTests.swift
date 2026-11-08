@@ -52,17 +52,13 @@ struct AppPreferencesTests {
         #expect(!relaunched.confirmsDiscarding)
     }
 
-    @Test func theGuidedAutopilotIsTheDefault() {
-        #expect(AppPreferences(defaults: nil).autopilotFront == .guided)
+    /// The Guided/Classic choice is retired: a Mac that chose Classic
+    /// forgets it, and the guided Autopilot is the only one.
+    @Test func theRetiredAutopilotChoiceIsForgotten() {
         let defaults = defaults()
-        defaults.set("someday", forKey: "autopilotFront")
-        #expect(AppPreferences(defaults: defaults).autopilotFront == .guided, "An unknown front falls back to guided")
-    }
-
-    @Test func theClassicAutopilotSurvivesARelaunch() {
-        let defaults = defaults()
-        AppPreferences(defaults: defaults).autopilotFront = .classic
-        #expect(AppPreferences(defaults: defaults).autopilotFront == .classic)
+        defaults.set("classic", forKey: "autopilotFront")
+        _ = AppPreferences(defaults: defaults)
+        #expect(defaults.string(forKey: "autopilotFront") == nil)
     }
 
     @Test func unreadablePricingDefaultsFallBackToRecommended() {

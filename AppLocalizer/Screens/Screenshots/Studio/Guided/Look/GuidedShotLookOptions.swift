@@ -93,11 +93,18 @@ struct GuidedShotLookOptions: View {
 
     @ViewBuilder
     private var templateThumbnails: some View {
-        let picks = studio.shotTemplatePicks
-        let starters = picks.isEmpty ? [TemplateStarter.boldStack, .cinema, .editorial] : picks
-        ForEach(starters, id: \.self) { starter in
-            StudioShotImage(image: studio.screenshots.starterImages(starter).first ?? nil, width: 50, aspect: GuidedTemplateFocus.aspect)
+        let slots = Self.cardSlots(picks: studio.shotTemplatePicks)
+        ForEach(Array(slots.enumerated()), id: \.offset) { _, item in
+            let images = studio.screenshots.starterImages(item.starter)
+            StudioShotImage(image: images.indices.contains(item.slot) ? images[item.slot] : nil, width: 50, aspect: GuidedTemplateFocus.aspect)
         }
+    }
+
+    /// What the templates card shows: the first pick's first three
+    /// screens (board 21), three templates before any is picked.
+    static func cardSlots(picks: [TemplateStarter]) -> [(starter: TemplateStarter, slot: Int)] {
+        guard let first = picks.first else { return [TemplateStarter.boldStack, .cinema, .editorial].map { ($0, 0) } }
+        return (0..<3).map { (first, $0) }
     }
 
     @ViewBuilder

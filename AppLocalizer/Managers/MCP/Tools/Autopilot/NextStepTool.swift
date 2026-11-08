@@ -19,8 +19,8 @@ struct NextStepTool: MCPTool {
         with revise_artwork_concept), revise_direction or revise (the person's note; revise_artwork_concept \
         for concepts), animate_header and revise_loop (the chosen header's loop, with revise_artwork_concept), \
         write_captions (missing or too long, then propose_captions with run), revise_app_preview (the \
-        person's note on the App Preview, then revise_app_preview), or done. Call it after each step until it \
-        says done.
+        person's note on the App Preview, then revise_app_preview), answer_app_questions (what AppLocalizer wants to \
+        know about the app, then answer_app_questions), or done. Call it after each step until it says done.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -31,6 +31,29 @@ struct NextStepTool: MCPTool {
         ),
         changesState: true
     )
+
+    /// Before a run's first capture or recording, once a run and only for
+    /// what isn't known or has grown old: the assistant is reading the
+    /// project anyway, and the next step comes right after. Music picked in
+    /// an earlier run applies now.
+    private static func askAboutApp(
+        before step: AutopilotNextStep, app: StoreApp, center: AutopilotCenter, in context: MCPToolContext
+    ) -> JSONValue? {
+        guard let support = context.workspace.services.storePage.appSupport, let run = center.run(for: app.id) else { return nil }
+        let knowledge = support.knowledge(for: app.id) ?? AppKnowledge()
+        if let music = knowledge.music { center.suggestPreviewMusic(music, appID: app.id) }
+        switch step {
+        case .capture, .record: break
+        default: return nil
+        }
+        let due = knowledge.due(now: .now)
+        guard run.appQuestionsAskedAt == nil, !due.isEmpty else { return nil }
+        center.markAppQuestionsAsked(appID: app.id)
+        var json = AppKnowledge.askStepJSON(due, asksMusic: run.plan.alsoMakes.makesAppPreview).objectValue ?? [:]
+        json["run"] = .string(run.id)
+        json["stage"] = .string(run.stage.rawValue)
+        return .object(json)
+    }
 
     func call(_ arguments: MCPToolArguments, in context: MCPToolContext) async throws -> MCPToolOutcome {
         let app = try await context.workspace.app(matching: arguments.string("appId"))
@@ -45,6 +68,9 @@ struct NextStepTool: MCPTool {
             center.resumeInterruptedWork(app.id, context: MCPAutopilotSession.context(app: app, run: run, in: context))
         }
         let step = await center.nextStep(appID: app.id, client: context.clientName)
+        if let questions = Self.askAboutApp(before: step, app: app, center: center, in: context) {
+            return .read(questions, target: String(localized: "\(app.name) · Autopilot"))
+        }
         var result = step.mcpJSON(run: center.run(for: app.id)).objectValue ?? [:]
         if case let .writeArtworkTexts(needs) = step,
            let profile = await AutopilotAppProfile.load(app: app, locales: needs.map(\.locale), in: context.workspace)

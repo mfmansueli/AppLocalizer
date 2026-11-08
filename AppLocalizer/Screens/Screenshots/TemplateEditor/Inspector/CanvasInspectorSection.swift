@@ -11,28 +11,24 @@ struct CanvasInspectorSection: View {
 
     var body: some View {
         TemplateInspectorSection(title: String(localized: "Canvas")) {
-            TemplateInspectorRow(label: String(localized: "Display type")) {
-                Picker("Display type", selection: Binding { model.screenshots.displayType } set: { model.screenshots.displayType = $0 }) {
-                    ForEach(ScreenshotDisplayType.rendered) { display in
-                        Text(display.title).tag(display)
-                    }
+            TemplateInspectorPicker(
+                String(localized: "Display type"), selection: Binding { model.screenshots.displayType } set: { model.screenshots.displayType = $0 },
+                identifier: "screenshots.template.displayType"
+            ) {
+                ForEach(model.screenshots.renderedDisplays) { display in
+                    Text(display.title).tag(display)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .accessibilityIdentifier("screenshots.template.displayType")
             }
-            TemplateInspectorRow(label: String(localized: "Orientation")) {
-                Picker("Orientation", selection: Binding { model.orientation } set: { model.setOrientation($0) }) {
-                    ForEach(ScreenshotOrientation.allCases, id: \.self) { orientation in
-                        Text(orientation.title).tag(orientation)
-                    }
+            TemplateInspectorPicker(
+                String(localized: "Orientation"), selection: Binding { model.orientation } set: { model.setOrientation($0) },
+                identifier: "screenshots.template.orientation"
+            ) {
+                ForEach(ScreenshotOrientation.allCases, id: \.self) { orientation in
+                    Text(orientation.title).tag(orientation)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .accessibilityIdentifier("screenshots.template.orientation")
             }
+            // Mac's screenshots are always landscape.
+            .disabled(model.screenshots.displayType.isAlwaysLandscape)
             Text(model.outputText)
                 .font(.caption.monospaced())
                 .foregroundStyle(Palette.label2)

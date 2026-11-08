@@ -15,6 +15,7 @@ extension WorkspaceServices {
             pricing: DebugPricingServices(),
             storePage: DebugStorePageServices(),
             appInformation: DebugAppInformationServices(),
+            retention: DebugRetentionServices(),
             push: DebugPushTransport()
         )
     }

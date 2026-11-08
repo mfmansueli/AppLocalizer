@@ -11,7 +11,8 @@ import Foundation
 /// would be scaled up, so the person decides. iPads go in the 13″ set.
 /// iPhone Duo's displays have sizes of their own, and App Store Connect's
 /// iPhone Duo set takes both: the inner display's (2007 × 2853) and the
-/// outer one's (1398 × 2034), either way up.
+/// outer one's (1398 × 2034), either way up. A Mac's capture is its whole
+/// screen, landscape and wider than any iPad's.
 enum CaptureSizeRules {
     /// Long side ÷ short side below this is an iPad's.
     static let tabletAspectLimit = 1.7
@@ -23,36 +24,56 @@ enum CaptureSizeRules {
     /// Both of iPhone Duo's screens. No iPhone or iPad has either size.
     static let duoSizes = [duoInnerSize, duoOuterSize]
 
+    /// A Mac screen's width ÷ height: a MacBook's built-in display is about
+    /// 1.54, 16:10 is 1.6 and an external 16:9 display 1.78. An iPad mini
+    /// lying down (1.52) is just below.
+    static let macAspects = 1.53...1.8
+
+    /// Apple's smallest Mac screenshot, 1280 × 800.
+    static let macSmallestSize = PixelSize(width: 1280, height: 800)
+
+    /// A capture of a Mac's whole screen: landscape, `macAspects` wide, at
+    /// least 1280 × 800.
+    static func isMacScreen(_ size: PixelSize) -> Bool {
+        guard size.width > size.height, size.height > 0 else { return false }
+        let aspect = Double(size.width) / Double(size.height)
+        return macAspects.contains(aspect) && size.width >= macSmallestSize.width && size.height >= macSmallestSize.height
+    }
+
     /// A capture of iPhone Duo's outer display, either way up.
     static func isDuoOuterDisplay(_ size: PixelSize) -> Bool {
         size == duoOuterSize || size == duoOuterSize.rotated
     }
 
     /// The smallest short side each set takes as it is: iPhone Duo's is
-    /// its outer display's.
+    /// its outer display's; Mac's a Retina 16:10 screen's (2560 × 1600).
     static func smallestWidth(for display: ScreenshotDisplayType) -> Int {
         switch display {
         case .iPad: 1960
         case .iPhoneDuo: 1398
+        case .mac: 1600
         default: 1254
         }
     }
 
-    /// The set a capture goes in: the device name says iPhone Duo, iPad or
-    /// iPhone, else the size does. Nil without either.
+    /// The set a capture goes in: the device name says iPhone Duo, iPad,
+    /// iPhone or Mac, else the size does. Nil without either.
     static func displayType(pixelSize: PixelSize?, deviceName: String?) -> ScreenshotDisplayType? {
         let name = deviceName?.lowercased() ?? ""
         if name.contains("duo") { return .iPhoneDuo }
         if name.contains("ipad") { return .iPad }
         if name.contains("iphone") { return .iPhone }
+        if name.contains("mac") { return .mac }
         guard let pixelSize, pixelSize.width > 0, pixelSize.height > 0 else { return nil }
         return deviceClass(of: pixelSize)
     }
 
     /// The device a capture of this size was taken on: iPhone Duo by its
-    /// exact sizes, else iPad or iPhone by the aspect.
+    /// exact sizes, a Mac by its screen's shape, else iPad or iPhone by the
+    /// aspect.
     static func deviceClass(of size: PixelSize) -> ScreenshotDisplayType {
         if duoSizes.contains(where: { $0 == size || $0.rotated == size }) { return .iPhoneDuo }
+        if isMacScreen(size) { return .mac }
         return size.aspectRatio < tabletAspectLimit ? .iPad : .iPhone
     }
 

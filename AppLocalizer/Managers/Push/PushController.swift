@@ -485,7 +485,8 @@ extension PushController {
     }
 
     /// The request with its `{subscriptionGroup:…}` (found or created now,
-    /// once per push) and `{createdID:<type>}` filled in.
+    /// once per push), a retention image and placement group, and
+    /// `{createdID:<type>}` filled in.
     private func resolvingSetupPlaceholders(_ request: PushRequest, at index: Int, transport: any PushTransport) async throws -> PushRequest {
         var request = request
         while let group = SubscriptionGroupPlaceholder(in: request) {
@@ -500,14 +501,21 @@ extension PushController {
             }
             request = request.replacing(group.token, with: id)
         }
-        return try request.resolvingCreatedIDs(items[index].createdIDs)
+        let retention = try await RetentionPushSteps.resolving(request, known: items[index].createdIDs, via: transport) { noteRequest($0) }
+        items[index].createdIDs.merge(retention.created) { _, new in new }
+        return try retention.request.resolvingCreatedIDs(items[index].createdIDs)
     }
 
     /// Sends a request that's more than one write: a new subscription
     /// (found when a push before created it), an In-App Texts write into a
     /// version, availability everywhere, or a subscription's starting
-    /// prices. False for any other request.
+    /// prices, or a retention step. False for any other request.
     private func sendSetupStep(_ request: PushRequest, at index: Int, transport: any PushTransport) async throws -> Bool {
+        let retention = try await RetentionPushSteps.sendSetupStep(request, via: transport) { noteRequest($0) } created: { type, id in
+            items[index].createdID = id
+            items[index].createdIDs[type] = id
+        }
+        if retention { return true }
         if let create = NewSubscriptionCreate(request) {
             let id = try await create.send(via: transport) { noteRequest($0) }
             items[index].createdID = id

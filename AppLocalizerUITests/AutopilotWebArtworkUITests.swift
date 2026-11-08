@@ -7,7 +7,7 @@ import XCTest
 
 /// The header and search Claude Design designed as HTML pages: Choose shows
 /// each direction's own (three different images, not one layout
-/// recolored) and says Claude Design made them, and full size a loop plays
+/// recolored), and full size a loop plays
 /// live from the page's CSS, pauses, and follows the scrubber. Each test
 /// attaches the window's screenshot.
 @MainActor
@@ -25,9 +25,9 @@ final class AutopilotWebArtworkUITests: XCTestCase {
 
     func testChooseShowsEachDirectionsOwnPages() {
         app.launch(debugScene: "st-choose-web-artwork")
-        let subtitle = element("autopilot.choose.subtitle")
-        XCTAssertTrue(subtitle.waitForExistence(timeout: 20))
-        XCTAssertTrue(text(of: subtitle).contains("the header and search images are designed by Claude Design itself"), text(of: subtitle))
+        // Guided Choose: each look shows its screenshots, then the header
+        // and search pages Claude Design made for it.
+        XCTAssertTrue(element("autopilot.guided.choose").waitForExistence(timeout: 20))
 
         let headers = app.descendants(matching: .any).matching(identifier: "autopilot.direction.extra.0")
         XCTAssertTrue(headers.element(boundBy: 2).waitForExistence(timeout: 10), "Three directions, each with its header")

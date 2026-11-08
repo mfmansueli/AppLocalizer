@@ -56,6 +56,13 @@ final class ExtrasPushController {
         if unchecked.contains(item.id) { unchecked.remove(item.id) } else { unchecked.insert(item.id) }
     }
 
+    /// Checks or unchecks `items` together: a whole card's. Those an error
+    /// keeps out stay out.
+    func setChecked(_ items: [ExtrasReviewItem], to isChecked: Bool) {
+        let ids = items.filter { !$0.isBlocked }.map(\.id)
+        if isChecked { unchecked.subtract(ids) } else { unchecked.formUnion(ids) }
+    }
+
     /// What Push sends from `plan`: its checked items without errors.
     func checkedItems(in plan: ExtrasReviewPlan) -> [ExtrasReviewItem] {
         plan.pushable.filter(isChecked)

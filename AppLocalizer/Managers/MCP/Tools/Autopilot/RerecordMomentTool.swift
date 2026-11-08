@@ -56,14 +56,17 @@ struct RerecordMomentTool: MCPTool {
                 }
                 return item
             }
-            let result: JSONValue = [
+            var result: [String: JSONValue] = [
                 "moment": .string(screen.id),
                 "screen": .string(screen.name),
                 "steps": .string(screen.steps),
                 "record": .array(wanted),
                 "how": .string(Self.how),
             ]
-            return MCPToolOutcome(result: result, isError: false, logLines: [])
+            if run.motionRetakes?.contains(screen.id) == true {
+                result["why"] = "AppLocalizer measured this moment: almost nothing moves in it, so it reads as a still image."
+            }
+            return MCPToolOutcome(result: .object(result), isError: false, logLines: [])
         }
         guard let upload = session.center.recordingUploads[id], upload.runID == run.id else {
             throw MCPToolError.notFound(String(localized: "No recording “\(id)” for this run. Upload the video to the plan’s upload URL first."))
@@ -75,7 +78,8 @@ struct RerecordMomentTool: MCPTool {
                 screenID: screen.id, start: arguments.optionalDouble("start_s"), end: arguments.optionalDouble("end_s"),
                 reason: arguments.optionalString("reason")
             )
-            try session.center.receiveRetake(appID: session.app.id, upload: upload, target: target, retake: retake)
+            let take = try session.center.receiveRetake(appID: session.app.id, upload: upload, target: target, retake: retake)
+            await session.center.measureRetake(take, file: upload.file.url, appID: session.app.id)
         } catch {
             return .refused(error.localizedDescription, target: place)
         }
@@ -86,9 +90,11 @@ struct RerecordMomentTool: MCPTool {
     }
 
     static let how = """
-    Launch the app on this screen with the plan's launch arguments for the locale, start recording, hold the \
-    screen about 6 s with a gentle real interaction, stop it with exactly killall -INT simctl, upload it with curl --data-binary and \
-    -H 'Content-Type: video/quicktime', and call rerecord_moment with the upload ID, device, locale, start_s and \
-    end_s. Only the app may be on screen.
+    Launch the app on this screen with the plan's launch arguments for the locale, start recording, and for 6 to 8 s \
+    do the thing a person does here so the screen changes: a slow real drag through a list, opening an item, typing \
+    and letting the result arrive, a control animating. Something should move at least half that time, never more \
+    than 2 s of nothing. Stop it with exactly killall -INT simctl, upload it with curl --data-binary and -H \
+    'Content-Type: video/quicktime', and call rerecord_moment with the upload ID, device, locale, start_s and end_s, \
+    the stretch where the action happens. Only the app may be on screen.
     """
 }

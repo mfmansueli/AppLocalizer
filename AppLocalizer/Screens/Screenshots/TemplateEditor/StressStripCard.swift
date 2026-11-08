@@ -10,11 +10,12 @@ import SwiftUI
 struct StressStripCard: View {
     let entry: StressStripEntry
     let capture: CGImage?
+    var companion: CGImage?
     let width: CGFloat
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xSmall) {
-            SlotPreviewImage(preview: entry.preview, capture: capture, width: width)
+            SlotPreviewImage(preview: entry.preview, capture: capture, companion: companion, width: width)
                 .frame(maxWidth: .infinity)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Spacing.xxSmall) {

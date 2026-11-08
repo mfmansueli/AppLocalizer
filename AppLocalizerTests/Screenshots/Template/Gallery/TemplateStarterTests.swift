@@ -7,18 +7,19 @@ import Foundation
 import Testing
 @testable import AppLocalizer
 
-/// The gallery's 12 templates: three per style, each a valid template
+/// The gallery's 14 templates: three per style (five bold), each a valid template
 /// that every check accepts, with slots past the fifth repeating 2–5.
 @MainActor
 @Suite("TemplateStarter")
 struct TemplateStarterTests {
     private let applier = TemplateOperationApplier()
 
-    @Test func theGalleryHasThreeTemplatesPerStyle() {
-        #expect(TemplateStarter.allCases.count == 12)
+    @Test func theGalleryHasThreeTemplatesPerStyleAndFiveBold() {
+        #expect(TemplateStarter.allCases.count == 14)
         for style in TemplateStarter.Style.allCases {
-            #expect(TemplateStarter.starters(in: style).count == 3, "\(style.title)")
+            #expect(TemplateStarter.starters(in: style).count == (style == .bold ? 5 : 3), "\(style.title)")
         }
+        #expect(TemplateStarter.starters(in: .bold) == [.boldStack, .swoosh, .poster, .socialProof, .arcade])
         #expect(TemplateStarter.starters(in: nil) == TemplateStarter.allCases)
         #expect(TemplateStarter.simple == [.above, .band, .panorama])
         #expect(TemplateStarter.starters(in: .elegant) == [.cinema, .spotlight, .editorial])
@@ -72,6 +73,7 @@ struct TemplateStarterTests {
     @Test func templatesUseTheirBundledFonts() {
         let fonts: [TemplateStarter: String] = [
             .boldStack: "Archivo Black", .poster: "Anton", .cinema: "Playfair Display", .playful: "Lobster", .highlight: "Fredoka",
+            .arcade: "Boldonse",
         ]
         for (starter, font) in fonts {
             let template = ScreenshotTemplate.starter(starter, id: "lumen", title: "Lumen")

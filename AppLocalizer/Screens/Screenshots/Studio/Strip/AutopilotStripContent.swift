@@ -30,6 +30,9 @@ struct AutopilotStripContent: Hashable, Sendable {
     /// it isn't the action's.
     var primaryTitle: String?
     var secondary: AutopilotStripAction?
+    /// The secondary button's own title ("New Run…"), when it isn't the
+    /// action's.
+    var secondaryTitle: String?
     /// The assistant and design project pills.
     var showsConnections: Bool { kind == .idle }
 

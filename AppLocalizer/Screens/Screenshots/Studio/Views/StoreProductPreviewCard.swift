@@ -117,7 +117,7 @@ struct StoreProductPreviewCard: View {
 
     private var shotWidth: CGFloat {
         switch preview.displayType {
-        case .iPad, .visionPro: 300
+        case .iPad, .visionPro, .mac: 300
         case .iPhoneDuo: 240
         case .watch: 150
         default: 156

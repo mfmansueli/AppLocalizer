@@ -41,11 +41,11 @@ struct CaptureTextAnalyzerTests {
             RecognizedTextLine(text: "“Lumen” Would Like to Send You Notifications", confidence: 0.9, top: 0.01),
             RecognizedTextLine(text: "Einträge durchsu…", confidence: 0.2, top: 0.5),
         ], readsLanguage: true)
-        #expect(CaptureTextAnalyzer.facts(of: reading, appName: "Lumen") == CaptureTextFacts())
+        #expect(CaptureTextAnalyzer.facts(of: reading, appName: "Lumen") == CaptureTextFacts(truncatedTops: [], ellipsisTops: []))
     }
 
     @Test(arguments: [
-        ("Einträge durchsu…", true), ("Search...", true), ("Wochenübersi…", true),
+        ("Einträge durchsu…", true), ("Search...", true), ("Wochenübersi…", true), ("Message….", true),
         ("Loading …", false), ("…", false), ("Ab…", false), ("Today", false), ("Write something", false),
     ])
     func aLabelCutOffEndsInAnEllipsisRightAfterALetter(line: String, isCut: Bool) {
@@ -78,6 +78,16 @@ struct CaptureTextAnalyzerTests {
             of: Self.reading(["Einträge durchsu…", "„Lumen“ möchte dir Mitteilungen senden", "Nicht erlauben"]), appName: "Lumen"
         )
         #expect(facts.truncatedLines == ["Einträge durchsu…"])
+        #expect(facts.truncatedTops == [0.1])
         #expect(facts.promptLine == "„Lumen“ möchte dir Mitteilungen senden")
+    }
+
+    /// Every line ending in an ellipsis, cut or not, with where it is: in
+    /// another language, a cut line at the same place is that element.
+    @Test func theFactsKeepWhereEveryEllipsisIs() {
+        let facts = CaptureTextAnalyzer.facts(of: Self.reading(["Today", "Loading …", "Message….", "We should go back together s..."]), appName: "Lumen")
+        #expect(facts.truncatedLines == ["Message….", "We should go back together s..."])
+        #expect(facts.truncatedTops == [0.2, 0.25])
+        #expect(facts.ellipsisTops == [0.15, 0.2, 0.25])
     }
 }

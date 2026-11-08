@@ -14,11 +14,14 @@ struct TemplateCanvasView: View {
     var body: some View {
         VStack(spacing: Spacing.small) {
             if let preview = model.canvas {
-                SlotPreviewImage(preview: preview, capture: model.captureImage(for: preview), width: width, showsGuides: model.showsGuides)
-                    .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
-                    .accessibilityElement()
-                    .accessibilityLabel(Text("\(model.locale.name), slot \(model.slot + 1)"))
-                    .accessibilityIdentifier("screenshots.template.canvas")
+                SlotPreviewImage(
+                    preview: preview, capture: model.captureImage(for: preview), companion: model.companionImage(for: preview), width: width,
+                    showsGuides: model.showsGuides
+                )
+                .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+                .accessibilityElement()
+                .accessibilityLabel(Text("\(model.locale.name), slot \(model.slot + 1)"))
+                .accessibilityIdentifier("screenshots.template.canvas")
                 Text(fitLine(preview))
                     .font(.caption)
                     .monospacedDigit()

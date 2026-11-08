@@ -175,6 +175,7 @@ extension AutopilotCenter {
         else { return false }
         update(appID) { run in
             run.extrasProgress?.artworkDone = 0
+            run.extrasProgress?.artworkDoneAt = nil
             run.extrasProgress?.artworkTotal = run.plan.localeCodes.count
             run.extrasProgress?.artworkChecks = []
             run.extrasProgress?.isFinished = false

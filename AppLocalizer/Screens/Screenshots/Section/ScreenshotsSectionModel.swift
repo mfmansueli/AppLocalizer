@@ -37,7 +37,7 @@ final class ScreenshotsSectionModel {
             content = loaded
             errorMessage = nil
             var context = ScreenshotsContext(content: loaded)
-            await context.readVisionLocalizations(in: loaded) { [app, services] id in
+            await context.readPlatformLocalizations(in: loaded) { [app, services] id in
                 try await services.content(for: app, versionID: id)
             }
             await context.readWatchApp { [app, services] id in

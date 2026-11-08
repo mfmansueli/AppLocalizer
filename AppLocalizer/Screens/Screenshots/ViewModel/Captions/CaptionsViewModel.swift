@@ -23,6 +23,8 @@ final class CaptionsViewModel {
     /// The editor's fields.
     private(set) var headline = ""
     private(set) var subhead = ""
+    /// The kicker line, where the template sets one.
+    private(set) var kicker = ""
     /// The fields differ from what's saved.
     private(set) var hasPendingEdit = false
     /// Set by "Suggest a Shorter Version".
@@ -117,6 +119,7 @@ final class CaptionsViewModel {
         let caption = key.flatMap { document?.captions.caption(locale: $0.locale, slot: $0.slot) }
         headline = caption?.headline ?? ""
         subhead = caption?.subhead ?? ""
+        kicker = caption?.kicker ?? ""
         hasPendingEdit = false
     }
 
@@ -148,6 +151,12 @@ final class CaptionsViewModel {
         edited()
     }
 
+    func setKicker(_ text: String) {
+        guard text != kicker else { return }
+        kicker = text
+        edited()
+    }
+
     private func edited() {
         hasPendingEdit = true
         suggestion = nil
@@ -165,7 +174,10 @@ final class CaptionsViewModel {
         guard let selection, !headline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         let provenance: CaptionProvenance = selection.locale == primary.code ? .written : .edited
         let trimmedSubhead = subhead.trimmingCharacters(in: .whitespacesAndNewlines)
-        return ScreenshotCaption(headline: headline, subhead: trimmedSubhead.isEmpty ? nil : subhead, provenance: provenance)
+        let trimmedKicker = kicker.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ScreenshotCaption(
+            headline: headline, subhead: trimmedSubhead.isEmpty ? nil : subhead, kicker: trimmedKicker.isEmpty ? nil : kicker, provenance: provenance
+        )
     }
 
     /// Writes the fields to the document, if they changed.
@@ -200,6 +212,7 @@ final class CaptionsViewModel {
         commitTask = nil
         headline = caption.headline
         subhead = caption.subhead ?? ""
+        kicker = caption.kicker ?? ""
         hasPendingEdit = false
         suggestion = nil
     }

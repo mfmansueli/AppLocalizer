@@ -42,9 +42,15 @@ struct AppPreviewSynthTests {
 
     @Test func theTracksSoundDifferent() {
         let tracks = AppPreviewTrack.library.map { AppPreviewSynth.render($0, seconds: 2) }
-        #expect(tracks[0] != tracks[1])
-        #expect(tracks[1] != tracks[2])
-        #expect(tracks[0] != tracks[2])
+        for (index, track) in tracks.enumerated() {
+            for other in tracks[(index + 1)...] { #expect(track != other) }
+        }
+    }
+
+    @Test func theLibraryIsTheFeaturedTracksAndTheRest() {
+        #expect(AppPreviewTrack.library == AppPreviewTrack.featured + AppPreviewTrack.more)
+        #expect(Set(AppPreviewTrack.library).count == 7)
+        #expect(!AppPreviewTrack.library.contains(.ownFile))
     }
 
     @Test func theOwnFileIsntSynthesized() {

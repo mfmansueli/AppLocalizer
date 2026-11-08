@@ -113,6 +113,12 @@ struct ScreenshotFontCatalog: Hashable, Sendable {
         uploaded.contains(name)
     }
 
+    /// The weight captions set in `name` fall back at in scripts it can't
+    /// draw (800 for Boldonse), or nil to keep the template's.
+    func fallbackWeight(for name: String) -> Int? {
+        BundledFonts.family(named: aliases[name] ?? name)?.fallbackWeight
+    }
+
     /// Whether `name` is one of the fonts AppLocalizer ships.
     func isBundled(_ name: String) -> Bool {
         BundledFonts.isBundled(aliases[name] ?? name)

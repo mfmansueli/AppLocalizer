@@ -5,8 +5,9 @@
 
 import XCTest
 
-/// Cancel Run… after Capture (`st-des-revise-motion`, at Design): it asks
-/// first; Keep Going stays, Cancel Run goes back to the plan.
+/// Cancel Run… after Capture (`st-des-revise-motion`, at Making it while
+/// the looks are designed): it asks first; Keep Going stays, Cancel Run
+/// goes back to the setup steps.
 @MainActor
 final class AutopilotCancelRunUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -20,9 +21,10 @@ final class AutopilotCancelRunUITests: XCTestCase {
         app.terminate()
     }
 
-    func testCancelRunAsksThenGoesBackToThePlan() {
+    func testCancelRunAsksThenGoesBackToTheSetup() {
         app.launch(debugScene: "st-des-revise-motion")
-        XCTAssertTrue(element("autopilot.design").waitForExistence(timeout: 20))
+        let making = element("autopilot.guided.making.steps")
+        XCTAssertTrue(making.waitForExistence(timeout: 20))
         let cancel = element("autopilot.cancelRun.later")
         XCTAssertTrue(cancel.waitForExistence(timeout: 5))
 
@@ -34,14 +36,19 @@ final class AutopilotCancelRunUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts.matching(says).firstMatch.exists, "It says nothing was pushed")
         attachScreenshot("Cancel Run · the question")
         keep.click()
-        XCTAssertTrue(element("autopilot.design").waitForExistence(timeout: 5), "Keep Going stays at Design")
+        XCTAssertTrue(making.waitForExistence(timeout: 5), "Keep Going stays at Making it")
 
         cancel.click()
         let confirm = app.buttons["Cancel Run"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
         confirm.click()
-        XCTAssertTrue(element("autopilot.start").waitForExistence(timeout: 10), "Back at the plan")
-        attachScreenshot("Cancel Run · back at the plan")
+        // The setup step the run was started from: What to make in the
+        // scene, the plan after a real Start.
+        XCTAssertTrue(waitUntil(timeout: 10) {
+            self.element("autopilot.guided.next").exists || self.element("autopilot.guided.start").exists
+        }, "Back at the setup steps")
+        XCTAssertFalse(cancel.exists)
+        attachScreenshot("Cancel Run · back at the setup")
     }
 
     private func attachScreenshot(_ name: String) {
@@ -49,6 +56,15 @@ final class AutopilotCancelRunUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    private func waitUntil(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
+        let deadline = Date.now.addingTimeInterval(timeout)
+        while Date.now < deadline {
+            if condition() { return true }
+            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
+        }
+        return condition()
     }
 
     private func element(_ identifier: String) -> XCUIElement {

@@ -39,7 +39,8 @@ extension TemplateSchema {
 
     /// Lengths given as a fraction of the canvas, shown as percentages.
     private static let fractionPaths: Set = [
-        "device.width", "device.offset", "device.bleed", "device.dx", "device.dy", "caption.gap", "safe.top", "safe.side", "safe.bottom",
+        "device.width", "device.offset", "device.bleed", "device.dx", "device.dy", "device.top", "caption.gap", "safe.top", "safe.side",
+        "safe.bottom",
     ]
 
     /// The fields that hold an object or a list, in words: "rotate 5°,
@@ -49,6 +50,8 @@ extension TemplateSchema {
         switch path {
         case "device.tilt":
             return decoded(TemplateTilt.self, value)?.summary
+        case "device.pair":
+            return decoded(TemplateDevicePair.self, value)?.summary
         case "caption.headline.emph":
             return decoded(TemplateEmphasis.self, value).map(formattedEmphasis)
         case "caption.headline.mark":
@@ -111,11 +114,15 @@ extension TemplateSchema {
         "device.tilt": String(localized: "Device angle"),
         "device.dx": String(localized: "Device shift right"),
         "device.dy": String(localized: "Device shift down"),
+        "device.top": String(localized: "Device top"),
+        "device.empty": String(localized: "Screen without a capture"),
+        "device.pair": String(localized: "Phone behind"),
         "caption.headline.upper": String(localized: "Uppercase headline"),
         "caption.headline.italic": String(localized: "Italic headline"),
         "caption.headline.shadow": String(localized: "Headline shadow"),
         "caption.headline.emph": String(localized: "Emphasized line"),
         "caption.headline.mark": String(localized: "Highlight bars"),
+        "caption.headline.tight": String(localized: "Caption box sized to its lines"),
         "caption.subhead.italic": String(localized: "Italic subhead"),
         "deco": String(localized: "Decorations"),
         "bg": String(localized: "Own background"),

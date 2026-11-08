@@ -28,7 +28,7 @@ final class AutopilotPickUITests: XCTestCase {
         let badge = element("autopilot.pick.badge.1")
         XCTAssertTrue(badge.waitForExistence(timeout: 20))
         XCTAssertEqual(text(of: badge), "Claude Code’s pick")
-        XCTAssertTrue(text(of: element("autopilot.footer.text")).hasPrefix("Claude Code’s picks are selected · App Preview: 3 moments"))
+        XCTAssertTrue(text(of: element("autopilot.guided.footer.text")).hasPrefix("Claude Code’s picks are selected · App Preview: 3 moments"))
         attachScreenshot("Pick · Claude Code’s picks")
 
         // An attempt opens full size, where Use This Capture picks it.
@@ -44,8 +44,8 @@ final class AutopilotPickUITests: XCTestCase {
         element("studio.viewer.close").click()
         XCTAssertTrue(waitUntil { self.text(of: badge) == "Your pick" }, text(of: badge))
         XCTAssertTrue(text(of: element("autopilot.pick.reason.1")).hasPrefix("⚠︎ Ranked lower:"))
-        XCTAssertTrue(text(of: element("autopilot.footer.text")).hasPrefix("1 pick changed by you; the rest are Claude Code’s"))
-        XCTAssertTrue(app.buttons["autopilot.usePicks"].isEnabled)
+        XCTAssertTrue(text(of: element("autopilot.guided.footer.text")).hasPrefix("1 pick changed by you; the rest are Claude Code’s"))
+        XCTAssertTrue(app.buttons["autopilot.guided.usePicks"].isEnabled)
         attachScreenshot("Pick · your pick")
     }
 
@@ -56,7 +56,7 @@ final class AutopilotPickUITests: XCTestCase {
         let summary = element("autopilot.recording.summary")
         XCTAssertTrue(summary.waitForExistence(timeout: 30))
         XCTAssertTrue(text(of: summary).hasSuffix("· 0:24 · within Apple’s 15–30 s"), text(of: summary))
-        let use = app.buttons["autopilot.usePicks"]
+        let use = app.buttons["autopilot.guided.usePicks"]
         XCTAssertTrue(use.isEnabled)
 
         tap("autopilot.moment.use.3")
@@ -68,7 +68,7 @@ final class AutopilotPickUITests: XCTestCase {
 
         tap("autopilot.moment.use.0")
         XCTAssertTrue(waitUntil { use.isEnabled })
-        XCTAssertTrue(text(of: element("autopilot.footer.text")).hasSuffix("App Preview: 4 moments + end card, 0:30."))
+        XCTAssertTrue(text(of: element("autopilot.guided.footer.text")).hasSuffix("App Preview: 4 moments + end card, 0:30."))
     }
 
     func testRecordAgainSaysWhatHappensNext() {

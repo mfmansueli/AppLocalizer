@@ -49,6 +49,11 @@ struct GuidedReviewStepView: View {
                                 .padding(.horizontal, Spacing.medium)
                                 .padding(.vertical, Spacing.small)
                                 .background(Palette.fill1, in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
+                                // The column's room, read from the look line, which
+                                // always takes the width offered: the column itself
+                                // would read back what the content sized from it
+                                // took (the 640 it starts at, past the sheet).
+                                .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { width = $0 })
                                 .accessibilityIdentifier("autopilot.guided.review.look")
                             if part != .appPreview || !isWatching(.appPreview) {
                                 pickers(part)
@@ -56,7 +61,6 @@ struct GuidedReviewStepView: View {
                             content(part)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { width = $0 })
                         GuidedChecksCard(studio: studio, run: run, part: part)
                     }
                 }
@@ -96,8 +100,9 @@ struct GuidedReviewStepView: View {
         return studio.isApproved(part) ? "✓ " + title : title
     }
 
-    /// "Look: Night Ink · saved as template v5", "Header: Day to Night ·
-    /// 20-second loop", "App Preview: v2 · Warm acoustic".
+    /// "Look: Night Ink · saved as template v5, replacing Caption above
+    /// device (v4)", "Header: Day to Night · 20-second loop", "App Preview:
+    /// Warm acoustic · Revised".
     private func lookLine(_ part: GuidedReviewPart) -> String {
         switch part {
         case .screenshots:
@@ -105,8 +110,13 @@ struct GuidedReviewStepView: View {
                 return run.templateVersion.map { String(localized: "Look: your current template v\($0), with new captures and captions") }
                     ?? String(localized: "Look: your current template, with new captures and captions")
             }
-            let name = run.chosenDirection?.name ?? String(localized: "the chosen look")
+            let app = studio.app.name
+            let name = run.chosenDirection.map { GuidedLookName.short($0.name, app: app) } ?? String(localized: "the chosen look")
             guard let version = run.templateVersion else { return String(localized: "Look: \(name)") }
+            if let replaced = studio.screenshots.document?.history?.version(before: version) {
+                let before = GuidedLookName.short(replaced.template.name, app: app)
+                return String(localized: "Look: \(name) · saved as template v\(version), replacing \(before) (v\(replaced.number))")
+            }
             return String(localized: "Look: \(name) · saved as template v\(version)")
         case .artwork:
             let name = run.artworkName ?? String(localized: "the chosen header")
@@ -114,29 +124,46 @@ struct GuidedReviewStepView: View {
                 ? String(localized: "\(plan.alsoMakes.artworkSize.placeTitle): \(name) · \(AutopilotArtworkMotion.loopSeconds)-second loop")
                 : String(localized: "\(plan.alsoMakes.artworkSize.placeTitle): \(name)")
         case .appPreview:
-            let version = run.previewReview?.version ?? 1
-            return String(localized: "App Preview: v\(version) · \(plan.alsoMakes.previewMusic.title)")
+            return String(localized: "App Preview: \(plan.alsoMakes.previewMusic.title)")
+                + RevisionLabel.suffix(version: run.previewReview?.version)
         }
     }
 
     // MARK: - Language and device
 
-    @ViewBuilder
+    /// The language and the device side by side, or one above the other
+    /// where both don't fit (six devices and four languages don't): never
+    /// wider than the column, which would push the page past the sheet.
     private func pickers(_ part: GuidedReviewPart) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Spacing.small) {
+                languagePicker(part)
+                devicePicker(part)
+            }
+            VStack(alignment: .leading, spacing: Spacing.small) {
+                languagePicker(part)
+                devicePicker(part)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func languagePicker(_ part: GuidedReviewPart) -> some View {
         let locales = part == .appPreview ? studio.watchLocales : plan.localeCodes
         let shown = part == .appPreview ? (studio.watchedPreview?.locale ?? plan.primaryLocale) : studio.guidedReviewLocale
         HStack(spacing: Spacing.small) {
             if locales.count > 1 {
                 let segments = segmentLocales(locales)
+                let titles = GuidedPreviewLocales.titles(locales)
                 StudioSegmentedControl(
                     label: String(localized: "Language"),
-                    options: segments.map { .init(value: $0, title: GuidedPreviewLocales.language(of: $0), key: $0) },
+                    options: segments.map { .init(value: $0, title: titles[$0] ?? $0, key: $0) },
                     selection: Binding { shown } set: { show(locale: $0, part: part) },
                     identifier: "autopilot.guided.review.language"
                 )
                 let more = locales.filter { !segments.contains($0) }
                 if !more.isEmpty {
-                    Menu(more.contains(shown) ? GuidedPreviewLocales.language(of: shown) : String(localized: "\(more.count) more")) {
+                    Menu(more.contains(shown) ? titles[shown] ?? shown : String(localized: "\(more.count) more")) {
                         ForEach(more, id: \.self) { code in
                             Button(StoreLocaleCatalog.locale(code: code)?.name ?? code) { show(locale: code, part: part) }
                         }
@@ -147,25 +174,29 @@ struct GuidedReviewStepView: View {
                     .accessibilityIdentifier("autopilot.guided.review.moreLanguages")
                 }
             }
-            if part == .screenshots, studio.guidedReviewDevices.count > 1 {
-                StudioSegmentedControl(
-                    label: String(localized: "Device"),
-                    options: studio.guidedReviewDevices.map { .init(value: $0, title: $0.shortTitle, key: $0.mcpValue) },
-                    selection: Binding { reviewDevice } set: { studio.guided.reviewDevice = $0 },
-                    identifier: "autopilot.guided.review.device"
-                )
-            }
-            if part == .appPreview, studio.watchDevices.count > 1 {
-                StudioSegmentedControl(
-                    label: String(localized: "Device"),
-                    options: studio.watchDevices.map { .init(value: $0, title: $0.shortTitle, key: $0.mcpValue) },
-                    selection: Binding { studio.watchedPreview?.displayType ?? studio.watchDevices[0] } set: { device in
-                        studio.previewPlayer.pause()
-                        studio.watchedDevice = device
-                    },
-                    identifier: "autopilot.guided.review.previewDevice"
-                )
-            }
+        }
+    }
+
+    @ViewBuilder
+    private func devicePicker(_ part: GuidedReviewPart) -> some View {
+        if part == .screenshots, studio.guidedReviewDevices.count > 1 {
+            StudioSegmentedControl(
+                label: String(localized: "Device"),
+                options: studio.guidedReviewDevices.map { .init(value: $0, title: GuidedTemplatePreviewDevices.title($0), key: $0.mcpValue) },
+                selection: Binding { reviewDevice } set: { studio.guided.reviewDevice = $0 },
+                identifier: "autopilot.guided.review.device"
+            )
+        }
+        if part == .appPreview, studio.watchDevices.count > 1 {
+            StudioSegmentedControl(
+                label: String(localized: "Device"),
+                options: studio.watchDevices.map { .init(value: $0, title: $0.shortTitle, key: $0.mcpValue) },
+                selection: Binding { studio.watchedPreview?.displayType ?? studio.watchDevices[0] } set: { device in
+                    studio.previewPlayer.pause()
+                    studio.watchedDevice = device
+                },
+                identifier: "autopilot.guided.review.previewDevice"
+            )
         }
     }
 
@@ -197,10 +228,15 @@ struct GuidedReviewStepView: View {
         case .screenshots:
             GuidedReviewShots(studio: studio, locale: studio.guidedReviewLocale, device: reviewDevice, width: width)
         case .artwork:
-            if isWatching(.artwork) || (run.loopReview != nil && run.stage == .watchPreview) {
-                AutopilotLoopReviewBox(studio: studio, run: run, isEditable: run.stage == .watchPreview, width: width)
-            } else {
-                GuidedReviewArtwork(studio: studio, locale: studio.guidedReviewLocale, width: width)
+            // Sized from `width`, so it reports the width it's offered,
+            // never its own: the row would otherwise keep offering the
+            // 640 it started at.
+            AutopilotDesignCardsLayout(spacing: 0) {
+                if isWatching(.artwork) || (run.loopReview != nil && run.stage == .watchPreview) {
+                    AutopilotLoopReviewBox(studio: studio, run: run, isEditable: run.stage == .watchPreview, width: width)
+                } else {
+                    GuidedReviewArtwork(studio: studio, locale: studio.guidedReviewLocale, width: width)
+                }
             }
         case .appPreview:
             GuidedReviewPreview(studio: studio, run: run)

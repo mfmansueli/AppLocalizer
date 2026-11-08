@@ -15,7 +15,7 @@ struct AutopilotToolboxTests {
     private static let tools = [
         "get_capture_plan", "update_capture_plan", "report_capture", "report_capture_problem", "next_step",
         "get_design_brief", "propose_direction", "revise_direction", "report_design_source", "start_display_recording",
-        "finish_display_recording", "propose_screens", "revise_app_preview", "set_app_preview_music",
+        "finish_display_recording", "propose_screens", "revise_app_preview", "set_app_preview_music", "answer_app_questions",
     ]
 
     private static var promptText: String {

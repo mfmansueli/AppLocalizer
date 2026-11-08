@@ -20,6 +20,8 @@ import UniformTypeIdentifiers
 /// allowed in Accessibility to open it, and which helper answers.
 enum DebugSimulators {
     struct Mac: Sendable {
+        /// The iPad Pro 13-inch (M5) simulator is made.
+        var hasIPad = true
         var hasNewRuntime = false
         var hasDuo = false
         /// The every-device scenes' Mac also runs Apple Vision Pro.
@@ -66,6 +68,23 @@ enum DebugSimulators {
         mac.withLock { $0.hasVision = true }
     }
 
+    /// Plan · This Mac: iPhone Duo made and running but closed, and no
+    /// iPad simulator yet (Make the Simulator).
+    static func runWithoutIPad() {
+        mac.withLock { mac in
+            mac.hasIPad = false
+            mac.hasNewRuntime = true
+            mac.hasDuo = true
+            mac.duoIsBooted = true
+            mac.duoIsSetUp = true
+        }
+    }
+
+    /// A helper saved before it could list simulators (version 2).
+    static func runOldHelper() {
+        mac.withLock { $0.helperVersion = 2 }
+    }
+
     /// A Mac with iPhone Duo's simulator made, on iOS 27.2: running or
     /// not, what its inner display shows, whether it's stuck, when the
     /// pretend person opens it, the helper's version, and whether (and
@@ -98,6 +117,9 @@ enum DebugSimulators {
 
     /// The helper's answer to one of `modes`.
     static func answer(_ arguments: [String], delay: Duration = .milliseconds(300), onLine: @Sendable (String) -> Void) async -> UnixScriptExit {
+        if arguments.first == "simulators", mac.withLock({ $0.helperVersion }) < 3 {
+            return UnixScriptExit(errorOutput: "Usage: Start Claude Code.zsh check | run <folder> -- <claude arguments…>")
+        }
         if let mode = arguments.first, let version = duoModes[mode] {
             if mac.withLock({ $0.helperVersion }) < version {
                 return UnixScriptExit(errorOutput: "Usage: Start Claude Code.zsh check | run <folder> -- <claude arguments…> | simulators | …")
@@ -114,7 +136,11 @@ enum DebugSimulators {
             }
             mac.withLock { $0.hasNewRuntime = true }
         case "create-simulator":
-            mac.withLock { $0.hasDuo = $0.hasNewRuntime }
+            if arguments.contains(where: { $0.contains("iPad") }) {
+                mac.withLock { $0.hasIPad = true }
+            } else {
+                mac.withLock { $0.hasDuo = $0.hasNewRuntime }
+            }
             onLine("6F0D2C5E-0A3B-4C1D-9E8F-1A2B3C4D5E6F")
         default:
             onLine(json(mac.withLock { $0 }))
@@ -237,7 +263,7 @@ enum DebugSimulators {
             runtime("watchOS", "27.0", runs: [watch]),
         ]
         var devices: [String: Any] = [
-            runtimeID("iOS", "27.0"): [device("iPhone 17 Pro Max", iPhone, 1), device("iPad Pro 13-inch (M5)", iPad, 2)],
+            runtimeID("iOS", "27.0"): [device("iPhone 17 Pro Max", iPhone, 1)] + (mac.hasIPad ? [device("iPad Pro 13-inch (M5)", iPad, 2)] : []),
             runtimeID("watchOS", "27.0"): [device("Apple Watch Ultra 3 (49mm)", watch, 3)],
         ]
         if mac.hasNewRuntime { runtimes.append(runtime("iOS", "27.2", runs: [iPhone, iPad, duo])) }

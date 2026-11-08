@@ -109,32 +109,30 @@ struct ScreenshotStudioModelTests {
     @Test func openFollowsTheRun() async {
         let model = await StudioTestFixtures.screenshots(center: StudioTestFixtures.center(StudioDebugRuns.run(.pick)))
         model.studio.viewedStep = .plan
-        #expect(model.studio.shownStep == .plan)
         model.studio.openAutopilot()
         #expect(model.studio.isAutopilotPresented)
         #expect(model.studio.viewedStep == nil)
-        #expect(model.studio.shownStep == .pick)
+        #expect(model.studio.guidedStep == .making, "Pick captures shows in Making it")
     }
 
     @Test func theDesignProjectIsTheApps() async {
         let center = StudioTestFixtures.center(project: StudioDebugRuns.northpier)
         let model = await StudioTestFixtures.screenshots(center: center)
         #expect(model.studio.designProject?.displayName == "Northpier Brand")
-        #expect(model.studio.strip(assistant: "Claude Code").text.contains("Claude Design designs the set in Northpier Brand."))
     }
 
     @Test(arguments: [
-        (AutopilotStage?.none, AutopilotStage.plan),
-        (.plan, .plan),
-        (.waiting, .capture),
-        (.capture, .capture),
+        (AutopilotStage?.none, GuidedStep.make),
+        (.plan, .make),
+        (.waiting, .making),
+        (.capture, .making),
         (.choose, .choose),
-        (.ready, .ready),
+        (.ready, .review),
     ])
-    func theSheetShowsTheRunsStep(stage: AutopilotStage?, shown: AutopilotStage) async {
+    func theSheetShowsTheRunsStep(stage: AutopilotStage?, shown: GuidedStep) async {
         let center = StudioTestFixtures.center(stage.map { StudioDebugRuns.run($0) })
         let model = await StudioTestFixtures.screenshots(center: center)
-        #expect(model.studio.shownStep == shown)
+        #expect(model.studio.guidedStep == shown)
     }
 
     @Test func onlyStepsTheRunReachedCanBeViewed() async {

@@ -6,9 +6,10 @@
 import CoreText
 import SwiftUI
 
-/// Draws a layout's shapes, laurels and badges, the back ones before the
-/// device and the front ones after the band. A laurel is eight leaves a
-/// side around its value and stars; a badge is its value on a starburst.
+/// Draws a layout's shapes, laurels, badges and props, the back ones before
+/// the device and the front ones after the band. A laurel is eight leaves a
+/// side around its value and stars; a badge is its value on a starburst; a
+/// prop is its drawing, tinted where it takes the decoration's color.
 struct DecorationPainter {
     let layout: ScreenshotLayout
 
@@ -22,14 +23,17 @@ struct DecorationPainter {
                     .rotated(by: decoration.rotation * .pi / 180)
                     .translatedBy(x: -center.x, y: -center.y)
             )
+            var flippedLayer = layer
+            if decoration.isFlipped {
+                flippedLayer.concatenate(CGAffineTransform(translationX: center.x, y: 0).scaledBy(x: -1, y: 1).translatedBy(x: -center.x, y: 0))
+            }
             switch decoration.kind {
             case .shape:
-                var shapeLayer = layer
-                if decoration.isFlipped {
-                    shapeLayer.concatenate(CGAffineTransform(translationX: center.x, y: 0).scaledBy(x: -1, y: 1).translatedBy(x: -center.x, y: 0))
-                }
                 let outline = DecorationShapePath.path(for: decoration.shape ?? .blob)
-                shapeLayer.fill(DecorationShapePath.fitted(outline, in: decoration.frame), with: .color(decoration.color.color))
+                flippedLayer.fill(DecorationShapePath.fitted(outline, in: decoration.frame), with: .color(decoration.color.color))
+            case .art:
+                guard let art = decoration.art else { break }
+                DecorationArt.drawing(for: art).draw(in: decoration.frame, tint: decoration.color, context: &flippedLayer)
             case .badge:
                 layer.fill(DecorationShapePath.fitted(DecorationShapePath.burst, in: decoration.frame), with: .color(decoration.color.color))
                 drawText(decoration, in: &layer)

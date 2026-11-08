@@ -70,9 +70,13 @@ struct FullSizeViewerContentView: View {
             )
             .shadow(color: .black.opacity(0.55), radius: 35, y: 24)
             .task(id: shot) { large = await largeImage(of: shot) }
-        case let .layout(layout, capture):
-            AutopilotLayoutImage(layout: layout, capture: studio.image(for: capture, width: pixelWidth(layout.canvas.pixelSize)), width: width)
-                .shadow(color: .black.opacity(0.55), radius: 35, y: 24)
+        case let .layout(layout, capture, behind):
+            let pixels = pixelWidth(layout.canvas.pixelSize)
+            AutopilotLayoutImage(
+                layout: layout, capture: studio.image(for: capture, width: pixels), width: width,
+                companion: behind.flatMap { studio.image(for: $0, width: pixels) }
+            )
+            .shadow(color: .black.opacity(0.55), radius: 35, y: 24)
         case let .capture(capture):
             StudioShotImage(
                 image: studio.image(for: capture, width: capture.pixelSize.width), width: width,

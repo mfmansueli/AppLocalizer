@@ -99,11 +99,15 @@ extension AutopilotCenter {
         context: AutopilotContext
     ) async -> [ExtrasArtworkFile]? {
         let plan = run.plan
+        update(appID) { $0.extrasProgress?.artworkStartedAt = now() }
         do {
             let artwork = try await AutopilotArtworkMaker(context: context, liveTemplate: live).make(
                 for: run, look: look, design: run.madeArtworkDesign, texts: texts ?? ArtworkTextBook()
             ) { done in
-                update(appID) { $0.extrasProgress?.artworkDone = done }
+                update(appID) { run in
+                    run.extrasProgress?.artworkDone = done
+                    run.extrasProgress?.artworkDoneAt = now()
+                }
             }
             let tooLong = ScreenshotExtras.tooLongLocales(of: artwork)
             let checks = Self.checks(of: artwork)

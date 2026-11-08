@@ -65,7 +65,7 @@ struct ScreenshotStudioViewerTests {
         let file = try #require(model.document?.extras?.previews.first)
         model.studio.openPreview(file)
         let viewer = try #require(model.studio.viewer)
-        #expect(viewer.current.title == "App Preview · v3")
+        #expect(viewer.current.title == "App Preview · Revised 2 times")
         #expect(viewer.countTitle == nil)
     }
 
@@ -93,6 +93,27 @@ struct ScreenshotStudioViewerTests {
 
         let (still, _) = await newSet(StudioDebugArtMotion.ready(motion: .still))
         #expect(still.studio.summary.lines.first { $0.label == "Header, search" }?.value.contains(" · still · ") == true)
+    }
+
+    /// Bruma's concepts on Choose said "20-second loop · plays muted on
+    /// repeat" twice under their title.
+    @Test func aPlayingConceptSaysItLoopsOnce() async throws {
+        let (model, center) = await newSet(StudioDebugHeaderStyle.headerLoopOnly)
+        let concept = try #require(center.run(for: StudioTestFixtures.app.id)?.conceptList.first)
+        model.studio.openConcept(concept, at: 0)
+        let viewer = try #require(model.studio.viewer)
+        #expect(viewer.current.title.hasSuffix(" · header · 21:9 · motion"))
+        #expect(viewer.current.subtitle.hasPrefix("20-second loop · plays muted on repeat · "))
+        #expect(viewer.current.subtitle.components(separatedBy: "plays muted on repeat").count == 2, "\(viewer.current.subtitle)")
+    }
+
+    /// Watch the header loop: "· motion" and the loop note once each.
+    @Test func theChosenLoopSaysItLoopsOnce() async throws {
+        let (model, _) = await newSet(StudioDebugHeaderStyle.watching(version: 2))
+        model.studio.openLoop(at: 0)
+        let viewer = try #require(model.studio.viewer)
+        #expect(viewer.current.title == "Product page header · 21:9 · 3840 × 1646 · motion")
+        #expect(viewer.current.subtitle == "20-second loop · plays muted on repeat · v2")
     }
 
     @Test func oneWideImageIsOneItem() async throws {

@@ -15,10 +15,11 @@ struct ReportAppSupportTool: MCPTool {
         title: "Report the devices and languages the app supports",
         description: """
         After reading the app's Xcode project, tell AppLocalizer what it supports: the targets ("Lumen (iOS, \
-        visionOS)", "LumenWatch Watch App"), the devices they run on besides iPhone (ipad, watch, vision, and iphone_duo when the iOS target builds \
-        with the iOS 27.1 SDK or later, which makes iPhone Duo screenshots required from April 2027) with why \
-        ("Lumen runs on iPad", "Lumen has a watch app, LumenWatch", "1.4 adds visionOS", "Built with the iOS 27.1 \
-        SDK"), and every language in \
+        visionOS)", "LumenWatch Watch App"), the devices they run on besides iPhone (ipad, watch, vision, mac when it has a macOS \
+        target or Mac Catalyst, so the Mac App Store takes Mac screenshots of its own (not when it only runs on Mac as an iPad app), \
+        and iphone_duo when the iOS target builds with the iOS 27.1 SDK or later, which makes iPhone Duo screenshots required from \
+        April 2027) with why ("Lumen runs on iPad", "Lumen has a watch app, LumenWatch", "1.4 adds visionOS", "Lumen supports Mac \
+        Catalyst", "Built with the iOS 27.1 SDK"), and every language in \
         its string catalogs (Localizable.xcstrings) with how many strings are translated, plus a note when it \
         matters ("Right to left; tested in LumenUITests"). AppLocalizer compares the languages with the App \
         Store page: the ones it doesn't have yet are suggested as new pages, and Autopilot plans each device. \
@@ -34,7 +35,7 @@ struct ReportAppSupportTool: MCPTool {
                 "targets": ["type": "array", "items": ["type": "string"], "description": "The app's targets with their platforms."],
                 "devices": [
                     "type": "array",
-                    "description": "Devices besides iPhone: ipad, watch, vision or iphone_duo, each with the reason.",
+                    "description": "Devices besides iPhone: ipad, mac, watch, vision or iphone_duo, each with the reason.",
                     "items": [
                         "type": "object",
                         "properties": ["device": ["type": "string"], "reason": ["type": "string"]],

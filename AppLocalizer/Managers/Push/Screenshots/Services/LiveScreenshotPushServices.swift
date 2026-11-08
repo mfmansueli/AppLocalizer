@@ -20,7 +20,7 @@ struct LiveScreenshotPushServices: ScreenshotPushServices {
         let loader = StorePageContentLoader(client: client)
         let content = try await loader.content(for: app, versionID: nil)
         var context = ScreenshotsContext(content: content)
-        await context.readVisionLocalizations(in: content) { id in try await loader.content(for: app, versionID: id) }
+        await context.readPlatformLocalizations(in: content) { id in try await loader.content(for: app, versionID: id) }
         return context
     }
 

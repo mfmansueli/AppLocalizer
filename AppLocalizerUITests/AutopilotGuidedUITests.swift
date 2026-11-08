@@ -7,9 +7,9 @@ import XCTest
 
 /// Autopilot v2, the guided front (board StudioV2), on
 /// `StudioDebugGuided`'s scenes: Start… from the page, What to make, Look,
-/// Here's the plan, Making it, Choose, Review & push and Sent, plus the
-/// Settings choice between Guided and Classic. Each test attaches the
-/// window's screenshot.
+/// Here's the plan, Making it, Choose, Review & push and Sent. The guided
+/// Autopilot is the only one: Settings no longer offers the classic sheet.
+/// Each test attaches the window's screenshot.
 @MainActor
 final class AutopilotGuidedUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -26,7 +26,7 @@ final class AutopilotGuidedUITests: XCTestCase {
     // MARK: - Setup
 
     func testStartOpensWhatToMake() {
-        app.launch(debugScene: "v2-home")
+        app.launch(debugScene: "ap-home")
         let start = element("studio.autopilot.run")
         XCTAssertTrue(start.waitForExistence(timeout: 20))
         XCTAssertEqual(start.label, "Start…")
@@ -41,7 +41,7 @@ final class AutopilotGuidedUITests: XCTestCase {
     }
 
     func testWhatToMakeTurnsAPartOff() {
-        app.launch(debugScene: "v2-make")
+        app.launch(debugScene: "ap-make")
         let preview = element("autopilot.guided.make.appPreview")
         XCTAssertTrue(preview.waitForExistence(timeout: 20))
         let footer = element("autopilot.guided.footer.text")
@@ -55,7 +55,7 @@ final class AutopilotGuidedUITests: XCTestCase {
     }
 
     func testNothingToMakeCantGoOn() {
-        app.launch(debugScene: "v2-make-some")
+        app.launch(debugScene: "ap-make-some")
         let artwork = element("autopilot.guided.make.artwork")
         XCTAssertTrue(artwork.waitForExistence(timeout: 20))
         let next = element("autopilot.guided.next")
@@ -67,7 +67,7 @@ final class AutopilotGuidedUITests: XCTestCase {
     }
 
     func testTheStepsGoForwardAndBack() {
-        app.launch(debugScene: "v2-make")
+        app.launch(debugScene: "ap-make")
         let next = element("autopilot.guided.next")
         XCTAssertTrue(next.waitForExistence(timeout: 20))
         next.click()
@@ -84,7 +84,7 @@ final class AutopilotGuidedUITests: XCTestCase {
     // MARK: - Look
 
     func testTemplatesArePickedFromTheFocus() {
-        app.launch(debugScene: "v2-look-tpl")
+        app.launch(debugScene: "ap-look-tpl")
         let pick = element("autopilot.guided.look.template.pick")
         XCTAssertTrue(pick.waitForExistence(timeout: 20))
         XCTAssertEqual(pick.label, "✓ Pick 1 · Remove", "Cinema, the first pick, is in focus")
@@ -100,31 +100,141 @@ final class AutopilotGuidedUITests: XCTestCase {
 
         element("autopilot.guided.look.template.highlight").click()
         XCTAssertTrue(waitUntil { pick.label == "Add to My Picks" }, pick.label)
+        // The preview opens below the fold: it's scrolled into view, its pick
+        // button above the footer (a click there went to Next).
+        let next = element("autopilot.guided.next")
+        XCTAssertTrue(waitUntil { pick.frame.maxY < next.frame.minY }, "\(pick.frame) under the footer at \(next.frame)")
         pick.click()
         XCTAssertTrue(waitUntil { pick.label == "✓ Pick 3 · Remove" }, pick.label)
     }
 
     func testATemplateIsPreviewedInGerman() {
-        app.launch(debugScene: "v2-look-tpl-de")
+        app.launch(debugScene: "ap-look-tpl-de")
         let locale = element("autopilot.guided.look.template.locale")
         XCTAssertTrue(locale.waitForExistence(timeout: 20))
         attachScreenshot("Look · templates in German")
     }
 
+    func testATemplateIsPreviewedOnEveryDeviceTheAppShipsOn() {
+        app.launch(debugScene: "ap-look-devices")
+        let size = element("autopilot.guided.look.template.size")
+        XCTAssertTrue(size.waitForExistence(timeout: 20))
+        for key in ["iphone", "ipad", "iphone_duo", "mac", "vision", "watch"] {
+            XCTAssertTrue(element("autopilot.guided.look.template.device.\(key)").exists, key)
+        }
+        XCTAssertEqual(element("autopilot.guided.look.template.device.mac").label, "Mac +", "Lumen runs on Mac, but the run doesn't make it")
+        XCTAssertEqual(element("autopilot.guided.look.template.device.ipad").label, "iPad")
+        let note = element("autopilot.guided.look.template.note")
+        reveal(note)
+        XCTAssertTrue(waitUntil { self.text(of: size).hasPrefix("iPad 13″") }, text(of: size))
+        XCTAssertTrue(text(of: note).contains("5 of 6 devices in this run · + means not in this run"), text(of: note))
+        XCTAssertTrue(element("autopilot.guided.look.template.shot.4").exists, "Five iPad screens")
+        XCTAssertFalse(element("autopilot.guided.look.template.notInRun").exists, "iPad is in the run")
+        attachScreenshot("Look · Arcade on iPad in German")
+
+        tap("autopilot.guided.look.template.device.mac")
+        XCTAssertTrue(waitUntil { self.text(of: size).hasPrefix("Mac · 2880 × 1800") }, text(of: size))
+        XCTAssertTrue(element("autopilot.guided.look.template.notInRun").waitForExistence(timeout: 5), "Only a preview")
+        XCTAssertTrue(element("autopilot.guided.look.template.shot.4").exists, "Five MacBook screenshots")
+        attachScreenshot("Look · Arcade on a MacBook")
+
+        tap("autopilot.guided.look.template.device.watch")
+        XCTAssertTrue(waitUntil { self.text(of: note).contains("no template is applied") }, text(of: note))
+        XCTAssertFalse(element("autopilot.guided.look.template.notInRun").exists, "Apple Watch is in the run")
+        attachScreenshot("Look · Apple Watch, bare screens")
+
+        tap("autopilot.guided.look.template.device.vision")
+        XCTAssertTrue(waitUntil { self.text(of: size).hasPrefix("Apple Vision Pro") }, text(of: size))
+        XCTAssertTrue(element("autopilot.guided.look.template.shot.2").exists, "Three windows")
+        XCTAssertFalse(element("autopilot.guided.look.template.shot.3").exists)
+    }
+
+    func testMacIsAddedToTheRunFromItsPreview() {
+        app.launch(debugScene: "ap-look-mac")
+        let banner = element("autopilot.guided.look.template.notInRun")
+        XCTAssertTrue(banner.waitForExistence(timeout: 20))
+        XCTAssertTrue(text(of: banner).hasPrefix("Mac isn’t in this run yet, so this is only a preview."), text(of: banner))
+        let size = element("autopilot.guided.look.template.size")
+        XCTAssertTrue(text(of: size).hasPrefix("Mac · 2880 × 1800"), text(of: size))
+        let note = element("autopilot.guided.look.template.note")
+        reveal(note)
+        XCTAssertTrue(text(of: note).hasPrefix("Mac App Store screenshots, 16:10: Lumen Journal’s Mac app on a MacBook"), text(of: note))
+        attachScreenshot("Look · Mac, not in the run")
+
+        let add = element("autopilot.guided.look.template.addDevice")
+        XCTAssertEqual(add.label, "Add Mac to the Run")
+        click(add)
+        XCTAssertTrue(banner.waitForNonExistence(timeout: 5), "In the run now")
+        let mac = element("autopilot.guided.look.template.device.mac")
+        XCTAssertTrue(waitUntil { mac.label == "Mac" }, mac.label)
+        XCTAssertTrue(mac.isSelected, "The preview stays on Mac")
+        XCTAssertFalse(text(of: note).contains("devices in this run"), "Every device is in the run")
+        attachScreenshot("Look · Mac added to the run")
+    }
+
+    func testAScreenshotOpensLargerAndSwitchesLanguageInPlace() {
+        app.launch(debugScene: "ap-look-tpl")
+        let shot = element("autopilot.guided.look.template.shot.2")
+        XCTAssertTrue(shot.waitForExistence(timeout: 20))
+        XCTAssertFalse(element("autopilot.guided.look.template.device.vision").exists, "Only the devices Lumen ships on")
+        XCTAssertFalse(element("autopilot.guided.look.template.device.mac").exists, "No Mac app, so no Mac")
+        XCTAssertTrue(element("autopilot.guided.look.template.device.iphone_duo").exists)
+        click(shot)
+        let viewer = element("studio.viewer")
+        XCTAssertTrue(viewer.waitForExistence(timeout: 5))
+        let count = element("studio.viewer.count")
+        let title = element("studio.viewer.title")
+        let subtitle = element("studio.viewer.subtitle")
+        XCTAssertEqual(text(of: count), "3 of 5")
+        XCTAssertTrue(text(of: title).hasPrefix("Cinema · 3 · "), text(of: title))
+        XCTAssertTrue(text(of: subtitle).hasPrefix("iPhone 6.9″ · 1320 × 2868 · English"), text(of: subtitle))
+
+        element("studio.viewer.language.de-DE").click()
+        XCTAssertTrue(waitUntil { self.text(of: subtitle).hasSuffix("German") }, text(of: subtitle))
+        XCTAssertEqual(text(of: count), "3 of 5", "The same screen, in German")
+        element("studio.viewer.next").click()
+        XCTAssertTrue(waitUntil { self.text(of: count) == "4 of 5" }, text(of: count))
+        attachScreenshot("Viewer · Cinema in German")
+
+        element("studio.viewer.close").click()
+        XCTAssertTrue(viewer.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(element("autopilot.guided.look.template.locale.de-DE").isSelected, "The preview follows the viewer's language")
+    }
+
+    func testArcadeIsMarkedNew() {
+        app.launch(debugScene: "ap-look-arcade")
+        let arcade = element("autopilot.guided.look.template.arcade")
+        XCTAssertTrue(arcade.waitForExistence(timeout: 20))
+        XCTAssertTrue(arcade.label.hasSuffix("new"), arcade.label)
+        XCTAssertFalse(element("autopilot.guided.look.template.cinema").label.hasSuffix("new"))
+        XCTAssertEqual(text(of: element("autopilot.guided.look.template.focusName")), "Arcade")
+        attachScreenshot("Look · Arcade, new")
+    }
+
     func testOnlyTheHeaderPicksScenes() {
-        app.launch(debugScene: "v2-look-art")
+        app.launch(debugScene: "ap-look-art")
         let night = element("autopilot.guided.look.scene.night")
         XCTAssertTrue(night.waitForExistence(timeout: 20))
         XCTAssertFalse(element("autopilot.guided.look.shotStyle.free").exists, "No screenshots to style")
         XCTAssertTrue(element("autopilot.guided.look.scene.pick").exists)
         XCTAssertTrue(element("autopilot.guided.look.note").exists)
         attachScreenshot("Look · header scenes")
+
+        // A clicked scene's preview, its pick button at the bottom, comes into
+        // view above the footer, and adding it works.
+        element("autopilot.guided.look.scene.horizon").click()
+        let pick = element("autopilot.guided.look.scene.pick")
+        XCTAssertTrue(waitUntil { pick.label == "Replace Pick 3 With This" }, pick.label)
+        let next = element("autopilot.guided.next")
+        XCTAssertTrue(waitUntil { pick.frame.maxY < next.frame.minY }, "\(pick.frame) under the footer at \(next.frame)")
+        pick.click()
+        XCTAssertTrue(waitUntil { pick.label == "✓ Pick 3 · Remove" }, pick.label)
     }
 
     // MARK: - Plan
 
     func testThePlanNumbersTheStops() {
-        app.launch(debugScene: "v2-plan")
+        app.launch(debugScene: "ap-plan")
         let choose = element("autopilot.guided.plan.row.choose.time")
         XCTAssertTrue(choose.waitForExistence(timeout: 20))
         XCTAssertEqual(text(of: choose), "stop 1 of 2")
@@ -140,7 +250,7 @@ final class AutopilotGuidedUITests: XCTestCase {
     // MARK: - Making it
 
     func testMakingItSaysWhatsNext() {
-        app.launch(debugScene: "v2-run")
+        app.launch(debugScene: "ap-run")
         let line = element("autopilot.guided.making.line")
         XCTAssertTrue(line.waitForExistence(timeout: 20))
         XCTAssertTrue(text(of: line).contains("captures"), text(of: line))
@@ -152,7 +262,7 @@ final class AutopilotGuidedUITests: XCTestCase {
     }
 
     func testTheDesignArrivesLookByLook() {
-        app.launch(debugScene: "v2-run-des")
+        app.launch(debugScene: "ap-run-des")
         let line = element("autopilot.guided.making.line")
         XCTAssertTrue(line.waitForExistence(timeout: 20))
         XCTAssertTrue(text(of: line).hasPrefix("2 of 3 screenshot looks"), text(of: line))
@@ -160,7 +270,7 @@ final class AutopilotGuidedUITests: XCTestCase {
     }
 
     func testTheClosedSheetLeavesTheProgressOnThePage() {
-        app.launch(debugScene: "v2-hidden")
+        app.launch(debugScene: "ap-hidden")
         let title = element("studio.autopilot.title")
         XCTAssertTrue(title.waitForExistence(timeout: 20))
         XCTAssertEqual(text(of: title), "Autopilot is running")
@@ -172,7 +282,7 @@ final class AutopilotGuidedUITests: XCTestCase {
     // MARK: - Choose
 
     func testUseTheseWaitsForALookAndAHeader() {
-        app.launch(debugScene: "v2-choose")
+        app.launch(debugScene: "ap-choose")
         let use = element("autopilot.guided.useChoices")
         XCTAssertTrue(use.waitForExistence(timeout: 20))
         XCTAssertFalse(use.isEnabled, "Nothing chosen yet")
@@ -186,7 +296,7 @@ final class AutopilotGuidedUITests: XCTestCase {
     }
 
     func testAskingForChangesNamesTheLook() {
-        app.launch(debugScene: "v2-choose")
+        app.launch(debugScene: "ap-choose")
         let ask = app.buttons.matching(identifier: "autopilot.guided.choose.look.ask").firstMatch
         XCTAssertTrue(ask.waitForExistence(timeout: 20))
         ask.click()
@@ -201,7 +311,7 @@ final class AutopilotGuidedUITests: XCTestCase {
     // MARK: - Review & push
 
     func testPushWaitsForEveryPart() {
-        app.launch(debugScene: "v2-review")
+        app.launch(debugScene: "ap-review")
         let approve = element("autopilot.guided.review.approve")
         XCTAssertTrue(approve.waitForExistence(timeout: 20))
         let push = element("autopilot.guided.push")
@@ -219,7 +329,7 @@ final class AutopilotGuidedUITests: XCTestCase {
     }
 
     func testTheHeaderTabFollowsTheApprovedScreenshots() {
-        app.launch(debugScene: "v2-review-art")
+        app.launch(debugScene: "ap-review-art")
         let approve = element("autopilot.guided.review.approve")
         XCTAssertTrue(approve.waitForExistence(timeout: 20))
         XCTAssertEqual(approve.label, "Approve Header and Search")
@@ -227,7 +337,7 @@ final class AutopilotGuidedUITests: XCTestCase {
     }
 
     func testSentSaysWhatWasSent() {
-        app.launch(debugScene: "v2-done")
+        app.launch(debugScene: "ap-done")
         let title = element("autopilot.guided.done.title")
         XCTAssertTrue(title.waitForExistence(timeout: 20))
         XCTAssertEqual(text(of: title), "Sent to the App Store")
@@ -238,14 +348,12 @@ final class AutopilotGuidedUITests: XCTestCase {
 
     // MARK: - Settings
 
-    func testSettingsChoosesTheClassicSheet() {
+    func testSettingsNoLongerOffersTheClassicSheet() {
         app.launch(debugScene: "set-general")
-        let front = element("settings.autopilotFront")
-        XCTAssertTrue(front.waitForExistence(timeout: 20))
-        let classic = front.radioButtons["Classic"].exists ? front.radioButtons["Classic"] : front.buttons["Classic"]
-        XCTAssertTrue(classic.exists)
-        classic.click()
-        XCTAssertTrue(waitUntil { classic.isSelected || (classic.value as? Int) == 1 })
+        XCTAssertTrue(element("settings.pushConfirmation").waitForExistence(timeout: 20), "General settings are open")
+        XCTAssertFalse(element("settings.autopilotFront").exists, "No Guided / Classic choice")
+        XCTAssertFalse(app.radioButtons["Classic"].exists)
+        attachScreenshot("General settings")
     }
 
     // MARK: - Helpers

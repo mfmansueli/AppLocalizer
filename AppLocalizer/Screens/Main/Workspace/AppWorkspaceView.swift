@@ -191,7 +191,7 @@ struct AppWorkspaceView: View {
         case .overview:
             OverviewSectionView(app: app)
         case .subscriptionPricing:
-            PricingSectionView(app: app, services: services.pricing)
+            PricingSectionView(app: app, services: services.pricing, retention: services.retention)
         case .storePage:
             StorePageSectionView(app: app, services: services.storePage)
         case .screenshots:

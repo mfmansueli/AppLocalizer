@@ -21,6 +21,14 @@ struct ScreenshotsContext: Hashable, Sendable {
     /// The version's build has an Apple Watch app: Apple Watch needs
     /// screenshots. False until it's read.
     var hasWatchApp = false
+    /// The app has a macOS version on App Store Connect (a Mac app, or an
+    /// iPad app made for Mac): Mac needs screenshots.
+    var hasMacVersion = false
+    /// The version open is that macOS version itself.
+    var isMacVersion = false
+    /// The macOS version's `appStoreVersionLocalizations` IDs, where Mac
+    /// screenshots go; empty until they're read.
+    var macLocalizations: [StoreLocale: String] = [:]
 
     init(content: StorePageContent) {
         let version = content.version
@@ -29,7 +37,9 @@ struct ScreenshotsContext: Hashable, Sendable {
             id: version.id, versionString: version.versionString, stateTitle: version.state.title, isEditable: version.isEditable
         )
         localizations = content.ids.versionLocalizations
-        hasVisionVersion = content.versions.contains { $0.platform == "VISION_OS" }
+        hasVisionVersion = content.versions.contains { $0.platform == Self.visionPlatform }
+        hasMacVersion = content.versions.contains { $0.platform == Self.macPlatform }
+        isMacVersion = version.platform == Self.macPlatform
     }
 
     init(primaryLocale: StoreLocale, version: ScreenshotsVersion, localizations: [StoreLocale: String] = [:]) {

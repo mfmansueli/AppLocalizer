@@ -79,7 +79,7 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
                 "list_apps", "get_capture_plan", "update_capture_plan", "report_capture", "report_capture_problem", "next_step",
                 "get_design_brief", "propose_direction", "revise_direction", "propose_captions", "report_app_support",
                 "start_display_recording", "finish_display_recording", "propose_screens", "revise_app_preview", "render_artwork",
-                "propose_artwork_concept", "revise_artwork_concept",
+                "propose_artwork_concept", "revise_artwork_concept", "answer_app_questions",
             ]
         }
     }
@@ -244,8 +244,9 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         reach it, add it to the UI tests and send its steps; screens addedBy the person stay when you replace. \
         List the watch app's screens and the Apple Vision Pro windows there too \
         (device watch or vision) when the plan has those devices. If you haven't told AppLocalizer what the \
-        project supports, call report_app_support first (targets, devices, and every language in its string \
-        catalogs). Go through the plan's preflight checks in the project and fix what fails before capturing \
+        project supports, or get_capture_plan's appLook isn't known, call report_app_support first (targets, devices, \
+        every language in its string catalogs, and look: the app's design language read from its design docs and \
+        theme, as appLook says). Go through the plan's preflight checks in the project and fix what fails before capturing \
         (UI tests that find buttons by their English title, sample data in one language). Build the app with \
         xcodebuild, boot each simulator (pair the watch with the iPhone), run the \
         setup commands, and for each device and locale launch the app with its arguments, reach each screen and \
@@ -269,7 +270,9 @@ enum MCPPrompt: String, CaseIterable, Identifiable, Sendable {
         propose_captions with run), revise_app_preview (the person's note on the App Preview, then \
         revise_app_preview with the new cut), or suggest_screens (then propose_screens with run). Stop when it \
         says done. \
-        The App Preview's music is the person's choice: change it with set_app_preview_music only when they ask. \
+        When next_step says answer_app_questions, answer from the project: AppLocalizer keeps the answers for every \
+        later run. The track you pick there is the App Preview's music unless the person chose one; after that, \
+        change it with set_app_preview_music only when they ask. \
         Never draw the interface; use the real captures. \
         Nothing is uploaded to App Store Connect until the person pushes in AppLocalizer.
         """

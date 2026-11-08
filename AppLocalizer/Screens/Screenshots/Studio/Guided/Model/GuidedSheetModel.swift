@@ -21,6 +21,9 @@ final class GuidedSheetModel {
     var templateStyle: TemplateStarter.Style?
     /// The language the template preview shows; nil is the primary one.
     var templateLocale: String?
+    /// The device the template preview shows (Mac for iPad's set in the
+    /// Mac App Store); nil, or one the run no longer makes, is the first.
+    var templateDevice: ScreenshotDisplayType?
     /// The header scene the Look step previews large; nil is the first
     /// pick, else the recommended one.
     var headerFocus: AutopilotHeaderTemplate?
@@ -47,6 +50,7 @@ final class GuidedSheetModel {
         templateFocus = nil
         templateStyle = nil
         templateLocale = nil
+        templateDevice = nil
         headerFocus = nil
         showsScreens = false
         showsSimulator = false

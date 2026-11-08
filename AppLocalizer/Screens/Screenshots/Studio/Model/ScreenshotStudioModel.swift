@@ -64,6 +64,12 @@ final class ScreenshotStudioModel {
     var viewer: StudioViewer?
     /// The viewer marks the part of the header iPhone shows.
     var viewerShowsGuide = false
+    /// The template whose preview the viewer shows (the Look step's), so
+    /// its language can switch in place.
+    var viewerTemplate: TemplateStarter?
+    /// The device whose Review & push screenshots the viewer shows, so
+    /// their language can switch in place.
+    var viewerReviewDevice: ScreenshotDisplayType?
     /// "Ask for changes" on Watch the App Preview.
     var previewNote = ""
     /// The App Preview Watch the App Preview plays; nil is the primary
@@ -96,9 +102,6 @@ final class ScreenshotStudioModel {
     var launchedRunID: ClaudeCodeRun.ID?
     /// The guided sheet's own state.
     var guided = GuidedSheetModel()
-    /// The Autopilot front DEBUG scenes show, whatever Settings say; nil
-    /// follows Settings.
-    var frontOverride: AutopilotFront?
     /// Starts Claude Code when its helper is saved; the Autopilot sheet
     /// sets it.
     @ObservationIgnored weak var launcher: ClaudeCodeLauncher?
@@ -133,17 +136,19 @@ final class ScreenshotStudioModel {
         set { localeCode = newValue }
     }
 
-    /// iPhone and iPad, then Apple Watch and Apple Vision Pro when the app
-    /// runs there: the project says so, App Store Connect has a visionOS
-    /// version or watch screenshots, or the set or plan has them.
+    /// iPhone, iPhone Duo and iPad, then Mac, Apple Watch and Apple Vision
+    /// Pro when the app runs there: the project says so, App Store Connect
+    /// has a macOS or visionOS version or watch screenshots, or the set or
+    /// plan has them.
     var devices: [ScreenshotDisplayType] {
         var own = Set(appSupport?.profile(for: app.id)?.devices.map(\.displayType) ?? [])
         if screenshots.context.hasVisionVersion { own.insert(.visionPro) }
         if screenshots.context.hasWatchApp { own.insert(.watch) }
+        if screenshots.context.hasMacVersion { own.insert(.mac) }
         own.formUnion(run?.plan.displayTypes ?? [])
         own.formUnion(screenshots.document?.displays ?? [])
         own.formUnion(screenshots.live.screenshotSets.filter { !$0.screenshots.isEmpty }.map(\.displayType))
-        return ScreenshotDisplayType.studio.filter { $0.isRendered || own.contains($0) }
+        return ScreenshotDisplayType.studio.filter { $0.isStandard || own.contains($0) }
     }
 
     var appSupport: AppSupportCenter? { screenshots.services.appSupport }
@@ -231,13 +236,14 @@ final class ScreenshotStudioModel {
     var autopilot: AutopilotCenter? { screenshots.services.autopilot }
     var run: AutopilotRun? { autopilot?.run(for: app.id) }
     var designProject: DesignProject? { autopilot?.designProject(for: app.id) }
+    /// Where Start takes the looks from: the design project, the assistant
+    /// designing from the app's own design, or AppLocalizer's starters.
+    var plannedDesignKind: DesignProjectKind {
+        run?.plan.designKind(for: designProject) ?? designProject?.kind ?? .none
+    }
 
     var context: AutopilotContext {
         AutopilotContext(app: app, services: screenshots.services, primaryLocale: primaryLocale)
-    }
-
-    func strip(assistant: String?) -> AutopilotStripContent {
-        AutopilotStripContent.make(run: run, appName: app.name, assistant: assistant, designProject: designProject, hasNewSet: hasNewSet)
     }
 
     /// Run Autopilot…: a plan from the screens the set has, or the run in
@@ -250,6 +256,7 @@ final class ScreenshotStudioModel {
             storeLocales: locales.map(\.code),
             hasVisionVersion: screenshots.context.hasVisionVersion,
             hasWatchApp: screenshots.context.hasWatchApp,
+            hasMacVersion: screenshots.context.hasMacVersion,
             live: screenshots.live
         )
         let plan = AutopilotPlanner.plan(
@@ -264,11 +271,6 @@ final class ScreenshotStudioModel {
     func openAutopilot() {
         viewedStep = nil
         isAutopilotPresented = true
-    }
-
-    /// The step the sheet shows.
-    var shownStep: AutopilotStage {
-        viewedStep ?? run?.stage.step ?? .plan
     }
 
     /// Steps the run has reached can be looked at again.

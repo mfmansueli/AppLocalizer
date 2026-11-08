@@ -32,6 +32,7 @@ struct NextStepToolTests {
         #expect(result["remaining"] == 120)
         #expect(result["phase"] == "rehearsal")
         #expect(result["rehearsal"]?.stringValue?.contains("in en-US and \(rehearsal)") == true)
+        #expect(result["pace"] == nil, "Each rehearsal capture is looked at")
         let targets = try #require(result["targets"]?.arrayValue)
         #expect(targets.count == 20, "Five screens on two devices in two languages")
         #expect(Set(targets.compactMap { $0["locale"]?.stringValue }) == ["en-US", rehearsal])
@@ -86,6 +87,13 @@ struct NextStepToolTests {
         #expect(result["remaining"] == 100)
         #expect(result["targets"]?.arrayValue?.count == 40)
         #expect(result["how"]?.stringValue?.contains("changesProject: true") == true)
+        #expect(result["pace"] == .string(AutopilotNextStep.batchCaptureHow), "The rest in one go per device and language")
+        // Bruma's run, in AppLocalizer's own Claude Code: no script can run
+        // there, so it launched, waited, captured, looked and reported each
+        // screen in turn, about 40 seconds each.
+        let pace = try #require(result["pace"]?.stringValue)
+        #expect(pace.contains("xcresulttool"), "The UI test is one go without a script")
+        #expect(pace.contains("one at a time"), "Where commands run one at a time, the independent calls go together")
     }
 
     @Test func oneLanguageHasNoPhase() async throws {

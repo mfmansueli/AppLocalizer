@@ -24,6 +24,9 @@ struct MCPToolbox {
             ProposePricesTool(),
             GetSubscriptionsTool(),
             ProposeSubscriptionTool(),
+            GetRetentionTool(),
+            ProposeRetentionMessageTool(),
+            ProposeRetentionOfferTool(),
             GetPrivacyQuestionnaireTool(),
             ProposePrivacyAnswersTool(),
             GetAgeRatingTool(),
@@ -65,6 +68,7 @@ struct MCPToolbox {
             SetAppPreviewMusicTool(),
             ReportDesignSourceTool(),
             ReportAppSupportTool(),
+            AnswerAppQuestionsTool(),
         ])
     }
 

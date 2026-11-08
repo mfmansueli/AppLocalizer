@@ -5,8 +5,8 @@
 
 import SwiftUI
 
-/// This slot: Standard or Hero, a headline size override, the overrides
-/// it has, each clearable, and Reset Slot.
+/// This slot: Standard, Hero, Two phones or Reviews, a headline size
+/// override, the overrides it has, each clearable, and Reset Slot.
 struct SlotInspectorSection: View {
     let model: TemplateEditorViewModel
 
@@ -19,15 +19,14 @@ struct SlotInspectorSection: View {
                     .accessibilityIdentifier("screenshots.template.resetSlot")
             }
         } content: {
-            TemplateInspectorRow(label: String(localized: "Layout")) {
-                Picker("Layout", selection: Binding { model.slotLayout } set: { model.setSlotLayout($0) }) {
-                    Text("Standard").tag(TemplateSlot.Layout.standard)
-                    Text("Hero").tag(TemplateSlot.Layout.hero)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .accessibilityIdentifier("screenshots.template.slotLayout")
+            TemplateInspectorPicker(
+                String(localized: "Layout"), selection: Binding { model.slotLayout } set: { model.setSlotLayout($0) },
+                identifier: "screenshots.template.slotLayout"
+            ) {
+                Text("Standard").tag(TemplateSlot.Layout.standard)
+                Text("Hero").tag(TemplateSlot.Layout.hero)
+                Text("Two phones").tag(TemplateSlot.Layout.pair)
+                Text("Reviews").tag(TemplateSlot.Layout.quotes)
             }
             TemplateInspectorSlider(label: String(localized: "Headline size"), value: model.slotHeadlineSize, range: 72...150, step: 2, unit: " u") {
                 model.setSlotHeadlineSize($0)

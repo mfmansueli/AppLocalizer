@@ -35,9 +35,9 @@ struct GuidedChooseStepView: View {
                         Text(run.plan.alsoMakes.artworkSize.placeTitle)
                             .font(.headline)
                             .accessibilityAddTraits(.isHeader)
-                        let width = AutopilotChooseStageView.conceptWidth(in: contentWidth)
+                        let width = Self.conceptWidth(in: contentWidth)
                         let pick = GuidedPick.concept(in: run)?.id
-                        AutopilotDesignCardsLayout(spacing: AutopilotChooseStageView.conceptSpacing) {
+                        AutopilotDesignCardsLayout(spacing: Self.conceptSpacing) {
                             ForEach(run.conceptsToChoose) { concept in
                                 AutopilotConceptCard(
                                     studio: studio, run: run, concept: concept, isEditable: true, width: width,
@@ -69,5 +69,12 @@ struct GuidedChooseStepView: View {
         let marked = String(localized: "\(GuidedPick.label(design: run.designKind)) is marked.")
         guard run.designKind.usesDesignAI else { return marked }
         return marked + " " + String(localized: "Not quite right? Ask for changes on any of them.")
+    }
+
+    static let conceptSpacing: CGFloat = 10
+
+    /// Three concept cards share the width.
+    static func conceptWidth(in width: CGFloat) -> CGFloat {
+        max(((width - conceptSpacing * 2) / 3).rounded(.down), 150)
     }
 }

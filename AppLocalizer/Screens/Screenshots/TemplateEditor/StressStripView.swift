@@ -24,7 +24,9 @@ struct StressStripView: View {
             let columns = Array(repeating: GridItem(.fixed(cardWidth + 16), spacing: Spacing.medium), count: 2)
             LazyVGrid(columns: columns, alignment: .leading, spacing: Spacing.medium) {
                 ForEach(model.strip) { entry in
-                    StressStripCard(entry: entry, capture: model.captureImage(for: entry.preview), width: cardWidth)
+                    StressStripCard(
+                        entry: entry, capture: model.captureImage(for: entry.preview), companion: model.companionImage(for: entry.preview), width: cardWidth
+                    )
                 }
             }
         }

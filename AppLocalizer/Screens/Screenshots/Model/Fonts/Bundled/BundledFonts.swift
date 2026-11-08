@@ -18,6 +18,7 @@ enum BundledFonts {
             BundledFontFace("Archivo-SemiBold", weight: 600),
         ]),
         BundledFontFamily(name: "Archivo Black", faces: [BundledFontFace("ArchivoBlack-Regular", weight: 400)]),
+        BundledFontFamily(name: "Boldonse", faces: [BundledFontFace("Boldonse-Regular", weight: 400)], fallbackWeight: 800),
         BundledFontFamily(name: "Fredoka", faces: [
             BundledFontFace("Fredoka-Medium", weight: 500), BundledFontFace("Fredoka-SemiBold", weight: 600),
             BundledFontFace("Fredoka-Bold", weight: 700),

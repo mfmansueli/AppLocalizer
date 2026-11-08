@@ -91,6 +91,8 @@ struct AutopilotGuidedStripTests {
         #expect(review.kind == .yourTurn)
         #expect(review.text == "Everything is made and checked. Review it, then push.")
         #expect(review.primaryTitle == "Review…")
+        #expect(review.secondary == .runAutopilot, "A set the person won't push can be dropped for a new run")
+        #expect(review.secondaryTitle == "New Run…")
 
         #expect(Self.strip(StudioDebugRuns.run(.pick)).primaryTitle == "Pick the Captures…")
     }

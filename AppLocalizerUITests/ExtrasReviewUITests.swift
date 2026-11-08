@@ -45,6 +45,24 @@ final class ExtrasReviewUITests: XCTestCase {
         XCTAssertTrue(app.buttons["review.extras.test.header"].exists)
     }
 
+    /// The card's checkbox leaves out every header at once and brings them
+    /// back; the German header's error keeps it out either way.
+    func testACardsCheckboxLeavesOutTheWholeCard() {
+        app.launch(debugScene: "shots-review-extras")
+        let card = app.checkBoxes["review.extras.cardCheck.header"]
+        XCTAssertTrue(card.waitForExistence(timeout: 30))
+        scrollReview(by: -400, until: card)
+        let english = app.checkBoxes["review.extras.check.header-en-US"]
+        XCTAssertEqual(english.value as? Int, 1)
+
+        card.click()
+        XCTAssertEqual(english.value as? Int, 0, "Every header is out")
+
+        card.click()
+        XCTAssertEqual(english.value as? Int, 1, "Every header is back")
+        XCTAssertEqual(app.checkBoxes["review.extras.check.header-de-DE"].value as? Int, 0, "An error keeps it out")
+    }
+
     func testPushingTheExtrasShowsWhenTheyreDone() {
         app.launch(debugScene: "shots-review-extras")
         let push = app.buttons["review.extras.push.\(appID)"]
@@ -150,8 +168,17 @@ final class ExtrasReviewUITests: XCTestCase {
         shot.lifetime = .keepAlways
         add(shot)
 
-        app.buttons["Cancel Remaining"].click()
-        XCTAssertTrue(element("review.extras.progress.cancelling").waitForExistence(timeout: 5))
+        // The cards above change height as their status lines change, so
+        // the button can move between finding it and the click: tried again
+        // until the push says it's cancelling.
+        let cancelling = element("review.extras.progress.cancelling")
+        var tries = 0
+        while !cancelling.exists, tries < 3 {
+            app.buttons["Cancel Remaining"].click()
+            _ = cancelling.waitForExistence(timeout: 3)
+            tries += 1
+        }
+        XCTAssertTrue(cancelling.exists)
         let finished = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value CONTAINS 'pushed'"), object: progress.staticTexts.firstMatch)
         XCTAssertEqual(XCTWaiter().wait(for: [finished], timeout: 60), .completed, "The ones in flight finish, the rest don't go")
     }

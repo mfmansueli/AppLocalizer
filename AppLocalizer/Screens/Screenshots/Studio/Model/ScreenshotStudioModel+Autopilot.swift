@@ -22,7 +22,7 @@ extension ScreenshotStudioModel {
     func start() {
         noteStoreNames()
         fillHeaderTemplates()
-        autopilot?.start(appID: app.id)
+        autopilot?.start(appID: app.id, interfaceGaps: run.map { interfaceGaps(for: $0.plan) } ?? [])
         reportMissingSimulators()
         viewedStep = nil
         launchedRunID = nil
@@ -44,6 +44,12 @@ extension ScreenshotStudioModel {
     /// and App Preview write the name that language's page has.
     func noteStoreNames() {
         autopilot?.noteStoreNames(storeTexts.names, appID: app.id)
+    }
+
+    /// iPad, iPhone Duo and Mac captured in only some of `plan`'s languages
+    /// so far: the run captures the rest.
+    func interfaceGaps(for plan: AutopilotPlan) -> [AutopilotInterfaceGap] {
+        AutopilotInterfaceGap.gaps(in: plan, captures: screenshots.document?.captures ?? CaptureIndex())
     }
 
     private func startWithoutCapturing() {
@@ -302,12 +308,17 @@ extension ScreenshotStudioModel {
     }
 
     /// The direction's five screenshots in the primary language, laid out
-    /// with the picks.
+    /// with the picks. Its laurels show the App Store rating once it's
+    /// looked up, and none where the app has no ratings yet, as the set
+    /// will.
     func layouts(for direction: AutopilotDirection) -> [ScreenshotLayout] {
         guard let run else { return [] }
-        let key = "\(direction.id)@\(direction.receivedAt.timeIntervalSinceReferenceDate)"
+        screenshots.lookUpRatings(for: direction.template)
+        screenshots.lookUpReviews(for: direction.template)
+        let store = screenshots.ratings.hashValue ^ screenshots.reviews.hashValue
+        let key = "\(direction.id)@\(direction.receivedAt.timeIntervalSinceReferenceDate)#\(store)"
         if let cached = directionLayouts[key] { return cached }
-        let engine = ScreenshotLayoutEngine(catalog: screenshots.services.fonts)
+        let engine = screenshots.layoutEngine
         var template = direction.template
         template.slots = AutopilotLocalizer.slots(template.slots, count: run.plan.screens.count)
         let display = run.plan.displayTypes.first ?? .iPhone
@@ -319,6 +330,20 @@ extension ScreenshotStudioModel {
         }
         directionLayouts[key] = layouts
         return layouts
+    }
+
+    /// In a Two phones slot of `direction`, the picked capture of the
+    /// screen before it, standing behind (the last for the first), as the
+    /// Look preview and the rendered set draw it; nil in any other slot.
+    func behindCapture(in direction: AutopilotDirection, slot: Int) -> AutopilotCapture? {
+        guard let run else { return nil }
+        let count = run.plan.screens.count
+        let slots = AutopilotLocalizer.slots(direction.template.slots, count: count)
+        guard slots.indices.contains(slot) else { return nil }
+        var template = direction.template
+        template.slots = slots
+        guard let behind = template.behindSlot(slot, templateSlot: slot, count: count) else { return nil }
+        return run.pickedCapture(for: run.plan.screens[behind].id)
     }
 
     /// The picked capture of each screen, in slot order.
@@ -333,14 +358,14 @@ extension ScreenshotStudioModel {
     func visionPreview(for direction: AutopilotDirection) -> (layout: ScreenshotLayout, capture: AutopilotCapture?)? {
         guard let run, run.plan.displayTypes.contains(.visionPro), let screen = run.plan.screens(on: .visionPro).first else { return nil }
         let capture = run.finalCapture(for: AutopilotCaptureTarget(screenID: screen.id, displayType: .visionPro, locale: run.plan.primaryLocale))
-        let key = "vision-\(direction.id)@\(direction.receivedAt.timeIntervalSinceReferenceDate)-\(capture?.id ?? "")"
+        let key = "vision-\(direction.id)@\(direction.receivedAt.timeIntervalSinceReferenceDate)-\(capture?.id ?? "")#\(screenshots.ratings.hashValue ^ screenshots.reviews.hashValue)"
         if let cached = directionLayouts[key]?.first { return (cached, capture) }
         let slot = screen.sourceScreenID.flatMap { run.plan.slot(of: $0) } ?? 0
         var template = direction.template
         template.slots = AutopilotLocalizer.slots(template.slots, count: run.plan.screens.count)
         let caption = screenshots.document?.captions.caption(locale: primaryLocale.code, slot: slot)
             ?? Self.caption(run.plan.caption(of: screen))
-        let layout = ScreenshotLayoutEngine(catalog: screenshots.services.fonts).layout(
+        let layout = screenshots.layoutEngine.layout(
             template, slot: min(slot, max(template.slots.count - 1, 0)), locale: primaryLocale, displayType: .visionPro,
             caption: caption, captureSize: capture?.pixelSize
         )

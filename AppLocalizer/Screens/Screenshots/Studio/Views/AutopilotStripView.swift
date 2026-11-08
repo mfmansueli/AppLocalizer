@@ -112,7 +112,7 @@ struct AutopilotStripView: View {
     private var buttons: some View {
         HStack(spacing: Spacing.small) {
             if let secondary = content.secondary {
-                Button(secondary.secondaryTitle) { perform(secondary) }
+                Button(content.secondaryTitle ?? secondary.secondaryTitle) { perform(secondary) }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.capsule)
                     .accessibilityIdentifier(secondary.identifier)

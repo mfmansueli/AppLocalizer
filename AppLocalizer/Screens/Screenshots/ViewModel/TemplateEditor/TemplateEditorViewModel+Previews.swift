@@ -21,13 +21,14 @@ extension TemplateEditorViewModel {
         var displayType: ScreenshotDisplayType
         var fonts: ScreenshotFontCatalog
         var ratings: StoreRatings
+        var reviews: StoreReviews
     }
 
     var previewInputs: PreviewInputs {
         PreviewInputs(
             template: template, captions: screenshots.document?.captions, previewCaptions: previewCaptions, slot: slot,
             locale: localeCode, displayType: displayType, fonts: screenshots.fonts,
-            ratings: screenshots.ratings
+            ratings: screenshots.ratings, reviews: screenshots.reviews
         )
     }
 
@@ -39,25 +40,30 @@ extension TemplateEditorViewModel {
             strip = []
             return
         }
-        let engine = ScreenshotLayoutEngine(catalog: screenshots.fonts)
+        let engine = screenshots.layoutEngine
         let primary = screenshots.context.primaryLocale
         let slot = min(slot, template.slots.count - 1)
         let capture = { [displayType] (code: String) in
             document.captures.capture(locale: code, displayType: displayType, slot: slot, primary: primary.code)
         }
+        let behindSlot = template.behindSlot(slot, templateSlot: slot, count: document.slotCount(on: displayType))
+        let behind = { [displayType] (code: String) -> ScreenshotCapture? in
+            behindSlot.flatMap { document.captures.capture(locale: code, displayType: displayType, slot: $0, primary: primary.code)?.capture }
+        }
         let inputs = StressStripPlanner.Inputs(
             template: template, slot: slot, displayType: displayType, primary: primary,
             ownCaption: { document.captions.caption(locale: $0, slot: slot) },
             previewCaption: { [previewCaptions] in previewCaptions[LocaleSlot(locale: $0, slot: slot)] },
-            capture: capture
+            capture: capture, behind: behind
         )
         strip = StressStripPlanner(engine: engine).entries(inputs)
         canvas = SlotPreview.make(
             SlotPreview.Placement(template: template, locale: locale, displayType: displayType, slot: slot),
-            caption: canvasCaption(inputs), capture: capture(localeCode), engine: engine, primaryLocaleName: primary.name,
-            ratings: screenshots.ratings
+            caption: canvasCaption(inputs), capture: capture(localeCode), behind: behind(localeCode), engine: engine,
+            primaryLocaleName: primary.name, ratings: screenshots.ratings
         )
         screenshots.lookUpRatings(for: template)
+        screenshots.lookUpReviews(for: template)
         requestPreviewTranslations()
         loadCaptureImages()
     }
@@ -80,9 +86,14 @@ extension TemplateEditorViewModel {
         screenshots.captureImages.image(for: preview.job.capture, width: captureImageWidth)
     }
 
+    /// The capture of the phone behind on a Two phones slot, once loaded.
+    func companionImage(for preview: SlotPreview) -> CGImage? {
+        preview.job.companion.flatMap { screenshots.captureImages.image(for: $0, width: captureImageWidth) }
+    }
+
     private func loadCaptureImages() {
         let previews = [canvas].compactMap(\.self) + strip.map(\.preview)
-        screenshots.captureImages.request(previews.compactMap(\.job.capture), width: captureImageWidth)
+        screenshots.captureImages.request(previews.flatMap { [$0.job.capture, $0.job.companion].compactMap(\.self) }, width: captureImageWidth)
     }
 
     // MARK: - Preview translations

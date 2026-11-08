@@ -27,10 +27,35 @@ struct TemplateDevice: Codable, Hashable, Sendable {
     var shiftRight: Double?
     /// Extra shift down (`dy`), as a fraction of the canvas height.
     var shiftDown: Double?
+    /// Pins the frame's top edge at this fraction of the canvas height
+    /// instead of following the caption box, with the caption above it.
+    /// A language that needs more room pushes it down just enough: it
+    /// never overlaps the caption.
+    var top: Double?
+    /// What an empty screen (no capture yet) shows (`empty`). Every
+    /// template draws a switched-off black screen now, so `black` is also
+    /// what leaving it out means; templates that say so still read.
+    var emptyScreen: EmptyScreen?
+    /// The phone behind on a Two phones slot (`slots[i].layout: pair`).
+    var pair: TemplateDevicePair?
 
     enum CodingKeys: String, CodingKey {
         case show, width, color, offset, bleed, tilt
         case shiftRight = "dx"
         case shiftDown = "dy"
+        case top
+        case emptyScreen = "empty"
+        case pair
+    }
+
+    enum EmptyScreen: String, Codable, Hashable, Sendable, CaseIterable {
+        case black
+    }
+
+    /// The screen color where there's no capture yet: black, set or not.
+    var emptyScreenColor: TemplateColor {
+        switch emptyScreen {
+        case .black, nil: .black
+        }
     }
 }

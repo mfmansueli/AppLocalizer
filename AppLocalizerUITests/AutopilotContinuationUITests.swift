@@ -6,9 +6,9 @@
 import AppKit
 import XCTest
 
-/// A Screenshot Autopilot run nobody works on any more says so, with
-/// Continue; one that's going doesn't. The DEBUG scenes have no helper, so
-/// Continue copies the prompt that picks the run up.
+/// A Screenshot Autopilot run nobody works on any more says so on Making
+/// it, with Continue; one that's going doesn't. The DEBUG scenes have no
+/// helper, so Continue copies the prompt that picks the run up.
 @MainActor
 final class AutopilotContinuationUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -27,10 +27,9 @@ final class AutopilotContinuationUITests: XCTestCase {
         let notice = element("autopilot.stall")
         XCTAssertTrue(notice.waitForExistence(timeout: 15))
         XCTAssertTrue(text(of: element("autopilot.stall.text")).contains("Nothing has arrived for 85 minutes"), text(of: element("autopilot.stall.text")))
-        let stage = element("autopilot.stage.capture")
-        XCTAssertTrue(stage.label.contains("Nothing new for a while"), stage.label)
-        XCTAssertTrue(text(of: element("autopilot.footer.text")).contains("44 captures left"), text(of: element("autopilot.footer.text")))
-        XCTAssertTrue(app.buttons["autopilot.continue"].exists)
+        let footer = text(of: element("autopilot.guided.footer.text"))
+        XCTAssertTrue(footer.contains("44 captures left"), footer)
+        XCTAssertTrue(app.buttons["autopilot.guided.continue"].exists)
 
         app.buttons["autopilot.stall.continue"].click()
         let note = element("autopilot.stall.note")
@@ -41,60 +40,58 @@ final class AutopilotContinuationUITests: XCTestCase {
 
     func testARunThatsGoingSaysNothing() {
         app.launch(debugScene: "st-cap")
-        XCTAssertTrue(element("autopilot.capture").waitForExistence(timeout: 15))
+        XCTAssertTrue(element("autopilot.guided.making.steps").waitForExistence(timeout: 15))
         XCTAssertFalse(element("autopilot.stall").exists)
-        XCTAssertFalse(app.buttons["autopilot.continue"].exists)
-        XCTAssertFalse(element("autopilot.stage.capture").label.contains("stopped"))
+        XCTAssertFalse(app.buttons["autopilot.guided.continue"].exists)
+        let footer = text(of: element("autopilot.guided.footer.text"))
+        XCTAssertFalse(footer.contains("isn’t working on this run"), footer)
     }
 
     /// Design after AppLocalizer closed while Claude Code designed: paused,
-    /// not stopped (nothing red), and no card spins.
+    /// not stopped, and no look spins.
     func testAPausedDesignSaysSoAndNothingSpins() {
         app.launch(debugScene: "st-des-paused")
         let notice = element("autopilot.stall")
         XCTAssertTrue(notice.waitForExistence(timeout: 15))
         XCTAssertEqual(text(of: element("autopilot.stall.text")), "Paused when AppLocalizer closed, with 2 directions still to design.")
-        let stage = element("autopilot.stage.design")
-        XCTAssertTrue(stage.label.contains("Paused · Continue picks it up"), stage.label)
-        XCTAssertFalse(stage.label.contains("stopped"), stage.label)
-        XCTAssertEqual(text(of: element("autopilot.design.count")), "1 of 3")
+        let line = text(of: element("autopilot.guided.making.line"))
+        XCTAssertTrue(line.hasPrefix("1 of 3"), line)
         for index in 1...2 {
-            let card = text(of: element("autopilot.design.direction.\(index)"))
-            XCTAssertTrue(card.contains("Waits for Claude Code"), card)
-            XCTAssertFalse(card.contains("designing"), card)
+            let card = text(of: element("autopilot.guided.making.look.\(index)"))
+            XCTAssertTrue(card.contains("Waiting"), card)
+            XCTAssertFalse(card.contains("Designing"), card)
         }
-        XCTAssertTrue(text(of: element("autopilot.footer.text")).hasPrefix("Paused when AppLocalizer closed"), text(of: element("autopilot.footer.text")))
-        XCTAssertTrue(app.buttons["autopilot.continue"].exists)
+        let footer = text(of: element("autopilot.guided.footer.text"))
+        XCTAssertTrue(footer.hasPrefix("Paused when AppLocalizer closed"), footer)
+        XCTAssertTrue(app.buttons["autopilot.guided.continue"].exists)
     }
 
-    /// Design while the assistant works: the next direction designs, the
-    /// one after it is up next, and nothing asks to continue.
+    /// Design while the assistant works: the next look designs, the one
+    /// after it waits, and nothing asks to continue.
     func testADesignThatsGoingShowsWhatsNext() {
         app.launch(debugScene: "st-des")
-        XCTAssertTrue(element("autopilot.design").waitForExistence(timeout: 15))
+        XCTAssertTrue(element("autopilot.guided.making.looks").waitForExistence(timeout: 15))
         XCTAssertFalse(element("autopilot.stall").exists)
-        XCTAssertFalse(app.buttons["autopilot.continue"].exists)
-        let next = text(of: element("autopilot.design.direction.1"))
-        XCTAssertTrue(next.contains("Direction 2 · designing…"), next)
-        let after = text(of: element("autopilot.design.direction.2"))
-        XCTAssertTrue(after.contains("Direction 3 · up next"), after)
+        XCTAssertFalse(app.buttons["autopilot.guided.continue"].exists)
+        let next = text(of: element("autopilot.guided.making.look.1"))
+        XCTAssertTrue(next.contains("Designing"), next)
+        let after = text(of: element("autopilot.guided.making.look.2"))
+        XCTAssertTrue(after.contains("Waiting"), after)
     }
 
-    /// Localizing while the assistant writes captions: what it's doing,
-    /// missing captions told apart from ones too long, and nothing asking
+    /// Localizing while the assistant writes captions: Making it says every
+    /// image is checked and who shortens what doesn't fit, and nothing asks
     /// to continue.
-    func testLocalizingSaysWhatClaudeCodeIsWriting() {
+    func testLocalizingSaysEveryImageIsChecked() {
         app.launch(debugScene: "st-loc-captions")
-        let now = element("autopilot.localize.now")
-        XCTAssertTrue(now.waitForExistence(timeout: 15))
-        XCTAssertTrue(text(of: now).contains("Claude Code is translating 10 captions and shortening 1, in 3 languages."), text(of: now))
-        let japanese = text(of: element("autopilot.localize.ja"))
-        XCTAssertTrue(japanese.contains("5 captions to translate · Claude Code is writing them"), japanese)
-        let german = text(of: element("autopilot.localize.de-DE"))
-        XCTAssertTrue(german.contains("1 caption too long · Claude Code is shortening them"), german)
+        let checking = element("autopilot.guided.making.checking")
+        XCTAssertTrue(checking.waitForExistence(timeout: 15))
+        XCTAssertTrue(text(of: checking).contains("Captions that don’t fit are shortened by Claude Code"), text(of: checking))
+        XCTAssertEqual(text(of: element("autopilot.guided.title")), "Localizing and checking")
         XCTAssertFalse(element("autopilot.stall").exists)
-        let footer = text(of: element("autopilot.footer.text"))
-        XCTAssertTrue(footer.hasPrefix("Claude Code writes the captions"), footer)
+        XCTAssertFalse(app.buttons["autopilot.guided.continue"].exists)
+        let footer = text(of: element("autopilot.guided.footer.text"))
+        XCTAssertTrue(footer.hasPrefix("You can close this window; Autopilot keeps going."), footer)
     }
 
     private func wait(until condition: @escaping () -> Bool, timeout: TimeInterval) -> Bool {

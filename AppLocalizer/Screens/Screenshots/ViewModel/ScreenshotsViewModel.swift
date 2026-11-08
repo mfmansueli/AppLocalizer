@@ -42,6 +42,17 @@ final class ScreenshotsViewModel {
     @ObservationIgnored private var ratingCountriesAsked: Set<String> = []
     /// The lookup in flight, if any; tests wait for it.
     @ObservationIgnored private(set) var ratingsTask: Task<Void, Never>?
+    /// The app's 5-star App Store reviews a Reviews slot quotes, looked up
+    /// once per country.
+    private(set) var reviews: StoreReviews = .none
+    @ObservationIgnored private var reviewCountriesAsked: Set<String> = []
+    /// The reviews lookup in flight, if any; tests wait for it.
+    @ObservationIgnored private(set) var reviewsTask: Task<Void, Never>?
+
+    /// Lays renders out with the fonts, ratings and reviews known so far.
+    var layoutEngine: ScreenshotLayoutEngine {
+        ScreenshotLayoutEngine(catalog: fonts, ratings: ratings, reviews: reviews)
+    }
 
     // MARK: - Editors
 
@@ -123,13 +134,14 @@ final class ScreenshotsViewModel {
         guard let document else { return }
         let snapshot = ScreenshotsSnapshot(
             document: document, live: live, primaryLocale: context.primaryLocale, locales: locales,
-            version: context.version, fonts: fonts, ratings: ratings
+            version: context.version, fonts: fonts, ratings: ratings, reviews: reviews
         )
         matrix = await Task.detached(priority: .userInitiated) {
             ScreenshotMatrixBuilder().build(snapshot)
         }.value
         renderVisibleCells()
         lookUpRatings(for: document.template)
+        lookUpReviews(for: document.template)
         if document.template == nil, !document.captures.isEmpty { await renderStarterPreviews() }
     }
 
@@ -145,6 +157,25 @@ final class ScreenshotsViewModel {
             let found = await services.storeRatings(for: app, countries: countries)
             guard !found.checked.isEmpty else { return }
             ratings = ratings.merging(found)
+            await rebuild()
+        }
+    }
+
+    /// Looks up the 5-star App Store reviews in the countries a Reviews
+    /// slot of `template` shows in (and the primary language's, which fills
+    /// in) that nobody asked about yet, then rebuilds with them.
+    func lookUpReviews(for template: ScreenshotTemplate?) {
+        guard let template, template.showsReviews, let scope = document?.scope else { return }
+        let primary = context.primaryLocale.regionCode.uppercased()
+        let wanted = Set(locales.filter { scope.contains($0.code) }.map { $0.regionCode.uppercased() } + [primary])
+        let countries = wanted.subtracting(reviewCountriesAsked)
+        guard !countries.isEmpty else { return }
+        reviewCountriesAsked.formUnion(countries)
+        reviewsTask = Task { [services, app] in
+            var found = await services.storeReviews(for: app, countries: countries)
+            found.primaryCountry = primary
+            guard !found.checked.isEmpty else { return }
+            reviews = reviews.merging(found)
             await rebuild()
         }
     }
@@ -230,12 +261,13 @@ final class ScreenshotsViewModel {
     /// Why each display type templates don't render is left out.
     var otherDisplayTypeNotes: [(ScreenshotDisplayType, String)] {
         let notes = services.otherDisplayTypeNotes(for: app)
-        return ScreenshotDisplayType.allCases.filter { !$0.isRendered }.compactMap { type in notes[type].map { (type, $0) } }
+        let rendered = renderedDisplays
+        return ScreenshotDisplayType.allCases.filter { !rendered.contains($0) }.compactMap { type in notes[type].map { (type, $0) } }
     }
 
     /// The canvas size a display type renders at, for the display menu.
     func pixelSize(for display: ScreenshotDisplayType) -> PixelSize {
-        let orientation = document?.template?.canvas.orientation(for: display) ?? (display.isTablet ? .landscape : .portrait)
+        let orientation = document?.template?.canvas.orientation(for: display) ?? (display.isTablet || display.isAlwaysLandscape ? .landscape : .portrait)
         return ScreenshotCanvas(display: display, orientation: orientation).pixelSize
     }
 

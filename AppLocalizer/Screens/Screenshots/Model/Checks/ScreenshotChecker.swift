@@ -31,6 +31,11 @@ enum ScreenshotChecker {
             ))
         }
         if let rating = ratingCheck(layout, ratings: ratings) { checks.append(rating) }
+        if let reviews = layout.reviews {
+            checks.append(reviewsCheck(reviews, layout: layout, primaryLocaleName: primaryLocaleName))
+            // A Reviews slot shows no capture, unless it has no review to quote.
+            if reviews.showsQuotes { return checks }
+        }
         if let capture {
             if let size = captureSizeCheck(capture.capture, layout: layout) { checks.append(size) }
             if !capture.isInterfaceLocalized {
@@ -89,9 +94,12 @@ enum ScreenshotChecker {
             let kind = switch captured {
             case .iPad: String(localized: "an iPad screenshot")
             case .iPhoneDuo: String(localized: "an iPhone Duo screenshot")
+            case .mac: String(localized: "a Mac screenshot")
             default: String(localized: "an iPhone screenshot")
             }
-            let text = String(localized: "Wrong size: the capture is \(size.title), \(kind). Retake it on an \(display.deviceName) simulator.")
+            let text = display == .mac
+                ? String(localized: "Wrong size: the capture is \(size.title), \(kind). Retake it on this Mac, capturing its whole screen.")
+                : String(localized: "Wrong size: the capture is \(size.title), \(kind). Retake it on an \(display.deviceName) simulator.")
             return RenderCheck(kind: .captureSize, status: .failed, text: text, shortReason: wrongSize)
         }
         let frame = layout.captureFrame(for: size)

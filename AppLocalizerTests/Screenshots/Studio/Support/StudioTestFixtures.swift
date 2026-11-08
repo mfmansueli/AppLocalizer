@@ -101,13 +101,15 @@ enum StudioTestFixtures {
         live: LiveScreenshots = live,
         support: AppSupportCenter? = nil,
         hasVisionVersion: Bool = false,
-        hasWatchApp: Bool = false
+        hasWatchApp: Bool = false,
+        hasMacVersion: Bool = false
     ) async -> ScreenshotsViewModel {
         let services = StudioTestServices(document: document, live: live, autopilot: center)
         services.appSupport = support
         var context = ScreenshotsContext(primaryLocale: .englishUS, version: ScreenshotsTestFixtures.editableVersion)
         context.hasVisionVersion = hasVisionVersion
         context.hasWatchApp = hasWatchApp
+        context.hasMacVersion = hasMacVersion
         let model = ScreenshotsViewModel(app: app, services: services, context: context)
         await model.load()
         model.renderQueue.cancel()

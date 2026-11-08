@@ -83,6 +83,13 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     /// Moments the person asked to record again (screen IDs), until the
     /// new takes arrive; nil when there are none.
     var momentRetakes: [String]?
+    /// How much each moment moves, by screen ID, once measured.
+    var momentMotion: [String: AutopilotMomentMotion]?
+    /// The moments AppLocalizer itself asked for again because they barely
+    /// moved: once each.
+    var motionRetakes: [String]?
+    /// When the assistant was asked about the app: once a run.
+    var appQuestionsAskedAt: Date?
     /// The new takes of single moments, standing in for those moments of
     /// their device's recording; nil when there are none.
     var retakes: [AutopilotRecording]?
@@ -114,6 +121,11 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     /// Preview's end card write as the name (`appName(in:fallback:)`). Nil
     /// until AppLocalizer has read the page, and in runs from before.
     var storeNames: [String: String]?
+    /// iPad, iPhone Duo and Mac captured in only some of the languages
+    /// before the run, noted at Start: Review says what the run filled
+    /// ("before, iPad screens existed in 4"). Nil when there were none, and
+    /// in runs from before.
+    var interfaceGaps: [AutopilotInterfaceGap]?
     /// Suggest Screens, waiting for the assistant.
     var screenRequest: AutopilotScreenRequest?
     /// The assistant's suggested screens, shown at Plan.
@@ -208,6 +220,14 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
 
     var openProblems: [AutopilotProblem] { problems.filter(\.isOpen) }
 
+    /// Everything no problem holds is in and nothing is being retried:
+    /// what's left waits on the person. Bruma's run, its Mac to retry or
+    /// leave out, said "324 of 432 captures · about 52 min left" and "the
+    /// rest keeps going" with nothing going on.
+    var waitsOnlyOnProblems: Bool {
+        !openProblems.isEmpty && remainingTargets.isEmpty && remainingRecordings.isEmpty && retries.isEmpty
+    }
+
     /// Open problems with the same cause together: one card for a test
     /// that fails the same way in every language and on every device.
     var problemGroups: [AutopilotProblemGroup] { AutopilotProblemGroup.groups(of: openProblems) }
@@ -244,7 +264,11 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     /// Every target settled, nothing waiting on the person, and nothing to
     /// capture again.
     var isCaptureComplete: Bool {
-        // A run that only records for its App Preview has no targets.
+        // A run that only records for its App Preview has no targets. One
+        // that makes screenshots waits for its screens: a Bruma run whose
+        // recordings were all skipped before any screen was chosen went on
+        // to Review with 0 screenshots, every check "passed".
+        guard !plan.awaitsScreens else { return false }
         let hasWork = !plan.targets.isEmpty || !plan.recordingTargets.isEmpty
         return hasWork && plan.targets.allSatisfy(isSettled) && openProblems.isEmpty && retries.isEmpty && remainingRecordings.isEmpty
     }
@@ -266,6 +290,14 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     var keptTargetCount: Int {
         let targets = Set(plan.targets)
         return Set(captures.filter { targets.contains($0.target) && plan.fits($0) }.map(\.target)).count
+    }
+
+    /// The captures Start keeps (`AutopilotCenter.applyCaptureChoice`):
+    /// the last run's when the plan reuses them, and a stopped run's own
+    /// always. Bruma's run, stopped with 54 in, said "Captures 9 screens"
+    /// at Plan and nothing about the 54.
+    var capturesKeptAtStart: Int {
+        plan.reusesCaptures || startedAt != nil ? keptCaptureCount : 0
     }
 
     var latestCapture: AutopilotCapture? {

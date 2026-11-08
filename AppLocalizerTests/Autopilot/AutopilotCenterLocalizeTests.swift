@@ -123,6 +123,30 @@ struct AutopilotCenterLocalizeTests {
         #expect(await center.nextStep(appID: appID, client: AutopilotTestFixtures.client) == .done)
     }
 
+    /// Over MCP: Bruma's last propose_captions waited for every language's
+    /// header loops and the App Previews, and timed out.
+    @Test func captionsThatFitMakeTheRestWithoutHoldingUpTheCall() async throws {
+        await useQuietIndigoWithThai()
+        let captions = ["เขียนทุกวัน", "ทั้งสัปดาห์", "ค้นหาบันทึก", "รูปภาพของคุณ", "เป็นส่วนตัว"].enumerated().map { slot, headline in
+            AutopilotCaptionUpdate(locale: "th", slot: slot, headline: headline)
+        }
+        try await center.applyCaptions(captions, client: AutopilotTestFixtures.client, appID: appID, context: context, waitsForExtras: false)
+
+        #expect(run?.overflows.isEmpty == true)
+        #expect(run?.stage == .localize, "Answered before the rest is made")
+        let finishing = try #require(center.finishing[appID])
+        #expect(center.localizing[appID] == 1, "A resume waits for it")
+        // Nothing above suspends, so the rest hasn't started yet.
+        center.finishInBackground(appID, context: context)
+        #expect(center.localizing[appID] == 1, "Started once")
+
+        await finishing.value
+        #expect(run?.stage == .ready)
+        #expect(run?.log.last?.text == "20 screenshots ready in Review & Push")
+        #expect(center.finishing[appID] == nil)
+        #expect(center.localizing[appID] == 0)
+    }
+
     @Test func shortenedCaptionsAreListedForThePersonToCheck() async throws {
         let before = try #require(ScreenshotsTestFixtures.caption("de-DE", slot: 2)?.headline)
         var start = StudioDebugRuns.run(.localize)

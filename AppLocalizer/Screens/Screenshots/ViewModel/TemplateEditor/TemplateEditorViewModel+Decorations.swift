@@ -5,8 +5,8 @@
 
 import Foundation
 
-// Decorations · Slot N: the slot's shapes, laurels and badges. Every edit
-// writes the slot's whole list as its override; a list back to the
+// Decorations · Slot N: the slot's shapes, laurels, badges and props. Every
+// edit writes the slot's whole list as its override; a list back to the
 // template's own clears it.
 extension TemplateEditorViewModel {
     /// What Add Rating, Add Sparkle, Add Shape and Add Badge put on the
@@ -64,16 +64,82 @@ extension TemplateEditorViewModel {
         editDecoration(at: index) { $0.color = color }
     }
 
+    /// Hide or Show: a hidden decoration stays in the list, undrawn.
+    func toggleDecorationHidden(at index: Int) {
+        editDecoration(at: index) { $0.hidden = $0.isHidden ? nil : true }
+    }
+
+    /// "Figure · shared with slot 5", "Game controller", "Rating laurel".
+    func decorationTitle(_ decoration: TemplateDecoration) -> String {
+        guard let span = decoration.span else { return decoration.title }
+        let other = span + 1
+        return span > slot
+            ? String(localized: "\(decoration.title) · shared with slot \(other)")
+            : String(localized: "\(decoration.title) · continues from slot \(other)")
+    }
+
     /// A laurel's or badge's value; the applier refuses letters.
     func setDecorationValue(_ value: String, at index: Int) {
         editDecoration(at: index) { $0.value = value.trimmingCharacters(in: .whitespaces) }
     }
 
+    /// "4.8 ★ · 220 ratings in the United States": the App Store's rating
+    /// a laurel shows in the editor's language, read daily; "No ratings in
+    /// South Korea yet · hidden there" where it has none.
+    var storeRatingLine: String {
+        let country = StoreCountryName.phrase(locale.regionCode)
+        switch screenshots.ratings.status(for: locale) {
+        case let .rated(average):
+            let value = String(format: "%.1f", (average * 10).rounded() / 10)
+            guard let count = screenshots.ratings.count(inCountry: locale.regionCode) else {
+                return String(localized: "\(value) ★ in \(country)")
+            }
+            return count == 1
+                ? String(localized: "\(value) ★ · 1 rating in \(country)")
+                : String(localized: "\(value) ★ · \(count.formatted()) ratings in \(country)")
+        case .unrated:
+            return String(localized: "No ratings in \(country) yet · hidden there")
+        case .unknown:
+            return String(localized: "Reading the App Store rating in \(country)…")
+        }
+    }
+
+    /// Type It: the laurel shows a value typed by hand, starting from the
+    /// one it shows now; it's checked against the App Store before push.
+    func typeRating(at index: Int) {
+        let shown: String? = if case let .rated(average) = screenshots.ratings.status(for: locale) {
+            String(format: "%.1f", (average * 10).rounded() / 10)
+        } else {
+            nil
+        }
+        editDecoration(at: index) { decoration in
+            decoration.source = .custom
+            decoration.value = shown ?? decoration.value ?? "4.8"
+        }
+    }
+
+    /// Use App Store: the laurel shows the App Store's rating in each
+    /// country again.
+    func useStoreRating(at index: Int) {
+        editDecoration(at: index) { $0.source = nil }
+    }
+
     /// "Ratings show only numbers and stars… against Lumen’s App Store
-    /// rating in that country."
+    /// rating in that country.", or what props are on a slot that has them.
     var ratingNote: String {
-        String(
-            localized: "Ratings show only numbers and stars, so they need no translation. Keep them true: before pushing, AppLocalizer checks each one against \(templateTitle)’s App Store rating in that country."
+        if slotDecorations.contains(where: { $0.type == .art }) {
+            return String(localized: """
+            Props are vector stand-ins drawn by the template, never taken from your captures. Hide or remove any that don’t \
+            fit your app. Props that would cover the caption in a language move below it or step aside on their own.
+            """)
+        }
+        return String(
+            localized: """
+            Rating laurels show this app’s real App Store rating in each country, read daily from the App Store (average and \
+            count per storefront); where the app has no ratings yet, the laurel is left out. Ratings show only numbers and \
+            stars, so they need no translation. Type It sets a value by hand; before pushing, AppLocalizer checks it against \
+            \(templateTitle)’s rating in that country, since Apple rejects misleading screenshots.
+            """
         )
     }
 

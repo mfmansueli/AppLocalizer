@@ -78,9 +78,15 @@ enum GuidedMakeSummary {
         return max(1, minutes)
     }
 
-    /// Localizing and checking: about a minute for every four languages,
-    /// two at least.
+    /// Localizing and checking: the languages checked, then the header and
+    /// search artwork and App Previews made.
     static func localizeMinutes(_ plan: AutopilotPlan) -> Int {
+        checkMinutes(plan) + AutopilotEstimate.extrasMakingMinutes(for: plan)
+    }
+
+    /// Checking every language: about a minute for every four, two at
+    /// least.
+    static func checkMinutes(_ plan: AutopilotPlan) -> Int {
         max(2, Int((Double(plan.localeCodes.count) / 4).rounded()))
     }
 

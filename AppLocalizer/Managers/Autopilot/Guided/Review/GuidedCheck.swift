@@ -7,12 +7,13 @@ import Foundation
 
 /// A line in Review & push's Checks: passed, a change Autopilot made for
 /// the person to confirm (a shortened caption, with Looks Good or Edit…),
-/// or something to look at.
+/// something to look at, or something still being made.
 struct GuidedCheck: Hashable, Sendable, Identifiable {
     enum State: Hashable, Sendable {
         case passed
         case toConfirm
         case attention
+        case working
     }
 
     var id: String
@@ -20,6 +21,9 @@ struct GuidedCheck: Hashable, Sendable, Identifiable {
     var state: State
     /// The captions shortened, for a check to confirm.
     var shortenings: [AutopilotShortening] = []
+    /// What a check to look at found, one line each: "German · iPad ·
+    /// Chat: Cut-off text: “Garten ver…”."
+    var details: [String] = []
 
     /// "“Durchsuche jahrelange Tagebucheinträge in Sekunden” → “Finde
     /// alles in Sekunden”", one line each.

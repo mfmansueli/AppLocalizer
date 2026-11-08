@@ -22,6 +22,9 @@ struct ClaudeCodeAskButton: View {
     let explanation: (_ client: String) -> String
     /// `storePage.inAppTexts.ask`; the popover and prompt add `.popover` and `.prompt`.
     let identifier: String
+    /// The button's title instead of "Ask Claude Code…", e.g. "Ask Claude
+    /// Code to Draft One…".
+    var title: ((_ client: String) -> String)?
 
     @Environment(ClaudeCodeLauncher.self) private var launcher
     @Environment(MCPServerController.self) private var assistants
@@ -41,7 +44,11 @@ struct ClaudeCodeAskButton: View {
 
     var body: some View {
         Button(action: ask) {
-            Label("Ask \(client)…", systemImage: "sparkles")
+            if let title {
+                Label(title(client), systemImage: "sparkles")
+            } else {
+                Label("Ask \(client)…", systemImage: "sparkles")
+            }
         }
         .help(Text(help(client)))
         .popover(isPresented: $isPresented, arrowEdge: .bottom) { popover }

@@ -8,8 +8,9 @@ import Foundation
 
 /// Lumen Journal on every device it runs on: the standard set, plus
 /// LumenWatch's four screens and three Apple Vision Pro windows (Today,
-/// Week and Search) captured in every language. Live, the App Store has
-/// only two English watch screenshots, uploaded by hand.
+/// Week and Search) captured in every language; scenes about Mac add its
+/// Mac app, captured in the languages its iPad is (`addMac(to:)`). Live,
+/// the App Store has only two English watch screenshots, uploaded by hand.
 enum DebugEveryDevice {
     /// LumenWatch's screens and how Claude Code gets to each.
     static let watchScreens: [(name: String, steps: String)] = [
@@ -29,6 +30,12 @@ enum DebugEveryDevice {
     /// An Apple Vision Pro window capture: the iPad layout at 2752 × 2064.
     static let visionCaptureSize = PixelSize(width: 2752, height: 2064)
 
+    /// The Mac app's captures: the whole screen of a 16:10 Mac.
+    static let macCaptureSize = PixelSize(width: 2880, height: 1800)
+
+    /// The languages the Mac app is captured in: the iPad's.
+    static var macLocales: [String] { ScreenshotsSampleData.capturedLocales[.iPad] ?? ["en-US"] }
+
     static var document: ScreenshotsDocument {
         let data = ScreenshotsSampleData.self
         var document = ScreenshotsDebugDocuments.document(for: .standard)
@@ -43,6 +50,22 @@ enum DebugEveryDevice {
             }
         }
         return document
+    }
+
+    /// Lumen's Mac app, captured: the whole screen, in the iPad's
+    /// languages, so the set has a Mac row.
+    static func addMac(to document: inout ScreenshotsDocument) {
+        addMac(to: &document, locales: macLocales)
+    }
+
+    /// Mac captures in `locales`: after a run that captured them all.
+    static func addMac(to document: inout ScreenshotsDocument, locales: [String]) {
+        let data = ScreenshotsSampleData.self
+        for locale in locales {
+            for slot in data.slotNames.indices {
+                document.captures.add(data.capture(locale: locale, display: .mac, slot: slot, pixelSize: macCaptureSize))
+            }
+        }
     }
 
     /// The standard live sets and two English watch screenshots.

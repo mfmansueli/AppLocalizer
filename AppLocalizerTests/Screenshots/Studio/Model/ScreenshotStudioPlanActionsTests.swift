@@ -81,7 +81,7 @@ struct ScreenshotStudioPlanActionsTests {
         let model = await StudioTestFixtures.screenshots(center: center)
         model.studio.stop()
         #expect(center.run(for: appID)?.stage == .plan)
-        #expect(model.studio.shownStep == .plan)
+        #expect(model.studio.guidedStep.isSetup)
     }
 
     // MARK: - Prompt

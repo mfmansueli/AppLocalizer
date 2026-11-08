@@ -5,7 +5,8 @@
 
 import Foundation
 
-/// The simulators a device's captures can come from.
+/// The simulators a device's captures can come from; Mac's come from this
+/// Mac itself.
 extension ScreenshotDisplayType {
     /// Device types whose screens are the set's size, preferred first.
     var simulatorDeviceTypes: [String] {
@@ -15,7 +16,8 @@ extension ScreenshotDisplayType {
         case .iPad: ["iPad Pro 13-inch (M5)", "iPad Pro 13-inch (M5) (16GB)", "iPad Pro 13-inch (M4)", "iPad Pro 13-inch (M4) (16GB)"]
         case .watch: ["Apple Watch Ultra 3 (49mm)", "Apple Watch Ultra 2 (49mm)"]
         case .visionPro: ["Apple Vision Pro"]
-        case .mac, .appleTV: [deviceName]
+        case .mac: []
+        case .appleTV: [deviceName]
         }
     }
 

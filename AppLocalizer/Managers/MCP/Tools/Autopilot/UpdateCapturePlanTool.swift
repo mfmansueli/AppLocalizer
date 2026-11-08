@@ -16,14 +16,15 @@ struct UpdateCapturePlanTool: MCPTool {
         description: """
         Writes the screens of the Autopilot run's plan from the project: for each, its name, the steps to reach \
         it (e.g. tab "Week" → scroll to top) and, if the plan has none, the caption it goes with. Screens without \
-        a device are iPhone's and iPad's; device "watch" lists the watch app's own screens (no captions), and \
+        a device are iPhone's, iPad's and Mac's; device "watch" lists the watch app's own screens (no captions), and \
         device "vision" the Apple Vision Pro windows, each with sameMomentAs: the iPhone screen id whose moment \
         and caption it shows. Match existing screens by id or name; new screens can be added only before the \
         first capture. When the plan says chooseScreens, decide which screens show the app best and send them \
         with replace: true: on each device you send screens for, they become the plan's screens in that order \
-        (strongest first, each with a caption: App Store search results show the first three), and the others there are dropped, \
+        (strongest first, each with a caption as get_capture_plan's choosingScreens says: App Store search results \
+        show the first three), and the others there are dropped, \
         except the screens the person added (addedBy in get_capture_plan): they stay, after yours, unless you send them. \
-        With iPhone Duo in the plan, send at least 6 screens: its set has 3 open and 3 closed at least. Also takes the file the steps \
+        iPhone Duo uses the same screens as iPhone (get_capture_plan's poses say which it shows open or closed). Also takes the file the steps \
         came from (writtenFrom, e.g. LumenUITests/ScreenshotTests.swift) and the app's sample-data switch.
         """,
         inputSchema: MCPToolDefinition.schema(
@@ -36,7 +37,7 @@ struct UpdateCapturePlanTool: MCPTool {
                         "type": "object",
                         "properties": [
                             "id": ["type": "string"], "name": ["type": "string"], "steps": ["type": "string"], "caption": ["type": "string"],
-                            "device": ["type": "string", "description": "watch or vision for those devices' own screens; omit for iPhone and iPad."],
+                            "device": ["type": "string", "description": "watch or vision for those devices' own screens; omit for iPhone, iPad and Mac."],
                             "sameMomentAs": ["type": "string", "description": "On vision: the iPhone screen's id."],
                         ],
                         "required": ["name", "steps"],

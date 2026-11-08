@@ -17,7 +17,7 @@ import SwiftUI
 ///   Metronome's with Keep my prices.
 ///
 /// Ids it doesn't know go to each area's own list (`ConnectDebugScenes`,
-/// `SettingsDebugScenes`, `ReviewPushDebugScenes`, `PricingDebugScenes`,
+/// `SettingsDebugScenes`, `ReviewPushDebugScenes`, `PricingDebugScenes`, `RetentionDebugScenes`,
 /// `StorePageDebugScenes`, `AppInformationDebugScenes`,
 /// `ScreenshotsDebugScenes`, `ScreenshotsPushDebugScenes`, `ExtrasPushDebugScenes`,
 /// `ScreenshotsProposalsDebugScenes`, `AssistantDebugScenes`,
@@ -56,6 +56,7 @@ struct DebugSceneView: View {
             SettingsDebugScenes.view(for:),
             ReviewPushDebugScenes.view(for:),
             PricingDebugScenes.view(for:),
+            RetentionDebugScenes.view(for:),
             StorePageDebugScenes.view(for:),
             AppInformationDebugScenes.view(for:),
             ScreenshotsDebugScenes.view(for:),

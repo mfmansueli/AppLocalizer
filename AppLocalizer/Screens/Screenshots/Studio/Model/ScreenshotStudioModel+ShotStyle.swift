@@ -35,9 +35,10 @@ extension ScreenshotStudioModel {
         return screenshots.document?.history?.currentNumber ?? 1
     }
 
-    /// Who makes the directions: the design AI, else AppLocalizer.
+    /// Who makes the directions: the design AI (the project's, or without
+    /// one, the assistant's from the app's own design), else AppLocalizer.
     var shotStyleDesigner: String {
-        designProject?.kind.usesDesignAI == true ? headerDesignerName : String(localized: "AppLocalizer")
+        plannedDesignKind.usesDesignAI ? headerDesignerName : String(localized: "AppLocalizer")
     }
 
     /// What to make's line: who captures, who designs (in which brand) and
@@ -50,9 +51,11 @@ extension ScreenshotStudioModel {
         return String(localized: "Choose any mix. \(assistantTitle) captures the real app, \(shotStyleDesigner) designs it in \(brand), and AppLocalizer localizes and checks every image.")
     }
 
-    /// The brand the design AI works in, if any.
+    /// The brand the design AI works in, if any: the design project's, or
+    /// the app's own design when the assistant designs without one.
     var shotStyleBrand: String? {
-        designProject.flatMap { $0.kind.usesDesignAI ? $0.displayName : nil }
+        if let project = designProject { return project.kind.usesDesignAI ? project.displayName : nil }
+        return plannedDesignKind.usesDesignAI ? String(localized: "the app’s own design") : nil
     }
 
     /// The template picker's line under its title.

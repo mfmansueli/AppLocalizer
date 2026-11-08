@@ -60,7 +60,7 @@ struct CaptureReportToolsTests {
         #expect(outcome.result["check"] == [["issue": .string(issue.message), "fix": .string(issue.fix)]])
         #expect(outcome.result["next"] == "Fix it and capture this screen again as attempt 2.")
         #expect(outcome.result["status"] == "received")
-        #expect(fixtures.run?.captures.last?.text == CaptureTextFacts(language: "en"))
+        #expect(fixtures.run?.captures.last?.text == CaptureTextFacts(language: "en", truncatedTops: [], ellipsisTops: []))
     }
 
     /// MB Admin's nearly empty sheet passed: a mostly blank capture comes

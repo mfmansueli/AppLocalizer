@@ -6,9 +6,9 @@
 import SwiftUI
 
 /// Step 3, Plan: the run as a timeline (who does what, how long, where
-/// it stops for the person), the screens under the capture line, and
-/// fewer stops or more control. A device this Mac can't capture comes
-/// first.
+/// it stops for the person), the screens under the capture line, fewer
+/// stops or more control with the simulator options, and This Mac: each
+/// device's simulator before Start.
 struct GuidedPlanStepView: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -19,8 +19,9 @@ struct GuidedPlanStepView: View {
         let plan = run.plan
         let client = run.clientName(assistant: assistant)
         let rows = GuidedPlanTimeline.rows(
-            plan: plan, client: client, design: studio.designProject?.kind ?? .none,
-            brand: studio.shotStyleBrand, kept: plan.reusesCaptures ? run.keptCaptureCount : 0
+            plan: plan, client: client, design: studio.plannedDesignKind,
+            brand: studio.shotStyleBrand, kept: run.capturesKeptAtStart,
+            gaps: studio.interfaceGaps(for: plan), app: studio.app.name
         )
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.large) {
@@ -32,9 +33,6 @@ struct GuidedPlanStepView: View {
                     Text("Autopilot runs on its own and stops only where it says \(Text("You").fontWeight(.semibold)).")
                         .font(.callout)
                         .foregroundStyle(Palette.label2)
-                }
-                if let simulators = launcher?.simulators, !simulators.missing(in: plan.runDisplays).isEmpty {
-                    AutopilotMacCheckView(studio: studio, plan: plan, simulators: simulators)
                 }
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(rows) { row in
@@ -53,12 +51,15 @@ struct GuidedPlanStepView: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("autopilot.guided.plan.timeline")
                 GuidedStopsCard(studio: studio, run: run, assistant: assistant)
+                if let simulators = launcher?.simulators, GuidedMacCheck.applies(to: run) {
+                    GuidedThisMacCard(studio: studio, run: run, simulators: simulators)
+                }
             }
             .padding(.horizontal, 22)
             .padding(.vertical, 18)
         }
         .onAppear { studio.fillHeaderTemplates() }
-        // The devices this Mac can't capture show before Start.
+        // Start waits until each device's simulator is known.
         .task {
             if let simulators = launcher?.simulators, simulators.inventory == nil { await simulators.check() }
         }

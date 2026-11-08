@@ -19,6 +19,12 @@ struct TemplateCaption: Codable, Hashable, Sendable {
     var band: TemplateBand
     var headline: TemplateTextStyle
     var subhead: TemplateTextStyle
+    /// A short topic line over the headline (`kicker`), one per slot and
+    /// language, written in Captions next to the headline and translated
+    /// like it. With one, the caption box is as tall as the real lines and
+    /// the headline sits right under it; a slot without kicker text shows
+    /// the headline alone.
+    var kicker: TemplateTextStyle?
 
     /// Above the device; below it, at the bottom inside `safe.bottom`, with
     /// the device leaning out of the top edge; or in a solid band while the

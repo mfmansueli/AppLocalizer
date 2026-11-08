@@ -8,7 +8,7 @@ import SwiftUI
 /// Watch the header loop: the chosen header's header and search loops
 /// playing (click to view larger, with the player's controls), what they
 /// are, quick asks and the person's own words for the design source, which
-/// sends the next version (v2, v3…), and the versions so far.
+/// sends a revised version, and the versions so far.
 struct AutopilotLoopReviewBox: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -75,22 +75,18 @@ struct AutopilotLoopReviewBox: View {
                         .accessibilityIdentifier("autopilot.loop.ask")
                 }
             }
-            if let status {
-                HStack(spacing: Spacing.small) {
-                    ProgressView().controlSize(.small)
-                    Text(status)
-                        .font(.callout)
-                        .foregroundStyle(Palette.label2)
-                        .fixedSize(horizontal: false, vertical: true)
+            if let progress = AutopilotLoopProgress.make(run, now: .now) {
+                // Each language takes minutes: the time left counts down
+                // between them.
+                TimelineView(.periodic(from: .now, by: 30)) { context in
+                    status(AutopilotLoopProgress.make(run, now: context.date) ?? progress)
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityIdentifier("autopilot.loop.busy")
             }
             if let revisions = review?.revisions, !revisions.isEmpty {
                 Divider()
                 VStack(alignment: .leading, spacing: 3) {
                     ForEach(revisions, id: \.version) { revision in
-                        Text("\(Text("v\(revision.version)").fontWeight(.semibold)) \(Text(revision.changes.isEmpty ? revision.note : revision.changes).foregroundStyle(Palette.label2))")
+                        Text("\(Text(RevisionLabel.title(version: revision.version)).fontWeight(.semibold)) \(Text(revision.changes.isEmpty ? revision.note : revision.changes).foregroundStyle(Palette.label2))")
                             .font(.callout)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -114,10 +110,11 @@ struct AutopilotLoopReviewBox: View {
     private var isBusy: Bool { AutopilotCenter.loopIsBusy(run) }
     private var canAsk: Bool { !isBusy && !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
-    /// "Moonrise · 20 s · loops · muted · v2".
+    /// "Moonrise · 20 s · loops · muted", "… · muted · Revised".
     private var subtitle: String {
         let name = run.chosenConcept?.name ?? ""
-        return String(localized: "\(name) · \(AutopilotArtworkMotion.loopSeconds) s · loops · muted · v\(review?.version ?? 1)")
+        return String(localized: "\(name) · \(AutopilotArtworkMotion.loopSeconds) s · loops · muted")
+            + RevisionLabel.suffix(version: review?.version)
     }
 
     /// The header at 470 pt with the search beside it at 200, or the one
@@ -144,15 +141,42 @@ struct AutopilotLoopReviewBox: View {
         }
     }
 
-    /// "Claude Design is revising the loop: “slower”. The still and the
-    /// name stay as approved."
-    private var status: String? {
-        guard let review, review.approvedAt == nil else { return nil }
-        if let request = review.request {
-            return String(localized: "\(kind.title) is revising the loop: “\(request.note)”. The still and the name stay as approved.")
+    /// A bar with the languages and the time left while AppLocalizer makes
+    /// the loop; a spinner and a sentence while the design source works.
+    @ViewBuilder
+    private func status(_ progress: AutopilotLoopProgress) -> some View {
+        if let fraction = progress.fraction {
+            VStack(alignment: .leading, spacing: Spacing.xSmall) {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.small) {
+                    Text(progress.title).font(.callout.weight(.semibold))
+                    Spacer(minLength: Spacing.small)
+                    Text(progress.line)
+                        .font(.callout)
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.label2)
+                        .accessibilityIdentifier("autopilot.loop.busy.line")
+                }
+                ProgressView(value: fraction)
+                    .accessibilityLabel(Text(progress.title))
+                    .accessibilityValue(Text("\(Int((fraction * 100).rounded())) percent"))
+                Text(progress.detail)
+                    .font(.caption)
+                    .foregroundStyle(Palette.label2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("autopilot.loop.busy")
+        } else {
+            HStack(spacing: Spacing.small) {
+                ProgressView().controlSize(.small)
+                Text(progress.title + " " + progress.detail)
+                    .font(.callout)
+                    .foregroundStyle(Palette.label2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("autopilot.loop.busy")
         }
-        if review.isRemaking { return String(localized: "AppLocalizer is making the header loop again.") }
-        return nil
     }
 
     private func add(_ ask: String) {

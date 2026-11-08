@@ -6,9 +6,10 @@
 import XCTest
 
 /// Header and search, still or motion (board 32), on
-/// `StudioDebugArtMotion`'s scenes: the plan's still/motion and "what it
-/// shows" rows with their notes, the expected result box, the brief the
-/// Design step shows, and a loop full size with Show iPhone Area.
+/// `StudioDebugArtMotion`'s scenes, in the guided sheet: What to make's
+/// Still or Moving, Look's "The search image shows" and artwork size, a
+/// run back from Cancel Run still editable, the expected result (the
+/// designer's note on Look), and a loop full size with Show iPhone Area.
 @MainActor
 final class ArtworkMotionUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -22,115 +23,103 @@ final class ArtworkMotionUITests: XCTestCase {
         app.terminate()
     }
 
+    /// What to make says whether the header and search move; Look picks
+    /// what the search image shows.
     func testStillOrMotionAndWhatTheArtworkShows() {
         app.launch(debugScene: "st-plan-motion")
-        let motion = element("autopilot.plan.artworkMotionNote")
-        XCTAssertTrue(motion.waitForExistence(timeout: 20))
-        reveal(motion)
-        XCTAssertTrue(element("autopilot.plan.artworkMotion.loop").isSelected)
-        let loop = "Claude Design animates its artwork into a 20-second silent loop: slow light and scene, a gentle float of the phone"
-        XCTAssertTrue(text(of: motion).hasPrefix(loop), text(of: motion))
-        attachScreenshot("Plan · motion loop")
+        let loop = element("autopilot.guided.make.motion.loop")
+        XCTAssertTrue(loop.waitForExistence(timeout: 20))
+        XCTAssertTrue(loop.isSelected)
+        let footer = element("autopilot.guided.footer.text")
+        XCTAssertTrue(text(of: footer).contains("moving header and search artwork"), text(of: footer))
+        attachScreenshot("What to make · moving")
 
-        tap("autopilot.plan.artworkShows.scene")
-        let shows = element("autopilot.plan.artworkShowsNote")
-        XCTAssertTrue(waitUntil { self.text(of: shows).hasPrefix("Only the name, the headline and a scene in the brand’s style.") }, text(of: shows))
-        XCTAssertFalse(text(of: motion).contains("float"), "A scene has nothing to float")
+        let still = element("autopilot.guided.make.motion.still")
+        tap("autopilot.guided.make.motion.still")
+        XCTAssertTrue(waitUntil { still.isSelected })
+        XCTAssertTrue(waitUntil { !self.text(of: footer).contains("moving") }, text(of: footer))
 
-        tap("autopilot.plan.artworkMotion.still")
-        XCTAssertTrue(waitUntil { !self.text(of: motion).contains("20-second") }, text(of: motion))
-        attachScreenshot("Plan · still scene")
+        element("autopilot.guided.next").click()
+        let phone = element("autopilot.guided.look.shows.phone")
+        XCTAssertTrue(phone.waitForExistence(timeout: 5))
+        XCTAssertTrue(phone.isSelected, "A phone with the app unless the person picks another")
+        let scene = element("autopilot.guided.look.shows.scene")
+        tap("autopilot.guided.look.shows.scene")
+        XCTAssertTrue(waitUntil { scene.isSelected })
+        XCTAssertFalse(phone.isSelected)
+        attachScreenshot("Look · still scene")
     }
 
-    /// The plan can make only the header or only search results. The
-    /// header alone has no search image, so "What the search artwork
-    /// shows" goes; either one alone can still move.
+    /// Look can make only the header or only search results. The header
+    /// alone has no search image, so "The search image shows" goes;
+    /// either one alone can still move.
     func testOnlyTheHeaderOrOnlySearchResults() {
         app.launch(debugScene: "st-plan-motion")
-        let size = element("autopilot.plan.artworkSize")
-        XCTAssertTrue(size.waitForExistence(timeout: 20))
-        XCTAssertTrue(element("autopilot.plan.artworkShows").exists)
+        let next = element("autopilot.guided.next")
+        XCTAssertTrue(next.waitForExistence(timeout: 20))
+        next.click()
+        let size = element("autopilot.guided.look.artworkSize")
+        XCTAssertTrue(size.waitForExistence(timeout: 5))
+        XCTAssertTrue(element("autopilot.guided.look.shows").exists)
         reveal(size)
         size.click()
         let headerOnly = app.menuItems["Header 21:9 only"]
         XCTAssertTrue(headerOnly.waitForExistence(timeout: 5))
         XCTAssertTrue(app.menuItems["Search results 3:2 only"].exists)
         headerOnly.click()
-        XCTAssertTrue(waitUntil { !self.element("autopilot.plan.artworkShows").exists }, "No search image to show anything")
-        XCTAssertFalse(element("autopilot.plan.artworkShowsNote").exists)
-        XCTAssertTrue(element("autopilot.plan.artworkMotion.loop").isSelected, "The header alone still moves")
-        attachScreenshot("Plan · header only")
+        XCTAssertTrue(waitUntil { !self.element("autopilot.guided.look.shows").exists }, "No search image to show anything")
+        attachScreenshot("Look · header only")
+        expectWhatToMake("moving header artwork", "The header alone still moves")
 
         reveal(size)
         size.click()
         app.menuItems["Search results 3:2 only"].click()
-        XCTAssertTrue(element("autopilot.plan.artworkShows").waitForExistence(timeout: 5))
-        XCTAssertTrue(element("autopilot.plan.artworkMotion.loop").isSelected)
-        attachScreenshot("Plan · search results only")
+        XCTAssertTrue(element("autopilot.guided.look.shows").waitForExistence(timeout: 5))
+        attachScreenshot("Look · search results only")
+        expectWhatToMake("moving search results artwork", "Search results alone still move")
     }
 
     /// A run back at the plan after Cancel Run (it started once) can still
-    /// change what the header and search show, still or motion, and the
+    /// change still or motion, what the search image shows and the
     /// expected result, like a new one.
     func testAPlanBackFromCancelRunCanStillBeChanged() {
         app.launch(debugScene: "st-plan-motion-again")
-        let motion = element("autopilot.plan.artworkMotionNote")
-        XCTAssertTrue(motion.waitForExistence(timeout: 20))
-        reveal(motion)
-        XCTAssertTrue(element("autopilot.plan.artworkMotion.loop").isSelected)
-        XCTAssertTrue(element("autopilot.plan.artworkMotion.still").isEnabled, "Still or motion can change")
-        XCTAssertTrue(element("autopilot.plan.artworkShows.scene").isEnabled, "What it shows can change")
+        let still = element("autopilot.guided.make.motion.still")
+        XCTAssertTrue(still.waitForExistence(timeout: 20))
+        XCTAssertTrue(element("autopilot.guided.make.motion.loop").isSelected)
+        XCTAssertTrue(still.isEnabled, "Still or motion can change")
+        tap("autopilot.guided.make.motion.still")
+        XCTAssertTrue(waitUntil { still.isSelected })
 
-        tap("autopilot.plan.artworkShows.scene")
-        let shows = element("autopilot.plan.artworkShowsNote")
-        XCTAssertTrue(waitUntil { self.text(of: shows).hasPrefix("Only the name, the headline and a scene in the brand’s style.") }, text(of: shows))
-        tap("autopilot.plan.artworkMotion.still")
-        XCTAssertTrue(waitUntil { !self.text(of: motion).contains("20-second") }, text(of: motion))
+        element("autopilot.guided.next").click()
+        let scene = element("autopilot.guided.look.shows.scene")
+        XCTAssertTrue(scene.waitForExistence(timeout: 5))
+        XCTAssertTrue(scene.isEnabled, "What it shows can change")
+        tap("autopilot.guided.look.shows.scene")
+        XCTAssertTrue(waitUntil { scene.isSelected })
 
-        let toggle = element("autopilot.plan.artworkDirection.toggle")
-        reveal(toggle)
-        XCTAssertTrue(toggle.isEnabled, "The expected result opens")
-        toggle.click()
-        XCTAssertTrue(element("autopilot.plan.artworkDirection.text").waitForExistence(timeout: 5))
-        attachScreenshot("Plan after Cancel Run · still editable")
+        let note = element("autopilot.guided.look.note")
+        reveal(note)
+        XCTAssertTrue(note.isEnabled, "The expected result can be written")
+        attachScreenshot("Look after Cancel Run · still editable")
     }
 
-    /// Each note sits under its choice, across the row, rather than in a
-    /// narrow column beside it, where the scene's note wrapped every few
-    /// words.
-    func testTheNotesSitUnderTheirChoices() {
+    /// The expected result is the note to the designer on Look, with its
+    /// two references.
+    func testTheExpectedResultIsTheDesignersNote() {
         app.launch(debugScene: "st-plan-art-custom")
-        let shows = element("autopilot.plan.artworkShows")
-        let showsNote = element("autopilot.plan.artworkShowsNote")
-        XCTAssertTrue(showsNote.waitForExistence(timeout: 20))
-        reveal(showsNote)
-        XCTAssertGreaterThanOrEqual(showsNote.frame.minY, shows.frame.maxY, "The note is under the choice")
-        XCTAssertGreaterThan(showsNote.frame.width, shows.frame.width, "The note spans the row, wider than the choice")
-        XCTAssertLessThan(showsNote.frame.height, 50, "Two lines at most, not one word a line: \(showsNote.frame)")
-
-        let motion = element("autopilot.plan.artworkMotion")
-        let motionNote = element("autopilot.plan.artworkMotionNote")
-        XCTAssertGreaterThanOrEqual(motionNote.frame.minY, motion.frame.maxY)
-        attachScreenshot("Plan · notes under their choices")
-    }
-
-    func testTheExpectedResultIsInThePlanAndTheBrief() {
-        app.launch(debugScene: "st-plan-art-custom")
-        let box = element("autopilot.plan.artworkDirection.text")
-        XCTAssertTrue(box.waitForExistence(timeout: 20))
-        reveal(box)
-        XCTAssertTrue(text(of: box).hasPrefix("A calm night sky over hills"), text(of: box))
-        attachScreenshot("Plan · expected result")
-
-        app.terminate()
-        app.launch(debugScene: "st-des-art-custom")
-        let brief = element("autopilot.design.artworkBrief")
-        XCTAssertTrue(brief.waitForExistence(timeout: 20))
-        let words = brief.descendants(matching: .staticText).allElementsBoundByIndex.map { text(of: $0) }.joined(separator: " ")
-        XCTAssertTrue(words.contains("Motion · 20-second loop"), words)
-        XCTAssertTrue(words.contains("Your direction"), words)
-        XCTAssertTrue(words.contains("Safe area"), words)
-        attachScreenshot("Design · artwork brief")
+        let next = element("autopilot.guided.next")
+        XCTAssertTrue(next.waitForExistence(timeout: 20))
+        next.click()
+        let note = element("autopilot.guided.look.note")
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitUntil { self.text(of: note).hasPrefix("A calm night sky over hills") }, text(of: note))
+        let card = element("autopilot.guided.look.noteCard")
+        for name in ["video-search-results-dark.mp4", "video-product-page-header-dark.mp4"] {
+            let shown = NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", name, name)
+            XCTAssertTrue(card.descendants(matching: .any).matching(shown).firstMatch.exists, name)
+        }
+        attachScreenshot("Look · expected result")
     }
 
     func testALoopOpensFullSizeWithTheIPhoneArea() {
@@ -145,12 +134,24 @@ final class ArtworkMotionUITests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// Scrolls the plan until `target` is inside what it shows.
+    /// Back on What to make, its sentence says it makes `what`; then on to
+    /// Look again.
+    private func expectWhatToMake(_ what: String, _ message: String, file: StaticString = #filePath, line: UInt = #line) {
+        element("autopilot.guided.back").click()
+        let footer = element("autopilot.guided.footer.text")
+        XCTAssertTrue(waitUntil { self.text(of: footer).contains(what) }, "\(message): \(text(of: footer))", file: file, line: line)
+        element("autopilot.guided.next").click()
+        XCTAssertTrue(element("autopilot.guided.look.artworkSize").waitForExistence(timeout: 5), "Back at Look", file: file, line: line)
+    }
+
+    /// Scrolls the guided sheet's step until `target` is inside what it
+    /// shows.
     private func reveal(_ target: XCUIElement) {
-        let plan = element("autopilot.plan")
+        let step = element("autopilot.guided.sheet").scrollViews.firstMatch
+        guard step.waitForExistence(timeout: 5), target.waitForExistence(timeout: 5) else { return }
         var tries = 0
-        while !(target.frame.minY >= plan.frame.minY && target.frame.maxY <= plan.frame.maxY), tries < 12 {
-            plan.scroll(byDeltaX: 0, deltaY: target.frame.minY < plan.frame.minY ? 200 : -200)
+        while !(target.frame.minY >= step.frame.minY && target.frame.maxY <= step.frame.maxY), tries < 12 {
+            step.scroll(byDeltaX: 0, deltaY: target.frame.minY < step.frame.minY ? 200 : -200)
             tries += 1
         }
     }

@@ -90,11 +90,20 @@ struct ReportRecordingTool: MCPTool {
     }
 
     private func result(_ session: MCPAutopilotSession, status: String) -> JSONValue {
-        [
+        var json: [String: JSONValue] = [
             "status": .string(status),
             "recordingsLeft": .int(session.run.remainingRecordings.count),
             "stage": .string(session.run.stage.rawValue),
         ]
+        let still = session.run.momentsWaitingForMotion
+        if !still.isEmpty {
+            json["tooStill"] = .array(still.map { .string($0) })
+            json["next"] = """
+            Almost nothing moves in these moments, so the App Preview would read as a slideshow. next_step asks you to \
+            record them again: make something happen on camera in each.
+            """
+        }
+        return .object(json)
     }
 
     private func recordingTarget(_ arguments: MCPToolArguments, session: MCPAutopilotSession) throws -> AutopilotRecordingTarget {

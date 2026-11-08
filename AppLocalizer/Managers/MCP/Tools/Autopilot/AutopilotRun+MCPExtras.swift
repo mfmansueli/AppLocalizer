@@ -44,19 +44,29 @@ extension AutopilotRun {
     /// How to record an App Preview's walkthrough.
     static let recordingHow = """
     Record each one in this capture run, after its device's captures in that language, with the same simulator \
-    setup and launch arguments. Launch the app on the plan's first screen, start xcrun simctl io <udid> recordVideo \
-    --codec h264 --force preview.mov in the background, then go through the plan's screens in order the way you \
-    reach them for the captures, holding each about 4 s with a gentle real interaction (a scroll, a tap), and note \
-    the second each screen appears. When UI tests drive the screens, run them on that simulator's id with \
+    setup and launch arguments. An App Preview is the app being used; a screen that sits there loaded reads as a \
+    slideshow. So plan it like a short film before recording: for each screen pick the one thing a person does there \
+    that makes it change, from appKnowledge's previewStory and movingMoments when the plan has them, and make it \
+    happen on camera: scroll a list with a slow real drag, open an item, type into a field and let the results or a \
+    reply arrive, flip a control and let it animate, start the feature the screen is for. Prefer one UI test that \
+    walks through the plan in a single session, tapping from screen to screen as a person would: every relaunch shows \
+    the launch screen and loses the movement between screens. Use gestures that last \
+    (XCUICoordinate press(forDuration:thenDragTo:withVelocity:thenHoldForDuration:) at a slow velocity, typing with \
+    pauses): swipeUp() is over in a fraction of a second. Give each screen 6 to 8 s, something moving at least half \
+    that time and never more than 2 s of nothing. Launch the app on the plan's first screen, start xcrun simctl io \
+    <udid> recordVideo --codec h264 --force preview.mov in the background, walk through the screens in order and \
+    note the second each one appears. When UI tests drive the screens, run them on that simulator's id with \
     -parallel-testing-enabled NO, or they run on clones the recording doesn't show. Stop it with exactly \
     killall -INT simctl (Control-C) so the file is finished. Only the app may \
     be on screen when a screen appears: no Home screen, alert or keyboard; what's between screens (a relaunch) is \
     cut out. Upload it to the plan's upload URL with curl --data-binary and -H 'Content-Type: video/quicktime', then \
     call report_recording with the upload ID, displayType, locale and marks [{screen, seconds}], and moments \
-    [{screen, start_s, end_s, reason, use}]: the stretch of each screen that works in an App Preview (about 6 s, \
-    settled, something gentle happening) and why; use: false for one you'd leave out. When the tests leave a \
-    screen sooner, give the stretch it has and say in its reason which test to hold longer. The person picks which go \
-    in. When it can't be recorded, call report_recording with problem instead: the run goes on without it.
+    [{screen, start_s, end_s, reason, use}]: the stretch of each screen where the action happens (about 6 s, starting \
+    as it begins, with no launch screen in it) and, in reason, what moves; use: false for one you'd leave out. When the \
+    tests leave a screen sooner, give the stretch it has and say in its reason which test to hold longer. AppLocalizer \
+    measures how much each moment moves and asks once more, through next_step, for those where almost nothing does. The \
+    person picks which go in. When it can't be recorded, call report_recording with problem instead: the run goes on \
+    without it.
     """
 
     /// `get_design_brief`'s extras: the artwork canvases each direction

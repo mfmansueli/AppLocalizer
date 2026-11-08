@@ -46,11 +46,13 @@ struct SlotPreview: Hashable, Sendable {
 
     /// Lays out and checks one slot. `primaryLocaleName` words the "UI not
     /// localized" warning; laurels and badges are checked against
-    /// `ratings`.
+    /// `ratings`. `behind` is the capture a Two phones slot shows behind
+    /// its own.
     static func make(
         _ placement: Placement,
         caption: ScreenshotCaption?,
         capture: ResolvedCapture?,
+        behind: ScreenshotCapture? = nil,
         engine: ScreenshotLayoutEngine,
         primaryLocaleName: String,
         ratings: StoreRatings = .unchecked
@@ -62,11 +64,13 @@ struct SlotPreview: Hashable, Sendable {
             template, slot: placement.slot, locale: placement.locale, displayType: placement.displayType, caption: caption,
             captureSize: capture?.capture.pixelSize
         )
+        let companion = layout.companion?.isBehind == true ? behind : nil
         let key = RenderKey(
             templateHash: template.contentHash, locale: placement.locale.code, displayType: placement.displayType, slot: placement.slot,
-            caption: caption, captureID: capture?.capture.id
+            caption: caption, captureID: capture.map { [$0.capture.id, companion?.id].compactMap(\.self).joined(separator: "+") },
+            store: layout.storeSignature
         )
         let checks = ScreenshotChecker.checks(for: layout, capture: capture, primaryLocaleName: primaryLocaleName, ratings: ratings)
-        return SlotPreview(job: RenderJob(key: key, layout: layout, capture: capture?.capture), checks: checks)
+        return SlotPreview(job: RenderJob(key: key, layout: layout, capture: capture?.capture, companion: companion), checks: checks)
     }
 }

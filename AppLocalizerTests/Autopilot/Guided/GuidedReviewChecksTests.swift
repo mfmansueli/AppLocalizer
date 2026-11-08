@@ -17,6 +17,27 @@ struct GuidedReviewChecksTests {
         checks.first { $0.id == id }
     }
 
+    @Test func aMomentThatStayedStillIsCalledOut() throws {
+        #expect(Self.check("motion", in: GuidedReviewChecks.checks(for: .appPreview, run: StudioDebugPick.picking())) == nil)
+
+        var run = StudioDebugPick.picking()
+        run.noteMotion([run.plan.screens[1].id: AutopilotMomentMotion(movingShare: 0, stillSeconds: 6)])
+        let check = try #require(Self.check("motion", in: GuidedReviewChecks.checks(for: .appPreview, run: run)))
+        #expect(check.state == .attention)
+        #expect(check.text == "Barely moves, even recorded again: Week")
+    }
+
+    @Test func theMusicSaysWhereItCameFrom() {
+        var run = StudioDebugPick.picking()
+        run.plan.alsoMakes.suggestedMusic = AppMusicPick(track: .softAmbient, reason: "Quiet")
+        let picked = Self.check("music", in: GuidedReviewChecks.checks(for: .appPreview, run: run))
+        #expect(picked?.text == "Music: Soft ambient · picked for this app")
+
+        run.plan.alsoMakes.music = AutopilotPreviewMusic(track: .calmPiano)
+        let chosen = Self.check("music", in: GuidedReviewChecks.checks(for: .appPreview, run: run))
+        #expect(chosen?.text == "Music: Calm piano · from AppLocalizer’s library")
+    }
+
     @Test func aShortenedCaptionWaitsForLooksGood() throws {
         var run = StudioDebugRuns.run(.ready)
         let checks = GuidedReviewChecks.checks(for: .screenshots, run: run)
@@ -88,7 +109,27 @@ struct GuidedReviewChecksTests {
         }
         let check = Self.check("captures", in: GuidedReviewChecks.checks(for: .screenshots, run: run))
         #expect(check?.state == .attention)
-        #expect(check?.text == "1 capture to look at: open Pick or the captures to see what")
+        #expect(check?.text == "1 capture to look at: click its screen to see it larger")
+        let language = StoreLocaleCatalog.locale(code: target.locale)?.shortName ?? ""
+        let screen = run.plan.screens.first { $0.id == target.screenID }?.name ?? ""
+        #expect(check?.details == [
+            "\(language) · \(target.displayType.shortTitle) · \(screen): 77% of the screen is blank: an empty state, or a screen still loading.",
+        ])
+    }
+
+    /// Bruma's run: 22 captures, and the check said to open Pick, which its
+    /// steps didn't have.
+    @Test func manyCapturesToLookAtAreListedUpToALimit() {
+        var run = StudioDebugRuns.run(.ready)
+        run.problems = []
+        for index in run.captures.indices { run.captures[index].text = CaptureTextFacts(blankShare: 0.9) }
+        let flagged = run.plan.targets.compactMap(run.finalCapture(for:)).count
+        #expect(flagged > GuidedReviewChecks.detailLines)
+        let check = Self.check("captures", in: GuidedReviewChecks.checks(for: .screenshots, run: run))
+        #expect(check?.text == "\(flagged) captures to look at: click a screen to see it larger")
+        #expect(check?.details.count == GuidedReviewChecks.detailLines + 1)
+        #expect(check?.details.last == "and \(flagged - GuidedReviewChecks.detailLines) more")
+        #expect(check?.text.contains("Pick") == false)
     }
 
     @Test func theHeaderIsMadeInEveryLanguage() {
@@ -97,6 +138,23 @@ struct GuidedReviewChecksTests {
         #expect(Self.check("made", in: checks)?.text == "Made in every language: \(run.plan.localeCodes.count)")
         #expect(Self.check("texts", in: checks)?.state == .passed)
         #expect(checks.allSatisfy { $0.state == .passed })
+    }
+
+    /// Bruma's log said "Artwork checks: 24 warnings, nothing that blocks
+    /// the push" while Review showed every check passed.
+    @Test func whatTheArtworksChecksFoundIsSaid() {
+        let run = StudioDebugExtras.checked(StudioDebugGuided.ready(approved: []))
+        let found = Self.check("findings", in: GuidedReviewChecks.checks(for: .artwork, run: run))
+        #expect(found?.state == .attention)
+        #expect(found?.text == "1 error keeps that image out of the push")
+        #expect(found?.details == StudioDebugExtras.checks.map(\.text))
+
+        var warnings = run
+        warnings.extrasProgress?.artworkChecks = [StudioDebugExtras.checks[1]]
+        #expect(Self.check("findings", in: GuidedReviewChecks.checks(for: .artwork, run: warnings))?.text
+            == "1 warning to look at; it doesn’t keep anything out of the push")
+        warnings.extrasProgress?.artworkChecks = []
+        #expect(Self.check("findings", in: GuidedReviewChecks.checks(for: .artwork, run: warnings)) == nil)
     }
 
     @Test func aHeaderNotMadeSaysWhy() {
@@ -120,6 +178,14 @@ struct GuidedReviewChecksTests {
 
     @Test func theLanguagesMostLikelyToShowAProblemComeFirst() {
         let codes = ["en-US", "fr-FR", "de-DE", "es-ES", "ja", "ar-SA", "it"]
+        #expect(GuidedPreviewLocales.pick(from: codes, primary: "en-US") == ["en-US", "de-DE", "ja", "ar-SA"])
+    }
+
+    /// The sample's languages are sorted by name (Arabic, Chinese, Dutch…):
+    /// the switch still says English, German, Japanese, Arabic, as the
+    /// board does.
+    @Test func eachGroupsOwnOrderWinsOverTheRuns() {
+        let codes = ["ar-SA", "zh-Hans", "nl-NL", "en-US", "fr-FR", "de-DE", "it", "ja", "ko"]
         #expect(GuidedPreviewLocales.pick(from: codes, primary: "en-US") == ["en-US", "de-DE", "ja", "ar-SA"])
     }
 

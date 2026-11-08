@@ -42,4 +42,16 @@ struct BundledFontsTests {
         #expect(CTFontGetMatrix(upright).c == 0)
         #expect(catalog.covers("Anton", "Ünïcødé"))
     }
+
+    @Test func boldonseDrawsLatinCapsAndFallsBackHeavier() {
+        let catalog = ScreenshotFontCatalog.standard
+        #expect(catalog.isBundled("Boldonse"))
+        #expect(catalog.covers("Boldonse", "STRASSE ẞ İSTANBUL ĞÜŞ ÇÃÕ"))
+        #expect(!catalog.covers("Boldonse", "ПРИВЕТ"))
+        #expect(!catalog.covers("Boldonse", "毎日"))
+        // Its fallback is heavy like it; other families keep their weight.
+        #expect(catalog.fallbackWeight(for: "Boldonse") == 800)
+        #expect(catalog.fallbackWeight(for: "Anton") == nil)
+        #expect(catalog.fallbackWeight(for: "SF Pro Display") == nil)
+    }
 }

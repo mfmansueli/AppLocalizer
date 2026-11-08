@@ -23,28 +23,22 @@ struct CaptionLookInspectorRows: View {
                     .foregroundStyle(Palette.label2)
             }
         }
-        TemplateInspectorRow(label: String(localized: "Emphasis")) {
-            Picker("Emphasis", selection: Binding { model.emphasisLine } set: { model.setEmphasisLine($0) }) {
-                Text("None").tag(TemplateEmphasis.Line?.none)
-                Text("First line").tag(TemplateEmphasis.Line?.some(.first))
-                Text("Last line").tag(TemplateEmphasis.Line?.some(.last))
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .accessibilityIdentifier("screenshots.template.emphasis")
+        TemplateInspectorPicker(
+            String(localized: "Emphasis"), selection: Binding { model.emphasisLine } set: { model.setEmphasisLine($0) },
+            identifier: "screenshots.template.emphasis"
+        ) {
+            Text("None").tag(TemplateEmphasis.Line?.none)
+            Text("First line").tag(TemplateEmphasis.Line?.some(.first))
+            Text("Last line").tag(TemplateEmphasis.Line?.some(.last))
         }
         if let style = model.emphasisStyle {
-            TemplateInspectorRow(label: String(localized: "Emphasized line")) {
-                Picker("Emphasized line", selection: Binding { style } set: { model.setEmphasisStyle($0) }) {
-                    ForEach(TemplateEditorViewModel.EmphasisStyle.allCases, id: \.self) { style in
-                        Text(style.title).tag(style)
-                    }
+            TemplateInspectorPicker(
+                String(localized: "Emphasized line"), selection: Binding { style } set: { model.setEmphasisStyle($0) },
+                identifier: "screenshots.template.emphasisStyle"
+            ) {
+                ForEach(TemplateEditorViewModel.EmphasisStyle.allCases, id: \.self) { style in
+                    Text(style.title).tag(style)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .accessibilityIdentifier("screenshots.template.emphasisStyle")
             }
         }
         TemplateInspectorRow(label: String(localized: "Highlight")) {

@@ -55,6 +55,21 @@ struct AutopilotPlan: Codable, Hashable, Sendable {
     /// choose). Nil in Classic plans, where AppLocalizer's starters draw
     /// them in the chosen look.
     var assistantDesignsArtwork: Bool?
+    /// Without a design project, the assistant designs the screenshot
+    /// looks too, from the app's own design as its project has it (design
+    /// docs, theme, icon), instead of AppLocalizer's starters colored from
+    /// the icon. Bruma's starters ignored the person's "follow the design
+    /// we have on the app". Set by the guided defaults; nil in Classic
+    /// plans and runs from before, which use the starters.
+    var assistantDesignsLooks: Bool?
+
+    /// Where the run's looks come from: the connected design project, else
+    /// the assistant (as Claude Design, like the header concepts) when it
+    /// designs them, else AppLocalizer's starters.
+    func designKind(for project: DesignProject?) -> DesignProjectKind {
+        if let project { return project.kind }
+        return assistantDesignsLooks == true ? .claudeDesign : .none
+    }
 
     /// Stop for the person to watch the App Preview before Review & Push,
     /// when the run makes one.

@@ -72,6 +72,24 @@ final class ScreenshotsEditorUITests: XCTestCase {
         XCTAssertTrue(text(of: fit).contains("1 line too many at 80 u"), text(of: fit))
     }
 
+    /// The inspector keeps to its column: Slot layout's four choices become
+    /// a menu, and Display type goes under its label, instead of widening
+    /// the inspector over the canvas and past the window's edge.
+    func testTheInspectorFitsItsColumn() {
+        app.launch(debugScene: "tpl")
+        XCTAssertTrue(element("screenshots.template.canvas").waitForExistence(timeout: 15))
+        let window = app.windows.firstMatch.frame
+        let inspector = element("screenshots.template.inspector").frame
+        XCTAssertLessThanOrEqual(inspector.width, 301, "\(inspector)")
+        XCTAssertLessThanOrEqual(inspector.maxX, window.maxX + 1, "\(inspector) in \(window)")
+        XCTAssertLessThanOrEqual(app.buttons["screenshots.template.starters"].frame.maxX, inspector.minX + 1)
+        XCTAssertLessThanOrEqual(element("screenshots.template.guides").frame.maxX, inspector.minX + 1)
+        let layout = app.popUpButtons["screenshots.template.slotLayout"]
+        XCTAssertTrue(layout.exists, "Slot layout is a menu in a 300 pt inspector")
+        XCTAssertLessThanOrEqual(layout.frame.maxX, inspector.maxX + 1, "\(layout.frame)")
+        XCTAssertLessThanOrEqual(element("screenshots.template.displayType").frame.maxX, inspector.maxX + 1)
+    }
+
     // MARK: - Captions
 
     func testEditingACaptionUpdatesItsFit() {

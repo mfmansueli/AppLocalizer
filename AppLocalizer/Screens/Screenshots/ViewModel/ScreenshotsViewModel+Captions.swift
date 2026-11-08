@@ -20,15 +20,16 @@ extension ScreenshotsViewModel {
         return layout(of: caption, at: key, on: displayType)?.headline
     }
 
-    /// Whether the caption fits on every display type templates render.
+    /// Whether the caption fits on every display type templates render for
+    /// this app.
     func captionFits(_ caption: ScreenshotCaption, at key: LocaleSlot) -> Bool {
-        ScreenshotDisplayType.rendered.allSatisfy { display in
+        renderedDisplays.allSatisfy { display in
             layout(of: caption, at: key, on: display).map { $0.headline.fits && $0.subhead?.fits != false } ?? true
         }
     }
 
     private func layout(of caption: ScreenshotCaption, at key: LocaleSlot, on display: ScreenshotDisplayType) -> ScreenshotLayout? {
         guard let template = document?.template, let locale = locale(code: key.locale) else { return nil }
-        return ScreenshotLayoutEngine(catalog: fonts).layout(template, slot: key.slot, locale: locale, displayType: display, caption: caption)
+        return layoutEngine.layout(template, slot: key.slot, locale: locale, displayType: display, caption: caption)
     }
 }

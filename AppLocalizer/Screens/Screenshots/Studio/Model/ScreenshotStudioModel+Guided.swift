@@ -8,12 +8,7 @@ import Foundation
 /// The guided Autopilot: which front shows, the setup steps' changes,
 /// Review & push's approvals and checks, and the push from the sheet.
 extension ScreenshotStudioModel {
-    // MARK: - Front
-
-    /// The front Settings chose, unless a DEBUG scene forces one.
-    func front(_ preferences: AppPreferences?) -> AutopilotFront {
-        frontOverride ?? preferences?.autopilotFront ?? .guided
-    }
+    // MARK: - Steps
 
     /// The step the guided sheet shows.
     var guidedStep: GuidedStep { GuidedStep.step(of: run, setup: guided.setupStep) }
@@ -60,13 +55,25 @@ extension ScreenshotStudioModel {
 
     /// "On the App Store now: Caption above device · template v4".
     var guidedLiveLookText: String {
-        guard let name = screenshots.document?.template?.name else {
-            return screenshots.live.screenshotSets.contains(where: { !$0.screenshots.isEmpty })
+        Self.liveLookText(
+            template: screenshots.document?.template?.name, app: app.name, version: keptTemplateVersion,
+            isLive: screenshots.live.screenshotSets.contains(where: { !$0.screenshots.isEmpty })
+        )
+    }
+
+    /// The set's look, and whether it's on the App Store: Bruma's said
+    /// "On the App Store now: Bruma… Caption above device · template v1"
+    /// with nothing pushed yet, and the app's name in front of the look's.
+    static func liveLookText(template: String?, app: String, version: Int?, isLive: Bool) -> String {
+        guard var name = template else {
+            return isLive
                 ? String(localized: "On the App Store now: screenshots made outside AppLocalizer")
                 : String(localized: "On the App Store now: no screenshots yet")
         }
-        guard let version = keptTemplateVersion else { return String(localized: "On the App Store now: \(name)") }
-        return String(localized: "On the App Store now: \(name) · template v\(version)")
+        // A starter is named "Bruma – Gay Dating Nearby · Caption above device".
+        if name.hasPrefix(app + " · ") { name.removeFirst(app.count + 3) }
+        let look = version.map { String(localized: "\(name) · template v\($0)") } ?? name
+        return isLive ? String(localized: "On the App Store now: \(look)") : String(localized: "Your look so far: \(look), not on the App Store yet")
     }
 
     /// The live set's first screenshots on iPhone in the primary language,
@@ -161,7 +168,7 @@ extension ScreenshotStudioModel {
     /// The checks beside `part`.
     func guidedChecks(for part: GuidedReviewPart) -> [GuidedCheck] {
         guard let run else { return [] }
-        return GuidedReviewChecks.checks(for: part, run: run, previews: runPreviews)
+        return GuidedReviewChecks.checks(for: part, run: run, previews: runPreviews, app: app.name)
     }
 
     /// Looks Good on a shortened caption.
@@ -192,25 +199,53 @@ extension ScreenshotStudioModel {
     /// Review & push's screenshots full size, from `index`: "English (U.S.)
     /// · iPhone 6.9″ · 1320 × 2868 · not pushed".
     func openGuidedShots(_ shots: [StudioShot], locale: String, device: ScreenshotDisplayType, at index: Int) {
+        show(guidedViewerItems(shots, locale: locale, device: device), at: index)
+        viewerReviewDevice = viewer == nil ? nil : device
+    }
+
+    private func guidedViewerItems(_ shots: [StudioShot], locale: String, device: ScreenshotDisplayType) -> [StudioViewerItem] {
         let language = StoreLocaleCatalog.locale(code: locale)?.name ?? locale
-        let items = shots.map { shot in
+        return shots.map { shot in
             StudioViewerItem(
                 id: "guided.\(shot.slot)", title: shot.label,
                 subtitle: [language, device.title, shot.pixelSize.title, String(localized: "not pushed")].joined(separator: " · "),
                 content: .shot(shot)
             )
         }
-        show(items, at: index)
+    }
+
+    /// The viewer's language switch over Review & push's screenshots: the
+    /// same screen in `code`, and the strip behind it too.
+    func setViewerReviewLocale(_ code: String) {
+        guided.reviewLocale = code
+        guard let device = viewerReviewDevice, let index = viewer?.index else { return }
+        let items = guidedViewerItems(guidedNewShots(locale: code, device: device), locale: code, device: device)
+        guard !items.isEmpty else { return }
+        viewer = StudioViewer(items: items, index: min(index, items.count - 1))
+    }
+
+    /// The languages the viewer offers over Review & push's screenshots:
+    /// the ones side by side, and the one shown when it's from the menu.
+    var viewerReviewLocales: [String] {
+        let picked = guidedReviewLocales
+        let shown = guidedReviewLocale
+        return picked.contains(shown) ? picked : picked + [shown]
     }
 
     /// The devices Review & push shows the screenshots on: the plan's that
     /// have a set.
     var guidedReviewDevices: [ScreenshotDisplayType] {
         guard let plan = run?.plan else { return [] }
-        return plan.displayTypes.filter { ScreenshotDisplayType.studio.contains($0) }
+        return GuidedTemplatePreviewDevices.order.filter { plan.displayTypes.contains($0) && ScreenshotDisplayType.studio.contains($0) }
     }
 
     /// The new set's header and search (or the one image) in `locale`.
+    /// The run's header or search artwork couldn't be made: Review & push
+    /// says why, with Make Again.
+    var guidedArtworkMissing: GuidedArtworkMissing? {
+        run.flatMap { GuidedArtworkMissing(run: $0, extras: screenshots.document?.extras) }
+    }
+
     func guidedArtwork(locale: String) -> [StudioArtworkItem] {
         guard let document = screenshots.document, let extras = document.extras, let size = extras.artworkSize else { return [] }
         let template = document.template ?? conceptLook

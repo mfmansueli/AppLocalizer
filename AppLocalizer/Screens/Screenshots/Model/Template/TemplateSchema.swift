@@ -23,10 +23,13 @@ enum TemplateSchema {
             "device.width": .number(0.6...0.9, unit: ""),
             "device.color": .color,
             "device.offset": .number(0...0.2, unit: ""),
-            "device.bleed": .number(0...0.2, unit: ""),
+            "device.bleed": .number(0...0.3, unit: ""),
             "device.tilt": .tilt,
             "device.dx": .number(-0.5...0.5, unit: ""),
             "device.dy": .number(-0.5...0.5, unit: ""),
+            "device.top": .number(0...0.6, unit: ""),
+            "device.empty": .choice(TemplateDevice.EmptyScreen.allCases.map(\.rawValue)),
+            "device.pair": .devicePair,
             "caption.placement": .choice(TemplateCaption.Placement.allCases.map(\.rawValue)),
             "caption.align": .choice(TemplateCaption.Alignment.allCases.map(\.rawValue)),
             "caption.gap": .number(0...0.1, unit: ""),
@@ -46,10 +49,12 @@ enum TemplateSchema {
             "caption.headline.shadow": .shadow,
             "caption.headline.emph": .emphasis,
             "caption.headline.mark": .highlight,
+            "caption.headline.tight": .boolean,
             "caption.subhead.italic": .boolean,
+            "caption.kicker": .textStyle,
             "deco": .decorations,
         ]
-        for (block, sizes) in [("headline", 40.0...240), ("subhead", 24.0...120)] {
+        for (block, sizes) in [("headline", 40.0...240), ("subhead", 24.0...120), ("kicker", 24.0...160)] {
             rules["caption.\(block).font"] = .font
             rules["caption.\(block).weight"] = .integer(100...900)
             rules["caption.\(block).size"] = .number(sizes, unit: "u")
@@ -70,9 +75,10 @@ enum TemplateSchema {
     /// Fields a template may leave out: replacing one with `null` removes
     /// it, and it reads as off, flat or none.
     static let optionalPaths: Set = [
-        "device.tilt", "device.dx", "device.dy", "caption.headline.upper", "caption.headline.italic",
+        "device.tilt", "device.dx", "device.dy", "device.top", "device.empty", "device.pair",
+        "caption.headline.upper", "caption.headline.italic", "caption.headline.tight",
         "caption.headline.shadow", "caption.headline.emph", "caption.headline.mark", "caption.subhead.italic",
-        "caption.headline.tracking", "caption.subhead.tracking", "deco",
+        "caption.headline.tracking", "caption.subhead.tracking", "caption.kicker", "caption.kicker.tracking", "deco",
     ]
 
     /// Fields only a slot can override: its own background.

@@ -105,6 +105,8 @@ enum ClaudeCodePermissions: Hashable, Sendable, CaseIterable {
                     + "with what to change in the project as proposedFix, and go on with the other screens. "
                     + "You can't edit the project here, so a fix that changes it (a test, a scheme, sample data) is reported once, "
                     + "with changesProject: true and the file and line in proposedFix. "
+                    + "When get_capture_plan's appLook isn't known, read the app's design language in the project and send it "
+                    + "with report_app_support's look before choosing screens: every design in the run starts from it. "
                     + "Before capturing, check: " + AutopilotPreflight.checks.joined(separator: " ")
             )
             lines.append(

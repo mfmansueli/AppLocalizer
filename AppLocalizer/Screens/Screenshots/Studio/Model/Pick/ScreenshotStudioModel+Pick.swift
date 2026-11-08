@@ -41,7 +41,7 @@ extension ScreenshotStudioModel {
         let client = run.clientName(assistant: nil)
         switch device {
         case .phones:
-            let followers = run.plan.displayTypes.filter { $0 == .iPad || $0 == .visionPro }.map(\.shortTitle)
+            let followers = run.plan.displayTypes.filter { $0 == .iPad || $0 == .mac || $0 == .visionPro }.map(\.shortTitle)
             let most = run.plan.screens.map { run.candidates(for: $0.id).count }.max() ?? 1
             var text = most > 1
                 ? String(localized: "Best of \(most) per screen, ranked by \(client). Click any capture to see it full size and use another.")

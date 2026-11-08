@@ -13,12 +13,12 @@ extension ScreenshotStudioModel {
     /// The header and search come as concepts: a design AI designs them.
     var proposesHeaderConcepts: Bool {
         guard let plan = run?.plan else { return false }
-        return AutopilotRun.proposesConcepts(plan: plan, design: designProject?.kind ?? .none)
+        return AutopilotRun.proposesConcepts(plan: plan, design: plannedDesignKind)
     }
 
     /// The design source's name: "Claude Design".
     var headerDesignerName: String {
-        let kind = designProject?.kind ?? .none
+        let kind = plannedDesignKind
         return kind.usesDesignAI ? kind.title : DesignProjectKind.claudeDesign.title
     }
 
@@ -89,6 +89,7 @@ extension ScreenshotStudioModel {
         let subtitle = storeTexts.subtitle(for: primary, primary: primary) ?? ""
         let does = look?.whatItDoes ?? (subtitle.isEmpty ? String(localized: "Read from the App Store page and the project") : subtitle)
         var lookParts: [String] = []
+        if let personality = look?.personality { lookParts.append(personality) }
         if let icon = look?.iconDescription { lookParts.append(String(localized: "Icon: \(icon)")) }
         let colors = ([look?.accentColor].compactMap(\.self) + (look?.themeColors ?? [])).prefix(4)
         if !colors.isEmpty { lookParts.append(colors.joined(separator: ", ")) }

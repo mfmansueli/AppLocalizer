@@ -41,7 +41,8 @@ extension AutopilotCenter {
     /// Texts the assistant sent: saved at once, then every language is
     /// checked again (`recheck`), unless captions sent with them do it.
     func applyArtworkTexts(
-        _ updates: [AutopilotArtworkTextUpdate], client: String, appID: StoreApp.ID, context: AutopilotContext, recheck: Bool = true
+        _ updates: [AutopilotArtworkTextUpdate], client: String, appID: StoreApp.ID, context: AutopilotContext, recheck: Bool = true,
+        waitsForExtras: Bool = true
     ) async throws {
         guard let run = runs[appID], run.stage == .localize else {
             throw AutopilotError(String(localized: "The run isn’t localizing now. Without run, propose_captions queues a proposal instead."))
@@ -78,6 +79,6 @@ extension AutopilotCenter {
                 run.appendLog(String(localized: "\(client) translated \(what) into \(into)"), kind: .event, at: now())
             }
         }
-        if recheck { await check(appID, with: localizer) }
+        if recheck { await check(appID, with: localizer, waitsForExtras: waitsForExtras) }
     }
 }

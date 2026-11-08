@@ -14,11 +14,6 @@ import Testing
 @MainActor
 @Suite("Autopilot Design stage · fitting the cards")
 struct AutopilotDesignStageFitTests {
-    @Test func eachCardGetsAThirdOfTheWidth() {
-        #expect(AutopilotDesignStageView.cardWidth(in: 900, cards: 3) == 268) // (900 − 2 × 12) ÷ 3 − 2 × 12
-        #expect(AutopilotDesignStageView.cardWidth(in: 30, cards: 3) == 0)
-    }
-
     /// Alba's sheet at its 960-pt minimum: 739 pt beside the stage list,
     /// 699 inside the page's padding, so 225 per card.
     @Test func theCardsShareWhatTheSheetHasLeft() {

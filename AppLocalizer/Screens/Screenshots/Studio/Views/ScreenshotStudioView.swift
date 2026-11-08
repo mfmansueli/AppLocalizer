@@ -13,13 +13,8 @@ struct ScreenshotStudioView: View {
     @Bindable var screenshots: ScreenshotsViewModel
     @Environment(MCPServerController.self) private var assistants: MCPServerController?
     @Environment(WorkspaceNavigator.self) private var navigator: WorkspaceNavigator?
-    @Environment(AppPreferences.self) private var preferences: AppPreferences?
 
     private var studio: ScreenshotStudioModel { screenshots.studio }
-
-    /// Guided (three setup steps and two stops) or the classic eight
-    /// stages, as Settings chose.
-    private var front: AutopilotFront { studio.front(preferences) }
 
     var body: some View {
         @Bindable var studio = studio
@@ -29,7 +24,7 @@ struct ScreenshotStudioView: View {
                 StudioHeader(studio: studio, screenshots: screenshots)
                 if studio.autopilot != nil {
                     AutopilotStripView(
-                        content: front == .guided ? studio.guidedStrip(assistant: assistant) : studio.strip(assistant: assistant),
+                        content: studio.guidedStrip(assistant: assistant),
                         assistant: assistant,
                         designProject: studio.designProject,
                         perform: perform
@@ -64,10 +59,7 @@ struct ScreenshotStudioView: View {
         .task { studio.resumeInterruptedWork() }
         .onChange(of: studio.run?.stage) { old, new in studio.runDidChange(from: old, to: new) }
         .sheet(isPresented: $studio.isAutopilotPresented) {
-            switch front {
-            case .guided: GuidedAutopilotSheet(studio: studio, assistant: assistant)
-            case .classic: AutopilotSheet(studio: studio, assistant: assistant)
-            }
+            GuidedAutopilotSheet(studio: studio, assistant: assistant)
         }
         .sheet(isPresented: $studio.isDesignProjectPresented) {
             ConnectDesignProjectSheet(studio: studio)
@@ -95,7 +87,7 @@ struct ScreenshotStudioView: View {
     private func perform(_ action: AutopilotStripAction) {
         switch action {
         case .runAutopilot:
-            if front == .guided { studio.runGuidedAutopilot() } else { studio.runAutopilot() }
+            studio.runGuidedAutopilot()
         case .open:
             studio.openAutopilot()
         case .setUpAssistant:

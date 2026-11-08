@@ -49,6 +49,7 @@ struct ListRecordingMomentsTool: MCPTool {
                 "reason": .string(moment.reason),
                 "chosen": .bool(chosen.contains(moment.screenID)),
                 "recordAgain": .bool(run.isWaitingForRetake(moment.screenID, on: target)),
+                "barelyMoves": .bool(run.momentMotion?[moment.screenID]?.isTooStill == true),
             ]
         }
         let result: JSONValue = [

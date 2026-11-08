@@ -64,10 +64,18 @@ struct RatingCheckTests {
         #expect(!warning.blocksPush)
     }
 
+    /// A laurel follows the App Store's rating unless its value was
+    /// typed: a typed 4.9 stays, and is checked.
     @Test func theMatrixFailsACellWhoseRatingIsTooHigh() throws {
         var document = ScreenshotsDebugDocuments.standard
         var history = try #require(document.history)
-        history.save(cinema, date: .now, note: "Cinema")
+        var typed = cinema
+        var decorations = try #require(typed.resolved(forSlot: 1).decorations)
+        let laurel = try #require(decorations.firstIndex { $0.type == .laurel })
+        decorations[laurel].source = .custom
+        decorations[laurel].value = "4.9"
+        typed.slots[1].over["deco"] = ScreenshotTemplate.encoded(decorations)
+        history.save(typed, date: .now, note: "Cinema")
         document.history = history
         var snapshot = ScreenshotsTestFixtures.snapshot(document)
         snapshot.ratings = ratings(.rated(4.6))

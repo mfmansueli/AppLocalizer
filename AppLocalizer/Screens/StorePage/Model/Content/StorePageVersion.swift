@@ -21,20 +21,27 @@ struct StorePageVersion: Identifiable, Hashable, Sendable {
 
     /// Picks the versions the picker lists out of everything App Store
     /// Connect returned: states the Store Page knows (replaced and removed
-    /// versions are left out), newest first, at most one live one.
+    /// versions are left out), newest first, at most one live one per
+    /// platform.
     static func pickerVersions(from versions: [StorePageVersion]) -> [StorePageVersion] {
         let newestFirst = versions.sorted { ($0.createdDate ?? .distantPast) > ($1.createdDate ?? .distantPast) }
-        var sawLive = false
+        var livePlatforms: Set<String?> = []
         return newestFirst.filter { version in
             guard version.state.isLive else { return true }
-            defer { sawLive = true }
-            return !sawLive
+            return livePlatforms.insert(version.platform).inserted
         }
     }
 
     /// The version the Store Page opens on: the newest editable one, else the
-    /// newest live one, else the newest of any state.
+    /// newest live one, else the newest of any state. An app with an iOS
+    /// version opens on it, even when its macOS version is newer: iPhone and
+    /// iPad screenshots can only go in iOS localizations (App Store Connect
+    /// refuses them elsewhere with "Display Type Not Allowed!").
     static func preferred(in versions: [StorePageVersion]) -> StorePageVersion? {
-        versions.first(where: \.isEditable) ?? versions.first(where: \.state.isLive) ?? versions.first
+        let iOS = versions.filter { $0.platform == iOSPlatform }
+        let candidates = iOS.isEmpty ? versions : iOS
+        return candidates.first(where: \.isEditable) ?? candidates.first(where: \.state.isLive) ?? candidates.first
     }
+
+    private static let iOSPlatform = "IOS"
 }

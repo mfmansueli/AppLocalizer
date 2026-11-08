@@ -22,13 +22,16 @@ import Foundation
 /// - `st-lb-concept`: a concept's header and search full size.
 /// - `st-vid-loop`, `st-vid-loop-rev`: Watch the header loop, v1, and v2
 ///   after the person asked for slower movement.
+/// - `st-vid-loop-making`: the loop's new version being made, half its
+///   languages done.
 /// - `st-ready-header-failed`: Ready for review in that run, its header
 ///   not made (the page didn't load), with Make Again.
 @MainActor
 enum StudioDebugHeaderStyle {
     nonisolated static let ids = [
         "st-plan-tpl", "st-plan-free", "st-plan-shotstyle", "st-des-tpl", "st-des-free", "st-choose-tpl", "st-choose-free",
-        "st-des-header-loop", "st-choose-header-loop", "st-lb-concept", "st-vid-loop", "st-vid-loop-rev", "st-ready-header-failed",
+        "st-des-header-loop", "st-choose-header-loop", "st-lb-concept", "st-vid-loop", "st-vid-loop-rev", "st-vid-loop-making",
+        "st-ready-header-failed",
     ]
 
     static func scene(for id: String) -> StudioDebugExtras.Scene? {
@@ -69,10 +72,19 @@ enum StudioDebugHeaderStyle {
                     model.studio.openConcept(concept, at: 0)
                 }
             }, savesExtras: false)
+        default:
+            watchScene(for: id)
+        }
+    }
+
+    private static func watchScene(for id: String) -> StudioDebugExtras.Scene? {
+        switch id {
         case "st-vid-loop":
             StudioDebugExtras.Scene(run: watching(version: 1), sheet: true, savesExtras: false)
         case "st-vid-loop-rev":
             StudioDebugExtras.Scene(run: watching(version: 2), sheet: true, savesExtras: false)
+        case "st-vid-loop-making":
+            StudioDebugExtras.Scene(run: makingLoopAgain, sheet: true, savesExtras: false)
         case "st-ready-header-failed":
             StudioDebugExtras.Scene(run: headerNotMade, sheet: true, savesExtras: false)
         default:
@@ -172,6 +184,21 @@ enum StudioDebugHeaderStyle {
         run.concepts = StudioDebugConcepts.fromTemplates
         run.directionPick = run.directions.dropFirst().first?.id
         run.art = "A"
+        return run
+    }
+
+    /// Watch the header loop with its new version arrived and half its
+    /// languages made, at 4 minutes each.
+    static var makingLoopAgain: AutopilotRun {
+        var run = watching(version: 1)
+        run.loopReview?.request = AutopilotRevisionRequest(note: "Slower movement", askedAt: .now)
+        run.loopReview?.isRemaking = true
+        var progress = AutopilotExtrasProgress()
+        progress.artworkTotal = run.plan.localeCodes.count
+        progress.artworkDone = max(1, progress.artworkTotal / 2)
+        progress.artworkDoneAt = .now.addingTimeInterval(-60)
+        progress.artworkStartedAt = .now.addingTimeInterval(-60 - Double(progress.artworkDone) * 240)
+        run.extrasProgress = progress
         return run
     }
 

@@ -14,6 +14,8 @@ struct WorkspaceServices {
     var pricing: any PricingServices
     var storePage: any StorePageServices
     var appInformation: any AppInformationServices
+    /// Pricing → Retention: retention messages and offers.
+    var retention: any RetentionServices
     /// Where Review & Push sends writes.
     var push: any PushTransport
 
@@ -26,6 +28,7 @@ struct WorkspaceServices {
             pricing: LivePricingServices(client: client),
             storePage: LiveStorePageServices(client: client),
             appInformation: LiveAppInformationServices(client: client),
+            retention: LiveRetentionServices(client: client),
             push: client
         )
     }

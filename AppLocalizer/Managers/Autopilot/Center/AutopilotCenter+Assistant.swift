@@ -331,9 +331,10 @@ extension AutopilotCenter {
 
     /// The size a capture of `display` must have, either way up. Apple
     /// Watch takes an Ultra's screen; an Apple Vision Pro capture is the
-    /// app's window, any shape at least 600 px on its short side; iPhone
-    /// Duo's is its inner display's for an open screen and its cover
-    /// display's for a closed one (`duoPose`).
+    /// app's window, any shape at least 600 px on its short side; a Mac's
+    /// is its whole screen (`CaptureSizeRules.isMacScreen`); iPhone Duo's
+    /// is its inner display's for an open screen and its cover display's
+    /// for a closed one (`duoPose`).
     static func checkSize(_ size: PixelSize, for display: ScreenshotDisplayType, duoPose: AutopilotDuoPose? = nil) throws {
         switch display {
         case .watch:
@@ -342,18 +343,14 @@ extension AutopilotCenter {
         case .visionPro:
             guard min(size.width, size.height) < 600 else { return }
             throw AutopilotError(String(localized: "A \(size.title) capture is too small for Apple Vision Pro. Capture the app’s window at its default size."))
-        case .iPhoneDuo where duoPose == .closed:
-            guard !CaptureSizeRules.isDuoOuterDisplay(size) else { return }
-            let cover = CaptureSizeRules.duoOuterSize
+        case .mac:
+            guard !CaptureSizeRules.isMacScreen(size) else { return }
             throw AutopilotError(String(localized: """
-            A \(size.title) capture isn’t iPhone Duo’s cover display. This screen is one of its closed screenshots: capture it \
-            closed, on the \(cover.title) cover display (a UI test’s own screenshot is that display).
+            A \(size.title) capture isn’t a Mac’s whole screen. Capture all of this Mac’s screen, menu bar included, with the \
+            app’s window in front: landscape, about 16:10 (2880 × 1800, or a MacBook’s 3024 × 1964), at least 1280 × 800.
             """))
-        case .iPhoneDuo where CaptureSizeRules.isDuoOuterDisplay(size):
-            throw AutopilotError(String(localized: """
-            A \(size.title) capture is iPhone Duo’s cover display. This screen is one of its open screenshots: capture the \
-            inner display, \(display.portraitPixelSize.title) or \(display.portraitPixelSize.rotated.title), with the Duo open.
-            """))
+        case .iPhoneDuo:
+            guard try checkDuoSize(size, pose: duoPose) else { return }
         default:
             break
         }
@@ -361,5 +358,25 @@ extension AutopilotCenter {
         guard size == expected || size == expected.rotated else {
             throw AutopilotError(String(localized: "A \(size.title) capture doesn’t fit \(display.title), which takes \(expected.title) or \(expected.rotated.title). Capture on \(display.deviceName)."))
         }
+    }
+
+    /// iPhone Duo's cover display for a closed screen, its inner one for an
+    /// open screen. False when the size is right without the usual check.
+    private static func checkDuoSize(_ size: PixelSize, pose: AutopilotDuoPose?) throws -> Bool {
+        let isCover = CaptureSizeRules.isDuoOuterDisplay(size)
+        if pose == .closed {
+            guard !isCover else { return false }
+            let cover = CaptureSizeRules.duoOuterSize
+            throw AutopilotError(String(localized: """
+            A \(size.title) capture isn’t iPhone Duo’s cover display. This screen is one of its closed screenshots: capture it \
+            closed, on the \(cover.title) cover display (a UI test’s own screenshot is that display).
+            """))
+        }
+        guard isCover else { return true }
+        let inner = ScreenshotDisplayType.iPhoneDuo.portraitPixelSize
+        throw AutopilotError(String(localized: """
+        A \(size.title) capture is iPhone Duo’s cover display. This screen is one of its open screenshots: capture the \
+        inner display, \(inner.title) or \(inner.rotated.title), with the Duo open.
+        """))
     }
 }

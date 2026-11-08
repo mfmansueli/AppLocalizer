@@ -62,7 +62,7 @@ extension ScreenshotStudioModel {
                 headline: artworkHeadline(ArtworkTextRole.role(for: kind), locale: primary), slots: slots,
                 captures: pickedCaptures(slots, run: run), shows: plan.alsoMakes.artworkShows, isMotion: plays, page: page
             )
-            var item = artworkItem(artwork, title: Self.conceptTitle(concept, kind: kind), subtitle: loop + concept.sourceTitle)
+            var item = artworkItem(artwork, title: Self.conceptTitle(concept, kind: kind), subtitle: loop + concept.sourceTitle, saysLoop: true)
             item.id = "concept.\(concept.id).\(kind.rawValue)"
             if kind == .header { item.action = .headerGuide }
             return item
@@ -132,12 +132,14 @@ extension ScreenshotStudioModel {
                 headline: artworkHeadline(ArtworkTextRole.role(for: kind), locale: primary), slots: slots,
                 captures: pickedCaptures(slots, run: run), shows: plan.alsoMakes.artworkShows, isMotion: true, page: page
             )
+            // artworkItem adds " · motion".
             let title = switch kind {
-            case .header: String(localized: "Product page header · 21:9 · 3840 × 1646 · motion")
-            case .search: String(localized: "Search results · 3:2 · 3840 × 2560 · motion")
+            case .header: String(localized: "Product page header · 21:9 · 3840 × 1646")
+            case .search: String(localized: "Search results · 3:2 · 3840 × 2560")
             case .wide: String(localized: "Header and search results · 16:9 · 5244 × 2950")
             }
-            var item = artworkItem(artwork, title: title, subtitle: String(localized: "\(AutopilotArtworkMotion.loopSeconds)-second loop · plays muted on repeat · v\(version)"))
+            let subtitle = String(localized: "\(AutopilotArtworkMotion.loopSeconds)-second loop · plays muted on repeat · v\(version)")
+            var item = artworkItem(artwork, title: title, subtitle: subtitle, saysLoop: true)
             item.id = "loop.\(kind.rawValue)"
             if kind == .header { item.action = .headerGuide }
             return item

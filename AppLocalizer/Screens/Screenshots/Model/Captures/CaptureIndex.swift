@@ -15,6 +15,11 @@ struct CaptureIndex: Codable, Hashable, Sendable {
 
     var isEmpty: Bool { captures.isEmpty }
 
+    /// Whether any capture is of `displayType`.
+    func hasCaptures(on displayType: ScreenshotDisplayType) -> Bool {
+        captures.contains { $0.displayType == displayType }
+    }
+
     /// The capture `locale` has of its own, if any.
     func ownCapture(locale: String, displayType: ScreenshotDisplayType, slot: Int) -> ScreenshotCapture? {
         captures.first { $0.locale == locale && $0.displayType == displayType && $0.slot == slot && $0.isCompanion != true }

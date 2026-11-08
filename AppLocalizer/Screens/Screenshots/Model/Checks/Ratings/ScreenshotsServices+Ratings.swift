@@ -10,4 +10,9 @@ extension ScreenshotsServices {
     func storeRatings(for _: StoreApp, countries _: Set<String>) async -> StoreRatings {
         .unchecked
     }
+
+    /// Looks nothing up: a Reviews slot stays empty and its check warns.
+    func storeReviews(for _: StoreApp, countries _: Set<String>) async -> StoreReviews {
+        .none
+    }
 }

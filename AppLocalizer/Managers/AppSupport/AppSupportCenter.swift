@@ -17,6 +17,9 @@ final class AppSupportCenter {
 
     private(set) var profiles: [StoreApp.ID: AppSupportProfile]
     private(set) var declinedLanguages: [StoreApp.ID: Set<String>]
+    /// What each app's assistant answered about it, kept apart from the
+    /// project report (which every scan replaces).
+    private(set) var knowledge: [StoreApp.ID: AppKnowledge]
     @ObservationIgnored private let persistence: (any AppSupportPersistence)?
 
     init(persistence: (any AppSupportPersistence)? = nil, profiles: [StoreApp.ID: AppSupportProfile] = [:]) {
@@ -24,10 +27,21 @@ final class AppSupportCenter {
         let archive = persistence?.load() ?? AppSupportArchive()
         self.profiles = archive.profiles.merging(profiles) { $1 }
         declinedLanguages = archive.declinedLanguages
+        knowledge = archive.knowledge ?? [:]
     }
 
     func profile(for appID: StoreApp.ID) -> AppSupportProfile? {
         profiles[appID]
+    }
+
+    func knowledge(for appID: StoreApp.ID) -> AppKnowledge? {
+        knowledge[appID]
+    }
+
+    /// New answers about the app, over what's known.
+    func remember(_ answers: AppKnowledge, for appID: StoreApp.ID) {
+        knowledge[appID] = (knowledge[appID] ?? AppKnowledge()).merging(answers)
+        save()
     }
 
     /// The assistant read the project again: its report replaces the last,
@@ -75,6 +89,6 @@ final class AppSupportCenter {
     }
 
     private func save() {
-        persistence?.save(AppSupportArchive(profiles: profiles, declinedLanguages: declinedLanguages))
+        persistence?.save(AppSupportArchive(profiles: profiles, declinedLanguages: declinedLanguages, knowledge: knowledge))
     }
 }

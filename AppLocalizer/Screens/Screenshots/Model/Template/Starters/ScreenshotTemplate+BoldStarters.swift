@@ -5,12 +5,15 @@
 
 import Foundation
 
-// The gallery's bold templates: Bold Stack, Swoosh and Poster.
+// The gallery's bold templates: Bold Stack, Swoosh and Poster; Social Proof
+// and Arcade have files of their own.
 extension ScreenshotTemplate {
     static func boldRecipe(_ starter: TemplateStarter) -> ScreenshotTemplate {
         switch starter {
         case .swoosh: swoosh
         case .poster: poster
+        case .socialProof: socialProofRecipe
+        case .arcade: arcadeRecipe
         default: boldStack
         }
     }

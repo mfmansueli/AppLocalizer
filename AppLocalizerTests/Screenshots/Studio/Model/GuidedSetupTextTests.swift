@@ -25,6 +25,19 @@ struct GuidedSetupTextTests {
             == "Choose any mix. \(model.studio.assistantTitle) captures the real app, and AppLocalizer designs, localizes and checks every image.")
     }
 
+    /// Bruma's guided plan: no design project, the assistant designs the
+    /// looks from the app's own design.
+    @Test func withoutOneTheAssistantCanDesignFromTheAppsOwnDesign() async {
+        let center = StudioTestFixtures.center(StudioDebugHeaderStyle.shotStyle)
+        center.setDesignProject(nil, for: appID)
+        center.updatePlan(for: appID) { $0.assistantDesignsLooks = true }
+        let model = await StudioTestFixtures.screenshots(center: center)
+        let studio = model.studio
+        #expect(studio.plannedDesignKind == .claudeDesign)
+        #expect(studio.shotStyleDesigner == DesignProjectKind.claudeDesign.title)
+        #expect(studio.guidedMakeIntro.contains("\(studio.shotStyleDesigner) designs it in the app’s own design"))
+    }
+
     @Test func withOneItNamesTheDesignerAndTheBrand() async {
         let center = StudioTestFixtures.center(StudioDebugHeaderStyle.shotStyle)
         center.setDesignProject(StudioDebugRuns.northpier, for: appID)

@@ -14,7 +14,7 @@ extension AutopilotRun {
         let devices: [JSONValue] = plan.runDisplays.map { display in
             var device: [String: JSONValue] = [
                 "displayType": .string(display.mcpValue),
-                "simulator": .string(display.deviceName),
+                "simulator": .string(display == .mac ? String(localized: "This Mac (no simulator)") : display.deviceName),
                 "pixelSize": .string(Self.capturePixelSize(display)),
                 "orientation": .string(Self.orientation(display)),
             ]
@@ -43,11 +43,16 @@ extension AutopilotRun {
             if newCodes.contains(code) { locale["notOnAppStoreYet"] = true }
             return .object(locale)
         }
+        let commands = simulatorCommands(bundleID: bundleID)
         var simulator: [String: JSONValue] = [
             "lightAppearance": .bool(plan.simulator.lightAppearance),
-            "commands": .array(simulatorCommands(bundleID: bundleID).map(JSONValue.string)),
+            "commands": .array(commands.map(JSONValue.string)),
         ]
         if plan.simulator.lightAppearance { simulator["alerts"] = .string(AutopilotSimulatorSetup.alertsNote) }
+        // With nothing to run there's nothing to run on each simulator.
+        if !commands.isEmpty, plan.displayTypes.count(where: { $0 != .mac }) > 1 {
+            simulator["eachSimulator"] = .string(AutopilotSimulatorSetup.eachSimulatorNote)
+        }
         if plan.simulator.usesSampleData {
             simulator["sampleData"] = .string(
                 plan.simulator.sampleDataSteps.isEmpty
@@ -80,11 +85,34 @@ extension AutopilotRun {
             ],
             "preflight": AutopilotPreflight.json,
         ]
-        if let rehearsal = AutopilotPreflight.rehearsalJSON(for: plan) { json["rehearsal"] = rehearsal }
-        if let alsoMake = mcpAlsoMake(upload: upload) { json["alsoMake"] = alsoMake }
+        json["choosingScreens"] = mcpChoosingScreens
+        json["rehearsal"] = AutopilotPreflight.rehearsalJSON(for: plan)
+        json["alsoMake"] = mcpAlsoMake(upload: upload)
         json["noScreenshots"] = mcpNoScreenshots
         return .object(json)
     }
+
+    /// How to choose the screens and write their captions, while the
+    /// assistant still chooses them.
+    private var mcpChoosingScreens: JSONValue? {
+        guard plan.makesScreenshots, plan.choosesScreens || plan.awaitsScreens, captures.isEmpty else { return nil }
+        return .string(Self.choosingScreensHow)
+    }
+
+    /// How to choose the screens and write their captions, when the
+    /// assistant chooses them: the set is a story, and each caption sells
+    /// what the screen does for the person.
+    static let choosingScreensHow = """
+    Choose the screens as a story told in order: the first says what the app is for and shows its core moment \
+    filled with life (App Store search results show only the first three, so they carry the promise, the main \
+    feature and what sets the app apart), then one feature a screen, each different, ending with what keeps \
+    people coming back (or the paid tier). Prefer screens full of believable content over settings, empty \
+    states, sign-in or permission screens. Each caption is a short headline in the app's own voice: what the \
+    person gets or feels, not the screen's name ("See who's around you", not "Nearby tab"), 2 to 6 words, at \
+    most about 30 characters in the primary language, one idea, no ending period, nothing the App Store texts \
+    and the project don't support (no prices, ratings, awards or "best"). The captions are translated later for \
+    every language, so avoid puns and idioms that only work in the primary language.
+    """
 
     /// Without screenshots, what the run makes and captures instead; nil
     /// when it makes them.
@@ -125,7 +153,7 @@ extension AutopilotRun {
     /// "1320 × 2868"; iPhone Duo its inner display's, either way up (open,
     /// it's wider than tall), for its open screens and its cover display's
     /// for its closed ones; Apple Watch takes an Ultra's screen; Apple
-    /// Vision Pro the app's window as it is.
+    /// Vision Pro the app's window as it is; Mac this Mac's whole screen.
     static func capturePixelSize(_ display: ScreenshotDisplayType) -> String {
         switch display {
         case .iPad:
@@ -137,6 +165,7 @@ extension AutopilotRun {
             """)
         case .watch: "422 × 514 (or 410 × 502)"
         case .visionPro: String(localized: "the app’s window, at least 600 px on its short side")
+        case .mac: String(localized: "this Mac’s whole screen, menu bar included: about 16:10, e.g. 2880 × 1800 or a MacBook’s 3024 × 1964")
         default: display.portraitPixelSize.title
         }
     }
@@ -145,7 +174,7 @@ extension AutopilotRun {
     static func orientation(_ display: ScreenshotDisplayType) -> String {
         switch display {
         case .iPad: "landscape, or portrait when the UI tests can't rotate"
-        case .visionPro: "landscape"
+        case .visionPro, .mac: "landscape"
         default: "portrait"
         }
     }
@@ -189,6 +218,17 @@ extension AutopilotRun {
             portrait: AppLocalizer takes iPad either way up and lays the set out to match the captures, so a portrait \
             capture is not a problem; don't report it. iPad shows a split view's sidebar and detail side by side: \
             select an item before capturing, so the detail shows it and not a "select an item" placeholder.
+            """
+        case .mac:
+            """
+            Run the app on this Mac itself, not a simulator: UI tests with -destination 'platform=macOS' (add \
+            variant=Mac Catalyst for a Mac Catalyst target, or variant=Designed for iPad for an iPad app made for Mac). \
+            Bring its window to the front at a size that shows the screen well on a 16:10 desktop, with other windows \
+            out of the way, and capture the whole screen, menu bar included: XCUIScreen.main.screenshot() in a macOS UI \
+            test, or screencapture -x <file>.png. Don't crop it to the window: AppLocalizer puts the whole screen on a \
+            MacBook in the template's layout. The simulatorSetup commands are for the simulators: on this Mac, don't \
+            change the person's appearance, display settings, wallpaper or Dock. The language comes from the locale's \
+            testArguments (or launchArguments), as on iPhone.
             """
         case .visionPro:
             """

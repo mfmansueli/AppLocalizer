@@ -68,6 +68,8 @@ struct SimulatorInventory: Decodable, Hashable, Sendable {
     /// missing. A simulator already made comes first, then one that can be
     /// made, each on the newest runtime that runs its device type.
     func status(for display: ScreenshotDisplayType) -> SimulatorStatus {
+        // Mac's captures come from this Mac itself.
+        if display == .mac { return .ready(simulator: String(localized: "This Mac"), runtime: Self.macOSName) }
         let types = display.simulatorDeviceTypes.compactMap { name in deviceTypes.first { $0.name == name } }
         guard let preferred = types.first else { return .needsNewerXcode(deviceName: display.deviceName) }
         let runtimes = runtimes.filter(\.isAvailable).sorted { $0.version.compare($1.version, options: .numeric) == .orderedDescending }
@@ -96,12 +98,25 @@ struct SimulatorInventory: Decodable, Hashable, Sendable {
     /// first, else the newest runtime's, as `status(for:)` picks it. Nil
     /// when none is made.
     func simulator(for display: ScreenshotDisplayType) -> Device? {
+        guard display != .mac else { return nil }
         let types = Set(display.simulatorDeviceTypes.compactMap { name in deviceTypes.first { $0.name == name }?.identifier })
         let made = runtimes.filter(\.isAvailable)
             .sorted { $0.version.compare($1.version, options: .numeric) == .orderedDescending }
             .flatMap { devices[$0.identifier] ?? [] }
             .filter { types.contains($0.deviceTypeIdentifier ?? "") && $0.isAvailable != false }
         return made.first(where: \.isBooted) ?? made.first
+    }
+
+    /// The runtime `device` was made with: "iOS 27.2".
+    func runtime(of device: Device) -> Runtime? {
+        let identifier = devices.first { $0.value.contains { $0.udid == device.udid } }?.key
+        return runtimes.first { $0.identifier == identifier }
+    }
+
+    /// "macOS 27.2", this Mac's.
+    static var macOSName: String {
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        return "macOS \(version.majorVersion).\(version.minorVersion)"
     }
 
     /// "27.1.0" → "27.1"; "27.0.0" → "27.0".

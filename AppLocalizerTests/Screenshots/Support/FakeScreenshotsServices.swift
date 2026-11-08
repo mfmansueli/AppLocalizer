@@ -26,6 +26,9 @@ final class FakeScreenshotsServices: ScreenshotsServices {
     var ratings = StoreRatings.unchecked
     /// The countries each rating lookup asked about.
     private(set) var ratingLookups: [Set<String>] = []
+    /// What `storeReviews` answers, and the countries it was asked for.
+    var reviews = StoreReviews.none
+    private(set) var reviewLookups: [Set<String>] = []
 
     init(document: ScreenshotsDocument? = nil, live: LiveScreenshots = LiveScreenshots()) {
         storedDocument = document
@@ -64,6 +67,11 @@ final class FakeScreenshotsServices: ScreenshotsServices {
     func storeRatings(for _: StoreApp, countries: Set<String>) async -> StoreRatings {
         ratingLookups.append(countries)
         return ratings
+    }
+
+    func storeReviews(for _: StoreApp, countries: Set<String>) async -> StoreReviews {
+        reviewLookups.append(countries)
+        return reviews
     }
 
     func otherDisplayTypeNotes(for _: StoreApp) -> [ScreenshotDisplayType: String] {

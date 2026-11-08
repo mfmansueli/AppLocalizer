@@ -37,7 +37,6 @@ struct AutopilotChooseHeaderLoopTests {
         let run = StudioDebugHeaderStyle.headerLoopOnly
         #expect(run.conceptsToChoose.count == 3)
         #expect(run.conceptsToChoose.allSatisfy(run.playsLoop))
-        #expect(AutopilotChooseStageView.conceptsFrom(run) == "Claude Design’s own concepts · each plays its 20-second loop")
         #expect(ScreenshotStudioModel.conceptLoopNote(plays: true, run: run) == "20-second loop · plays muted on repeat · ")
         #expect(ScreenshotStudioModel.conceptScopeNote(run).hasSuffix(
             "Its loop is made again from the changes. After Localize and check you watch the one you chose in every language."
@@ -52,25 +51,21 @@ struct AutopilotChooseHeaderLoopTests {
         let run = Self.fromBefore
         #expect(run.conceptsToChoose.count == 3, "Its stills are enough to choose")
         #expect(!run.conceptsToChoose.contains(where: run.playsLoop))
-        #expect(AutopilotChooseStageView.conceptsFrom(run) == "Claude Design’s own concepts · still for now: the one you choose becomes a 20-second loop")
         #expect(ScreenshotStudioModel.conceptLoopNote(plays: false, run: run) == "Becomes a 20-second loop if you choose it · ")
-
-        let still = AutopilotChooseStageView.conceptsFrom(StudioDebugHeaderStyle.headerOnly(.choose, style: .free, motion: .still))
-        #expect(still == "Claude Design’s own concepts · header and search share one look")
     }
 
     /// Alba's sheet at its 960-pt minimum leaves 699 pt inside the page's
     /// padding; before it's measured, the page starts at 0.
     @Test func threeConceptsFitTheSheet() {
-        let width = AutopilotChooseStageView.conceptWidth(in: 699)
-        #expect(width * 3 + AutopilotChooseStageView.conceptSpacing * 2 <= 699)
-        #expect(AutopilotChooseStageView.conceptWidth(in: 0) == 150)
+        let width = GuidedChooseStepView.conceptWidth(in: 699)
+        #expect(width * 3 + GuidedChooseStepView.conceptSpacing * 2 <= 699)
+        #expect(GuidedChooseStepView.conceptWidth(in: 0) == 150)
     }
 
     /// Cards sized for a wider page (the 900 pt the stage used to start
     /// at) can't make the page wider than it's offered.
     @Test func cardsSizedForAWiderPageKeepThePageToItsWidth() {
-        let cards = NSHostingController(rootView: AutopilotDesignCardsLayout(spacing: AutopilotChooseStageView.conceptSpacing) {
+        let cards = NSHostingController(rootView: AutopilotDesignCardsLayout(spacing: GuidedChooseStepView.conceptSpacing) {
             ForEach(0..<3, id: \.self) { _ in Color.clear.frame(width: 293, height: 200) }
         })
         #expect(cards.sizeThatFits(in: CGSize(width: 699, height: 2000)).width == 699)

@@ -32,6 +32,15 @@ final class StudioTestServices: ScreenshotsServices {
     }
 
     var fonts: ScreenshotFontCatalog { fake.fonts }
+
+    func storeRatings(for app: StoreApp, countries: Set<String>) async -> StoreRatings {
+        await fake.storeRatings(for: app, countries: countries)
+    }
+
+    func storeReviews(for app: StoreApp, countries: Set<String>) async -> StoreReviews {
+        await fake.storeReviews(for: app, countries: countries)
+    }
+
     var translator: any ListingTranslator { fake.translator }
     var renderCacheDirectory: URL? { nil }
     var renderHoldCount: Int? { nil }

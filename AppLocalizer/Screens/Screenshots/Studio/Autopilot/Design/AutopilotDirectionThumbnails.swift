@@ -27,8 +27,12 @@ struct AutopilotDirectionThumbnails: View {
             HStack(spacing: Spacing.xxSmall) {
                 ForEach(layouts.indices, id: \.self) { slot in
                     let capture = captures.indices.contains(slot) ? captures[slot] : nil
+                    let behind = studio.behindCapture(in: direction, slot: slot)
                     opening(slot, label: String(localized: "Screenshot \(slot + 1)")) {
-                        AutopilotLayoutImage(layout: layouts[slot], capture: studio.image(for: capture, width: 240), width: width)
+                        AutopilotLayoutImage(
+                            layout: layouts[slot], capture: studio.image(for: capture, width: 240), width: width,
+                            companion: behind.flatMap { studio.image(for: $0, width: 240) }
+                        )
                     }
                 }
             }

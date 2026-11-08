@@ -6,7 +6,8 @@
 import SwiftUI
 
 /// The Studio's small capsule segmented controls (device, language,
-/// Live · New, Light · Dark), where one segment can be disabled.
+/// Live · New, Light · Dark), where one segment can be disabled, or dimmed
+/// (a device the run doesn't make yet) and still picked.
 struct StudioSegmentedControl<Value: Hashable>: View {
     struct Option {
         var value: Value
@@ -14,6 +15,10 @@ struct StudioSegmentedControl<Value: Hashable>: View {
         var isEnabled = true
         /// The segment's identifier suffix.
         var key: String
+        /// The segment's tooltip ("iPhone 6.9″ · 1320 × 2868").
+        var help: String?
+        /// Shown fainter unless it's picked.
+        var isDimmed = false
     }
 
     let label: String
@@ -42,7 +47,9 @@ struct StudioSegmentedControl<Value: Hashable>: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(option.isEnabled ? Palette.label : Palette.label3)
+                .opacity(option.isDimmed && !isSelected ? 0.62 : 1)
                 .disabled(!option.isEnabled)
+                .help(option.help.map { Text($0) } ?? Text(""))
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
                 .accessibilityIdentifier("\(identifier).\(option.key)")
             }

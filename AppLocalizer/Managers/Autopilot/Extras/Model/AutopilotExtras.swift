@@ -17,6 +17,9 @@ struct AutopilotExtras: Codable, Hashable, Sendable {
     /// The App Preview's music; nil (plans from before) is Warm acoustic.
     /// Use `previewMusic`.
     var music: AutopilotPreviewMusic?
+    /// The track the assistant picked for this app; `music` (the person's
+    /// choice) wins over it.
+    var suggestedMusic: AppMusicPick?
     /// Still image or motion loop; nil (plans from before) is still. Use
     /// `artworkMotion`.
     var motion: AutopilotArtworkMotion?
@@ -94,10 +97,10 @@ struct AutopilotExtras: Codable, Hashable, Sendable {
         artworkStyle == .free ? AutopilotRun.directionCount : max(1, headerTemplates.count)
     }
 
-    /// Every App Preview has music: Warm acoustic unless the person chose
-    /// another.
+    /// Every App Preview has music: the person's choice, else the track
+    /// picked for the app, else Warm acoustic.
     var previewMusic: AutopilotPreviewMusic {
-        get { music ?? .standard }
+        get { music ?? suggestedMusic.map { AutopilotPreviewMusic(track: $0.track) } ?? .standard }
         set { music = newValue }
     }
 }

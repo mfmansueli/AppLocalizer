@@ -163,6 +163,9 @@ struct ArtworkConceptToolsTests {
         #expect(shots.result["shot_style"] == "templates")
         #expect(shots.result["shot_templates"] == ["Cinema", "Editorial"])
         #expect(shots.result["shotStyleSays"]?.stringValue?.contains("Make one direction per template") == true)
+        // Bruma's Arcade direction, a dating app, kept the gaming props.
+        #expect(shots.result["shotStyleSays"]?.stringValue?.contains("(controller, chess, dice, person)") == true)
+        #expect(shots.result["shotStyleSays"]?.stringValue?.contains("off: true") == true)
         #expect(shots.result["directions"] == 2)
     }
 

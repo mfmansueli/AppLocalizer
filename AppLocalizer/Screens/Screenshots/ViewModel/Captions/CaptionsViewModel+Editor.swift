@@ -36,6 +36,12 @@ extension CaptionsViewModel {
         return screenshots.document?.template?.isHero(slot: selection.slot) ?? (selection.slot == 0)
     }
 
+    /// The template sets a kicker line over the headline on this slot.
+    var showsKickerField: Bool {
+        guard let selection, let template = screenshots.document?.template else { return false }
+        return template.resolved(forSlot: selection.slot).caption.kicker != nil
+    }
+
     var headlinePlaceholder: String {
         selection?.locale == screenshots.context.primaryLocale.code
             ? String(localized: "Say what this screen does for people")
@@ -54,7 +60,7 @@ extension CaptionsViewModel {
             SlotPreview.Placement(template: template, locale: locale, displayType: screenshots.displayType, slot: selection.slot),
             caption: editedCaption,
             capture: document.captures.capture(locale: locale.code, displayType: screenshots.displayType, slot: selection.slot, primary: primary.code),
-            engine: ScreenshotLayoutEngine(catalog: screenshots.fonts), primaryLocaleName: primary.name
+            engine: screenshots.layoutEngine, primaryLocaleName: primary.name
         )
     }
 
@@ -130,7 +136,9 @@ extension CaptionsViewModel {
     /// machine-translated.
     func useSuggestion() async {
         guard let suggestion, suggestion.key == selection, var document = screenshots.document else { return }
-        let caption = ScreenshotCaption(headline: suggestion.headline, subhead: editedCaption?.visibleSubhead, provenance: .machineTranslated)
+        let caption = ScreenshotCaption(
+            headline: suggestion.headline, subhead: editedCaption?.visibleSubhead, kicker: editedCaption?.visibleKicker, provenance: .machineTranslated
+        )
         document.captions.setCaption(caption, locale: suggestion.key.locale, slot: suggestion.key.slot)
         showSaved(caption)
         await screenshots.commit(document)
@@ -143,8 +151,8 @@ extension CaptionsViewModel {
 
     private func measure(headline text: String) -> CaptionFit? {
         guard let selection, let locale = selectedLocale, let template = screenshots.document?.template else { return nil }
-        let caption = ScreenshotCaption(headline: text, subhead: subhead.isEmpty ? nil : subhead)
-        return ScreenshotLayoutEngine(catalog: screenshots.fonts)
+        let caption = ScreenshotCaption(headline: text, subhead: subhead.isEmpty ? nil : subhead, kicker: kicker.isEmpty ? nil : kicker)
+        return screenshots.layoutEngine
             .layout(template, slot: selection.slot, locale: locale, displayType: screenshots.displayType, caption: caption).headline
     }
 }

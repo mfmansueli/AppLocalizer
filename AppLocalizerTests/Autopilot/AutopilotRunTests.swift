@@ -79,6 +79,25 @@ struct AutopilotRunTests {
         #expect(!AutopilotTestFixtures.run(.capture, plan: plan).isCaptureComplete)
     }
 
+    /// Bruma: the recordings were skipped before any screen was chosen,
+    /// and the run went on to Review with 0 screenshots.
+    @Test func screenshotsWaitForTheirScreensEvenWhenTheRecordingsAreSettled() {
+        var plan = AutopilotTestFixtures.smallPlan
+        plan.screens = []
+        plan.alsoMakes.makesAppPreview = true
+        var run = AutopilotTestFixtures.run(.capture, plan: plan)
+        run.captures = []
+        for target in run.plan.recordingTargets {
+            run.skipRecording(AutopilotRecordingSkip(target: target, reason: "The app needs an account.", reportedAt: .now))
+        }
+        #expect(run.remainingRecordings.isEmpty)
+        #expect(run.plan.awaitsScreens)
+        #expect(!run.isCaptureComplete)
+
+        run.plan.runChoice.makesScreenshots = false
+        #expect(run.isCaptureComplete == !run.plan.recordingTargets.isEmpty, "An App Preview-only run is done once its recordings are")
+    }
+
     @Test func candidatesAreRankedByScoreThenEarliestAttempt() {
         var run = AutopilotTestFixtures.run(.pick)
         run.captures = [

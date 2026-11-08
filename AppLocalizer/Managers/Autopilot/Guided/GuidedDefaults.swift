@@ -16,6 +16,7 @@ enum GuidedDefaults {
         plan.stopsToChoose = true
         plan.stopsToWatchPreview = true
         plan.assistantDesignsArtwork = true
+        plan.assistantDesignsLooks = true
     }
 
     /// Captures: reused when the run makes only artwork and there are

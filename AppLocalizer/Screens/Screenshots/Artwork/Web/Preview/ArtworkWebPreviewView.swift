@@ -55,7 +55,7 @@ final class ArtworkWebPreviewView: NSView {
                 let page: ArtworkWebPage = if let existing = self.page { existing } else { try await makePage() }
                 _ = try await page.load(request, fontCSS: ArtworkWebFonts.css)
                 guard !Task.isCancelled else { return }
-                page.fit(width: bounds.width)
+                fitPage()
                 isReady = true
                 applied = nil
                 apply()
@@ -69,10 +69,26 @@ final class ArtworkWebPreviewView: NSView {
     private func makePage() async throws -> ArtworkWebPage {
         let page = try await ArtworkWebPage(rules: ArtworkWebBlocking.list(), offscreen: false)
         page.webView.frame = bounds
-        page.webView.autoresizingMask = [.width, .height]
         addSubview(page.webView)
         self.page = page
         return page
+    }
+
+    /// The page laid out to show its whole canvas, scaled to the view's
+    /// width when it's laid out wider (see `ArtworkWebPage.minimumZoom`).
+    private func fitPage() {
+        guard let page else { return }
+        let width = frame.width
+        guard let size = page.fit(width: width), width > 0 else {
+            page.webView.frame = bounds
+            return
+        }
+        // The same scale both ways: the view's height follows the canvas,
+        // rounded.
+        let scaled = CGSize(width: size.width, height: frame.height * size.width / width)
+        if bounds.size != scaled { setBoundsSize(scaled) }
+        let webFrame = CGRect(origin: .zero, size: size)
+        if page.webView.frame != webFrame { page.webView.frame = webFrame }
     }
 
     /// Tells the page the latest playback: where to be, and whether it
@@ -91,8 +107,7 @@ final class ArtworkWebPreviewView: NSView {
 
     override func layout() {
         super.layout()
-        page?.webView.frame = bounds
-        page?.fit(width: bounds.width)
+        fitPage()
     }
 
     /// Stops the page when the viewer goes.

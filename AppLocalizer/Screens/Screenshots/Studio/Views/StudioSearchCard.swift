@@ -67,7 +67,7 @@ struct StudioSearchCard: View {
         switch preview.displayType {
         case .iPad: 150
         case .iPhoneDuo: 125
-        case .visionPro: 200
+        case .visionPro, .mac: 200
         default: 82
         }
     }

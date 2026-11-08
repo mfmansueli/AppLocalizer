@@ -123,7 +123,7 @@ struct ProposeCaptionsTool: MCPTool {
         let slot = number - 1
         let current = draft.document.captions.caption(locale: locale.code, slot: slot)
         let caption = ScreenshotCaption(headline: headline, subhead: subhead ?? current?.subhead)
-        for display in ScreenshotDisplayType.rendered {
+        for display in draft.document.renderedDisplays {
             let layout = draft.layout(template, locale: locale, slot: slot, displayType: display, caption: caption)
             if let problem = layout.headlineFont.problem { return .failure(Refusal(message: problem)) }
             if !layout.headline.fits {

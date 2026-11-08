@@ -54,15 +54,16 @@ extension ScreenshotStudioModel {
         let context = screenshots.context
         let parts = [
             context.hasWatchApp ? String(localized: "its build has an Apple Watch app") : nil,
+            context.hasMacVersion ? String(localized: "it has a macOS version") : nil,
             context.hasVisionVersion ? String(localized: "it has a visionOS version") : nil,
         ].compactMap(\.self)
         return parts.isEmpty ? nil : parts.joined(separator: String(localized: ", and "))
     }
 
-    /// iPhone, iPhone Duo and iPad, then Apple Watch and Apple Vision Pro
-    /// when the app runs there or the plan has them.
+    /// iPhone, iPhone Duo and iPad, then Mac, Apple Watch and Apple Vision
+    /// Pro when the app runs there or the plan has them.
     func planDevices(_ plan: AutopilotPlan) -> [ScreenshotDisplayType] {
-        ScreenshotDisplayType.studio.filter { $0.isRendered || devices.contains($0) || plan.displayTypes.contains($0) }
+        ScreenshotDisplayType.studio.filter { $0.isStandard || devices.contains($0) || plan.displayTypes.contains($0) }
     }
 
     /// Why the App Store wants this device's screenshots, if it does:
@@ -75,6 +76,9 @@ extension ScreenshotStudioModel {
         let version = screenshots.context.version.versionString
         if display == .visionPro, screenshots.context.hasVisionVersion {
             return String(localized: "\(version) has a visionOS version")
+        }
+        if display == .mac, screenshots.context.hasMacVersion {
+            return String(localized: "it has a macOS version")
         }
         if display == .watch, screenshots.context.hasWatchApp {
             return String(localized: "the \(version) build has an Apple Watch app")
@@ -95,6 +99,8 @@ extension ScreenshotStudioModel {
             parts.append(Self.duoShowsTitle(plan))
         case .watch:
             parts.append(String(localized: "Ultra 3"))
+        case .mac:
+            parts.append(String(localized: "on this Mac"))
         default:
             break
         }

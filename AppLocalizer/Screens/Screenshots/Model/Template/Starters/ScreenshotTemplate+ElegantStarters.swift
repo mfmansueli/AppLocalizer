@@ -17,7 +17,7 @@ extension ScreenshotTemplate {
 
     private static var cinema: ScreenshotTemplate {
         let mirrored = TemplateTilt(rotate: 8, turn: -18, lean: 12)
-        return recipe(
+        var template = recipe(
             background: TemplateBackground(kind: .linear, angle: 180, stops: ["#B85A4B", "#4A1D18", "#0E0807"]),
             ink: "#FFFFFF", subInk: "rgba(255,255,255,0.8)", placement: .below, align: .center,
             safe: TemplateSafeArea(top: 0.06, side: 0.07, bottom: 0.07),
@@ -36,6 +36,14 @@ extension ScreenshotTemplate {
                 slotOverrides(tilt: mirrored), [:], slotOverrides(tilt: mirrored),
             ]
         )
+        // Lying down, a smaller phone with a gentler tilt, centered.
+        template.landscape = landscapeOverrides([
+            "device.width": .double(0.5),
+            "device.tilt": encoded(TemplateTilt(rotate: -5, turn: 12, lean: 8)),
+            "device.dy": .double(0),
+            "device.offset": .double(0),
+        ])
+        return template
     }
 
     private static var spotlight: ScreenshotTemplate {

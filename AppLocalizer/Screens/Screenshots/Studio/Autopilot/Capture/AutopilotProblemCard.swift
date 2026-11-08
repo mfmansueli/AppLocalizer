@@ -129,7 +129,7 @@ struct AutopilotProblemCard: View {
                         .tint(duo == .needsAccessibility ? Palette.label2 : nil)
                         .accessibilityIdentifier("autopilot.problem.deviceHub")
                 }
-            } else if group.isDeviceWide, let helperTitle {
+            } else if group.isDeviceWide, !group.needsProjectChange, let helperTitle {
                 Button(helperTitle) { studio.installHelperAndCheck() }
                     .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("autopilot.problem.helper")
@@ -229,6 +229,14 @@ struct AutopilotProblemCard: View {
             return DeviceHub.openingSteps + " " + DeviceHub.restartSteps + " "
                 + String(localized: "Then retry; leaving it out finishes the run without it.")
         }
+        // Bruma's UI tests didn't build for macOS: the device is fine, the
+        // project isn't.
+        if group.isDeviceWide, group.needsProjectChange {
+            return String(localized: """
+            This is a change to the project, not a command: make it, then retry. Claude Code started by AppLocalizer can’t \
+            change files; Claude Code in Terminal can. Leaving \(group.displayType.shortTitle) out finishes the run without it.
+            """)
+        }
         if group.isDeviceWide, helperTitle != nil {
             return String(localized: """
             AppLocalizer installs the simulator through its helper: save it, then Install appears here. Leaving the device \
@@ -241,6 +249,8 @@ struct AutopilotProblemCard: View {
                 Installing downloads the simulator with xcodebuild (several GB) and makes the \(group.displayType.deviceName) simulator; \
                 the run tries the device again when it’s done. Leaving it out finishes the run without it.
                 """)
+                : group.displayType == .mac
+                ? String(localized: "Retry once the Mac app can be captured on this Mac, or leave it out to finish the run without it.")
                 : String(localized: "Retry once this Mac can run the \(group.displayType.deviceName) simulator, or leave it out to finish the run without it.")
         }
         if group.needsProjectChange {

@@ -149,6 +149,7 @@ struct GuidedHeaderBrowser: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Palette.fill1)
+        .id(GuidedLookScrollTarget.sceneFocus)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("autopilot.guided.look.scene.focus")
     }

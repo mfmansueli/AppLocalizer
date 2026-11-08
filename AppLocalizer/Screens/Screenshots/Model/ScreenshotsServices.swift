@@ -78,6 +78,10 @@ protocol ScreenshotsServices {
     /// the ratings templates show. By default nothing is looked up.
     func storeRatings(for app: StoreApp, countries: Set<String>) async -> StoreRatings
 
+    /// The app's 5-star App Store reviews in each country (ISO 3166), for
+    /// a Reviews slot. By default nothing is looked up.
+    func storeReviews(for app: StoreApp, countries: Set<String>) async -> StoreReviews
+
     /// Keeps a PNG the assistant captured with the app's captures, named by
     /// its checksum. By default it keeps nothing and only reads the size.
     func storeCapture(_ data: Data, for app: StoreApp) async throws -> CaptureFile

@@ -31,6 +31,8 @@ final class PricingViewModel {
     var isGroupConfirmationPresented = false
 
     var tab = PricingTab.prices
+    /// Prices, or Retention.
+    var page = PricingPage.prices
     var display = PricingDisplay.table
     var mapMetric = TileMapMetric.percentVsBase
     /// The tile whose details the map shows.
@@ -95,9 +97,10 @@ final class PricingViewModel {
         return catalog?.siblings(of: product) ?? []
     }
 
-    /// Price changes waiting in Review & Push; new subscriptions aren't.
+    /// Price changes waiting in Review & Push; new subscriptions and
+    /// retention aren't.
     var pendingPriceChangeCount: Int {
-        queue.changes(for: app.id, section: .subscriptionPricing).count { !NewSubscriptionChangeBuilder.owns($0) }
+        queue.changes(for: app.id, section: .subscriptionPricing).count { !NewSubscriptionChangeBuilder.owns($0) && !RetentionChangeBuilder.owns($0) }
     }
 
     // MARK: - Loading
@@ -209,9 +212,12 @@ final class PricingViewModel {
         if mode == .applyRecommended { await applyRecommendedPrices() }
     }
 
-    /// Keep my prices after confirming: queued price changes go.
+    /// Keep my prices after confirming: queued price changes go (new
+    /// subscriptions and retention stay).
     func confirmKeepPrices() {
-        queue.discardAll { $0.appID == app.id && $0.section == .subscriptionPricing && !NewSubscriptionChangeBuilder.owns($0) }
+        queue.discardAll {
+            $0.appID == app.id && $0.section == .subscriptionPricing && !NewSubscriptionChangeBuilder.owns($0) && !RetentionChangeBuilder.owns($0)
+        }
         apply(mode: .keepPrices)
         matrix?.queueDidChange()
     }

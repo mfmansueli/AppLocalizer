@@ -6,9 +6,9 @@
 import XCTest
 
 /// The header and search artwork's own texts and checks: Captions' Search
-/// results and Header columns (`cap-artwork`), and the checks' pills and
-/// lines in Autopilot's Localize and Ready (`st-loc-extras-checks`,
-/// `st-ready-extras-checks`).
+/// results and Header columns (`cap-artwork`), its phrase columns
+/// (`cap-artwork-phrases`), and the Screenshots preview's Header and search
+/// card with a check that stops the push (`st-ready-extras-details`).
 @MainActor
 final class ArtworkTextsUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -75,31 +75,6 @@ final class ArtworkTextsUITests: XCTestCase {
         shot.name = "Captions phrase column"
         shot.lifetime = .keepAlways
         add(shot)
-    }
-
-    /// Localize shows each finding like a screenshot's check: pills, then
-    /// the lines, and the error makes the row a problem.
-    func testLocalizeShowsTheChecks() {
-        app.launch(debugScene: "st-loc-extras-checks")
-        // The row reads as one element, its checks included.
-        let row = element("autopilot.localize.artwork")
-        XCTAssertTrue(row.waitForExistence(timeout: 30))
-        let said = text(of: row)
-        XCTAssertTrue(said.contains("Rendered in"), said)
-        XCTAssertTrue(said.contains("Discount"), said)
-        XCTAssertTrue(said.contains("Contrast"), said)
-        XCTAssertTrue(said.contains("German header: ‘−50%’ — discounts and percentages aren’t allowed here."), said)
-        XCTAssertTrue(said.contains("Japanese search image: its edges melt into the page in Dark Mode."), said)
-    }
-
-    func testReadyShowsTheChecksUnderTheArtworkNote() {
-        app.launch(debugScene: "st-ready-extras-checks")
-        let checks = element("autopilot.ready.artwork.checks")
-        XCTAssertTrue(checks.waitForExistence(timeout: 30))
-        let said = text(of: checks)
-        XCTAssertTrue(said.contains("Discount"), said)
-        XCTAssertTrue(said.contains("German header: ‘−50%’"), said)
-        XCTAssertTrue(said.contains("1 more finding"), said)
     }
 
     // MARK: - Helpers

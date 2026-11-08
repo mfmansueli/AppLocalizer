@@ -7,40 +7,39 @@ import CoreText
 import SwiftUI
 
 /// Draws a `ScreenshotLayout` into a SwiftUI graphics context, in canvas
-/// pixels: background, the decorations behind, the capture (in its device
-/// frame, tilted when the device has an angle, floating, or full bleed
-/// under the band), the band, the decorations in front, then the
-/// pre-broken caption lines. Lines are drawn exactly as the layout broke
-/// them; nothing re-wraps.
+/// pixels: background, the decorations behind, a Two phones slot's phone
+/// behind, the capture (in its 3D device frame, tilted when the device has
+/// an angle, floating, or full bleed under the band), the band, the
+/// decorations in front, then the pre-broken caption lines. Lines are drawn
+/// exactly as the layout broke them; nothing re-wraps.
 struct ScreenshotPainter {
     let layout: ScreenshotLayout
     let capture: CGImage?
-    /// iPhone Duo's cover display beside the inner one, when the layout
-    /// has a companion.
+    /// iPhone Duo's cover display beside the inner one, or the capture of
+    /// the phone behind, when the layout has a companion.
     var companion: CGImage?
 
-    /// The screen color where there's no capture yet.
-    static let emptyScreen = Color(white: 0.11)
+    /// The screen color where there's no capture yet: a switched-off
+    /// black screen in every template, so a set still being captured
+    /// looks finished (the checks still flag the missing capture).
+    static let emptyScreen = Color.black
 
     func draw(in context: inout GraphicsContext) {
         let canvasRect = CGRect(origin: .zero, size: layout.canvas.size)
         drawBackground(in: &context, rect: canvasRect)
         let decorations = DecorationPainter(layout: layout)
         decorations.draw(front: false, in: &context)
-        if layout.isFullBleed {
+        if let pair = layout.companion, pair.isBehind { drawCompanion(pair, in: &context) }
+        if layout.reviews?.showsQuotes == true {
+            // A Reviews slot shows no capture.
+        } else if layout.isFullBleed {
             drawCapture(capture, in: &context, clip: Path(canvasRect), screen: layout.screen)
         } else if let device = layout.device {
             drawDevice(device, screen: layout.screen, cornerRadius: layout.screenCornerRadius, capture: capture, in: &context)
         } else {
             drawFloatingScreen(in: &context)
         }
-        if let pair = layout.companion {
-            if let device = pair.device {
-                drawDevice(device, screen: pair.screen, cornerRadius: pair.screenCornerRadius, capture: companion, in: &context)
-            } else {
-                drawFloating(pair.screen, cornerRadius: pair.screenCornerRadius, capture: companion, in: &context)
-            }
-        }
+        if let pair = layout.companion, !pair.isBehind { drawCompanion(pair, in: &context) }
         // Over the capture when it's full bleed; a folded iPhone Duo stands
         // beside the band instead.
         if let band = layout.band {
@@ -78,24 +77,27 @@ struct ScreenshotPainter {
 
     // MARK: - Device and capture
 
+    /// The second screen: iPhone Duo's folded one, or the phone behind.
+    private func drawCompanion(_ pair: LayoutCompanion, in context: inout GraphicsContext) {
+        if let device = pair.device {
+            drawDevice(device, screen: pair.screen, cornerRadius: pair.screenCornerRadius, capture: companion, in: &context)
+        } else {
+            drawFloating(pair.screen, cornerRadius: pair.screenCornerRadius, capture: companion, in: &context)
+        }
+    }
+
     private func drawDevice(_ device: LayoutDevice, screen rect: CGRect, cornerRadius: CGFloat, capture: CGImage?, in parent: inout GraphicsContext) {
+        let frame = DeviceFramePainter(device: device, canvasHeight: layout.canvas.height)
+        frame.drawFloor(in: &parent)
         var context = parent
         if let tilt = device.tilt { context.concatenate(tilt.transform) }
-        let body = Path(roundedRect: device.frame, cornerRadius: device.cornerRadius, style: .continuous)
-        context.drawLayer { layer in
-            layer.addFilter(.shadow(color: .black.opacity(0.28), radius: device.shadowRadius / 2, x: 0, y: device.shadowOffset))
-            layer.fill(body, with: .color(device.color.color))
-        }
-        let rimWidth = max(2, device.bezel * 0.12)
-        context.stroke(
-            Path(roundedRect: device.frame.insetBy(dx: rimWidth / 2, dy: rimWidth / 2), cornerRadius: device.cornerRadius, style: .continuous),
-            with: .color(.white.opacity(0.14)), lineWidth: rimWidth
-        )
+        frame.drawBody(in: &context)
         let screen = Path(roundedRect: rect, cornerRadius: cornerRadius, style: .continuous)
         drawCapture(capture, in: &context, clip: screen, screen: rect)
         if let island = device.island {
             context.fill(Path(roundedRect: island, cornerRadius: island.height / 2, style: .continuous), with: .color(.black))
         }
+        frame.drawGlare(over: screen, rect: rect, in: &context)
     }
 
     private func drawFloatingScreen(in context: inout GraphicsContext) {
@@ -123,11 +125,13 @@ struct ScreenshotPainter {
     }
 
     /// The capture, aspect-filling the screen, top-aligned, never
-    /// mirrored: it's the real interface.
+    /// mirrored: it's the real interface. Without one, the screen is
+    /// black.
     private func drawCapture(_ capture: CGImage?, in context: inout GraphicsContext, clip: Path, screen: CGRect) {
+        let empty = layout.emptyScreen?.color ?? Self.emptyScreen
         context.drawLayer { layer in
             layer.clip(to: clip)
-            layer.fill(clip, with: .color(Self.emptyScreen))
+            layer.fill(clip, with: .color(empty))
             guard let capture else { return }
             let size = PixelSize(width: capture.width, height: capture.height)
             let frame = ScreenshotLayout.captureFrame(for: size, in: screen)

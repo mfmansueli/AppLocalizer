@@ -12,6 +12,10 @@ struct BundledFontFamily: Hashable, Sendable, Identifiable {
     /// The name templates use, e.g. "Playfair Display".
     var name: String
     var faces: [BundledFontFace]
+    /// The weight a caption in this font falls back at in scripts it
+    /// doesn't draw, so they hold their own next to a very heavy display
+    /// face; nil keeps the template's weight.
+    var fallbackWeight: Int?
 
     var id: String { name }
 

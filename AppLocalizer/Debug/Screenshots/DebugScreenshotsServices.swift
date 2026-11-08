@@ -99,11 +99,14 @@ final class DebugScreenshotsServices: ScreenshotsServices {
         try ScreenshotFontLibrary(directory: URL.temporaryDirectory.appending(path: "AppLocalizer-DebugFonts")).upload(url)
     }
 
-    /// Lumen is rated 4.9 everywhere, so the templates' laurels pass.
+    /// Lumen's rating per country, as on the design canvas.
     func storeRatings(for _: StoreApp, countries: Set<String>) async -> StoreRatings {
-        var ratings = StoreRatings.unchecked
-        for country in countries { ratings.record(.rated(4.9), inCountry: country) }
-        return ratings
+        DebugStoreProof.storeRatings(countries: countries)
+    }
+
+    /// A few 5-star reviews in English, German, Japanese and Arabic.
+    func storeReviews(for _: StoreApp, countries: Set<String>) async -> StoreReviews {
+        DebugStoreProof.storeReviews(countries: countries)
     }
 
     func otherDisplayTypeNotes(for _: StoreApp) -> [ScreenshotDisplayType: String] {

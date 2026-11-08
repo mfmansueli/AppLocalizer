@@ -12,8 +12,10 @@ import SwiftUI
 struct PricingSectionView: View {
     let app: StoreApp
     let services: any PricingServices
+    let retention: any RetentionServices
 
     @State private var viewModel: PricingViewModel?
+    @State private var retentionModel: RetentionModel?
     @Environment(ChangeQueue.self) private var changes
     @Environment(PricingModeStore.self) private var modes
     @Environment(AppPreferences.self) private var preferences
@@ -23,7 +25,9 @@ struct PricingSectionView: View {
 
     var body: some View {
         Group {
-            if let viewModel {
+            if let viewModel, viewModel.page == .retention, let retentionModel {
+                RetentionScreen(model: retentionModel, pricing: viewModel)
+            } else if let viewModel {
                 PricingScreen(viewModel: viewModel, defaultMode: preferences.defaultPricingMode)
             } else {
                 PricingTableSkeleton(columns: PriceColumnPreset.automatic.columns)
@@ -35,6 +39,7 @@ struct PricingSectionView: View {
         .onChange(of: navigator.refreshCount) {
             Task {
                 await viewModel?.reload()
+                if let catalog = viewModel?.catalog { await retentionModel?.load(subscriptions: RetentionSubscription.all(in: catalog)) }
                 await handlePendingIntent()
             }
         }
@@ -46,6 +51,7 @@ struct PricingSectionView: View {
         }
         .onChange(of: changes.changes(for: app.id, section: .subscriptionPricing)) {
             viewModel?.matrix?.queueDidChange()
+            retentionModel?.refresh()
         }
         .onChange(of: history.records.count) {
             viewModel?.resultsDidChange()
@@ -64,10 +70,14 @@ struct PricingSectionView: View {
         model.onNotice = { [push] notice in push.report(notice) }
         model.onOpenReview = { [navigator] in navigator.isReviewPresented = true }
         model.pushRecords = { [history, app] in history.records(for: app.id) }
+        let retentionModel = RetentionModel(app: app, services: retention, queue: changes)
+        retentionModel.onOpenReview = { [navigator] in navigator.isReviewPresented = true }
+        self.retentionModel = retentionModel
         viewModel = model
         await model.load()
         #if DEBUG
         await model.applyDebugLaunch(from: services)
+        await retentionModel.applyDebugLaunch(from: retention, pricing: model)
         #endif
         await handlePendingIntent()
     }

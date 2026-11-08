@@ -58,8 +58,12 @@ extension ScreenshotStudioModel {
     }
 
     /// The run still has iPhone Duo screens to capture, on a Mac that can
-    /// run its simulator: AppLocalizer gets the Duo ready.
-    var watchesDuo: Bool {
+    /// run its simulator: AppLocalizer gets the Duo ready. `simulators` is
+    /// the view's, from its environment: the studio's `launcher` is set only
+    /// once the sheet appears, and isn't observed, so a view that read it
+    /// first would never see the Duo watched (a run stopped on the Duo's
+    /// card, which doesn't change, stayed stuck).
+    func watchesDuo(on simulators: MacSimulators?) -> Bool {
         guard let run, run.stage == .capture, run.plan.displayTypes.contains(.iPhoneDuo),
               simulators?.status(for: .iPhoneDuo)?.canCapture == true
         else { return false }
@@ -72,20 +76,23 @@ extension ScreenshotStudioModel {
     /// stuck, all in the run's log, so it's ready
     /// when the assistant gets to it. When it was stopped there (its card),
     /// its screens are tried again once it's open, without a Retry.
-    func watchDuo() async {
-        guard let simulators, let autopilot else { return }
+    func watchDuo(on simulators: MacSimulators) async {
+        guard let autopilot else { return }
         let appID = app.id
         // Closed while its closed screenshots are left, then open.
         await simulators.duo.watch(mayStart: true, wants: { self.run?.duoPoseWanted }, onEvent: { event in
             autopilot.update(appID) { $0.appendLog(event.logText, kind: .event, at: autopilot.now()) }
             // Only the Duo's open problems are retried.
-            if event == .opened || event == .closed, self.run?.stage == .capture { await self.retryDeviceProblems(on: .iPhoneDuo) }
+            if event == .opened || event == .closed, self.run?.stage == .capture {
+                await self.retryDeviceProblems(on: .iPhoneDuo, simulators: simulators)
+            }
         })
     }
 
     /// Once the device can be captured, its device-wide problems are
     /// retried.
-    private func retryDeviceProblems(on display: ScreenshotDisplayType) async {
+    private func retryDeviceProblems(on display: ScreenshotDisplayType, simulators: MacSimulators? = nil) async {
+        let simulators = simulators ?? self.simulators
         guard simulators?.status(for: display)?.canCapture == true, let run, let autopilot else { return }
         let ids = run.openProblems.filter { $0.isDeviceWide && $0.target.displayType == display }.map(\.id)
         guard !ids.isEmpty else { return }
@@ -103,8 +110,8 @@ extension ScreenshotStudioModel {
     /// A run that's capturing is checked again when it's looked at: one
     /// started before the check, or before a simulator went away, gets its
     /// device's problem too, and the rest goes on.
-    func checkDevicesDuringRun() async {
-        guard let run, run.stage == .capture, let autopilot, let simulators else { return }
+    func checkDevicesDuringRun(on simulators: MacSimulators) async {
+        guard let run, run.stage == .capture, let autopilot else { return }
         if simulators.inventory == nil { await simulators.check() }
         autopilot.reportMissingSimulators(appID: app.id, simulators: simulators)
     }

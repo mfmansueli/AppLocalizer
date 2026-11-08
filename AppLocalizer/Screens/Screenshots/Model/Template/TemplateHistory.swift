@@ -30,6 +30,11 @@ struct TemplateHistory: Codable, Hashable, Sendable {
         versions.first { $0.number == number }
     }
 
+    /// The version `number` replaced: the latest one before it.
+    func version(before number: Int) -> TemplateVersion? {
+        versions.last { $0.number < number }
+    }
+
     /// Saves `template` as the next version. Returns nil, and saves
     /// nothing, when it renders exactly like the current one.
     @discardableResult

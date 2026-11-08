@@ -30,6 +30,8 @@ struct RenderCheck: Hashable, Sendable, Identifiable {
         case interfaceLocalized
         case captionPresent
         case capturePresent
+        /// A Reviews slot's App Store reviews.
+        case reviews
     }
 
     enum Status: String, Hashable, Sendable {

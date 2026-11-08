@@ -25,15 +25,12 @@ struct DeviceInspectorSection: View {
                         Text(model.frameName)
                             .font(.callout)
                     }
-                    TemplateInspectorRow(label: String(localized: "Finish")) {
-                        Picker("Finish", selection: Binding { device.color.uppercased() } set: { model.set("device.color", to: .string($0)) }) {
-                            ForEach(TemplateEditorViewModel.deviceFinishes, id: \.color) { finish in
-                                Text(finish.title).tag(finish.color)
-                            }
+                    TemplateInspectorPicker(
+                        String(localized: "Finish"), selection: Binding { device.color.uppercased() } set: { model.set("device.color", to: .string($0)) }
+                    ) {
+                        ForEach(TemplateEditorViewModel.deviceFinishes, id: \.color) { finish in
+                            Text(finish.title).tag(finish.color)
                         }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .fixedSize()
                     }
                     TemplateInspectorRow(label: String(localized: "Color")) {
                         TemplateInspectorColorWell(label: String(localized: "Frame color"), color: model.slotTemplate?.device.color ?? device.color) {

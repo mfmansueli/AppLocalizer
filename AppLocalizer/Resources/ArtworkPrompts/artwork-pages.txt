@@ -29,5 +29,6 @@ BEFORE YOU PROPOSE
 - Fix every failed check. Don't propose a page that would be refused.
 
 STYLE
-- {{design_system_summary}}. Match the icon's colors and rendering style. One focal point, soft depth, gentle light, simple silhouettes.
-- No interface in the header. No faces, other brands, Apple badges, prices, awards or URLs. Suitable for 4+.
+- {{design_system_summary}}. Match the icon's colors and rendering style and the brand's personality ({{brand_personality}}). One focal point, soft depth, gentle light, simple silhouettes.
+- Leave out what the brand avoids ({{brand_avoid}}) unless the person asked for it.
+- No interface in the header. No faces, other brands, Apple badges, prices, awards or URLs. Suitable for 4+ whatever the app's own age rating (Apple requires it of App Store artwork).

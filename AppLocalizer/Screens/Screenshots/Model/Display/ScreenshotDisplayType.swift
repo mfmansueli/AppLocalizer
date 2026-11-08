@@ -14,8 +14,10 @@ import Foundation
 /// screenshots); Apple requires it from April 2027. Apple Watch (the
 /// captures themselves, no captions) and Apple Vision Pro (the template's
 /// headline over the capture in a window) have screens of their own, made
-/// by Screenshot Autopilot. Mac and Apple TV are listed so the model is
-/// visibly open to them.
+/// by Screenshot Autopilot. Mac is rendered from the template too, always
+/// landscape (2880 × 1800), its capture on a MacBook, for apps with a macOS
+/// version; it goes in that version's localizations. Apple TV is listed
+/// so the model is visibly open to it.
 enum ScreenshotDisplayType: String, Codable, Hashable, Sendable, CaseIterable, Identifiable {
     case iPhone = "APP_IPHONE_67"
     /// Not in Apple's published API spec yet; App Store Connect takes it.
@@ -28,14 +30,21 @@ enum ScreenshotDisplayType: String, Codable, Hashable, Sendable, CaseIterable, I
 
     var id: String { rawValue }
 
-    /// The display types templates are designed for, in menu order: they
-    /// share the set's slots and captions.
-    static let rendered: [ScreenshotDisplayType] = [.iPhone, .iPhoneDuo, .iPad]
+    /// The display types templates lay out, in menu order: they share the
+    /// set's slots and captions.
+    static let rendered: [ScreenshotDisplayType] = [.iPhone, .iPhoneDuo, .iPad, .mac]
 
     var isRendered: Bool { Self.rendered.contains(self) }
 
+    /// The rendered sets every app's Screenshots section has. Mac's only
+    /// shows for an app that runs there (a macOS version, the project, or
+    /// screenshots or captures of it).
+    static let standard: [ScreenshotDisplayType] = [.iPhone, .iPhoneDuo, .iPad]
+
+    var isStandard: Bool { Self.standard.contains(self) }
+
     /// Every device the Screenshots section previews and Autopilot plans.
-    static let studio: [ScreenshotDisplayType] = [.iPhone, .iPhoneDuo, .iPad, .watch, .visionPro]
+    static let studio: [ScreenshotDisplayType] = [.iPhone, .iPhoneDuo, .iPad, .mac, .watch, .visionPro]
 
     /// Devices with screens of their own instead of the set's slots.
     static let ownScreens: [ScreenshotDisplayType] = [.watch, .visionPro]
@@ -96,7 +105,8 @@ enum ScreenshotDisplayType: String, Codable, Hashable, Sendable, CaseIterable, I
         }
     }
 
-    /// The simulator to retake a capture on.
+    /// The simulator to retake a capture on; Mac's captures come from this
+    /// Mac itself.
     var deviceName: String {
         switch self {
         case .iPhone: "iPhone 17 Pro Max"
@@ -110,38 +120,43 @@ enum ScreenshotDisplayType: String, Codable, Hashable, Sendable, CaseIterable, I
     }
 
     /// The pixel size in portrait (short side first). Landscape swaps them;
-    /// Apple Vision Pro is always landscape (3840 × 2160). iPhone Duo's is
-    /// its inner display's, unfolded.
+    /// Apple Vision Pro (3840 × 2160) and Mac (2880 × 1800) are always
+    /// landscape. iPhone Duo's is its inner display's, unfolded.
     var portraitPixelSize: PixelSize {
         switch self {
         case .iPhone: PixelSize(width: 1320, height: 2868)
         case .iPhoneDuo: PixelSize(width: 2007, height: 2853)
         case .iPad: PixelSize(width: 2064, height: 2752)
-        case .mac: PixelSize(width: 2880, height: 1800)
+        case .mac: PixelSize(width: 1800, height: 2880)
         case .watch: PixelSize(width: 422, height: 514)
         case .appleTV: PixelSize(width: 3840, height: 2160)
         case .visionPro: PixelSize(width: 2160, height: 3840)
         }
     }
 
-    /// The size its screenshots are: landscape on Apple Vision Pro, else
-    /// portrait.
+    /// The size its screenshots are: landscape on Apple Vision Pro and Mac,
+    /// else portrait.
     var defaultPixelSize: PixelSize {
-        self == .visionPro ? portraitPixelSize.rotated : portraitPixelSize
+        isAlwaysLandscape ? portraitPixelSize.rotated : portraitPixelSize
     }
+
+    /// Its screenshots are landscape whatever the template says: Apple
+    /// Vision Pro's and Mac's.
+    var isAlwaysLandscape: Bool { self == .visionPro || self == .mac }
 
     /// The device class whose captures belong in this set: an iPad capture
     /// in an iPhone slot fails the capture-size check.
     var isTablet: Bool { self == .iPad }
 
-    /// "iphone", "ipad" or "rectangle.split.2x1" (iPhone Duo, unfolded).
+    /// "iphone", "ipad", "laptopcomputer" or "rectangle.split.2x1" (iPhone
+    /// Duo, unfolded).
     var symbolName: String {
         switch self {
         case .iPad: "ipad"
         case .iPhoneDuo: "rectangle.split.2x1"
         case .watch: "applewatch"
         case .visionPro: "visionpro"
-        case .mac: "desktopcomputer"
+        case .mac: "laptopcomputer"
         case .appleTV: "appletv"
         case .iPhone: "iphone"
         }
@@ -151,7 +166,7 @@ enum ScreenshotDisplayType: String, Codable, Hashable, Sendable, CaseIterable, I
     /// wider inner display at the iPhone's height sits between them.
     func thumbnailWidth(phone: CGFloat, tablet: CGFloat) -> CGFloat {
         switch self {
-        case .iPad: tablet
+        case .iPad, .mac: tablet
         case .iPhoneDuo: (phone * Self.duoWidthBesideIPhone).rounded()
         default: phone
         }

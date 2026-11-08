@@ -67,6 +67,24 @@ struct ArtworkWebChecksTests {
         #expect(page.contains { $0.text.contains("no data-al=\"headline\"") && !$0.isError })
     }
 
+    /// Bruma's header concepts write their own phrases: every render said
+    /// the page had no place for the placement's text.
+    @Test func aPageWithItsOwnPhrasesNeedsNoHeadline() async throws {
+        let html = ArtworkWebFixtures.searchPage(extraBody: """
+        <p data-al="text" style="position: absolute; left: 200px; top: 900px; width: 1600px; margin: 0; \
+        font: 600 90px system-ui; color: #ffffff;">Private until you choose</p>
+        """).replacingOccurrences(of: "data-al=\"headline\"", with: "data-x=\"headline\"")
+        let result = try await checks(html)
+        #expect(!result.checks.contains { $0.text.contains("no data-al=\"headline\"") })
+    }
+
+    /// No text to show: nothing is missing.
+    @Test func aPlacementWithoutTextNeedsNoHeadline() async throws {
+        let html = ArtworkWebFixtures.searchPage().replacingOccurrences(of: "data-al=\"headline\"", with: "data-x=\"headline\"")
+        let result = try await checks(html, headline: "")
+        #expect(!result.checks.contains { $0.text.contains("no data-al=\"headline\"") })
+    }
+
     @Test func aCaptureThatDoesntLoadIsAnError() async throws {
         let result = try await checks(ArtworkWebFixtures.searchPage(), captures: [:])
         let broken = try #require(result.checks.first { $0.kind == .page && $0.isError })

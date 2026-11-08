@@ -68,9 +68,10 @@ struct MCPScreenshotsDraft {
 
     func displayType(_ value: String?) throws -> ScreenshotDisplayType {
         guard let value else { return .iPhone }
-        // The template tools work on the set's slots: iPhone, iPhone Duo and iPad.
+        // The template tools work on the set's slots: iPhone, iPhone Duo,
+        // iPad and Mac.
         guard let display = ScreenshotDisplayType(mcpValue: value), display.isRendered else {
-            throw MCPToolError.invalidArgument(name: "displayType", expected: String(localized: "“iphone”, “iphone_duo” or “ipad”"))
+            throw MCPToolError.invalidArgument(name: "displayType", expected: String(localized: "“iphone”, “iphone_duo”, “ipad” or “mac”"))
         }
         return display
     }

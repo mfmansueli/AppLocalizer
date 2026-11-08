@@ -14,20 +14,26 @@ struct GuidedMakingStepView: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
     let assistant: String?
+    /// This Mac's simulators, from the environment: the studio's
+    /// `launcher` is set only once the sheet appears, after this reads it.
+    @Environment(ClaudeCodeLauncher.self) private var launcher: ClaudeCodeLauncher?
 
     var body: some View {
         if run.stage == .pick {
             AutopilotPickStageView(studio: studio, run: run, isEditable: true)
         } else {
+            let simulators = launcher?.simulators
             TimelineView(.periodic(from: .now, by: 30)) { context in
                 content(GuidedRunProgress.make(run, now: context.date))
             }
-            .task(id: run.id) { await studio.checkDevicesDuringRun() }
-            .task(id: studio.watchesDuo) {
+            .task(id: run.id) {
+                if let simulators { await studio.checkDevicesDuringRun(on: simulators) }
+            }
+            .task(id: studio.watchesDuo(on: simulators)) {
                 // iPhone Duo is started and opened before the assistant
                 // gets to it, and kept so while its screens are left.
-                guard studio.watchesDuo else { return }
-                await studio.watchDuo()
+                guard let simulators, studio.watchesDuo(on: simulators) else { return }
+                await studio.watchDuo(on: simulators)
             }
         }
     }
@@ -52,7 +58,8 @@ struct GuidedMakingStepView: View {
                 }
                 let rows = GuidedPlanTimeline.rows(
                     plan: run.plan, client: run.clientName(assistant: assistant), design: run.designKind,
-                    brand: studio.shotStyleBrand, kept: run.plan.reusesCaptures ? run.keptCaptureCount : 0
+                    brand: studio.shotStyleBrand, kept: run.capturesKeptAtStart,
+                    gaps: run.interfaceGaps ?? [], app: studio.app.name
                 )
                 GuidedLiveTimelineView(rows: rows, states: GuidedLiveTimeline.states(of: rows, run: run))
                 stage
@@ -119,9 +126,10 @@ struct GuidedMakingStepView: View {
                 AutopilotConceptsBox(studio: studio, run: run)
             }
         case .localize:
+            let card = GuidedLocalizeCard.make(run, client: run.clientName(assistant: assistant))
             VStack(alignment: .leading, spacing: Spacing.xSmall) {
-                Text("Checking every image").font(.callout.weight(.semibold))
-                Text("Captions that don’t fit are shortened by \(run.clientName(assistant: assistant)). Every change is listed in the review.")
+                Text(card.title).font(.callout.weight(.semibold))
+                Text(card.detail)
                     .font(.callout)
                     .foregroundStyle(Palette.label2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -167,8 +175,16 @@ struct GuidedMakingStepView: View {
         }
     }
 
+    /// Thumbnails share a height: a landscape capture is wider than a
+    /// phone's.
+    static func thumbnailWidth(for display: ScreenshotDisplayType, pixelSize: PixelSize) -> CGFloat {
+        let height: CGFloat = display == .watch ? 48 : 96
+        guard pixelSize.width > 0, pixelSize.height > 0 else { return 44 }
+        return min(88, (height * CGFloat(pixelSize.width) / CGFloat(pixelSize.height)).rounded())
+    }
+
     private func thumbnailWidth(_ capture: AutopilotCapture) -> CGFloat {
-        AutopilotCaptureStageView.thumbnailWidth(for: capture.target.displayType, pixelSize: capture.pixelSize) * 0.8
+        Self.thumbnailWidth(for: capture.target.displayType, pixelSize: capture.pixelSize) * 0.8
     }
 
     private func aspect(_ capture: AutopilotCapture) -> Double {

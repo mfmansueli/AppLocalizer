@@ -12,7 +12,8 @@ extension ScreenshotTemplate {
     /// A complete template from a starter, as version `version`. `title`
     /// names it, e.g. "Lumen" → "Lumen · Caption above device". Slot 1 is
     /// the hero; there are `slotCount` slots (5 unless the app has more).
-    /// Slots past the recipe's five repeat slots 2–5 without their ratings.
+    /// Slots past the recipe's five repeat slots 2–5 (Two phones stays Two
+    /// phones) without their ratings and figures spanning two slots.
     static func starter(_ starter: TemplateStarter, id: String, title: String, version: Int = 1, slotCount: Int = 5) -> ScreenshotTemplate {
         let count = min(max(slotCount, 1), maximumSlots)
         var template = recipe(for: starter)
@@ -21,7 +22,7 @@ extension ScreenshotTemplate {
             if recipeSlots.indices.contains(index) { return recipeSlots[index] }
             guard recipeSlots.count > 1 else { return TemplateSlot(layout: index == 0 ? .hero : .standard) }
             let repeated = recipeSlots[1 + (index - 1) % (recipeSlots.count - 1)]
-            return TemplateSlot(layout: .standard, over: withoutRatings(repeated.over))
+            return TemplateSlot(layout: repeated.layout == .pair ? .pair : .standard, over: withoutRepeatedDecorations(repeated.over))
         }
         template.id = id
         template.name = "\(title) · \(starter.title)"
@@ -127,14 +128,22 @@ extension ScreenshotTemplate {
         (try? JSONValue(encoding: value)) ?? .null
     }
 
-    /// A repeated slot keeps its shapes but not its laurels and badges:
-    /// one rating per set is plenty.
-    private static func withoutRatings(_ over: [String: JSONValue]) -> [String: JSONValue] {
+    /// Landscape overrides as they read back from JSON (a whole number is
+    /// an integer there), so a saved template equals the starter.
+    static func landscapeOverrides(_ values: [String: JSONValue]) -> [String: JSONValue] {
+        values.mapValues { encoded($0) }
+    }
+
+    /// A repeated slot keeps its shapes and props but not its laurels and
+    /// badges (one rating per set is plenty) or a figure spanning two
+    /// slots, whose other half isn't next to it any more.
+    private static func withoutRepeatedDecorations(_ over: [String: JSONValue]) -> [String: JSONValue] {
         guard let items = over["deco"]?.arrayValue else { return over }
         var result = over
         result["deco"] = .array(items.filter { item in
             let type = item.objectValue?["type"]?.stringValue
-            return type != TemplateDecoration.Kind.laurel.rawValue && type != TemplateDecoration.Kind.badge.rawValue
+            let isRating = type == TemplateDecoration.Kind.laurel.rawValue || type == TemplateDecoration.Kind.badge.rawValue
+            return !isRating && item.objectValue?["span"] == nil
         })
         return result
     }
