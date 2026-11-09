@@ -12,6 +12,7 @@ struct GuidedSheetHeader: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
     let step: GuidedStep
+    @State private var isConfirmingCancel = false
 
     var body: some View {
         HStack(spacing: Spacing.medium) {
@@ -34,10 +35,18 @@ struct GuidedSheetHeader: View {
             }
             Spacer(minLength: Spacing.small)
             if step.isSetup {
-                Button("Cancel") { studio.cancelPlan() }
+                Button("Cancel") { cancel() }
                     .buttonBorderShape(.capsule)
                     .keyboardShortcut(.cancelAction)
                     .accessibilityIdentifier("autopilot.guided.cancel")
+                    .confirmationDialog(Text("Discard this plan?"), isPresented: $isConfirmingCancel) {
+                        Button("Discard Plan", role: .destructive) { studio.cancelPlan() }
+                            .accessibilityIdentifier("autopilot.guided.cancel.confirm")
+                        Button("Keep Editing", role: .cancel) {}
+                            .accessibilityIdentifier("autopilot.guided.cancel.keep")
+                    } message: {
+                        Text("What you’ve chosen for this run won’t be kept.")
+                    }
             } else if step == .done {
                 Button("Close") { studio.isAutopilotPresented = false }
                     .buttonBorderShape(.capsule)
@@ -57,6 +66,11 @@ struct GuidedSheetHeader: View {
     }
 
     /// "Lumen Journal 1.4 · set up a run in 3 steps", then what it makes.
+    /// Esc lands here too, so a plan with choices in it asks first.
+    private func cancel() {
+        if step.asksBeforeCancelling { isConfirmingCancel = true } else { studio.cancelPlan() }
+    }
+
     private var subtitle: String {
         let app = "\(studio.app.name) \(run.versionString)"
         guard !step.isSetup else { return String(localized: "\(app) · set up a run in 3 steps") }

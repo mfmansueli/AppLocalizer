@@ -47,6 +47,7 @@ struct MCPListingDraft {
         let storeCodes = content.locales.map(\.code)
         let missing = support?.missingLanguages(for: app.id, storeLocales: storeCodes) ?? []
         var builder = ListingChangeBuilder(appID: app.id, ids: content.ids, versionString: content.version.versionString)
+        builder.platformTitle = content.version.otherPlatformTitle
         builder.newPages = Set(missing.compactMap(\.storeLocale))
         let tags = MachineTranslationScope.tags(in: services.machineTranslations, appID: app.id, ids: content.ids)
         var listing = content.listing(machineTranslated: tags)

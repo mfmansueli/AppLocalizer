@@ -80,10 +80,15 @@ extension ScreenshotPushRun {
     /// After a set's images: delete the screenshots the committed ones
     /// replace (and, for a restore, any past its end), then reorder.
     func finishSet(_ groupID: String) async {
+        await confirmDelivery(groupID)
         let committed = items.indices.filter { items[$0].groupID == groupID && items[$0].isCommitted }
         guard !committed.isEmpty, let group = sets[groupID]?.group else { return }
         for index in committed where !items[index].isOldDeleted {
             guard let old = items[index].plan.old, sets[groupID]?.order.contains(old.id) == true else { continue }
+            guard items[index].isDeliveryConfirmed else {
+                items[index].note = String(localized: "Apple is still processing this image, so the old screenshot stays beside it for now.")
+                continue
+            }
             do {
                 _ = try await send(ScreenshotUploadRequests.delete(screenshotID: old.id))
                 sets[groupID]?.order.removeAll { $0 == old.id }

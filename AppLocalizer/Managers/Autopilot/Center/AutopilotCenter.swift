@@ -89,9 +89,10 @@ final class AutopilotCenter {
         designProjects[appID]
     }
 
-    /// The run whose upload link has `token`, while it takes captures.
+    /// The run whose upload link has `token`, while it takes captures or
+    /// waits for a moment recorded again.
     func run(uploadToken token: String) -> AutopilotRun? {
-        runs.values.first { $0.uploadToken == token && ($0.stage == .waiting || $0.stage == .capture) }
+        runs.values.first { $0.uploadToken == token && $0.takesUploads }
     }
 
     // MARK: - Design project

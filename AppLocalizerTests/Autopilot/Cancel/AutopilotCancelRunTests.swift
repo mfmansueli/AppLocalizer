@@ -133,5 +133,11 @@ struct AutopilotCancelRunTests {
         run.templateVersion = 5
         #expect(AutopilotCancelRunButton.message(for: run).contains("Template v5 is already saved and stays in the set’s history."))
     }
+
+    @Test func cancellingWhileCapturingSaysTheCapturesStay() {
+        let message = AutopilotCancelRunButton.message(for: AutopilotTestFixtures.run(.capture))
+        #expect(message.contains("Claude Code stops capturing"))
+        #expect(message.contains("The captures so far stay"))
+    }
 }
 #endif

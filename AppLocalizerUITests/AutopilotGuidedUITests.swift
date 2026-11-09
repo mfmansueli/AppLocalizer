@@ -261,6 +261,17 @@ final class AutopilotGuidedUITests: XCTestCase {
         attachScreenshot("Making it · capturing")
     }
 
+    func testCancelRunAsksWhileCapturing() {
+        app.launch(debugScene: "ap-run")
+        let cancel = element("autopilot.guided.cancelRun")
+        XCTAssertTrue(cancel.waitForExistence(timeout: 20))
+        cancel.click()
+        let keep = app.buttons["autopilot.cancelRun.keep"]
+        XCTAssertTrue(keep.waitForExistence(timeout: 5), "Asks first")
+        keep.click()
+        XCTAssertTrue(element("autopilot.guided.making.line").waitForExistence(timeout: 5), "Still capturing")
+    }
+
     func testTheDesignArrivesLookByLook() {
         app.launch(debugScene: "ap-run-des")
         let line = element("autopilot.guided.making.line")

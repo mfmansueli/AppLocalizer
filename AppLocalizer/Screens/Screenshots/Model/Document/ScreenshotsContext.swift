@@ -29,6 +29,8 @@ struct ScreenshotsContext: Hashable, Sendable {
     /// The macOS version's `appStoreVersionLocalizations` IDs, where Mac
     /// screenshots go; empty until they're read.
     var macLocalizations: [StoreLocale: String] = [:]
+    /// Whether that macOS version can change; nil until it's read.
+    var macVersionIsEditable: Bool?
 
     init(content: StorePageContent) {
         let version = content.version

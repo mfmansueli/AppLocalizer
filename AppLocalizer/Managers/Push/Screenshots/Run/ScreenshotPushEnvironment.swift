@@ -21,4 +21,8 @@ struct ScreenshotPushEnvironment {
     var sleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     /// Sets uploaded at the same time; each set's images go one by one.
     var concurrentSets = 3
+    /// How many times, and how far apart, a finished set's new images are
+    /// checked before what they replace is deleted.
+    var deliveryChecks = 20
+    var deliveryInterval: Duration = .seconds(3)
 }

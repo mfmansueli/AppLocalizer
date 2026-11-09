@@ -175,5 +175,62 @@ struct MacPlatformVersionTests {
         let without = try await services.liveScreenshots(for: ScreenshotsTestFixtures.app, context: Self.context(mac: false))
         #expect(without.screenshotSets.map(\.displayType) == [.iPhone])
     }
+
+    // MARK: - A version that can't change
+
+    private func plan(_ context: ScreenshotsContext) -> ScreenshotPushPlan {
+        ScreenshotPushPlanner().plan(Fixtures.input(document: Self.document, context: context))
+    }
+
+    @Test func aLiveIOSVersionStillLetsMacScreenshotsGo() {
+        var context = Self.context(mac: true)
+        context.version = ScreenshotsTestFixtures.liveVersion
+        context.macVersionIsEditable = true
+        let plan = plan(context)
+        #expect(plan.blockedReason == nil)
+        #expect(!plan.groups.isEmpty)
+        #expect(plan.groups.allSatisfy { $0.displayType == .mac })
+        #expect(plan.excluded.contains { $0.failedCheck?.contains("1.3") == true })
+    }
+
+    @Test func aLiveMacVersionLeavesOnlyMacOut() {
+        var context = Self.context(mac: true)
+        context.macVersionIsEditable = false
+        let plan = plan(context)
+        #expect(plan.blockedReason == nil)
+        #expect(!plan.groups.isEmpty)
+        #expect(plan.groups.allSatisfy { $0.displayType != .mac })
+        #expect(plan.excluded.contains { $0.failedCheck?.contains("macOS version is live") == true })
+    }
+
+    @Test func everyVersionLiveBlocksThePush() {
+        var context = Self.context(mac: true)
+        context.version = ScreenshotsTestFixtures.liveVersion
+        context.macVersionIsEditable = false
+        #expect(plan(context).blockedReason?.contains("1.3") == true)
+    }
+
+    // MARK: - The macOS version that goes with the iOS one
+
+    private static func content(mac versions: [StorePageVersion]) -> StorePageContent {
+        var content = DebugStorePageContent.lumen(versionID: "ios-14")
+        let iOS = version("ios-14", "1.4", platform: "IOS", editable: true, day: 9)
+        content.version = iOS
+        content.versions = [iOS] + versions
+        return content
+    }
+
+    private static func macVersionID(_ versions: [StorePageVersion]) -> String? {
+        ScreenshotsContext.versionID(platform: "MAC_OS", in: content(mac: versions))
+    }
+
+    @Test func theMacVersionPrefersEditableWithTheSameNumber() {
+        let live = Self.version("mac-live", "1.4", platform: "MAC_OS", editable: false, day: 8)
+        let newer = Self.version("mac-15", "1.5", platform: "MAC_OS", editable: true, day: 7)
+        let same = Self.version("mac-14", "1.4", platform: "MAC_OS", editable: true, day: 6)
+        #expect(Self.macVersionID([live, newer, same]) == "mac-14")
+        #expect(Self.macVersionID([live, newer]) == "mac-15", "Anything editable beats a live one with the same number")
+        #expect(Self.macVersionID([live]) == "mac-live")
+    }
 }
 #endif

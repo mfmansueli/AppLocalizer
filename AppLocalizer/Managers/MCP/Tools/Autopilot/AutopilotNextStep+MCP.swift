@@ -11,10 +11,8 @@ extension AutopilotNextStep {
         switch self {
         case .noRun, .done:
             closingJSON(run: run)
-        case let .capture(targets, retries):
-            Self.captureJSON(targets: targets, retries: retries, run: run)
-        case let .record(targets):
-            Self.recordJSON(targets: targets)
+        case .capture, .chooseScreens, .record:
+            capturingJSON(run: run)
         case let .wait(reason, seconds):
             ["action": "wait", "reason": .string(reason), "retryAfterSeconds": .int(seconds)]
         case .recordAgain, .design:
@@ -29,6 +27,17 @@ extension AutopilotNextStep {
             Self.designVariantJSON(request, run: run)
         case let .suggestScreens(request):
             Self.suggestScreensJSON(request, run: run)
+        }
+    }
+
+    /// Before anything's designed: the screens, their captures, and the
+    /// App Preview's recordings.
+    private func capturingJSON(run: AutopilotRun?) -> JSONValue {
+        switch self {
+        case let .capture(targets, retries): Self.captureJSON(targets: targets, retries: retries, run: run)
+        case .chooseScreens: Self.chooseScreensJSON
+        case let .record(targets): Self.recordJSON(targets: targets)
+        default: ["action": "none"]
         }
     }
 

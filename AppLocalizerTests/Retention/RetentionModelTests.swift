@@ -198,5 +198,23 @@ struct RetentionModelTests {
         #expect(model.hasChangesToQueue)
         #expect(model.problems.isEmpty)
     }
+
+    @Test func anEditedSourceIsRememberedBetweenVisits() async throws {
+        let first = await model()
+        writeEnglish(first)
+        let id = try #require(first.selectedMessageID)
+        _ = await model()
+        #expect(store.isSourceEdited(appID: Fixtures.app.id, id: id))
+    }
+
+    @Test func aKeptCopyReadsWhatAppStoreConnectHasNow() async throws {
+        let first = await model()
+        var stale = try #require(first.selectedMessage)
+        stale.remote?.versionID = "old-version"
+        store.keep(stale, appID: Fixtures.app.id, queued: false)
+
+        let second = await model()
+        #expect(second.selectedMessage?.remote?.versionID != "old-version")
+    }
 }
 #endif

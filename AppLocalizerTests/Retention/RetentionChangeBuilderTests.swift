@@ -30,22 +30,22 @@ struct RetentionChangeBuilderTests {
 
         #expect(paths(requests) == [
             "POST /v1/retentionMessages",
-            "PATCH /v1/subscriptions/\(Fixtures.monthly.id)/relationships/retentionMessage",
-            "PATCH /v1/subscriptions/\(Fixtures.annual.id)/relationships/retentionMessage",
             "POST /v1/retentionMessageVersions",
             "POST /v1/retentionMessageLocalizations",
             "POST /v1/retentionMessageLocalizations",
+            "PATCH /v1/subscriptions/\(Fixtures.monthly.id)/relationships/retentionMessage",
+            "PATCH /v1/subscriptions/\(Fixtures.annual.id)/relationships/retentionMessage",
             "POST /v1/reviewSubmissions",
             "POST /v1/reviewSubmissionItems",
             "PATCH /v1/reviewSubmissions/{createdID:reviewSubmissions}",
         ])
         #expect(Fixtures.attributes(requests[0])["referenceName"] as? String == "Before you go")
-        let assign = Fixtures.data(requests[1])
+        let assign = Fixtures.data(requests[4])
         #expect(assign["id"] as? String == "{createdID:retentionMessages}")
-        let version = Fixtures.data(requests[3])["relationships"] as? [String: Any]
+        let version = Fixtures.data(requests[1])["relationships"] as? [String: Any]
         #expect(version?["placement"] == nil)
-        #expect(Fixtures.attributes(requests[4])["locale"] as? String == "en-US")
-        #expect(Fixtures.attributes(requests[5])["locale"] as? String == "de-DE")
+        #expect(Fixtures.attributes(requests[2])["locale"] as? String == "en-US")
+        #expect(Fixtures.attributes(requests[3])["locale"] as? String == "de-DE")
         let item = Fixtures.data(requests[7])["relationships"] as? [String: Any]
         #expect(item?["retentionMessageVersion"] != nil)
         #expect(Fixtures.attributes(requests[8])["submitted"] as? Bool == true)

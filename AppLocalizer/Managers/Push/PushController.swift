@@ -63,6 +63,8 @@ final class PushController {
     /// Every territory App Store Connect has, read once per push for new
     /// subscriptions' availability (`SubscriptionAvailabilityEverywhere`).
     private var territoryIDs: [String]?
+    /// How far changes that didn't finish got, by change.
+    var unfinished: [PendingChange.ID: PushItem] = [:]
     /// Requests this hour, shared with screenshot pushes.
     let rateTracker: RequestRateTracker
     /// Screenshot pushes: images uploaded set by set beside these changes.
@@ -133,7 +135,8 @@ final class PushController {
     /// Starts pushing `changes` in order. Blocked ones are left in review.
     func push(_ changes: [PendingChange]) {
         guard phase != .running else { return }
-        items = changes.filter { !$0.isBlocked }.map { PushItem(change: $0) }
+        rememberUnfinished()
+        items = changes.filter { !$0.isBlocked }.map(resumed)
         notice = nil
         inAppDrafts = [:]
         inAppDraftRefusals = [:]
@@ -156,6 +159,8 @@ final class PushController {
         var retried = false
         for index in items.indices where items[index].status.isFailure {
             if let current = queue.change(id: items[index].id) {
+                // Edited before the retry: what was sent no longer lines up.
+                if !Self.sentTheSameRequests(items[index], as: current) { Self.forgetProgress(of: &items[index]) }
                 items[index].change = current
                 items[index].status = .queued
                 retried = true
@@ -170,6 +175,7 @@ final class PushController {
     /// Clears a finished push so the sheet shows the review list again.
     func dismissFinished() {
         guard phase == .finished else { return }
+        rememberUnfinished()
         phase = .idle
         items = []
     }

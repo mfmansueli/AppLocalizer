@@ -20,7 +20,8 @@ struct NextStepTool: MCPTool {
         for concepts), animate_header and revise_loop (the chosen header's loop, with revise_artwork_concept), \
         write_captions (missing or too long, then propose_captions with run), revise_app_preview (the \
         person's note on the App Preview, then revise_app_preview), answer_app_questions (what AppLocalizer wants to \
-        know about the app, then answer_app_questions), or done. Call it after each step until it says done.
+        know about the app, then answer_app_questions), choose_screens (the plan has none yet, then \
+        update_capture_plan), or done. Call it after each step until it says done.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -43,7 +44,7 @@ struct NextStepTool: MCPTool {
         let knowledge = support.knowledge(for: app.id) ?? AppKnowledge()
         if let music = knowledge.music { center.suggestPreviewMusic(music, appID: app.id) }
         switch step {
-        case .capture, .record: break
+        case .capture, .record, .chooseScreens: break
         default: return nil
         }
         let due = knowledge.due(now: .now)

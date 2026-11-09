@@ -7,7 +7,7 @@ import Foundation
 
 /// A shorter wording an assistant suggested for one language of a message
 /// that runs over Apple's limits; Use Shorter Version takes it.
-struct RetentionSuggestion: Hashable, Sendable {
+struct RetentionSuggestion: Hashable, Codable, Sendable {
     var messageID: String
     var locale: String
     /// Nil keeps the header.

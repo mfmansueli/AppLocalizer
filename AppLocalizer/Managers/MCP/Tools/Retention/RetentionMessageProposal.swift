@@ -56,7 +56,7 @@ struct RetentionMessageProposal {
 
     private mutating func applyName(_ arguments: MCPToolArguments) throws {
         guard let name = try arguments.optionalString("referenceName").map(RetentionText.trimmed), !name.isEmpty else {
-            if isNew { refusals.append(RetentionMessageProblem.noName.message) }
+            if RetentionText.trimmed(message.referenceName).isEmpty { refusals.append(RetentionMessageProblem.noName.message) }
             return
         }
         if isNew {

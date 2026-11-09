@@ -91,7 +91,7 @@ extension RetentionModel {
             text.origin = .written
             message.texts[locale] = text
         }
-        if locale == sourceLocale.code, let id = selectedMessageID { sourceEdited.insert(id) }
+        if locale == sourceLocale.code, let id = selectedMessageID { store.noteSourceEdited(appID: app.id, id: id) }
     }
 
     func setBody(_ body: String) {
@@ -102,7 +102,7 @@ extension RetentionModel {
             text.origin = .written
             message.texts[locale] = text
         }
-        if locale == sourceLocale.code, let id = selectedMessageID { sourceEdited.insert(id) }
+        if locale == sourceLocale.code, let id = selectedMessageID { store.noteSourceEdited(appID: app.id, id: id) }
     }
 
     func status(of locale: StoreLocale, in message: RetentionMessage) -> RetentionTextStatus {

@@ -23,14 +23,14 @@ struct AppInformationVersionMenu: View {
                         if version.id == selected.id {
                             Image(systemName: "checkmark")
                         }
-                        Text(version.listingVersion.pickerTitle)
+                        Text(version.pickerTitle(among: versions))
                         Text(version.listingVersion.pickerSubtitle)
                     }
                     .accessibilityIdentifier("appInformation.version.\(version.versionString)")
                 }
             }
         } label: {
-            Text(selected.listingVersion.pickerTitle)
+            Text(selected.pickerTitle(among: versions))
                 .font(.caption)
         }
         .menuStyle(.button)

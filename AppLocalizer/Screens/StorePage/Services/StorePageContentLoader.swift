@@ -13,7 +13,8 @@ struct StorePageContentLoader: Sendable {
 
     func content(for app: StoreApp, versionID: String?) async throws -> StorePageContent {
         let versionResources = try await client.appStoreVersions(appID: app.id)
-        let all = versionResources.compactMap { Self.version($0, isFirstVersion: versionResources.count == 1) }
+        let platforms = versionResources.map(\.attributes.platform)
+        let all = versionResources.compactMap { Self.version($0, isFirstVersion: StorePageVersion.isOnlyVersion(of: $0.attributes.platform, among: platforms)) }
         let versions = StorePageVersion.pickerVersions(from: all)
         guard let version = versions.first(where: { $0.id == versionID }) ?? StorePageVersion.preferred(in: versions) else {
             throw AppStoreConnectError.notFound(detail: Self.noVersionDetail(versionResources))

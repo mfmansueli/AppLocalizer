@@ -132,7 +132,8 @@ extension ScreenshotPushController {
 
     private func summary(of items: [ScreenshotUploadItem], backupID: String) -> ScreenshotPushSummary {
         let done = items.filter { $0.status == .done }
-        let kept = done.filter { $0.backup != nil }
+        // A full set's old screenshot can be gone even when its new one failed.
+        let kept = items.filter { $0.backup != nil && ($0.status == .done || $0.isOldDeleted) }
         return ScreenshotPushSummary(
             pushedCount: done.count,
             failures: items.compactMap { item in item.status.failureText.map { "\(item.title): \($0)" } },

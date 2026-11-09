@@ -280,7 +280,7 @@ enum GuidedReviewChecks {
         if !still.isEmpty {
             checks.append(GuidedCheck(
                 id: "motion",
-                text: String(localized: "Barely moves, even recorded again: \(still.formatted(.list(type: .and)))"),
+                text: String(localized: "Barely moves: \(still.formatted(.list(type: .and)))"),
                 state: .attention
             ))
         }

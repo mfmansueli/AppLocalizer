@@ -22,6 +22,18 @@ extension ScreenshotsContext {
         }
     }
 
+    /// Why a device's screenshots can't change now, for the version they
+    /// go on; nil when they can. Mac's go on the macOS version, whatever
+    /// the iOS one's state.
+    func editBlock(for displayType: ScreenshotDisplayType) -> String? {
+        if displayType == .mac, !isMacVersion {
+            guard macVersionIsEditable == false else { return nil }
+            return String(localized: "The macOS version is live. Mac screenshots can only change with a version that’s being prepared.")
+        }
+        guard !version.isEditable else { return nil }
+        return String(localized: "Version \(version.versionString) is live. Screenshots can only change with a version that’s being prepared.")
+    }
+
     /// The visionOS version that goes with `content`'s.
     static func visionVersionID(in content: StorePageContent) -> String? {
         versionID(platform: visionPlatform, in: content)
@@ -32,14 +44,15 @@ extension ScreenshotsContext {
         versionID(platform: macPlatform, in: content)
     }
 
-    /// The `platform` version that goes with `content`'s: the one with the
-    /// same version string, else the newest editable one, else the newest.
+    /// The `platform` version that goes with `content`'s: an editable one
+    /// with the same version string, else the newest editable one, else
+    /// the same version string, else the newest.
     static func versionID(platform: String, in content: StorePageContent) -> String? {
         let versions = content.versions
             .filter { $0.platform == platform }
             .sorted { ($0.createdDate ?? .distantPast) > ($1.createdDate ?? .distantPast) }
-        let match = versions.first { $0.versionString == content.version.versionString }
-        return (match ?? StorePageVersion.preferred(in: versions))?.id
+        let match = versions.filter { $0.versionString == content.version.versionString }
+        return (match.first(where: \.isEditable) ?? versions.first(where: \.isEditable) ?? match.first ?? StorePageVersion.preferred(in: versions))?.id
     }
 
     /// Reads the visionOS and macOS versions' localizations with `load`,
@@ -74,6 +87,8 @@ extension ScreenshotsContext {
         load: (String) async throws -> StorePageContent
     ) async {
         guard !isMacVersion, let id = Self.macVersionID(in: content), id != content.version.id else { return }
-        macLocalizations = await (try? load(id))?.ids.versionLocalizations ?? [:]
+        let loaded = try? await load(id)
+        macLocalizations = loaded?.ids.versionLocalizations ?? [:]
+        macVersionIsEditable = loaded?.version.isEditable
     }
 }

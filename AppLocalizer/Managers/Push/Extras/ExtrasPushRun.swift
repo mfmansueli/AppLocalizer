@@ -141,9 +141,18 @@ final class ExtrasPushRun {
     /// Sends the failed items again. Uploads Apple already accepted are
     /// reused.
     func retryFailed() {
+        retry { $0.isFailure }
+    }
+
+    /// Sends everything that didn't go, cancelled ones too.
+    func retryUnsent() {
+        retry { $0.isFinished && !$0.isDone }
+    }
+
+    private func retry(where isIncluded: (ExtrasPushStatus) -> Bool) {
         guard phase == .finished else { return }
         var retried = false
-        for item in items where status(of: item).isFailure {
+        for item in items where isIncluded(status(of: item)) {
             statuses[item.id] = .waiting
             retried = true
         }

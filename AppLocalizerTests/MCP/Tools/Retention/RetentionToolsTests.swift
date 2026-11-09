@@ -211,5 +211,23 @@ struct RetentionToolsTests {
     @Test func theToolsAreInTheToolbox() {
         #expect(MCPToolbox.standard.toolNames.isSuperset(of: ["get_retention", "propose_retention_message", "propose_retention_offer"]))
     }
+
+    /// Ask to Shorten It… is on drafts that were never pushed, too.
+    @Test func aDraftCanBeOfferedAShorterWording() async throws {
+        _ = try await message([
+            "referenceName": "Come back soon", "subscriptions": ["Monthly"], "locale": "en-US",
+            "header": "Your journal waits for you", "body": "Cancel and your entries stay.",
+        ])
+        let id = try #require(store.messages(for: lumen).first(where: \.isNew)?.id)
+        let outcome = try await message(["messageId": .string(id), "locale": "en-US", "body": "Your entries stay.", "suggestion": true])
+        #expect(outcome.result["status"] == "suggested")
+        #expect(store.suggestion(appID: lumen, messageID: id, locale: "en-US")?.body == "Your entries stay.")
+    }
+
+    /// propose_retention_offer tells the assistant to do exactly this.
+    @Test func turningAMessageIntoAnOfferMessageIsNotUnchanged() async throws {
+        let outcome = try await message(["messageId": .string(RetentionSampleData.messageID), "kind": "offer"])
+        #expect(outcome.result["status"] == "queued")
+    }
 }
 #endif

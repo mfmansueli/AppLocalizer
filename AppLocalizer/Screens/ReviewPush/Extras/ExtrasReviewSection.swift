@@ -19,6 +19,11 @@ struct ExtrasReviewSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.small) {
             heading
+            if let reason = plan.blockedReason {
+                Banner(kind: .warning, title: String(localized: "These can’t be pushed yet."), message: reason)
+                    .padding(.horizontal, -Spacing.large)
+                    .accessibilityIdentifier("review.extras.blocked")
+            }
             ForEach(plan.artworkKinds, id: \.self) { kind in
                 card(
                     title: "\(kind.title) · \(kind.ratioTitle)",

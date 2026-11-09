@@ -143,5 +143,14 @@ struct ExtrasReviewPlannerTests {
         #expect(ExtrasReviewFixtures.plan(empty) == nil)
         #expect(ExtrasReviewFixtures.planner.plan(appID: "app-1", appName: "Lumen", extras: nil, context: ExtrasReviewFixtures.context()) == nil)
     }
+
+    @Test func aLiveVersionHoldsEverythingBack() throws {
+        var context = ExtrasReviewFixtures.context()
+        context.version = ScreenshotsTestFixtures.liveVersion
+        let plan = try #require(ExtrasReviewFixtures.plan(context: context))
+        #expect(plan.blockedReason?.contains("1.3") == true)
+        #expect(plan.pushable.isEmpty)
+        #expect(plan.items.count == 7, "Still listed, to say why")
+    }
 }
 #endif

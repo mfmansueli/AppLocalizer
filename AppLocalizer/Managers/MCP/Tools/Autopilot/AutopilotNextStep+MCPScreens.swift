@@ -6,6 +6,17 @@
 import Foundation
 
 extension AutopilotNextStep {
+    /// The plan has no screens: nothing can be captured or recorded yet.
+    static var chooseScreensJSON: JSONValue {
+        [
+            "action": "choose_screens",
+            "how": .string("""
+            This plan has no screens yet, so nothing can be captured or recorded. Read the project, choose the screens and \
+            send them with update_capture_plan, then call next_step. \(AutopilotRun.choosingScreensHow)
+            """),
+        ]
+    }
+
     /// `suggest_screens`: the device, what the plan has on it, what the
     /// person asked for, and how to answer.
     static func suggestScreensJSON(_ request: AutopilotScreenRequest, run: AutopilotRun?) -> JSONValue {

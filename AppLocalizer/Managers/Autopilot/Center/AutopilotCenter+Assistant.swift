@@ -258,6 +258,8 @@ extension AutopilotCenter {
     /// Capturing: what's left, then the App Preview's recordings, else wait
     /// for a problem or the next stage.
     private func capturingStep(_ run: AutopilotRun) -> AutopilotNextStep {
+        // No recording can name its screens before they're chosen.
+        if run.plan.awaitsScreens { return .chooseScreens }
         if !run.remainingTargets.isEmpty || !run.retries.isEmpty { return captureStep(run) }
         if !run.remainingRecordings.isEmpty { return .record(targets: run.remainingRecordings) }
         if let problem = run.openProblems.first {
@@ -298,7 +300,7 @@ extension AutopilotCenter {
                 run.stage = run.plan.stopsToPick && !run.skipsPick ? .pick : .design
             }
             if runs[appID]?.stage == .design { await beginDesign(appID, context: context) }
-        case .design where run.hasAllDirections && run.hasAllConcepts && run.revision == nil:
+        case .design where run.hasAllDirections && run.hasAllConcepts && run.revision == nil && run.retakeTargets.isEmpty:
             await finishDesign(run, context: context)
         default:
             break

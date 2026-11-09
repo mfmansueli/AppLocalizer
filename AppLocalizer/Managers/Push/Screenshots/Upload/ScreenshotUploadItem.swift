@@ -22,6 +22,9 @@ struct ScreenshotUploadItem: Identifiable, Hashable, Sendable {
     var checksum: String?
     /// Committed and accepted for processing: the old one can go.
     var isCommitted = false
+    /// Apple finished processing it: only then does the old one go, so a
+    /// file Apple fails can't leave the slot empty.
+    var isDeliveryConfirmed = false
     var isOldDeleted = false
     /// Something worth knowing beside how the image went, e.g. the old
     /// screenshot couldn't be deleted, or had no image to keep.

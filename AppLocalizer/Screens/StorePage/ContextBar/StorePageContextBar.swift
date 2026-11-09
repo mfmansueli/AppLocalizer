@@ -42,14 +42,14 @@ struct StorePageContextBar: View {
                             if version.id == content.version.id {
                                 Image(systemName: "checkmark")
                             }
-                            Text(version.listingVersion.pickerTitle)
+                            Text(version.pickerTitle(among: content.versions))
                             Text(version.listingVersion.pickerSubtitle)
                         }
                         .accessibilityIdentifier("storePage.version.\(version.versionString)")
                     }
                 }
             } label: {
-                title(content.version.listingVersion.title)
+                title(content.version.title(among: content.versions))
             }
             .menuStyle(.button)
             .buttonStyle(.plain)

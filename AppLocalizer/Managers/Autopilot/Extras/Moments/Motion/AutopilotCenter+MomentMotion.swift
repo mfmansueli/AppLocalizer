@@ -14,7 +14,8 @@ extension AutopilotCenter {
     /// again for what barely moves.
     func measureMotion(of recording: AutopilotRecording, file: URL, appID: StoreApp.ID) async {
         guard let run = runs[appID], run.pickRecordingTargets.first == recording.target else { return }
-        let moments = run.moments(for: recording.target).filter { $0.suggested != false }
+        let suggested = Set(run.suggestedMomentIDs)
+        let moments = run.moments(for: recording.target).filter { suggested.contains($0.screenID) }
         var found: [String: AutopilotMomentMotion] = [:]
         for moment in moments {
             found[moment.screenID] = await readMotion(file, moment.start, Self.measuredEnd(of: moment))

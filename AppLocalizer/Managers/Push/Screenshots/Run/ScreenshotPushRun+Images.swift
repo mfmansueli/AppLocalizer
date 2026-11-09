@@ -32,16 +32,30 @@ extension ScreenshotPushRun {
             let checksum = ScreenshotPNG.checksum(data)
             _ = try await send(ScreenshotUploadRequests.commit(screenshotID: id, checksum: checksum))
             let state = try await fetch(ScreenshotUploadRequests.statusPath(screenshotID: id))
-            if let delivery = ScreenshotUploadRequests.deliveryState(in: state.data), delivery.isFailed {
+            let delivery = ScreenshotUploadRequests.deliveryState(in: state.data)
+            if let delivery, delivery.isFailed {
                 throw ScreenshotPushFailure.processing(code: delivery.errorCode ?? delivery.state)
             }
+            items[index].isDeliveryConfirmed = delivery?.isComplete == true
             items[index].checksum = checksum
             items[index].isCommitted = true
             items[index].status = .done
         } catch {
             await dropReservation(index)
-            items[index].status = status(for: error, replaces: replaces)
+            noteFailure(index, error, replaces: replaces)
         }
+    }
+
+    /// The row's status for a failed image. A full set had to lose the old
+    /// screenshot before the new one could be reserved, so the row says
+    /// that instead of "the live screenshot stays".
+    func noteFailure(_ index: Int, _ error: any Error, replaces: Bool) {
+        let removed = items[index].isOldDeleted
+        items[index].status = status(for: error, replaces: replaces && !removed)
+        guard removed else { return }
+        items[index].note = items[index].backup == nil
+            ? String(localized: "The live screenshot was removed to make room in the full set.")
+            : String(localized: "The live screenshot was removed to make room in the full set. Restore it from Activity.")
     }
 
     /// Whether something live shows in the image's place while it fails:
@@ -87,7 +101,7 @@ extension ScreenshotPushRun {
     }
 
     /// A full set takes no new screenshot: this image's old one goes first
-    /// (it's kept already), or the image fails.
+    /// (it's kept already, and Activity can restore it), or the image fails.
     private func makeRoom(_ index: Int) async throws {
         let groupID = items[index].groupID
         guard let order = sets[groupID]?.order, order.count >= Self.setCapacity else { return }
@@ -129,7 +143,7 @@ extension ScreenshotPushRun {
 
     /// Deletes a reservation that won't be committed, so the set doesn't
     /// keep an empty screenshot.
-    private func dropReservation(_ index: Int) async {
+    func dropReservation(_ index: Int) async {
         guard let id = items[index].screenshotID, !items[index].isCommitted else { return }
         let groupID = items[index].groupID
         if await (try? send(ScreenshotUploadRequests.delete(screenshotID: id))) != nil {

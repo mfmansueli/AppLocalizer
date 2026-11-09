@@ -14,7 +14,10 @@ struct AppInformationContentLoader: Sendable {
 
     func content(for app: StoreApp, versionID: String?) async throws -> AppInformationContent {
         let versionResources = try await client.appStoreVersionReleases(appID: app.id)
-        let versions = StorePageVersion.pickerVersions(from: versionResources.compactMap { Self.version($0, count: versionResources.count) })
+        let platforms = versionResources.map(\.attributes.platform)
+        let versions = StorePageVersion.pickerVersions(from: versionResources.compactMap {
+            Self.version($0, isFirstVersion: StorePageVersion.isOnlyVersion(of: $0.attributes.platform, among: platforms))
+        })
         let version = versions.first { $0.id == versionID } ?? StorePageVersion.preferred(in: versions)
         let release = versionResources.first { $0.id == version?.id }?.attributes
 
@@ -66,11 +69,11 @@ struct AppInformationContentLoader: Sendable {
     // MARK: - Mapping
 
     /// A version the picker knows. `READY_FOR_SALE` (the older state) is live.
-    static func version(_ resource: AppStoreConnectResource<AppStoreVersionReleaseAttributes>, count: Int) -> StorePageVersion? {
+    static func version(_ resource: AppStoreConnectResource<AppStoreVersionReleaseAttributes>, isFirstVersion: Bool) -> StorePageVersion? {
         guard let state = state(of: resource.attributes) else { return nil }
         return StorePageVersion(
             id: resource.id,
-            listingVersion: ListingVersion(resource.attributes.versionString, state: state, isFirstVersion: count == 1),
+            listingVersion: ListingVersion(resource.attributes.versionString, state: state, isFirstVersion: isFirstVersion),
             platform: resource.attributes.platform,
             createdDate: resource.attributes.createdDate.flatMap { try? Date($0, strategy: .iso8601) }
         )

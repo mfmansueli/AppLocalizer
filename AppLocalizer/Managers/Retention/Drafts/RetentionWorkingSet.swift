@@ -51,7 +51,12 @@ struct RetentionWorkingSet {
     private func workingCopy(of id: String, remote: RetentionMessage?) -> RetentionMessage? {
         let change = queue.change(id: RetentionChangeBuilder.messageChangeID(appID: appID, messageID: id))
         if let kept = store.message(appID: appID, id: id) {
-            if !store.isQueuedCopy(appID: appID, id: id) || change != nil { return kept }
+            if !store.isQueuedCopy(appID: appID, id: id) || change != nil {
+                // App Store Connect's may have moved on since it was kept.
+                var current = kept
+                current.remote = remote?.remote ?? kept.remote
+                return current
+            }
             store.remove(appID: appID, id: id)
         }
         if let change, let message = RetentionQueuedChanges.message(from: change, remote: remote) { return message }

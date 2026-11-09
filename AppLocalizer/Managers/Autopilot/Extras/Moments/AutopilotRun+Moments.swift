@@ -147,4 +147,24 @@ extension AutopilotRun {
 
     /// Some moment waits to be recorded again.
     var waitsForRetakes: Bool { !(momentRetakes ?? []).isEmpty }
+
+    /// The upload link is open: while capturing, and past that while a
+    /// moment waits for its new take.
+    var takesUploads: Bool {
+        switch stage {
+        case .waiting, .capture: true
+        case .pick, .design, .choose: !retakeTargets.isEmpty
+        case .plan, .localize, .watchPreview, .ready: false
+        }
+    }
+
+    /// The person went on without the takes still waiting: the earlier
+    /// recording plays.
+    mutating func giveUpWaitingRetakes(at date: Date) {
+        let names = Array(Set(retakeTargets.map(\.screenID))).sorted().map { plan.screen(id: $0)?.name ?? $0 }
+        momentRetakes = nil
+        guard !names.isEmpty else { return }
+        let list = names.formatted(.list(type: .and))
+        appendLog(String(localized: "Went on without recording \(list) again; the earlier recording plays"), kind: .event, at: date)
+    }
 }

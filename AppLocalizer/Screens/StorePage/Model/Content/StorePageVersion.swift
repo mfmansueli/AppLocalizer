@@ -44,4 +44,43 @@ struct StorePageVersion: Identifiable, Hashable, Sendable {
     }
 
     private static let iOSPlatform = "IOS"
+
+    /// "macOS"; nil for a platform without a name here.
+    var platformTitle: String? {
+        switch platform {
+        case Self.iOSPlatform: "iOS"
+        case "MAC_OS": "macOS"
+        case "VISION_OS": "visionOS"
+        case "TV_OS": "tvOS"
+        default: nil
+        }
+    }
+
+    /// The platform when it's not iOS, for the review sheet's heading: an
+    /// app's iOS and macOS "1.0" aren't the same page.
+    var otherPlatformTitle: String? {
+        platform == Self.iOSPlatform ? nil : platformTitle
+    }
+
+    /// The picker's row, with the platform when `versions` have several:
+    /// "1.0 · Prepare for Submission · macOS".
+    func pickerTitle(among versions: [StorePageVersion]) -> String {
+        withPlatform(listingVersion.pickerTitle, among: versions)
+    }
+
+    /// "Version 1.0 · Prepare for Submission · macOS", likewise.
+    func title(among versions: [StorePageVersion]) -> String {
+        withPlatform(listingVersion.title, among: versions)
+    }
+
+    private func withPlatform(_ text: String, among versions: [StorePageVersion]) -> String {
+        guard Set(versions.map(\.platform)).count > 1, let platformTitle else { return text }
+        return "\(text) · \(platformTitle)"
+    }
+
+    /// Whether `platform` has only this one version among `platforms`: a
+    /// first version, which has no What's New. Each platform has its own.
+    static func isOnlyVersion(of platform: String?, among platforms: [String?]) -> Bool {
+        platforms.count { $0 == platform } == 1
+    }
 }

@@ -12,7 +12,7 @@ extension RetentionModel {
     /// that's empty, and, once the source changed, the ones translated
     /// before. What someone wrote by hand stays.
     func languagesToTranslate(in message: RetentionMessage) -> [StoreLocale] {
-        let redo = sourceEdited.contains(message.id)
+        let redo = store.isSourceEdited(appID: app.id, id: message.id)
         return builder.languages(of: message).filter { locale in
             guard locale.code != sourceLocale.code else { return false }
             let text = message.text(for: locale.code)
@@ -37,6 +37,8 @@ extension RetentionModel {
         var skipped: [String] = []
         var failed: [String] = []
         var done = 0
+        // Moving to another message stops it: the rest still needs redoing.
+        var leftOff = false
         for locale in languagesToTranslate(in: message) {
             translatingLocale = locale.code
             if await translator.availability(from: sourceLocale, to: locale) != .ready {
@@ -45,7 +47,10 @@ extension RetentionModel {
             }
             do {
                 let text = try await translate(source, to: locale, with: translator, protector: protector)
-                guard selectedMessageID == message.id else { break }
+                guard selectedMessageID == message.id else {
+                    leftOff = true
+                    break
+                }
                 edit { $0.texts[locale.code] = text }
                 done += 1
             } catch {
@@ -53,7 +58,7 @@ extension RetentionModel {
             }
         }
         translatingLocale = nil
-        if failed.isEmpty, skipped.isEmpty { sourceEdited.remove(message.id) }
+        if !leftOff, failed.isEmpty, skipped.isEmpty { store.clearSourceEdited(appID: app.id, id: message.id) }
         notice = translationSummary(done: done, skipped: skipped, failed: failed)
     }
 

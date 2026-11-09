@@ -57,5 +57,12 @@ struct GuidedStepTests {
         #expect(GuidedStep.making.state(at: capturing) == .current)
         #expect(GuidedStep.choose.state(at: capturing) == .upcoming)
     }
+
+    /// Esc is Cancel too: past the first step there are choices to lose.
+    @Test func cancelAsksFirstOncePastTheFirstStep() {
+        #expect(!GuidedStep.make.asksBeforeCancelling)
+        #expect(GuidedStep.look.asksBeforeCancelling)
+        #expect(GuidedStep.plan.asksBeforeCancelling)
+    }
 }
 #endif

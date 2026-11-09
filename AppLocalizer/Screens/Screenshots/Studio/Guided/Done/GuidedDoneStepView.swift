@@ -17,26 +17,28 @@ struct GuidedDoneStepView: View {
     var body: some View {
         let images = imageRun
         let extras = extrasRun
-        let isSending = images?.isRunning == true || extras?.isRunning == true
-        let failed = (images?.failedCount ?? 0) + (extras?.failedCount ?? 0)
+        let outcome = GuidedPushOutcome.make(
+            images: images.map { GuidedPushOutcome.Tally(total: $0.totalCount, done: $0.doneCount, isRunning: $0.isRunning) },
+            extras: extras.map { GuidedPushOutcome.Tally(total: $0.items.count, done: $0.doneCount, isRunning: $0.isRunning) }
+        )
         VStack(spacing: Spacing.medium) {
             Spacer(minLength: 0)
-            if isSending {
+            if outcome == .sending {
                 ProgressView().controlSize(.large)
                 Text("Sending to the App Store")
                     .font(.title2.weight(.semibold))
                     .accessibilityIdentifier("autopilot.guided.done.title")
             } else {
-                Image(systemName: failed > 0 ? "exclamationmark" : "checkmark")
+                Image(systemName: outcome.symbol)
                     .font(.system(size: 26, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 56, height: 56)
-                    .background(failed > 0 ? Palette.warningMark : Palette.accent, in: Circle())
+                    .background(outcome == .partly ? Palette.warningMark : Palette.accent, in: Circle())
                     .accessibilityHidden(true)
-                Text(failed > 0 ? String(localized: "Not everything was sent") : String(localized: "Sent to the App Store"))
+                Text(outcome.title)
                     .font(.title2.weight(.semibold))
                     .accessibilityIdentifier("autopilot.guided.done.title")
-                Text(failed > 0 ? String(localized: "What was sent is on App Store Connect; the rest stays in Review & Push.") : sentText)
+                Text(outcome.detail ?? sentText)
                     .font(.callout)
                     .foregroundStyle(Palette.label2)
                     .multilineTextAlignment(.center)
@@ -55,16 +57,18 @@ struct GuidedDoneStepView: View {
                 }
             }
             .frame(maxWidth: 520)
-            if failed > 0, !isSending {
+            if outcome == .partly || outcome == .unknown {
                 HStack(spacing: Spacing.small) {
                     Button("Open Review & Push…") { studio.openReviewPush(navigator) }
                         .accessibilityIdentifier("autopilot.guided.done.openReview")
-                    Button("Try Again") {
-                        push?.screenshots.retryFailed()
-                        push?.screenshots.extras.run?.retryFailed()
+                    if outcome == .partly {
+                        Button("Try Again") {
+                            push?.screenshots.run?.retryUnsent()
+                            push?.screenshots.extras.run?.retryUnsent()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("autopilot.guided.done.retry")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityIdentifier("autopilot.guided.done.retry")
                 }
                 .buttonBorderShape(.capsule)
             }

@@ -10,12 +10,13 @@ import Foundation
 /// language's header and message under it. A message's requests, in order:
 ///
 /// 1. A new message: `POST /v1/retentionMessages`.
-/// 2. Each subscription that doesn't show it yet: `PATCH
-///    …/relationships/retentionMessage` (it replaces any other message).
-/// 3. When the content changed: the image's placement first (a version
+/// 2. When the content changed: the image's placement first (a version
 ///    can't change once made), then the version, then each language. An
 ///    approved version can't take edits, so new words go into a new
 ///    version; one still being prepared is edited in place.
+/// 3. Each subscription that doesn't show it yet: `PATCH
+///    …/relationships/retentionMessage` (it replaces any other message),
+///    after the content so a refused version leaves it on its old message.
 /// 4. The subscriptions' existing offers shown or hidden.
 /// 5. App Review: a review submission without an app version, the version
 ///    as its item, then submitted.
@@ -152,6 +153,13 @@ struct RetentionChangeBuilder {
 
     /// Whether the push writes new words or a new image, which App Review
     /// checks again.
+    /// Whether pushing `message` shows or hides a subscription's offers,
+    /// which is all that changes between "Message" and "With offer".
+    func changesOffers(_ message: RetentionMessage) -> Bool {
+        let existing = message.subscriptionIDs.flatMap { content.offers(for: $0) }.filter { !$0.isQueued }
+        return message.kind == .offer ? existing.contains { !$0.isShown } : existing.contains(where: \.isShown)
+    }
+
     func contentChanged(_ message: RetentionMessage) -> Bool {
         guard let remote = message.remote, remote.versionID != nil else { return true }
         if imageChanged(message) { return true }
@@ -176,13 +184,14 @@ struct RetentionChangeBuilder {
         if message.isNew {
             requests.append(RetentionRequests.createMessage(appID: app.id, referenceName: RetentionText.trimmed(message.referenceName)))
         }
-        let assigned = Set(message.remote?.subscriptionIDs ?? [])
-        for subscriptionID in message.subscriptionIDs where !assigned.contains(subscriptionID) {
-            requests.append(RetentionRequests.assign(subscriptionID: subscriptionID, messageID: messageID))
-        }
         var versionID: String?
         if contentChanged(message) {
             versionID = needsNewVersion(message) ? appendNewVersion(of: message, messageID: messageID, to: &requests) : appendEdits(of: message, to: &requests)
+        }
+        // After the content: if that fails, a subscription keeps its message.
+        let assigned = Set(message.remote?.subscriptionIDs ?? [])
+        for subscriptionID in message.subscriptionIDs where !assigned.contains(subscriptionID) {
+            requests.append(RetentionRequests.assign(subscriptionID: subscriptionID, messageID: messageID))
         }
         appendOffers(of: message, to: &requests)
         if let versionID {

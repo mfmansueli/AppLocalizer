@@ -8,9 +8,10 @@ import Observation
 
 /// One screenshot push: every image chosen in review, uploaded set by set,
 /// a few sets at a time. Each image is reserved, uploaded in parts,
-/// committed and checked; only then is the screenshot it replaces kept on
-/// this Mac and deleted, and each set is reordered last, so a failure
-/// never leaves a live set with a gap. When the hourly budget runs out the
+/// committed and checked; the screenshot it replaces is kept on this Mac
+/// first and deleted once Apple has processed the new one, and each set is
+/// reordered last, so a failure doesn't leave a live set with a gap. Only
+/// a full set loses the old one earlier, to make room, and says so. When the hourly budget runs out the
 /// push pauses until the next hour, then resumes.
 ///
 /// The steps live in `ScreenshotPushRun+Sets`, `+Images` and `+Requests`.
@@ -82,7 +83,9 @@ final class ScreenshotPushRun {
     /// The apps this push sends images for.
     var appIDs: [StoreApp.ID] { plans.map(\.appID).filter { id in items.contains { $0.appID == id } } }
     /// Something live was replaced, so there's a backup to restore from.
-    var replacedSomething: Bool { items.contains { $0.isCommitted && $0.backup != nil } }
+    var replacedSomething: Bool { items.contains { ($0.isCommitted || $0.isOldDeleted) && $0.backup != nil } }
+    /// Live screenshots removed to make room for an image that then failed.
+    var removedForFailedCount: Int { items.count { $0.isOldDeleted && $0.status.isFailure } }
 
     /// "Pushing 40 images", "All 40 images pushed", "38 of 40 images
     /// pushed".
@@ -108,6 +111,9 @@ final class ScreenshotPushRun {
             }
             return String(localized: "\(doneCount) of \(totalCount) done · reserve, upload and commit for each image")
         case .finished:
+            if removedForFailedCount > 0 {
+                return String(localized: "\(failedCount) failed, and \(removedForFailedCount) live removed to make room. Restore them from Activity.")
+            }
             if failedCount == 1 { return String(localized: "1 failed. Its live screenshot wasn’t touched.") }
             if failedCount > 1 { return String(localized: "\(failedCount) failed. Their live screenshots weren’t touched.") }
             let notSent = totalCount - doneCount
@@ -140,9 +146,19 @@ final class ScreenshotPushRun {
     /// Sends the failed images again. Copies already kept and sets already
     /// made are reused.
     func retryFailed() {
+        retry { $0.isFailure }
+    }
+
+    /// Sends everything that didn't go: failed, cancelled, or not sent
+    /// because the push stopped.
+    func retryUnsent() {
+        retry { $0.isFinished && $0 != .done }
+    }
+
+    private func retry(where isIncluded: (ScreenshotUploadStatus) -> Bool) {
         guard phase == .finished else { return }
         var retried = false
-        for index in items.indices where items[index].status.isFailure {
+        for index in items.indices where isIncluded(items[index].status) {
             items[index].status = .queued
             items[index].screenshotID = nil
             retried = true

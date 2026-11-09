@@ -214,18 +214,18 @@ struct RetentionPushStepsTests {
         let sent = transport.sent
         #expect(sent.map { "\($0.method.rawValue) \($0.path)" } == [
             "POST /v1/retentionMessages",
-            "PATCH /v1/subscriptions/\(Fixtures.monthly.id)/relationships/retentionMessage",
             "POST /v1/appAssetLibraryPlacements",
             "POST /v1/retentionMessageVersions",
             "POST /v1/retentionMessageLocalizations",
             "POST /v1/retentionMessageLocalizations",
+            "PATCH /v1/subscriptions/\(Fixtures.monthly.id)/relationships/retentionMessage",
             "POST /v1/reviewSubmissions",
             "POST /v1/reviewSubmissionItems",
             "PATCH /v1/reviewSubmissions/rs-1",
         ])
-        #expect(Fixtures.data(sent[1])["id"] as? String == "rm-1")
-        #expect(placement(of: sent[2]).group == "RETENTION_UNIVERSAL")
-        let version = Fixtures.data(sent[3])["relationships"] as? [String: Any]
+        #expect(Fixtures.data(sent[5])["id"] as? String == "rm-1")
+        #expect(placement(of: sent[1]).group == "RETENTION_UNIVERSAL")
+        let version = Fixtures.data(sent[2])["relationships"] as? [String: Any]
         #expect(((version?["placement"] as? [String: Any])?["data"] as? [String: Any])?["id"] as? String == "pl-1")
         #expect(((version?["retentionMessage"] as? [String: Any])?["data"] as? [String: Any])?["id"] as? String == "rm-1")
         let item = Fixtures.data(sent[7])["relationships"] as? [String: Any]

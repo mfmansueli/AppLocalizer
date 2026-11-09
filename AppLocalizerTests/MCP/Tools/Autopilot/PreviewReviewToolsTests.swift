@@ -157,5 +157,22 @@ struct PreviewReviewToolsTests {
         #expect(busy.result["reason"] == "AppLocalizer is making the App Preview again. Try in a moment.")
         #expect(fixtures.run?.plan.alsoMakes.previewMusic == .standard)
     }
+
+    @Test func theSameTrackChangesNothing() async throws {
+        let fixtures = MCPAutopilotFixtures(AutopilotPreviewTestRun.run(.plan))
+        let track = try #require(fixtures.run?.plan.alsoMakes.previewMusic.track)
+        let outcome = try await fixtures.call(SetAppPreviewMusicTool(), ["run": "run-debug", "track": .string(track.rawValue)])
+        #expect(outcome.result == ["status": "unchanged", "track": .string(track.rawValue)])
+        #expect(outcome.logLines.isEmpty)
+    }
+
+    /// Watch the App Preview also shows a run's header loop on its own.
+    @Test func aRunOnlyShowingItsLoopHasNothingToMixAgain() async throws {
+        var run = AutopilotPreviewTestRun.run(.watchPreview)
+        run.previewReview = nil
+        let fixtures = MCPAutopilotFixtures(run)
+        let outcome = try await fixtures.call(SetAppPreviewMusicTool(), ["run": "run-debug", "track": "bright_pop"])
+        #expect(outcome.result["reason"] == "There’s no App Preview to mix again: this run is only showing its header loop.")
+    }
 }
 #endif

@@ -12,6 +12,8 @@ enum AutopilotNextStep: Hashable, Sendable {
     /// Capture these, and capture again the problems the person retried
     /// with their fix.
     case capture(targets: [AutopilotCaptureTarget], retries: [AutopilotProblem])
+    /// The plan has no screens yet: choose them (`update_capture_plan`).
+    case chooseScreens
     /// Every screen is captured: record the App Preview's walkthroughs.
     case record(targets: [AutopilotRecordingTarget])
     /// Nothing to do yet; ask again later.

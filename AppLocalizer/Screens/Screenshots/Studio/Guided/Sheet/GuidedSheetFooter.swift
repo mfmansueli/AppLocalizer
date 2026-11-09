@@ -172,9 +172,11 @@ struct GuidedSheetFooter: View {
     @ViewBuilder
     private var makingButtons: some View {
         switch run.stage {
-        case .waiting, .capture:
+        case .waiting:
             Button("Cancel Run") { studio.stop() }
                 .accessibilityIdentifier("autopilot.guided.cancelRun")
+        case .capture:
+            AutopilotCancelRunButton(studio: studio, run: run, identifier: "autopilot.guided.cancelRun")
         case .pick:
             AutopilotCancelRunButton(studio: studio, run: run)
             Button("Use These Picks") { studio.usePicks() }

@@ -16,9 +16,7 @@ extension RetentionModel {
     /// one that differs from App Store Connect's, or offers to show or hide.
     var hasChangesToQueue: Bool {
         guard let message = selectedMessage else { return false }
-        if message.hasChanges { return true }
-        let existing = message.subscriptionIDs.flatMap { content.offers(for: $0) }
-        return message.kind == .offer ? existing.contains { !$0.isShown } : existing.contains(where: \.isShown)
+        return message.hasChanges || builder.changesOffers(message)
     }
 
     /// Add to Review & Push, or take it out again.

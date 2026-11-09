@@ -76,7 +76,7 @@ final class DebugScreenshotUploadTransport: ScreenshotUploadTransport {
         let fileName = state.withLock { $0.ledger.shots[id]?.fileName } ?? ""
         let failure = DebugScreenshotUploadScript.matching(fileName, in: script.processingFailures).flatMap { spend("process|\($0)") ? $0 : nil }
         let delivery: [String: Any] = failure == nil
-            ? ["state": "UPLOAD_COMPLETE"]
+            ? ["state": "COMPLETE"]
             : ["state": "FAILED", "errors": [["code": "IMAGE_TOOL_FAILURE", "description": "The image couldn’t be processed."]]]
         return response(id: id, attributes: ["assetDeliveryState": delivery])
     }

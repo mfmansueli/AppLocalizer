@@ -92,5 +92,14 @@ struct AutopilotFirstRunScreensTests {
 
         #expect(AutopilotEstimate.summary(for: plan, design: .none).hasPrefix("About \(expected) captures in "))
     }
+
+    @Test func captureAsksForTheScreensFirst() async throws {
+        var run = Fixtures.run(.capture, plan: Self.noScreens)
+        run.captures = []
+        let fixtures = MCPAutopilotFixtures(run)
+        let result = try await fixtures.call(NextStepTool(), ["run": "run-1"]).result
+        #expect(result["action"] == "choose_screens")
+        #expect(result["how"]?.stringValue?.isEmpty == false)
+    }
 }
 #endif

@@ -16,7 +16,10 @@ struct ScreenshotPushPlanner {
         var plan = ScreenshotPushPlan.empty(
             appID: input.appID, appName: input.appName, version: input.context.version, primaryLocaleName: input.context.primaryLocale.name
         )
-        if !input.context.version.isEditable {
+        // Blocked only when no device's screenshots can go: Mac's follow the
+        // macOS version.
+        let displays = Set(matrix.localizedCells.map(\.key.displayType))
+        if !input.context.version.isEditable, displays.allSatisfy({ input.context.editBlock(for: $0) != nil }) {
             let version = input.context.version.versionString
             plan.blockedReason = String(localized: "Version \(version) is live. Screenshots can only change with a version that’s being prepared.")
         }
@@ -44,8 +47,21 @@ struct ScreenshotPushPlanner {
             guard let locale = snapshot.locale(code: request.locale) else { continue }
             addRestore(request, locale: locale, to: &groups, kept: &plan.kept, input: input)
         }
+        if plan.blockedReason == nil { exclude(fromBlockedVersions: &groups, plan: &plan, input: input) }
         plan.groups = groups.values.sorted { order($0, primary: input.context.primaryLocale.code) < order($1, primary: input.context.primaryLocale.code) }
         return plan
+    }
+
+    /// A device whose version can't change while another's can: its images
+    /// wait, saying why, and the rest go.
+    private func exclude(fromBlockedVersions groups: inout [String: ScreenshotPlanGroup], plan: inout ScreenshotPushPlan, input: ScreenshotPlanInput) {
+        for (id, group) in groups {
+            guard let reason = input.context.editBlock(for: group.displayType) else { continue }
+            plan.excluded += group.items.map {
+                ScreenshotPlanExclusion(appID: input.appID, cell: $0.cell, localeName: group.locale.name, failedCheck: reason)
+            }
+            groups[id] = nil
+        }
     }
 
     private func add(_ item: ScreenshotPlanItem, locale: StoreLocale, to groups: inout [String: ScreenshotPlanGroup], input: ScreenshotPlanInput) {

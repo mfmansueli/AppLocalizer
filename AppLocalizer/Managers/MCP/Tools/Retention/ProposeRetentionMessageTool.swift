@@ -87,7 +87,7 @@ struct ProposeRetentionMessageTool: MCPTool {
         let builder = retention.builder(with: proposal.message)
         var reasons = proposal.refusals
         if reasons.isEmpty { reasons = builder.problems(for: proposal.message, messageCount: messageCount).map(\.message) }
-        if reasons.isEmpty, !proposal.message.hasChanges, !retention.isQueued(proposal.message) {
+        if reasons.isEmpty, !proposal.message.hasChanges, !builder.changesOffers(proposal.message), !retention.isQueued(proposal.message) {
             reasons.append(String(localized: "That’s what App Store Connect has already."))
         }
         guard reasons.isEmpty else { return Self.refused(reasons, messageID: proposal.message.id, target: target) }
@@ -106,7 +106,9 @@ struct ProposeRetentionMessageTool: MCPTool {
 
     /// One language's shorter wording, kept for Use Shorter Version.
     private func suggest(_ proposal: RetentionMessageProposal, in retention: RetentionMCPContext, client: String, target: String) throws -> MCPToolOutcome {
-        guard !proposal.isNew, proposal.locales.count == 1, let locale = proposal.locales.first else {
+        // A draft that hasn't been pushed counts: that's where long words are found.
+        let isKnown = retention.messages.contains { $0.id == proposal.message.id }
+        guard isKnown, proposal.locales.count == 1, let locale = proposal.locales.first else {
             throw MCPToolError.invalidArgument(name: "suggestion", expected: String(localized: "one locale of an existing message (messageId)"))
         }
         guard proposal.refusals.isEmpty else { return Self.refused(proposal.refusals, messageID: proposal.message.id, target: target) }

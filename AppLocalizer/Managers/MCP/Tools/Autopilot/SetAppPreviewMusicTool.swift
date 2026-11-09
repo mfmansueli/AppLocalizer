@@ -58,6 +58,12 @@ struct SetAppPreviewMusicTool: MCPTool {
         if run.stage == .watchPreview, run.previewReview?.isBusy == true {
             return .refused(String(localized: "AppLocalizer is making the App Preview again. Try in a moment."), target: session.target)
         }
+        if run.stage == .watchPreview, run.previewReview == nil {
+            return .refused(String(localized: "There’s no App Preview to mix again: this run is only showing its header loop."), target: session.target)
+        }
+        guard run.plan.alsoMakes.previewMusic.track != track else {
+            return MCPToolOutcome(result: ["status": "unchanged", "track": .string(track.rawValue)], isError: false, logLines: [])
+        }
         await session.center.setPreviewMusic(AutopilotPreviewMusic(track: track), appID: session.app.id, context: session.context)
         let result: JSONValue = ["status": "set", "track": .string(track.rawValue)]
         return MCPToolOutcome(result: result, isError: false, logLines: [.init(target: "\(session.target) · \(track.title)", outcome: .proposed)])

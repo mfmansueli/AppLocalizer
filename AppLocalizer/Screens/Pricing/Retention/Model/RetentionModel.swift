@@ -34,9 +34,6 @@ final class RetentionModel {
     var isDarkPreview = false
     var isOfferSheetPresented = false
     var isImageSheetPresented = false
-    /// Messages whose source words changed since Translate All: it redoes
-    /// their translated languages.
-    var sourceEdited: Set<String> = []
     /// The language Translate All is on, while it runs.
     var translatingLocale: String?
     /// A line under the editor after Translate All or a refusal.

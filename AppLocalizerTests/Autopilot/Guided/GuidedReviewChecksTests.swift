@@ -24,7 +24,7 @@ struct GuidedReviewChecksTests {
         run.noteMotion([run.plan.screens[1].id: AutopilotMomentMotion(movingShare: 0, stillSeconds: 6)])
         let check = try #require(Self.check("motion", in: GuidedReviewChecks.checks(for: .appPreview, run: run)))
         #expect(check.state == .attention)
-        #expect(check.text == "Barely moves, even recorded again: Week")
+        #expect(check.text == "Barely moves: Week")
     }
 
     @Test func theMusicSaysWhereItCameFrom() {

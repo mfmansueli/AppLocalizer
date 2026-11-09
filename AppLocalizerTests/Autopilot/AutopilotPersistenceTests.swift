@@ -68,5 +68,18 @@ struct AutopilotPersistenceTests {
         #expect(persistence.load().runs == [other.appID: other, given.appID: given])
         #expect(persistence.load().designProjects == [saved.appID: StudioDebugRuns.northpier])
     }
+
+    /// The next save replaces the file, with every app's runs in it.
+    @Test func aDamagedFileIsKeptBesideIt() throws {
+        persistence.save(AutopilotArchive())
+        let damaged = Data("{ not json".utf8)
+        try damaged.write(to: persistence.url)
+        _ = persistence.load()
+
+        let folder = persistence.url.deletingLastPathComponent()
+        let names = try FileManager.default.contentsOfDirectory(atPath: folder.path(percentEncoded: false))
+        let copy = try #require(names.first { $0.hasPrefix("Autopilot-unreadable-") })
+        #expect(try Data(contentsOf: folder.appending(path: copy)) == damaged)
+    }
 }
 #endif

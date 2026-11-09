@@ -32,6 +32,8 @@ struct ListingChangeBuilder: Hashable, Sendable {
     /// AppLocalizer suggested them, so creating one is tagged Built-in, and
     /// one the person added is created when pushed, even before it has text.
     var newPages: Set<StoreLocale> = []
+    /// "macOS" when the version isn't the iOS one, for the review heading.
+    var platformTitle: String?
 
     static let versionLocalizationType = "appStoreVersionLocalizations"
     static let appInfoLocalizationType = "appInfoLocalizations"
@@ -73,7 +75,9 @@ struct ListingChangeBuilder: Hashable, Sendable {
     func group(at level: ListingFieldLevel) -> String {
         switch level {
         case .app: String(localized: "Store Page · App information")
-        case .version: String(localized: "Store Page · Version \(versionString)")
+        case .version:
+            platformTitle.map { String(localized: "Store Page · \($0) Version \(versionString)") }
+                ?? String(localized: "Store Page · Version \(versionString)")
         }
     }
 

@@ -43,6 +43,10 @@ enum GuidedStep: Int, CaseIterable, Hashable, Sendable {
     /// Make, Look and Plan: the run isn't started yet.
     var isSetup: Bool { self == .make || self == .look || self == .plan }
 
+    /// Whether Cancel asks first: past the first step the person has made
+    /// choices it would throw away.
+    var asksBeforeCancelling: Bool { self == .look || self == .plan }
+
     /// Where a run is: the setup step the person is on while it's planned,
     /// Making it while anything works on it (and at Pick captures, which
     /// it shows), Choose, Review & push at Watch and Ready, and Done once

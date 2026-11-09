@@ -161,6 +161,7 @@ final class StorePageViewModel {
     var changeBuilder: ListingChangeBuilder? {
         content.map { content in
             var builder = ListingChangeBuilder(appID: app.id, ids: content.ids, versionString: content.version.versionString)
+            builder.platformTitle = content.version.otherPlatformTitle
             builder.newPages = projectLocalesNotOnStore
             return builder
         }

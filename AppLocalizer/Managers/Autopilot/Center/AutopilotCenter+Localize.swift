@@ -16,6 +16,7 @@ extension AutopilotCenter {
         guard let run = runs[appID], run.stage == .choose || run.stage == .design,
               let direction = run.directions.first(where: { $0.id == directionID }) else { return }
         update(appID) { run in
+            run.giveUpWaitingRetakes(at: now())
             run.stage = .localize
             run.chosenDirectionID = directionID
             run.handedBackAt = now()

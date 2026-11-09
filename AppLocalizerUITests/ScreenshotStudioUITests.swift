@@ -112,6 +112,22 @@ final class ScreenshotStudioUITests: XCTestCase {
         XCTAssertTrue(element("autopilot.guided.plan.timeline").waitForExistence(timeout: 5), "Back at the plan")
     }
 
+    func testCancelAsksOncePastTheFirstStep() {
+        launch(scene: "st-plan")
+        _ = goToThePlan()
+        app.buttons["autopilot.guided.cancel"].click()
+        let keep = app.buttons["autopilot.guided.cancel.keep"]
+        XCTAssertTrue(keep.waitForExistence(timeout: 5), "Asks first")
+        keep.click()
+        XCTAssertTrue(element("autopilot.guided.sheet").exists, "Still planning")
+
+        app.buttons["autopilot.guided.cancel"].click()
+        let confirm = app.buttons["autopilot.guided.cancel.confirm"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.click()
+        XCTAssertTrue(element("autopilot.guided.sheet").waitForNonExistence(timeout: 5))
+    }
+
     func testThePersonCanKeepTheirScreens() {
         launch(scene: "st-plan")
         let start = goToThePlan()

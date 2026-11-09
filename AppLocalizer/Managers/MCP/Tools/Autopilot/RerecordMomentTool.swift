@@ -80,6 +80,8 @@ struct RerecordMomentTool: MCPTool {
             )
             let take = try session.center.receiveRetake(appID: session.app.id, upload: upload, target: target, retake: retake)
             await session.center.measureRetake(take, file: upload.file.url, appID: session.app.id)
+            // The last take may be all Design was waiting for.
+            await session.center.advance(session.app.id, context: session.context)
         } catch {
             return .refused(error.localizedDescription, target: place)
         }

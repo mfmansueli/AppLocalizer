@@ -19,9 +19,9 @@ extension AutopilotRun {
         case .capture:
             // The App Preview's recordings too: Claude Code is started
             // again for the ones left (Record Again).
-            !remainingTargets.isEmpty || !retries.isEmpty || !remainingRecordings.isEmpty
+            plan.awaitsScreens || !remainingTargets.isEmpty || !retries.isEmpty || !remainingRecordings.isEmpty
         case .design:
-            designKind.usesDesignAI && (revision != nil || directions.count < expectedDirections) || conceptsLeft > 0
+            !retakeTargets.isEmpty || designKind.usesDesignAI && (revision != nil || directions.count < expectedDirections) || conceptsLeft > 0
         case .localize:
             !overflows.isEmpty || artworkTextNeeds?.isEmpty == false || loopReview?.isAnimating == true
         case .watchPreview:
@@ -31,7 +31,9 @@ extension AutopilotRun {
             variantRequest != nil
         case .plan:
             screenRequest != nil
-        case .pick, .choose:
+        case .choose:
+            !retakeTargets.isEmpty
+        case .pick:
             false
         }
     }
@@ -50,7 +52,7 @@ extension AutopilotRun {
     /// The last time the assistant sent a capture, a problem, a direction
     /// or an App Preview revision.
     var lastNewsAt: Date? {
-        let dates = captures.map(\.receivedAt) + problems.map(\.reportedAt) + directions.map(\.receivedAt)
+        let dates = captures.map(\.receivedAt) + problems.map(\.reportedAt) + directions.map(\.receivedAt) + (retakes ?? []).map(\.receivedAt)
             + conceptList.map(\.receivedAt) + (previewReview?.revisions.map(\.madeAt) ?? []) + (loopReview?.revisions.map(\.madeAt) ?? [])
         return dates.max()
     }

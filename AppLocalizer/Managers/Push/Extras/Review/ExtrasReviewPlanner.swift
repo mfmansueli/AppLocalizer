@@ -55,8 +55,15 @@ struct ExtrasReviewPlanner {
         return ExtrasReviewPlan(
             appID: appID, appName: appName, directionName: extras.directionName, items: items, pushedCount: pushedCount,
             artwork: extras.artwork, primaryLocale: context.primaryLocale.code, variant: extras.variant, discardedCount: discardedCount,
-            musicTitle: extras.hasPreviews ? extras.previewMusic?.title : nil
+            musicTitle: extras.hasPreviews ? extras.previewMusic?.title : nil,
+            blockedReason: Self.blockedReason(context)
         )
+    }
+
+    private static func blockedReason(_ context: ScreenshotsContext) -> String? {
+        guard !context.version.isEditable else { return nil }
+        let version = context.version.versionString
+        return String(localized: "Version \(version) is live. The header, search artwork and App Previews can only change with a version that’s being prepared.")
     }
 
     static func name(of code: String) -> String {

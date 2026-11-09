@@ -52,6 +52,11 @@ extension AutopilotCenter {
         run.briefReadAt = nil
         run.handedBackAt = nil
         run.finishedAt = nil
+        // A retake still waiting would stop the next Design, and approvals
+        // were of what this run made.
+        run.momentRetakes = nil
+        run.motionRetakes = nil
+        run.guidedReview = nil
         run.problems.removeAll(where: \.isOpen)
         run.keptCaptureCount = run.keptTargetCount
     }

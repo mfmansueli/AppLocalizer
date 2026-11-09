@@ -26,10 +26,12 @@ struct ExtrasReviewPlan: Hashable, Sendable {
     /// The App Previews' music: "Warm acoustic"; nil without App Previews
     /// or from before music.
     var musicTitle: String?
+    /// Why none of it can go now: the version is live.
+    var blockedReason: String?
 
     /// Nothing to show, push, test or undo.
     var isEmpty: Bool { items.isEmpty && artwork.isEmpty && discardedCount == 0 }
-    var pushable: [ExtrasReviewItem] { items.filter { !$0.isBlocked } }
+    var pushable: [ExtrasReviewItem] { blockedReason == nil ? items.filter { !$0.isBlocked } : [] }
     var blocked: [ExtrasReviewItem] { items.filter(\.isBlocked) }
 
     /// The artwork kinds made, in order.

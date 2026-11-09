@@ -18,6 +18,11 @@ final class FakeScreenshotUploadTransport: ScreenshotUploadTransport {
         var timeouts: [String: Int] = [:]
         /// Apple reports `IMAGE_TOOL_FAILURE`, once.
         var processingFailures: Set<String> = []
+        /// Checks answered `UPLOAD_COMPLETE` before `COMPLETE`, by the
+        /// start of the file name.
+        var processingChecks: [String: Int] = [:]
+        /// Looks fine at the first check, then Apple reports `FAILED`.
+        var failsLater: Set<String> = []
         /// Reserving finds the Mac offline.
         var offline: Set<String> = []
         /// The first request gets a 429.
@@ -36,6 +41,7 @@ final class FakeScreenshotUploadTransport: ScreenshotUploadTransport {
         var fileNames: [String: String] = [:]
         var uploaded: [String: Data] = [:]
         var spent: Set<String> = []
+        var checks: [String: Int] = [:]
         var remaining: Int
     }
 
@@ -96,7 +102,19 @@ final class FakeScreenshotUploadTransport: ScreenshotUploadTransport {
             let errors: [[String: Any]] = [["code": "IMAGE_TOOL_FAILURE", "description": "The image couldn’t be processed."]]
             return response(id: id, attributes: ["assetDeliveryState": ["state": "FAILED", "errors": errors]])
         }
-        return response(id: id, attributes: ["assetDeliveryState": ["state": "UPLOAD_COMPLETE"]])
+        let checks = state.withLock { state in
+            state.checks[id, default: 0] += 1
+            return state.checks[id, default: 0]
+        }
+        if Self.matching(fileName, script.failsLater) != nil {
+            guard checks > 1 else { return response(id: id, attributes: ["assetDeliveryState": ["state": "UPLOAD_COMPLETE"]]) }
+            let errors: [[String: Any]] = [["code": "IMAGE_TOOL_FAILURE", "description": "The image couldn’t be processed."]]
+            return response(id: id, attributes: ["assetDeliveryState": ["state": "FAILED", "errors": errors]])
+        }
+        if let name = Self.matching(fileName, Set(script.processingChecks.keys)), checks <= script.processingChecks[name, default: 0] {
+            return response(id: id, attributes: ["assetDeliveryState": ["state": "UPLOAD_COMPLETE"]])
+        }
+        return response(id: id, attributes: ["assetDeliveryState": ["state": "COMPLETE"]])
     }
 
     func upload(_ operation: ScreenshotUploadOperation, data: Data, progress: @escaping @Sendable (Int64) -> Void) async throws {
