@@ -132,11 +132,12 @@ final class PushController {
 
     // MARK: - Running
 
-    /// Starts pushing `changes` in order. Blocked ones are left in review.
+    /// Starts pushing `changes` in order, except that retention offers wait
+    /// for their app's retention messages. Blocked ones are left in review.
     func push(_ changes: [PendingChange]) {
         guard phase != .running else { return }
         rememberUnfinished()
-        items = changes.filter { !$0.isBlocked }.map(resumed)
+        items = RetentionPushOrder.sorted(changes.filter { !$0.isBlocked }).map(resumed)
         notice = nil
         inAppDrafts = [:]
         inAppDraftRefusals = [:]
