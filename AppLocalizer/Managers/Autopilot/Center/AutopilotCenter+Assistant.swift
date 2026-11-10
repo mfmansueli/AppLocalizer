@@ -113,8 +113,10 @@ extension AutopilotCenter {
     }
 
     /// The person's answer to a problem: retry with the fix (which joins
-    /// the plan when it's a command, not a change to the project), reuse
-    /// the primary language's capture, or a capture they uploaded.
+    /// the plan's setup when it's a command, not a change to the project:
+    /// as a command when it starts with xcrun or xcodebuild, else as a
+    /// note), reuse the primary language's capture, or a capture they
+    /// uploaded.
     func resolveProblem(appID: StoreApp.ID, problemID: String, with resolution: AutopilotProblemResolution, context: AutopilotContext) async {
         await resolveProblems(appID: appID, problemIDs: [problemID], with: resolution, context: context)
     }
@@ -131,8 +133,7 @@ extension AutopilotCenter {
                 let problem = run.problems[index]
                 switch resolution {
                 case .retryWithFix where problem.fixIsCommand:
-                    let fix = problem.proposedFix?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                    if !fix.isEmpty, !run.plan.simulator.extraCommands.contains(fix) { run.plan.simulator.extraCommands.append(fix) }
+                    run.plan.simulator.addFix(problem.proposedFix ?? "")
                 case .usePrimaryCapture where problem.needsProjectChange:
                     run.usePrimaryCapture(screenID: problem.target.screenID, on: problem.target.displayType)
                 default:

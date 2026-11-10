@@ -30,7 +30,10 @@ struct GetCapturePlanTool: MCPTool {
         screens have no steps, write them from the project's UI tests, deep links or launch arguments and send \
         them with update_capture_plan first. When appLook's status isn't known, read the app's look and design \
         language in the project first and send it with report_app_support's look, as appLook says: every design in \
-        the run starts from it. Pass xcode and simulators so the person sees what you use.
+        the run starts from it. Pass xcode and simulators so the person sees what you use. simulatorSetup.commands \
+        ends with addedByFixes, the commands fixes added; simulatorSetup.notes are instructions fixes left, never \
+        run as they are. queuedForNextPlan lists what you or another assistant sent for the next plan that still \
+        waits for the person: don't send it again.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
@@ -52,6 +55,10 @@ struct GetCapturePlanTool: MCPTool {
         var plan = session.run.mcpPlan(appName: session.app.name, bundleID: session.app.bundleID, port: context.port)
         Self.addAppLook(&plan, appID: session.app.id, in: context)
         Self.addSimulatorIDs(&plan, inventory: context.simulators?.inventory)
+        if case var .object(json) = plan, let queued = session.center.planProposals(for: session.app.id).mcpJSON {
+            json["queuedForNextPlan"] = queued
+            plan = .object(json)
+        }
         return .read(plan, target: session.target)
     }
 

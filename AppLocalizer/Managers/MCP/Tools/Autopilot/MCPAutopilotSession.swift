@@ -18,11 +18,7 @@ struct MCPAutopilotSession {
     /// `atPlan`: a tool the plan uses before the run starts (Suggest
     /// Screens).
     static func load(_ arguments: MCPToolArguments, in context: MCPToolContext, atPlan: Bool = false) async throws -> MCPAutopilotSession {
-        let app = try await context.workspace.app(matching: arguments.string("appId"))
-        let services = context.workspace.services.screenshots
-        guard let center = services.autopilot else {
-            throw MCPToolError.unavailable(String(localized: "Screenshot Autopilot isn’t available here."))
-        }
+        let (app, center) = try await center(arguments, in: context)
         guard let run = center.run(for: app.id), run.stage != .plan || atPlan else {
             throw MCPToolError.notFound(String(localized: "\(app.name) has no Autopilot run waiting. Ask the person to open AppLocalizer → Screenshots → Run Autopilot… and press Start Autopilot."))
         }
@@ -30,6 +26,21 @@ struct MCPAutopilotSession {
             throw MCPToolError.notFound(String(localized: "Run “\(wanted)” is over; \(app.name)’s current run is “\(run.id)”. Call get_capture_plan."))
         }
         return MCPAutopilotSession(app: app, center: center, context: Self.context(app: app, run: run, in: context), run: run)
+    }
+
+    /// The app a tool is about and the center that keeps its runs, whether
+    /// it has a run or not: the plan's proposals don't need one.
+    static func center(_ arguments: MCPToolArguments, in context: MCPToolContext) async throws -> (app: StoreApp, center: AutopilotCenter) {
+        let app = try await context.workspace.app(matching: arguments.string("appId"))
+        guard let center = context.workspace.services.screenshots.autopilot else {
+            throw MCPToolError.unavailable(String(localized: "Screenshot Autopilot isn’t available here."))
+        }
+        return (app, center)
+    }
+
+    /// "Lumen Journal · Autopilot".
+    static func target(_ app: StoreApp) -> String {
+        String(localized: "\(app.name) · Autopilot")
     }
 
     /// What a run touches the app's screenshots with, in its primary
@@ -46,7 +57,7 @@ struct MCPAutopilotSession {
     }
 
     /// "Lumen Journal · Autopilot".
-    var target: String { String(localized: "\(app.name) · Autopilot") }
+    var target: String { Self.target(app) }
 
     /// "Lumen Journal · Today · de-DE · iPhone 6.9″".
     func target(_ capture: AutopilotCaptureTarget) -> String {

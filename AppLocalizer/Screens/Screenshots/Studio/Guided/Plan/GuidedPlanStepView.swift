@@ -5,10 +5,11 @@
 
 import SwiftUI
 
-/// Step 3, Plan: the run as a timeline (who does what, how long, where
-/// it stops for the person), the screens under the capture line, fewer
-/// stops or more control with the simulator options, and This Mac: each
-/// device's simulator before Start.
+/// Step 3, Plan: what the assistant sent for this plan outside a run, the
+/// run as a timeline (who does what, how long, where it stops for the
+/// person), the screens under the capture line, fewer stops or more
+/// control with the simulator options, and This Mac: each device's
+/// simulator before Start.
 struct GuidedPlanStepView: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -33,6 +34,10 @@ struct GuidedPlanStepView: View {
                     Text("Autopilot runs on its own and stops only where it says \(Text("You").fontWeight(.semibold)).")
                         .font(.callout)
                         .foregroundStyle(Palette.label2)
+                }
+                let proposals = studio.planProposals
+                if proposals.isWaiting {
+                    AutopilotPlanChangesCard(studio: studio, run: run, proposals: proposals)
                 }
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(rows) { row in

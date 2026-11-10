@@ -101,8 +101,16 @@ extension ScreenshotStudioModel {
 
     /// "Screens Lumen’s set is missing", "Apple Watch screens Lumen is
     /// missing", "For “one that shows the streak”".
+    ///
+    /// Sent outside Suggest Screens: "Screens Claude Code suggested for
+    /// Lumen’s set", "Apple Watch screens Claude Code suggested".
     func suggestionsTitle(_ suggestions: AutopilotScreenSuggestions) -> String {
         if let ask = suggestions.ask { return String(localized: "For “\(ask)”") }
+        if suggestions.id != nil {
+            return suggestions.device == .watch
+                ? String(localized: "Apple Watch screens \(suggestions.client) suggested")
+                : String(localized: "Screens \(suggestions.client) suggested for \(app.name)’s set")
+        }
         return suggestions.device == .watch
             ? String(localized: "Apple Watch screens \(app.name) is missing")
             : String(localized: "Screens \(app.name)’s set is missing")

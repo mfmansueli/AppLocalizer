@@ -25,8 +25,14 @@ struct AutopilotSimulatorSetup: Codable, Hashable, Sendable {
     /// (runs from before) counts as yes. Use `grantsPermissions`.
     var grantsPermissionsUpFront: Bool?
     /// Commands added by fixes, e.g. `xcrun simctl privacy booted grant
-    /// photos <bundle ID>`, run before capturing.
+    /// photos <bundle ID>`, run before capturing: only lines that start with
+    /// xcrun or xcodebuild (`isSetupCommand`).
     var extraCommands: [String] = []
+    /// What fixes said that isn't a command to run as it is, e.g. "Install
+    /// the iOS 27.1 simulator runtime": the assistant reads them before
+    /// capturing. Nil when there are none, and in runs from before. Use
+    /// `fixNotes`.
+    var notes: [String]?
 
     /// Photos, location, contacts and the rest are granted up front
     /// (`xcrun simctl privacy … grant all`), so no permission alert lands
@@ -35,6 +41,44 @@ struct AutopilotSimulatorSetup: Codable, Hashable, Sendable {
         get { grantsPermissionsUpFront ?? true }
         set { grantsPermissionsUpFront = newValue }
     }
+
+    /// The notes fixes left, read before capturing; never run.
+    var fixNotes: [String] {
+        get { notes ?? [] }
+        set { notes = newValue.isEmpty ? nil : newValue }
+    }
+
+    /// A fix the person took joins the setup: a command when it's one line
+    /// starting with xcrun or xcodebuild, else a note.
+    mutating func addFix(_ fix: String) {
+        let fix = fix.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !fix.isEmpty else { return }
+        if Self.isSetupCommand(fix) {
+            if !extraCommands.contains(fix) { extraCommands.append(fix) }
+        } else if !fixNotes.contains(fix) {
+            fixNotes.append(fix)
+        }
+    }
+
+    /// The programs a setup command may start with.
+    static let setupPrograms: Set<String> = ["xcrun", "xcodebuild"]
+
+    /// One line that starts with xcrun or xcodebuild: the only commands the
+    /// setup runs as they are. `TEST_RUNNER_X=1 xcodebuild …` isn't one
+    /// (AppLocalizer's own Claude Code refuses it), and neither is an
+    /// instruction like "Make WatchSnapshot.preview load its phrases…".
+    static func isSetupCommand(_ text: String) -> Bool {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.contains(where: \.isNewline), let program = text.split(separator: " ").first else { return false }
+        return setupPrograms.contains(String(program))
+    }
+
+    /// What `get_capture_plan` says about the notes.
+    static let notesNote = """
+    Notes from fixes the person took: they aren't commands, so don't run them as they are. Do what they say before \
+    capturing when it still applies; when one is done or wrong, send the notes that should stay with update_capture_plan \
+    setupNotes.
+    """
 
     /// Entries, names and places in the capture's language: a Japanese
     /// screen with English sample entries looks unfinished.
@@ -86,4 +130,24 @@ struct AutopilotSimulatorSetup: Codable, Hashable, Sendable {
     -parallel-testing-enabled NO (one the project has, or a small one in its UI test target that taps \
     XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Don’t Allow"]), never by erasing the simulator.
     """
+}
+
+extension AutopilotSimulatorSetup {
+    /// Runs from before kept every fix in `extraCommands`, instructions
+    /// too (Alba's "Make WatchSnapshot.preview load its phrases…" and
+    /// "Install the iOS 27.1+ simulator runtime…"): read back, the ones that
+    /// aren't commands are notes. A key that's missing keeps its default.
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        overridesStatusBar = try container.decodeIfPresent(Bool.self, forKey: .overridesStatusBar) ?? overridesStatusBar
+        usesSampleData = try container.decodeIfPresent(Bool.self, forKey: .usesSampleData) ?? usesSampleData
+        sampleDataSteps = try container.decodeIfPresent(String.self, forKey: .sampleDataSteps) ?? sampleDataSteps
+        localizesSampleData = try container.decodeIfPresent(Bool.self, forKey: .localizesSampleData)
+        lightAppearance = try container.decodeIfPresent(Bool.self, forKey: .lightAppearance) ?? lightAppearance
+        grantsPermissionsUpFront = try container.decodeIfPresent(Bool.self, forKey: .grantsPermissionsUpFront)
+        let commands = try container.decodeIfPresent([String].self, forKey: .extraCommands) ?? []
+        let notes = try container.decodeIfPresent([String].self, forKey: .notes) ?? []
+        extraCommands = commands.filter(Self.isSetupCommand)
+        fixNotes = notes + commands.filter { !Self.isSetupCommand($0) && !notes.contains($0) }
+    }
 }

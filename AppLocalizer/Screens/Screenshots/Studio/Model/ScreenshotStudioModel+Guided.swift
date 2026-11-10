@@ -13,12 +13,15 @@ extension ScreenshotStudioModel {
     /// The step the guided sheet shows.
     var guidedStep: GuidedStep { GuidedStep.step(of: run, setup: guided.setupStep) }
 
-    /// The Screenshots page's strip for the guided front.
+    /// The Screenshots page's strip for the guided front. Between runs it
+    /// says what the assistant sent for the next plan.
     func guidedStrip(assistant: String?) -> AutopilotStripContent {
-        AutopilotStripContent.guided(
+        var strip = AutopilotStripContent.guided(
             run: run, appName: app.name, assistant: assistant, designProject: designProject, hasNewSet: hasNewSet,
             stall: stall, now: autopilot?.now() ?? .now
         )
+        if [nil, .plan, .ready].contains(run?.stage), let line = planProposalsLine { strip.text += " " + line }
+        return strip
     }
 
     /// The stepper's position (between Choose and Review & push while

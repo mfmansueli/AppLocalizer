@@ -57,32 +57,44 @@ extension AutopilotCenter {
     }
 
     /// Add to Plan: after the device's screens (the set's, or Apple
-    /// Watch's), marked as suggested.
+    /// Watch's), marked as suggested. A screen sent outside Suggest Screens
+    /// comes from the ones kept for the next plan.
     func addSuggestedScreen(_ id: String, appID: StoreApp.ID) {
+        guard runs[appID]?.screenSuggestions?.items.contains(where: { $0.id == id }) == true else {
+            addQueuedScreen(id, appID: appID)
+            return
+        }
         update(appID) { run in
-            guard run.stage == .plan, let suggestions = run.screenSuggestions,
-                  run.plan.takesNewScreens(on: suggestions.device), run.plan.screenRoom(on: suggestions.device) > 0,
-                  let index = suggestions.items.firstIndex(where: { $0.id == id && $0.status == .open })
+            guard let suggestions = run.screenSuggestions,
+                  let index = suggestions.items.firstIndex(where: { $0.id == id && $0.status == .open }),
+                  Self.append(suggestions.items[index], from: suggestions, to: &run)
             else { return }
-            let item = suggestions.items[index]
-            let display = suggestions.device
-            run.plan.appendScreen(
-                AutopilotScreen(
-                    id: run.plan.newScreenID(named: item.name, on: display), name: item.name, steps: item.steps,
-                    caption: display.hasCaptions ? item.caption : "", origin: .suggestion(client: suggestions.client)
-                ),
-                on: display
-            )
             run.screenSuggestions?.items[index].status = .added
-            run.keptCaptureCount = run.keptTargetCount
         }
     }
 
     func dismissScreenSuggestion(_ id: String, appID: StoreApp.ID) {
+        guard runs[appID]?.screenSuggestions?.items.contains(where: { $0.id == id }) == true else {
+            dismissQueuedScreen(id, appID: appID)
+            return
+        }
         update(appID) { run in
             guard let index = run.screenSuggestions?.items.firstIndex(where: { $0.id == id }) else { return }
             run.screenSuggestions?.items[index].status = .dismissed
         }
+    }
+
+    /// Puts a suggested screen at the end of its device's, while the plan
+    /// is open and has room; false when it can't.
+    static func append(_ item: AutopilotScreenSuggestion, from suggestions: AutopilotScreenSuggestions, to run: inout AutopilotRun) -> Bool {
+        let display = suggestions.device
+        guard run.stage == .plan, item.status == .open, run.plan.takesNewScreens(on: display), run.plan.screenRoom(on: display) > 0 else {
+            return false
+        }
+        let id = run.plan.newScreenID(named: item.name, on: display)
+        run.plan.appendScreen(item.screen(id: id, on: display, client: suggestions.client), on: display)
+        run.keptCaptureCount = run.keptTargetCount
+        return true
     }
 
     /// Done: the suggestions go away; the added screens stay.

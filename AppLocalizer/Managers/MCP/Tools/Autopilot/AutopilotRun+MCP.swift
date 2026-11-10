@@ -43,26 +43,6 @@ extension AutopilotRun {
             if newCodes.contains(code) { locale["notOnAppStoreYet"] = true }
             return .object(locale)
         }
-        let commands = simulatorCommands(bundleID: bundleID)
-        var simulator: [String: JSONValue] = [
-            "lightAppearance": .bool(plan.simulator.lightAppearance),
-            "commands": .array(commands.map(JSONValue.string)),
-        ]
-        if plan.simulator.lightAppearance { simulator["alerts"] = .string(AutopilotSimulatorSetup.alertsNote) }
-        // With nothing to run there's nothing to run on each simulator.
-        if !commands.isEmpty, plan.displayTypes.count(where: { $0 != .mac }) > 1 {
-            simulator["eachSimulator"] = .string(AutopilotSimulatorSetup.eachSimulatorNote)
-        }
-        if plan.simulator.usesSampleData {
-            simulator["sampleData"] = .string(
-                plan.simulator.sampleDataSteps.isEmpty
-                    ? "Find the app's sample-data switch (a debug menu, launch argument or UI test helper) and use it."
-                    : plan.simulator.sampleDataSteps
-            )
-            if plan.capturesEachLanguage, plan.simulator.sampleDataInEachLanguage {
-                simulator["sampleDataLanguage"] = .string(AutopilotSimulatorSetup.sampleDataLanguageNote)
-            }
-        }
         var json: [String: JSONValue] = [
             "run": .string(id),
             "app": .string(appName),
@@ -74,7 +54,7 @@ extension AutopilotRun {
             "primaryLocale": .string(plan.primaryLocale),
             "locales": .array(locales),
             "capturesEachLanguage": .bool(plan.capturesEachLanguage),
-            "simulatorSetup": .object(simulator),
+            "simulatorSetup": mcpSimulatorSetup(bundleID: bundleID),
             "attemptsPerScreen": 3,
             "captured": .int(capturedCount),
             "total": .int(totalCaptures),
@@ -90,6 +70,40 @@ extension AutopilotRun {
         json["alsoMake"] = mcpAlsoMake(upload: upload)
         json["noScreenshots"] = mcpNoScreenshots
         return .object(json)
+    }
+
+    /// `get_capture_plan`'s `simulatorSetup`: the commands to run (the
+    /// fixes' last, also as `addedByFixes`), the fixes' notes, and how to
+    /// get the alerts and sample data right.
+    private func mcpSimulatorSetup(bundleID: String) -> JSONValue {
+        let commands = simulatorCommands(bundleID: bundleID)
+        var simulator: [String: JSONValue] = [
+            "lightAppearance": .bool(plan.simulator.lightAppearance),
+            "commands": .array(commands.map(JSONValue.string)),
+        ]
+        if !plan.simulator.extraCommands.isEmpty {
+            simulator["addedByFixes"] = .array(plan.simulator.extraCommands.map(JSONValue.string))
+        }
+        if !plan.simulator.fixNotes.isEmpty {
+            simulator["notes"] = .array(plan.simulator.fixNotes.map(JSONValue.string))
+            simulator["notesAre"] = .string(AutopilotSimulatorSetup.notesNote)
+        }
+        if plan.simulator.lightAppearance { simulator["alerts"] = .string(AutopilotSimulatorSetup.alertsNote) }
+        // With nothing to run there's nothing to run on each simulator.
+        if !commands.isEmpty, plan.displayTypes.count(where: { $0 != .mac }) > 1 {
+            simulator["eachSimulator"] = .string(AutopilotSimulatorSetup.eachSimulatorNote)
+        }
+        if plan.simulator.usesSampleData {
+            simulator["sampleData"] = .string(
+                plan.simulator.sampleDataSteps.isEmpty
+                    ? "Find the app's sample-data switch (a debug menu, launch argument or UI test helper) and use it."
+                    : plan.simulator.sampleDataSteps
+            )
+            if plan.capturesEachLanguage, plan.simulator.sampleDataInEachLanguage {
+                simulator["sampleDataLanguage"] = .string(AutopilotSimulatorSetup.sampleDataLanguageNote)
+            }
+        }
+        return .object(simulator)
     }
 
     /// How to choose the screens and write their captions, while the

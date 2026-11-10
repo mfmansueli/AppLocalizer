@@ -5,9 +5,9 @@
 
 import SwiftUI
 
-/// The assistant's suggested screens, from Suggest Screens: each with why
-/// and how, to add or dismiss; Done closes them. Nothing is added on its
-/// own.
+/// The assistant's suggested screens, from Suggest Screens or sent for the
+/// next plan outside it: each with why and how, to add or dismiss; Done
+/// closes them. Nothing is added on its own.
 struct AutopilotScreenSuggestionsBox: View {
     @Bindable var studio: ScreenshotStudioModel
     let suggestions: AutopilotScreenSuggestions
@@ -22,9 +22,11 @@ struct AutopilotScreenSuggestionsBox: View {
                     .font(.callout.weight(.semibold))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier("autopilot.plan.suggestions.title")
-                Button("Done") { studio.closeSuggestions() }
-                    .buttonStyle(.borderless)
-                    .accessibilityIdentifier("autopilot.plan.suggestions.done")
+                Button("Done") {
+                    if let id = suggestions.id { studio.closeQueuedScreens(id) } else { studio.closeSuggestions() }
+                }
+                .buttonStyle(.borderless)
+                .accessibilityIdentifier("\(identifier).done")
             }
             let shown = suggestions.shown
             ForEach(Array(shown.enumerated()), id: \.element.id) { index, suggestion in
@@ -40,6 +42,12 @@ struct AutopilotScreenSuggestionsBox: View {
         .padding(Spacing.medium)
         .background(Palette.machineTranslatedTint.opacity(0.5), in: RoundedRectangle(cornerRadius: Radius.banner, style: .continuous))
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("autopilot.plan.suggestions")
+        .accessibilityIdentifier(identifier)
+    }
+
+    /// Suggest Screens' answer, or `autopilot.plan.queuedScreens.<id>` for
+    /// screens sent for the next plan.
+    private var identifier: String {
+        suggestions.id.map { "autopilot.plan.queuedScreens.\($0)" } ?? "autopilot.plan.suggestions"
     }
 }

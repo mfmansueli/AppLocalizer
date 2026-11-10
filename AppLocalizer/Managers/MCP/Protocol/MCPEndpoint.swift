@@ -47,7 +47,9 @@ enum MCPEndpoint {
     proposal is validated like a manual edit and queued in AppLocalizer, where the person reviews and pushes \
     it. You can't push, and nothing reaches App Store Connect until the person does. When a proposal is \
     refused, the reason says how to fix it. Screenshot Autopilot runs are driven by you: once the person \
-    starts one, call get_capture_plan, then next_step after each step until it says done. Always tell the \
-    person what you couldn't see.
+    starts one, call get_capture_plan, then next_step after each step until it says done. When the app's \
+    screens change outside a run, send new ones with propose_screens and new steps, sample data or setup \
+    commands with update_capture_plan: they wait for the person in the next plan. Always tell the person what \
+    you couldn't see.
     """
 }

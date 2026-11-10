@@ -7,8 +7,8 @@ import SwiftUI
 
 /// How Simulator is set up for the captures, opened in place under the
 /// plan's Simulator line: each language, the status bar, sample data in
-/// each language, light appearance, permissions, and the commands a fix
-/// added.
+/// each language, light appearance, permissions, and the commands and notes
+/// fixes added, each with Remove.
 struct AutopilotSimulatorOptions: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -44,21 +44,57 @@ struct AutopilotSimulatorOptions: View {
             isOn: planBinding(\.simulator.grantsPermissions), identifier: "autopilot.plan.permissions"
         )
         ForEach(plan.simulator.extraCommands, id: \.self) { command in
-            row(String(localized: "Added by a fix"), detail: command, isOn: .constant(true), isLocked: true)
+            fixRow(String(localized: "Command added by a fix"), detail: command, isCommand: true, identifier: "autopilot.plan.extraCommand") {
+                studio.removeFixCommand(command)
+            }
+        }
+        ForEach(plan.simulator.fixNotes, id: \.self) { note in
+            fixRow(
+                String(localized: "Note from a fix · \(client) reads it, never runs it"), detail: note, isCommand: false,
+                identifier: "autopilot.plan.fixNote"
+            ) {
+                studio.removeFixNote(note)
+            }
         }
     }
 
-    private func row(
-        _ title: String, detail: String, isOn: Binding<Bool>, identifier: String? = nil, isFirst: Bool = false, isLocked: Bool = false
-    ) -> some View {
+    private func row(_ title: String, detail: String, isOn: Binding<Bool>, identifier: String, isFirst: Bool = false) -> some View {
         VStack(spacing: 0) {
             if !isFirst { Divider() }
-            AutopilotOptionRow(title: title, detail: detail, isOn: isOn, isLocked: isLocked)
+            AutopilotOptionRow(title: title, detail: detail, isOn: isOn)
                 .font(.callout.weight(.medium))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
-                .accessibilityIdentifier(identifier ?? "autopilot.plan.extraCommand")
+                .accessibilityIdentifier(identifier)
+        }
+    }
+
+    /// A command or note a fix added: what it says, and Remove, so a fix
+    /// that's done or wrong doesn't stay in every run.
+    private func fixRow(_ title: String, detail: String, isCommand: Bool, identifier: String, remove: @escaping () -> Void) -> some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.small) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                    Text(detail)
+                        .font(.system(.caption, design: isCommand ? .monospaced : .default))
+                        .foregroundStyle(Palette.label2)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Button("Remove", action: remove)
+                    .controlSize(.small)
+                    .accessibilityLabel(Text("Remove \(detail)"))
+                    .accessibilityIdentifier("\(identifier).remove")
+            }
+            .font(.callout.weight(.medium))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier(identifier)
         }
     }
 

@@ -8,7 +8,10 @@ import Foundation
 /// `update_capture_plan`: the screens the assistant found in the code, with
 /// the steps to reach each, before it captures. Existing screens keep
 /// their IDs; new ones join while nothing has been captured yet. With
-/// `replace`, the screens it chose take the place of the plan's.
+/// `replace`, the screens it chose take the place of the plan's. Outside a
+/// capture, what it sends is a proposal for the next plan
+/// (`UpdateCapturePlanTool+Proposal`); the commands and notes fixes added
+/// always are.
 struct UpdateCapturePlanTool: MCPTool {
     let definition = MCPToolDefinition(
         name: "update_capture_plan",
@@ -25,12 +28,21 @@ struct UpdateCapturePlanTool: MCPTool {
         show the first three), and the others there are dropped, \
         except the screens the person added (addedBy in get_capture_plan): they stay, after yours, unless you send them. \
         iPhone Duo uses the same screens as iPhone (get_capture_plan's poses say which it shows open or closed). Also takes the file the steps \
-        came from (writtenFrom, e.g. LumenUITests/ScreenshotTests.swift) and the app's sample-data switch.
+        came from (writtenFrom, e.g. LumenUITests/ScreenshotTests.swift) and the app's sample-data switch. \
+        That's while a run captures (stage waiting or capture). At any other time (a run at Plan or Review & Push, or no \
+        run), what you send is queued as one proposal for the app's next plan (status queued, with a proposalId): the new \
+        steps of screens the plan already has (by id or name; suggest new screens with propose_screens), sampleData and \
+        writtenFrom. The person accepts or rejects it when the plan opens, and it applies from that run on; sending a \
+        field again replaces what waited for it. setupCommands replaces the commands fixes added \
+        (get_capture_plan's simulatorSetup.addedByFixes; [] removes them all): each is run as it is, so it's one line \
+        starting with xcrun or xcodebuild, with no VAR=value in front. setupNotes replaces the notes fixes left \
+        (simulatorSetup.notes): instructions that aren't commands. Those two are always a proposal, during a capture \
+        too. Pass reason and evidence for the person.
         """,
         inputSchema: MCPToolDefinition.schema(
             [
                 "appId": MCPToolDefinition.string("The app's Apple ID, bundle ID, SKU or name, from list_apps."),
-                "run": MCPToolDefinition.string("The run's ID from get_capture_plan."),
+                "run": MCPToolDefinition.string("The run's ID from get_capture_plan, while it captures."),
                 "screens": [
                     "type": "array",
                     "items": [
@@ -52,22 +64,59 @@ struct UpdateCapturePlanTool: MCPTool {
                 ],
                 "writtenFrom": MCPToolDefinition.string("The file or files the steps come from."),
                 "sampleData": MCPToolDefinition.string("How the app loads sample data, e.g. launch argument -ui-sample-week."),
+                "setupCommands": [
+                    "type": "array",
+                    "items": ["type": "string"],
+                    "description": """
+                    Every command fixes added, in place of the plan's (simulatorSetup.addedByFixes); [] removes them all. \
+                    Each one line starting with xcrun or xcodebuild.
+                    """,
+                ],
+                "setupNotes": [
+                    "type": "array",
+                    "items": ["type": "string"],
+                    "description": "Every note fixes left, in place of the plan's (simulatorSetup.notes); [] removes them all.",
+                ],
+                "reason": MCPToolDefinition.string("For a proposal: why, in a sentence or two the person reads before accepting."),
+                "evidence": MCPToolDefinition.string("For a proposal: the files, targets or commits that show it."),
             ],
-            required: ["appId", "run", "screens"]
+            required: ["appId"]
         ),
         changesState: true
     )
 
     func call(_ arguments: MCPToolArguments, in context: MCPToolContext) async throws -> MCPToolOutcome {
-        var session = try await MCPAutopilotSession.load(arguments, in: context)
-        guard [.waiting, .capture].contains(session.run.stage) else {
-            return .refused(String(localized: "The plan can’t change now: the run is at \(session.run.stage.title)."), target: session.target)
+        let (app, center) = try await MCPAutopilotSession.center(arguments, in: context)
+        guard let run = center.run(for: app.id), [.waiting, .capture].contains(run.stage) else {
+            return try propose(arguments, app: app, center: center, client: context.clientName)
         }
+        return try await writeDuringCapture(arguments, in: context)
+    }
+
+    /// While a run captures: the screens' steps go into its plan; the
+    /// commands and notes fixes added wait for the person.
+    private func writeDuringCapture(_ arguments: MCPToolArguments, in context: MCPToolContext) async throws -> MCPToolOutcome {
+        var session = try await MCPAutopilotSession.load(arguments, in: context)
         let canAdd = session.run.captures.isEmpty
-        let items = try arguments.array("screens")
+        let items = try arguments.optionalArray("screens") ?? []
         let replaces = try arguments.optionalBool("replace") ?? false
         if replaces, let refusal = Self.replaceRefusal(canAdd: canAdd, plan: session.run.plan) {
             return .refused(refusal, target: session.target)
+        }
+        let setup = try Self.setupLists(arguments)
+        if let refusal = Self.setupRefusal(commands: setup.commands) { return .refused(refusal, target: session.target) }
+        let writesPlan = try !items.isEmpty || arguments.optionalString("writtenFrom") != nil || arguments.optionalString("sampleData") != nil
+        guard writesPlan || setup.commands != nil || setup.notes != nil else {
+            return .refused(Self.nothingSent, target: session.target)
+        }
+        let setupProposal = try Self.proposeSetup(
+            setup, arguments: arguments, plan: session.run.plan, center: session.center, client: context.clientName, appID: session.app.id
+        )
+        guard writesPlan else {
+            guard let setupProposal else {
+                return .refused(String(localized: "Nothing changes: the plan already has these commands and notes."), target: session.target)
+            }
+            return Self.outcome(for: setupProposal, refused: [], unchanged: [], target: session.target)
         }
         var plan = session.run.plan
         let sent = Set(items.map(Self.display(of:)))
@@ -94,6 +143,9 @@ struct UpdateCapturePlanTool: MCPTool {
         var result = session.run.mcpPlan(appName: session.app.name, bundleID: session.app.bundleID, port: context.port).objectValue ?? [:]
         result["status"] = refused.isEmpty ? "updated" : "partial"
         if !refused.isEmpty { result["refused"] = .array(refused) }
+        if let setupProposal {
+            result["setup"] = ["status": "queued", "proposalId": .string(setupProposal.id), "say": .string(Self.queuedSay)]
+        }
         return MCPToolOutcome(result: .object(result), isError: false, logLines: [.init(target: session.target, outcome: .proposed)])
     }
 
@@ -107,7 +159,7 @@ struct UpdateCapturePlanTool: MCPTool {
     }
 
     /// The device a screen is for: watch or vision, else iPhone (and iPad).
-    private static func display(of item: JSONValue) -> ScreenshotDisplayType {
+    static func display(of item: JSONValue) -> ScreenshotDisplayType {
         let device = item["device"]?.stringValue.flatMap(ScreenshotDisplayType.init(mcpValue:))
         return device?.hasOwnScreens == true ? device ?? .iPhone : .iPhone
     }

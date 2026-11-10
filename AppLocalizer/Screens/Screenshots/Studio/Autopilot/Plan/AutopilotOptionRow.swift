@@ -5,12 +5,11 @@
 
 import SwiftUI
 
-/// A checkbox with a line under it; locked ones show what always happens.
+/// A checkbox with a line under it.
 struct AutopilotOptionRow: View {
     let title: String
     let detail: String?
     @Binding var isOn: Bool
-    var isLocked = false
 
     var body: some View {
         Toggle(isOn: $isOn) {
@@ -25,6 +24,5 @@ struct AutopilotOptionRow: View {
             }
         }
         .toggleStyle(.checkbox)
-        .disabled(isLocked)
     }
 }

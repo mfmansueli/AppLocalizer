@@ -64,7 +64,7 @@ enum StudioDebugScenes {
         "st-ready", "st-ready-de", "st-ready-ar", "st-ready-ipad", "st-asc-watch", "st-plan-link",
     ] + everyDeviceIDs + StudioDebugExtras.ids + StudioDebugRunChoice.ids + StudioDebugAddScreens.ids + StudioDebugPreviewReview.ids
         + StudioDebugDuoStates.ids + StudioDebugPick.ids + StudioDebugArtMotion.ids + StudioDebugWebArtwork.ids + StudioDebugHeaderStyle.ids
-        + StudioDebugGuided.ids
+        + StudioDebugGuided.ids + StudioDebugPlanProposals.ids
 
     static let everyDeviceIDs = [
         "st-plan-all", "st-cap-watch", "st-cap-vision", "st-pick-all", "st-choose-all", "st-loc-all", "st-ready-sheet-all",
@@ -84,11 +84,7 @@ enum StudioDebugScenes {
         if id == StudioDebugGuided.homeID {
             return scene()
         }
-        if let extras = StudioDebugExtras.scene(for: id) ?? StudioDebugRunChoice.scene(for: id) ?? StudioDebugAddScreens.scene(for: id)
-            ?? StudioDebugPreviewReview.scene(for: id) ?? StudioDebugDuoStates.scene(for: id) ?? StudioDebugPick.scene(for: id)
-            ?? StudioDebugArtMotion.scene(for: id) ?? StudioDebugWebArtwork.scene(for: id) ?? StudioDebugHeaderStyle.scene(for: id)
-            ?? StudioDebugGuided.scene(for: id)
-        {
+        if let extras = extrasScene(for: id) {
             let saved = extras.savesExtras ? StudioDebugExtras.extras(for: extras.run) : nil
             let change = extras.documentChange
             return scene(
@@ -107,6 +103,21 @@ enum StudioDebugScenes {
             }
         }
         return pageScene(for: id)
+    }
+
+    /// The scenes kept with their boards: the first that knows `id`.
+    @MainActor
+    private static func extrasScene(for id: String) -> StudioDebugExtras.Scene? {
+        let boards: [(String) -> StudioDebugExtras.Scene?] = [
+            StudioDebugExtras.scene(for:), StudioDebugRunChoice.scene(for:), StudioDebugAddScreens.scene(for:),
+            StudioDebugPreviewReview.scene(for:), StudioDebugDuoStates.scene(for:), StudioDebugPick.scene(for:),
+            StudioDebugArtMotion.scene(for:), StudioDebugWebArtwork.scene(for:), StudioDebugHeaderStyle.scene(for:),
+            StudioDebugGuided.scene(for:), StudioDebugPlanProposals.scene(for:),
+        ]
+        for board in boards {
+            if let scene = board(id) { return scene }
+        }
+        return nil
     }
 
     /// The iPhone Duo scenes' run, after setting up the pretend Duo.

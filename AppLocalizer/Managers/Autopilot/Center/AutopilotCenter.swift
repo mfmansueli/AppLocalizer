@@ -31,6 +31,9 @@ final class AutopilotCenter {
     /// Each app's current run, or its last one.
     private(set) var runs: [StoreApp.ID: AutopilotRun]
     private(set) var designProjects: [StoreApp.ID: DesignProject]
+    /// What assistants sent for each app's next plan, outside a run's
+    /// capture (`planProposals(for:)`).
+    private(set) var proposalsForNextPlan: [StoreApp.ID: AutopilotPlanProposals]
     /// The run Run Autopilot… replaced, until Start: Cancel brings it back.
     @ObservationIgnored private var replaced: [StoreApp.ID: AutopilotRun] = [:]
     /// PNGs sent to the upload link, waiting for `report_capture`.
@@ -77,6 +80,7 @@ final class AutopilotCenter {
         }
         self.runs = saved.merging(runs) { $1 }
         self.designProjects = archive.designProjects.merging(designProjects) { $1 }
+        proposalsForNextPlan = archive.planProposals ?? [:]
     }
 
     // MARK: - Reading
@@ -87,6 +91,11 @@ final class AutopilotCenter {
 
     func designProject(for appID: StoreApp.ID) -> DesignProject? {
         designProjects[appID]
+    }
+
+    /// What assistants sent for the app's next plan.
+    func planProposals(for appID: StoreApp.ID) -> AutopilotPlanProposals {
+        proposalsForNextPlan[appID] ?? AutopilotPlanProposals()
     }
 
     /// The run whose upload link has `token`, while it takes captures or
@@ -207,6 +216,7 @@ final class AutopilotCenter {
         run.uploadToken = Self.makeToken()
         runs[appID] = run
         scheduleSave()
+        settleQueuedScreens(appID: appID)
     }
 
     /// Cancel Run (waiting) and Stop (capturing): back to the plan; the
@@ -232,6 +242,14 @@ final class AutopilotCenter {
         if run.stage != stage { onStageChange?(run, stage) }
     }
 
+    /// Applies `change` to what waits for the app's next plan and saves.
+    func updatePlanProposals(_ appID: StoreApp.ID, _ change: (inout AutopilotPlanProposals) -> Void) {
+        var proposals = planProposals(for: appID)
+        change(&proposals)
+        proposalsForNextPlan[appID] = proposals.isEmpty ? nil : proposals
+        scheduleSave()
+    }
+
     /// Puts a run in place as it is (DEBUG scenes, tests).
     func install(_ run: AutopilotRun) {
         runs[run.appID] = run
@@ -251,7 +269,9 @@ final class AutopilotCenter {
     }
 
     func saveNow() {
-        persistence?.save(AutopilotArchive(runs: runs, designProjects: designProjects))
+        persistence?.save(AutopilotArchive(
+            runs: runs, designProjects: designProjects, planProposals: proposalsForNextPlan.isEmpty ? nil : proposalsForNextPlan
+        ))
     }
 
     /// A random secret for an upload link.

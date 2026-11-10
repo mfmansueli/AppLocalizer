@@ -55,6 +55,7 @@ struct CapturePlanToolsTests {
                 "xcrun simctl privacy booted grant all com.northpier.lumen",
                 "xcrun simctl privacy booted grant photos dev.northpier.lumen",
             ],
+            "addedByFixes": ["xcrun simctl privacy booted grant photos dev.northpier.lumen"],
             "alerts": .string(AutopilotSimulatorSetup.alertsNote),
             // iPhone and iPad: `booted` reaches one of them (Bruma's run).
             "eachSimulator": .string(AutopilotSimulatorSetup.eachSimulatorNote),
@@ -300,13 +301,6 @@ struct CapturePlanToolsTests {
         #expect(outcome.result["status"] == "partial")
         #expect(outcome.result["refused"] == [["name": "Settings", "reason": "Screens can only be added before the first capture."]])
         #expect(fixtures.run?.plan.screens.map(\.steps) == ["launch → Today", "tab Week"])
-    }
-
-    @Test func thePlanCantChangeOnceCapturingIsOver() async throws {
-        let fixtures = MCPAutopilotFixtures(AutopilotTestFixtures.run(.pick))
-        let outcome = try await fixtures.call(UpdateCapturePlanTool(), ["run": "run-1", "screens": [["name": "Today", "steps": "x"]]])
-        #expect(outcome.result == ["status": "refused", "reason": "The plan can’t change now: the run is at Pick captures."])
-        #expect(fixtures.run?.plan == AutopilotTestFixtures.smallPlan)
     }
 }
 #endif

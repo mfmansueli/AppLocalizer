@@ -6,9 +6,10 @@
 import SwiftUI
 
 /// Under the plan's iPhone and iPad screens, and under Apple Watch's own:
-/// the form or the assistant's suggestions when open for that device, then
-/// "+ Add a Screen…", what to ask for, and Suggest Screens, and where new
-/// screens go. At Apple's 10 both are off.
+/// the form or the assistant's suggestions when open for that device, the
+/// screens it sent for this plan outside Suggest Screens, then "+ Add a
+/// Screen…", what to ask for, and Suggest Screens, and where new screens
+/// go. At Apple's 10 both are off.
 struct AutopilotAddScreensFooter: View {
     @Bindable var studio: ScreenshotStudioModel
     let run: AutopilotRun
@@ -37,6 +38,9 @@ struct AutopilotAddScreensFooter: View {
             if let suggestions = run.screenSuggestions, suggestions.device == display {
                 AutopilotScreenSuggestionsBox(studio: studio, suggestions: suggestions)
                     .id(ScrollTarget.suggestions)
+            }
+            ForEach(studio.queuedScreens(on: display), id: \.id) { queued in
+                AutopilotScreenSuggestionsBox(studio: studio, suggestions: queued)
             }
             HStack(spacing: Spacing.small) {
                 Button {
