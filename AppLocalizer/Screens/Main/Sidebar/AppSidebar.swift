@@ -18,6 +18,7 @@ struct AppSidebar: View {
 
     @Environment(ChangeQueue.self) private var changes
     @Environment(PricingModeStore.self) private var pricingModes
+    @Environment(FieldSuggestionStore.self) private var suggestions
 
     var body: some View {
         List(selection: $viewModel.selectedAppID) {
@@ -62,8 +63,15 @@ struct AppSidebar: View {
     private func indicators(_ app: StoreApp) -> AppIndicators {
         let mode = pricingModes.mode(for: app.id)
         let pricing = summaries.pricing[app.id]?.value
+        let counts = SectionBadgeCounts(
+            appID: app.id,
+            suggestions: suggestions,
+            screenshots: ScreenshotsDocumentCenter.shared,
+            pricing: SectionBadgeCounts.pricingCount(appID: app.id, summaries: summaries, modes: pricingModes, changes: changes)
+        )
         return AppIndicators(
             pendingChangeCount: changes.count(for: app.id),
+            suggestionCount: counts.total,
             localeCount: summaries.storePage[app.id]?.value?.localeCount,
             priceSuggestionCount: mode.showsSuggestions && pricing?.sellsAnything == true ? pricing?.heldBackTerritoryCount : nil
         )
@@ -90,15 +98,31 @@ struct AppSidebar: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             Divider()
-            Text(footerText)
-                .font(.caption)
-                .foregroundStyle(Palette.label2)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.large)
-                .padding(.vertical, Spacing.small)
+            VStack(alignment: .leading, spacing: Spacing.xxSmall) {
+                if hasSuggestions {
+                    HStack(spacing: Spacing.xSmall) {
+                        SuggestionBadge(count: 3, isSmall: true)
+                        Text("Suggestions to review")
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text("A purple count: suggestions to review"))
+                    .accessibilityIdentifier("sidebar.legend")
+                }
+                Text(footerText)
+            }
+            .font(.caption)
+            .foregroundStyle(Palette.label2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.large)
+            .padding(.vertical, Spacing.small)
         }
+    }
+
+    /// The legend shows once some app has a purple count.
+    private var hasSuggestions: Bool {
+        viewModel.apps.contains { indicators($0).suggestionCount > 0 }
     }
 
     private var footerText: String {

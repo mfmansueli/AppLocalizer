@@ -33,6 +33,7 @@ extension StorePageViewModel {
             listing.fields.filter { listing.draft($0, in: locale).isPending }.map { SuggestionTarget.storePage(locale, $0) }
         }
         suggestions.pruneProvenance(appID: app.id, area: .storePage, keeping: Set(pending))
+        suggestions.noteShown(editorLocales.flatMap { visibleSuggestions(in: $0, filter: .all) }, appID: app.id, area: .storePage)
     }
 
     // MARK: - Reading
@@ -146,34 +147,34 @@ extension StorePageViewModel {
 
     func acceptSuggestion(_ suggestion: FieldSuggestion) {
         guard let (field, _) = storeField(of: suggestion) else { return }
-        accept([suggestion], toast: String(localized: "Accepted the \(field.title) suggestion. Nothing is pushed yet."))
+        accept([suggestion], toast: String(localized: "\(field.title) accepted. It’s in Review & Push."))
     }
 
     /// "Use and Edit": the value goes in and the field takes focus.
     func useAndEditSuggestion(_ suggestion: FieldSuggestion) {
         guard let (field, locale) = storeField(of: suggestion) else { return }
-        accept([suggestion], isForEditing: true, toast: nil)
+        accept(
+            [suggestion],
+            isForEditing: true,
+            toast: String(localized: "Copied into the field. Edit it there; your version goes to Review & Push."),
+            offersReview: false
+        )
         focusRequest = ListingFieldKey(locale, field)
     }
 
     func dismissSuggestion(_ suggestion: FieldSuggestion) {
         suggestions.dismiss([suggestion.id])
+        toast = ToastMessage(text: String(localized: "Dismissed. It won’t come back unless the text changes."))
     }
 
-    /// "Accept All (n)": what the filter shows in `locale`.
+    /// "Accept n in English": what the filter shows in `locale`.
     func acceptAllSuggestions(in locale: StoreLocale) {
         let batch = visibleSuggestions(in: locale)
+        let name = LanguageBarModel.shortName(locale)
         let text = batch.count == 1
-            ? String(localized: "Accepted 1 suggestion in \(locale.name). Nothing is pushed yet.")
-            : String(localized: "Accepted \(batch.count) suggestions in \(locale.name). Nothing is pushed yet.")
+            ? String(localized: "Accepted 1 in \(name). It’s in Review & Push.")
+            : String(localized: "Accepted \(batch.count) in \(name). They’re in Review & Push.")
         accept(batch, toast: text)
-    }
-
-    /// "Accept All n in Every Language", languages suggested from the
-    /// project included: accepting adds them.
-    func acceptSuggestionsEverywhere() {
-        let batch = editorLocales.flatMap { visibleSuggestions(in: $0) }
-        accept(batch, toast: String(localized: "Accepted \(batch.count) suggestions across languages. Nothing is pushed yet."))
     }
 
     /// "Dismiss All": what the filter shows in `locale`.
@@ -250,7 +251,9 @@ extension StorePageViewModel {
         return (field, locale)
     }
 
-    private func accept(_ batch: [FieldSuggestion], isForEditing: Bool = false, toast text: String?) {
+    /// Accepts a batch as one step: the toast's Undo, or Edit → Undo, puts
+    /// back exactly what it changed.
+    func accept(_ batch: [FieldSuggestion], isForEditing: Bool = false, toast text: String?, offersReview: Bool = true) {
         guard var edited = listing, !batch.isEmpty else { return }
         var undo = StorePageSuggestionUndo(drafts: [:], review: suggestions.review)
         undo.addedLocales = pendingLocales.filter { locale in batch.contains { storeField(of: $0)?.1 == locale } }
@@ -270,7 +273,7 @@ extension StorePageViewModel {
         }
         suggestionUndo = undo
         addedLanguagesUndo = nil
-        if let text { toast = ToastMessage(text: text, canUndo: true) }
+        if let text { toast = ToastMessage(text: text, canUndo: true, actionTitle: offersReview ? String(localized: "Review & Push") : nil) }
         registerUndo(undo, name: accepted.count == 1 ? String(localized: "Accept Suggestion") : String(localized: "Accept Suggestions"))
     }
 

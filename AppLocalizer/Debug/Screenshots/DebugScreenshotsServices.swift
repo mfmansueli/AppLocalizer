@@ -24,6 +24,8 @@ final class DebugScreenshotsServices: ScreenshotsServices {
     /// The scenes made before Preview open on Sets; Studio scenes on
     /// Preview.
     var initialTab: ScreenshotsTab = .sets
+    /// Scenes made before the language page open on `initialTab`.
+    var opensLanguagePage = false
     /// Studio scenes' Autopilot, holding its stages.
     var autopilot: AutopilotCenter?
     var appSupport: AppSupportCenter?

@@ -73,6 +73,8 @@ protocol ScreenshotsServices {
     /// The view the Screenshots section opens on: Preview, except in DEBUG
     /// scenes made for the other tabs. Defaults to Preview.
     var initialTab: ScreenshotsTab { get }
+    /// Opens on the language page rather than `initialTab`.
+    var opensLanguagePage: Bool { get }
 
     /// The app's average App Store rating in each country, for checking
     /// the ratings templates show. By default nothing is looked up.

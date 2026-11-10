@@ -15,11 +15,12 @@ struct ExportCompliancePageView: View {
             VStack(alignment: .leading, spacing: Spacing.large) {
                 AppInformationPageHeader(
                     title: AppInformationPage.exportCompliance.title,
-                    subtitle: String(localized: "Asked for every build you upload, unless Info.plist answers it.")
+                    subtitle: AppInformationPage.exportCompliance.summary(appName: viewModel.app.name, version: nil)
                 ) {
                     Pill(text: answers.status)
                         .accessibilityIdentifier("appInformation.export.status")
                 }
+                AppInformationPageBar(viewModel: viewModel, page: .exportCompliance)
                 if let evidence = viewModel.notes.exportEvidence {
                     assistantBanner(evidence)
                 }

@@ -16,8 +16,9 @@ struct GeneralPageView: View {
             VStack(alignment: .leading, spacing: Spacing.xLarge) {
                 AppInformationPageHeader(
                     title: AppInformationPage.general.title,
-                    subtitle: String(localized: "Category and content rights apply to the whole app. Copyright and release are set per version.")
+                    subtitle: AppInformationPage.general.summary(appName: viewModel.app.name, version: content.version?.versionString)
                 )
+                AppInformationPageBar(viewModel: viewModel, page: .general)
                 AppInformationSuggestionsPanel(viewModel: viewModel, page: .general)
                 if showsCategories {
                     categorySection(general)

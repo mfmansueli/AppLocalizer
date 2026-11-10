@@ -30,6 +30,8 @@ struct DebugSceneView: View {
         switch id {
         case "apps", "overview":
             DebugMainScene()
+        case "apps-badges":
+            DebugMainScene(suggestions: SuggestionsDebugData.store())
         case "overview-keep":
             DebugMainScene(selectedAppID: DebugFixtures.AppID.tempo)
         case "apps-empty":

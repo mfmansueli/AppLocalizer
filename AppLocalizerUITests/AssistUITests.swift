@@ -104,17 +104,18 @@ final class AssistUITests: XCTestCase {
         let provenance = wellness.descendants(matching: .any)["suggestion.provenanceText"]
         XCTAssertTrue(provenance.waitForExistence(timeout: 5))
         XCTAssertEqual(text(of: provenance), "Accepted Claude Code’s suggestion.")
-        XCTAssertTrue(text(of: element("toast.text")).hasPrefix("Accepted the Health or wellness topics suggestion."))
+        XCTAssertTrue(text(of: element("toast.text")).hasPrefix("Health or wellness topics accepted."))
     }
 
     func testAcceptAllDeclaresTheWatchsFeatures() {
         app.launch(debugScene: "in-ax")
         XCTAssertTrue(element("appInformation.accessibility.suggestions").waitForExistence(timeout: 10))
-        let acceptAll = app.buttons["suggestions.acceptAll"]
-        XCTAssertTrue(acceptAll.waitForExistence(timeout: 5))
-        XCTAssertEqual(acceptAll.label, "Accept All (4)")
-        acceptAll.click()
-        XCTAssertTrue(text(of: element("toast.text")).hasPrefix("Accepted 4 suggestions on Accessibility · Apple Watch."))
+        let acceptHere = app.buttons["appInformation.acceptHere"]
+        XCTAssertTrue(acceptHere.waitForExistence(timeout: 5))
+        // Every suggestion on the page: the Watch's four and one more.
+        XCTAssertEqual(acceptHere.label, "Accept 5 on This Page")
+        acceptHere.click()
+        XCTAssertTrue(text(of: element("toast.text")).hasPrefix("Accepted 5 on Accessibility."))
     }
 
     // MARK: - Helpers

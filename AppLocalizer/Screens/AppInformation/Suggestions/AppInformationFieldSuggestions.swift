@@ -34,7 +34,14 @@ struct AppInformationFieldSuggestions: View {
                         viewModel.undoSuggestion(slot)
                     }
                 }
-                if let suggestion {
+                if let suggestion, slot.isChoice {
+                    CompactSuggestionRow(
+                        suggested: slot.displayValue(suggestion.value),
+                        suggestion: suggestion,
+                        onDismiss: { viewModel.dismissSuggestion(suggestion) },
+                        onAccept: { viewModel.acceptSuggestion(suggestion) }
+                    )
+                } else if let suggestion {
                     FieldSuggestionCard(
                         fieldTitle: slot.title,
                         suggestion: suggestion,

@@ -29,6 +29,31 @@ struct StorePageSuggestionsTests {
         store.add(appID: app.id, target: .storePage(locale, field), value: value, reason: "From the commits.", source: source ?? claude).suggestion
     }
 
+    /// Alba's URLs: open, but the fields already hold them, so the editor
+    /// doesn't show them and the badge mustn't promise them.
+    @Test func theBadgeCountsOnlyWhatTheEditorShows() async {
+        let model = await loaded()
+        let held = suggest(.description, in: .englishUS, model.value(.description, in: .englishUS))
+        let shown = suggest(.whatsNew, in: .englishUS, "• Weekly reflections")
+
+        model.queueDidChange()
+
+        let toReview = store.toReview(for: app.id, area: .storePage)
+        #expect(toReview.count == model.totalSuggestionCount)
+        #expect(toReview.contains { $0.id == shown.id })
+        #expect(!toReview.contains { $0.id == held.id })
+    }
+
+    @Test func acceptingTakesOneOffTheBadge() async {
+        let model = await loaded()
+        let suggestion = suggest(.whatsNew, in: .englishUS, "• Weekly reflections")
+        model.queueDidChange()
+        let before = store.toReview(for: app.id, area: .storePage).count
+
+        model.acceptSuggestion(suggestion)
+        #expect(store.toReview(for: app.id, area: .storePage).count == before - 1)
+    }
+
     @Test func emptyURLsGetTheOnesOtherLanguagesUse() async throws {
         let model = await loaded()
         let support = try #require(model.shownSuggestion(.supportURL, in: .german))
@@ -69,7 +94,7 @@ struct StorePageSuggestionsTests {
         #expect(model.visibleSuggestions(in: .englishUS).count == 2)
 
         model.acceptAllSuggestions(in: .englishUS)
-        #expect(model.toast?.text == "Accepted 2 suggestions in English (U.S.). Nothing is pushed yet.")
+        #expect(model.toast?.text == "Accepted 2 in English. They’re in Review & Push.")
         #expect(model.value(.promotionalText, in: .englishUS) == "Weekly reflections are here: every Sunday.")
         #expect(model.visibleSuggestions(in: .englishUS).isEmpty)
 
@@ -100,7 +125,7 @@ struct StorePageSuggestionsTests {
         suggest(.whatsNew, in: .german, "Deutsch")
         let germanBefore = model.visibleSuggestions(in: .german).count
         #expect(model.suggestionBar(for: .englishUS, assistant: nil).otherScopesCount == germanBefore)
-        model.acceptSuggestionsEverywhere()
+        model.acceptAllLanguages(withoutAsking: true)
         #expect(model.value(.whatsNew, in: .german) == "Deutsch")
         #expect(model.totalSuggestionCount == 0)
     }
@@ -110,7 +135,8 @@ struct StorePageSuggestionsTests {
         model.useAndEditSuggestion(suggest(.subtitle, in: .englishUS, "Private diary, mood & prompts"))
         #expect(model.focusRequest == ListingFieldKey(.englishUS, .subtitle))
         #expect(model.provenance(.subtitle, in: .englishUS)?.isForEditing == true)
-        #expect(model.toast == nil)
+        #expect(model.toast?.text == "Copied into the field. Edit it there; your version goes to Review & Push.")
+        #expect(model.toast?.canUndo == true)
     }
 
     @Test func onlyFieldsWithSuggestionsOrChanges() async {

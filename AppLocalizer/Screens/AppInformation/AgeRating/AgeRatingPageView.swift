@@ -18,14 +18,21 @@ struct AgeRatingPageView: View {
 
     var body: some View {
         if let ageRating = viewModel.ageRating {
-            SideColumnLayout(sideWidth: 250, minimumMainWidth: Self.minimumQuestionnaireWidth) {
-                questionnaire(ageRating)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                AgeRatingPreviewCard(
-                    preview: ageRating.preview,
-                    currentRating: viewModel.content?.ageRating.currentRating,
-                    changesWithPush: viewModel.ratingChanges
+            VStack(alignment: .leading, spacing: Spacing.large) {
+                AppInformationPageHeader(
+                    title: AppInformationPage.ageRating.title,
+                    subtitle: AppInformationPage.ageRating.summary(appName: viewModel.app.name, version: nil)
                 )
+                AppInformationPageBar(viewModel: viewModel, page: .ageRating)
+                SideColumnLayout(sideWidth: 236, minimumMainWidth: Self.minimumQuestionnaireWidth) {
+                    questionnaire(ageRating)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    AgeRatingPreviewCard(
+                        preview: ageRating.preview,
+                        currentRating: viewModel.content?.ageRating.currentRating,
+                        changesWithPush: viewModel.ratingChanges
+                    )
+                }
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("appInformation.ageRating")
@@ -34,12 +41,6 @@ struct AgeRatingPageView: View {
 
     private func questionnaire(_ ageRating: AgeRatingValues) -> some View {
         VStack(alignment: .leading, spacing: Spacing.large) {
-            AppInformationPageHeader(
-                title: AppInformationPage.ageRating.title,
-                subtitle: String(localized: """
-                Apple’s questionnaire. Content is None, Infrequent or Frequent; capabilities are Yes or No. The rating updates as you answer.
-                """)
-            )
             AppInformationSuggestionsPanel(viewModel: viewModel, page: .ageRating)
             if let banner = viewModel.assistantBanner {
                 AssistantAnswersBanner(client: banner.client, text: banner.text) {

@@ -23,6 +23,7 @@ struct LiveAppInformationServices: AppInformationServices {
         let urls = try? await privacyURLs(for: app)
         return AppInformationSummary(
             ageRating: content.ageRating.currentRating,
+            category: content.general.primaryCategory.map { AppCategory.name(for: $0) },
             privacy: AppInformationSummary.Privacy(worksheet: privacy.worksheet(for: app.id)),
             privacyURLs: urls.map { AppInformationSummary.PrivacyURLs(table: PrivacyURLsTable(appID: app.id, content: $0, changes: [])) },
             isAppReviewComplete: content.review.isComplete

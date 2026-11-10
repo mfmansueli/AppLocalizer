@@ -51,7 +51,8 @@ enum StorePageDebugScenes {
     private static func editingScene(_ id: String) -> AnyView? {
         switch id {
         case "store-coverage":
-            scene(pending: DebugStorePageContent.pendingChanges(for: StorePageSampleData.listing))
+            // Coverage is in ⋯ More now; the scene opens on it.
+            scene(pending: DebugStorePageContent.pendingChanges(for: StorePageSampleData.listing)) { $0.mode = .coverage }
         case "store-editor":
             scene(pending: DebugStorePageContent.pendingChanges(for: arabicEdits)) { $0.openEditor(.arabic) }
         case "store-keywords":

@@ -42,7 +42,7 @@ final class StorePageViewModel {
 
     // MARK: - Navigation
 
-    var mode: StorePageMode = .coverage {
+    var mode: StorePageMode = .editor {
         didSet { modeDidChange() }
     }
 
@@ -182,6 +182,7 @@ final class StorePageViewModel {
         builder.apply(queue.changes(for: app.id, section: .storePage), to: &rebuilt, machineTranslated: tags)
         listing = rebuilt
         if let locale = editorLocale, !rebuilt.contains(locale), !isPendingLanguage(locale) { editorLocale = defaultEditorLocale }
+        if mode == .editor, editorLocale == nil { editorLocale = defaultEditorLocale }
         saveTags()
         refreshSuggestions()
     }
@@ -283,11 +284,8 @@ final class StorePageViewModel {
 
     // MARK: - Reading
 
-    /// The first locale the editor shows: the first one that isn't primary.
-    var defaultEditorLocale: StoreLocale? {
-        guard let listing else { return nil }
-        return listing.displayLocales.first { $0 != listing.primaryLocale } ?? listing.primaryLocale
-    }
+    /// The first language the editor shows: the page's primary one.
+    var defaultEditorLocale: StoreLocale? { listing?.primaryLocale }
 
     /// No editable version exists and the person hasn't asked to see the
     /// live one: the "No version to edit" page.

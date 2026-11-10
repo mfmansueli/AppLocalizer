@@ -34,6 +34,14 @@ struct AppInformationSuggestionsTests {
         store.add(appID: app.id, target: .appInformation(field), value: value, reason: "From the code.", source: claude).suggestion
     }
 
+    @Test func theBadgeCountsWhatTheSectionShows() async {
+        let vm = await loaded()
+        vm.refreshSuggestions()
+        let shown = AppInformationViewModel.suggestionPages.reduce(0) { $0 + vm.suggestionCount(on: $1) }
+        #expect(shown > 0)
+        #expect(store.toReview(for: app.id, area: .appInformation).count == shown)
+    }
+
     @Test func theBuiltInChecksFindTheCopyrightAndThePhone() async throws {
         let vm = await loaded()
         let copyright = try #require(vm.shownSuggestion(.copyright))
@@ -59,7 +67,7 @@ struct AppInformationSuggestionsTests {
         #expect(vm.general?.copyright == "© \(year) Northpier Studio")
         #expect(vm.shownSuggestion(.copyright) == nil)
         #expect(vm.provenance(.copyright)?.line(currentValue: vm.suggestionValue(.copyright)) == "Accepted a built-in suggestion.")
-        #expect(vm.suggestionToast?.text == "Accepted the Copyright suggestion. Nothing is pushed yet.")
+        #expect(vm.suggestionToast?.text == "Copyright accepted. It’s in Review & Push.")
         #expect(vm.suggestionToast?.canUndo == true)
     }
 
@@ -101,7 +109,7 @@ struct AppInformationSuggestionsTests {
         #expect(vm.review?.notes == "Settings → Debug → Add Sample Week shows Weekly Reflections.")
         #expect(vm.suggestionCount(on: .appReview) == 0)
         #expect(vm.suggestionCount(on: .general) == 1)
-        #expect(vm.suggestionToast?.text == "Accepted 2 suggestions on App Review. Nothing is pushed yet.")
+        #expect(vm.suggestionToast?.text == "Accepted 2 on App Review. They’re in Review & Push.")
         #expect(vm.suggestionBar(for: .appReview, assistant: nil).countText == "All suggestions reviewed")
     }
 
@@ -110,7 +118,8 @@ struct AppInformationSuggestionsTests {
         try vm.useAndEditSuggestion(#require(vm.shownSuggestion(.contactPhone)))
         #expect(vm.focusRequest == .contactPhone)
         #expect(vm.provenance(.contactPhone)?.isForEditing == true)
-        #expect(vm.suggestionToast == nil)
+        #expect(vm.suggestionToast?.text == "Copied into the field. Edit it there; your version goes to Review & Push.")
+        #expect(vm.suggestionToast?.canUndo == true)
     }
 
     @Test func dismissingAndRestoring() async {

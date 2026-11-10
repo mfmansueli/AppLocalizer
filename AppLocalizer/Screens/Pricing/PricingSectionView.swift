@@ -22,6 +22,7 @@ struct PricingSectionView: View {
     @Environment(WorkspaceNavigator.self) private var navigator
     @Environment(PushController.self) private var push
     @Environment(PushHistory.self) private var history
+    @Environment(AppSummaryStore.self) private var summaries
 
     var body: some View {
         Group {
@@ -51,11 +52,22 @@ struct PricingSectionView: View {
         }
         .onChange(of: changes.changes(for: app.id, section: .subscriptionPricing)) {
             viewModel?.matrix?.queueDidChange()
+            viewModel?.productsQueueDidChange()
             retentionModel?.refresh()
+        }
+        // The tab bar's and Overview's Pricing count, once every product's
+        // prices are read.
+        .onChange(of: suggestionCount, initial: true) { _, count in
+            if let count { summaries.setPricingSuggestionCount(count, for: app.id) }
         }
         .onChange(of: history.records.count) {
             viewModel?.resultsDidChange()
         }
+    }
+
+    private var suggestionCount: Int? {
+        guard let viewModel, viewModel.areProductsLoaded else { return nil }
+        return viewModel.openPriceSuggestionCount
     }
 
     private func start() async {
@@ -70,6 +82,9 @@ struct PricingSectionView: View {
         model.onNotice = { [push] notice in push.report(notice) }
         model.onOpenReview = { [navigator] in navigator.isReviewPresented = true }
         model.pushRecords = { [history, app] in history.records(for: app.id) }
+        #if DEBUG
+        model.applyDebugOpening(from: services)
+        #endif
         let retentionModel = RetentionModel(app: app, services: retention, queue: changes)
         retentionModel.onOpenReview = { [navigator] in navigator.isReviewPresented = true }
         self.retentionModel = retentionModel

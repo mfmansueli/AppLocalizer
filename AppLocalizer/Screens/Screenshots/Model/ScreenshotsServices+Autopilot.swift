@@ -13,6 +13,8 @@ extension ScreenshotsServices {
 
     var initialTab: ScreenshotsTab { .preview }
 
+    var opensLanguagePage: Bool { true }
+
     func storeCapture(_ data: Data, for _: StoreApp) async throws -> CaptureFile {
         try Self.captureFile(for: data)
     }

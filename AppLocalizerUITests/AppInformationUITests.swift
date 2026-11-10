@@ -48,6 +48,7 @@ final class AppInformationUITests: XCTestCase {
         launch(scene: "a11y-published")
         let declare = app.buttons["appInformation.accessibility.APPLE_WATCH.declare"]
         XCTAssertTrue(declare.waitForExistence(timeout: 10))
+        reveal(declare)
         declare.click()
         XCTAssertTrue(element("appInformation.accessibility.editor").waitForExistence(timeout: 5))
         element("appInformation.accessibility.editor.supportsAny").radioButtons["Yes"].click()
@@ -64,6 +65,7 @@ final class AppInformationUITests: XCTestCase {
         launch(scene: "a11y-published")
         let copy = app.buttons["appInformation.accessibility.APPLE_WATCH.copy"]
         XCTAssertTrue(copy.waitForExistence(timeout: 10))
+        reveal(copy)
         copy.click()
         let toast = element("appInformation.toast")
         XCTAssertTrue(toast.waitForExistence(timeout: 5))
@@ -113,6 +115,20 @@ final class AppInformationUITests: XCTestCase {
     /// window under XCUITest.
     private func launch(scene: String) {
         app.launch(debugScene: scene)
+    }
+
+    /// The page bar and the suggestions above it push the lower cards to
+    /// the window's bottom edge, where a click lands outside the window:
+    /// the page scrolls until `target` is fully in view.
+    private func reveal(_ target: XCUIElement) {
+        let page = element("appInformation.page")
+        guard page.exists else { return }
+        var tries = 0
+        while tries < 12 {
+            if target.frame.minY >= page.frame.minY, target.frame.maxY <= page.frame.maxY - 8 { return }
+            page.scroll(byDeltaX: 0, deltaY: target.frame.minY < page.frame.minY ? 200 : -200)
+            tries += 1
+        }
     }
 
     private func element(_ identifier: String) -> XCUIElement {

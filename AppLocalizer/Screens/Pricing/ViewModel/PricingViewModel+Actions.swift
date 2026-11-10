@@ -13,8 +13,13 @@ extension PricingViewModel {
     func handle(_ intent: WorkspaceIntent) async -> Bool {
         switch intent {
         case .reviewSuggestions:
+            // The cards, where each product's suggestion is.
             if mode == .keepPrices { apply(mode: .showSuggestions) }
-            showMatrix()
+            // Edit Prices… from a card then opens the matrix's table.
+            page = .prices
+            tab = .prices
+            display = .table
+            showsProductDetails = false
             matrix?.filter = PriceMatrixFilter()
             columnPreset = .automatic
             return true
@@ -24,15 +29,18 @@ extension PricingViewModel {
             await applyRecommendedPrices()
             return true
         case .showResults:
+            showsProductDetails = true
             tab = .results
             return true
         case let .showPrices(shown):
+            showsProductDetails = true
             tab = .prices
             display = shown
             return true
         case let .editPriceSchedule(productID):
             // Review passes the price group's ID, which is the subscription's.
             if let productID, catalog?.product(id: productID) != nil { await select(productID: productID) }
+            showsProductDetails = true
             tab = .prices
             // Review & Push's sheet is still closing; macOS shows one sheet at a time.
             try? await Task.sleep(for: .milliseconds(400))
@@ -45,6 +53,7 @@ extension PricingViewModel {
 
     /// The Prices tab with the matrix, where suggestions are applied.
     private func showMatrix() {
+        showsProductDetails = true
         tab = .prices
         display = .table
     }

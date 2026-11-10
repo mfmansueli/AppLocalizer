@@ -15,6 +15,8 @@ import SwiftUI
 /// assistant card's place until Done, with the run's strip under it.
 struct OverviewSectionView: View {
     let app: StoreApp
+    /// For the App Store page preview: the page's texts and screenshots.
+    let services: any StorePageServices
 
     @Environment(AppSummaryStore.self) private var summaries
     @Environment(ChangeQueue.self) private var changes
@@ -28,6 +30,9 @@ struct OverviewSectionView: View {
     /// What Suggest Everything covers, read once an assistant is connected.
     @State private var scope: SuggestEverythingScope?
     @State private var showsEverythingPopover = false
+    /// The page the preview shows, read when Overview opens and on Refresh.
+    @State private var content: StorePageContent?
+    @State private var width: CGFloat = 0
 
     var body: some View {
         ScrollView {
@@ -38,6 +43,7 @@ struct OverviewSectionView: View {
                     OverviewHeader(
                         app: app,
                         storePage: storePage,
+                        territoryCount: pricing.map { $0.equalizedTerritoryCount + $0.customTerritoryCount },
                         showsReviewSuggestions: mode.showsSuggestions && pricing?.sellsAnything == true,
                         onReviewSuggestions: reviewSuggestions,
                         onTranslateMissing: { navigator.open(.storePage, intent: .translateMissing) },
@@ -48,14 +54,23 @@ struct OverviewSectionView: View {
                             .accessibilityIdentifier("overview.error")
                     }
                     assistantCard
+                    OverviewPageAndWaiting(
+                        app: app, services: services, content: content, width: width, storePage: storePage, newLanguages: newLanguages
+                    )
+                    Text("Details")
+                        .font(.headline)
+                        .padding(.top, Spacing.small)
+                        .accessibilityAddTraits(.isHeader)
                     cards
                 }
             }
             .padding(Spacing.xxLarge)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .onGeometryChange(for: CGFloat.self, of: \.size.width) { width = $0 }
         }
         .accessibilityIdentifier("workspace.overview")
         .task(id: app.id) { await summaries.load(app) }
+        .task(id: ContentKey(appID: app.id, refresh: navigator.refreshCount)) { await loadContent() }
         .task(id: ScopeKey(appID: app.id, isConnected: assistants.assistantStatus.isConnected)) {
             scope = nil
             await loadScope()
@@ -84,6 +99,17 @@ struct OverviewSectionView: View {
     private struct ScopeKey: Hashable {
         var appID: StoreApp.ID
         var isConnected: Bool
+    }
+
+    private struct ContentKey: Hashable {
+        var appID: StoreApp.ID
+        var refresh: Int
+    }
+
+    private func loadContent() async {
+        let loaded = try? await services.content(for: app, versionID: nil)
+        guard !Task.isCancelled else { return }
+        content = loaded
     }
 
     /// Before an assistant is connected or a key set up, the card
@@ -151,7 +177,9 @@ struct OverviewSectionView: View {
     }
 
     private var cards: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: Metrics.overviewCardMinimumWidth), spacing: 14, alignment: .top)], alignment: .leading, spacing: 14) {
+        // Not lazy: under the page and what's waiting, the cards start below
+        // the fold, and VoiceOver and UI tests need them all.
+        AdaptiveGridLayout(minimumWidth: Metrics.overviewCardMinimumWidth, spacing: 14) {
             SuggestionsCard(
                 summary: SuggestionsSummary(open: overviewSuggestions),
                 assistant: assistants.assistantStatus.clientName,
@@ -203,7 +231,7 @@ struct OverviewSectionView: View {
     /// not added yet show as New languages instead.
     private var overviewSuggestions: [FieldSuggestion] {
         let pending = Set((newLanguages?.pending ?? []).map(\.code))
-        return suggestions.open(for: app.id).filter { suggestion in
+        return suggestions.toReview(for: app.id).filter { suggestion in
             guard case let .storePage(code) = suggestion.target.scope else { return true }
             return !pending.contains(code)
         }

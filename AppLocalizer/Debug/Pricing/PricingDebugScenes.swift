@@ -32,6 +32,8 @@ import SwiftUI
 /// - `results`, `results-waiting`: Lumen Annual's Oct 26 push four weeks
 ///   later, or on its first day.
 /// - `offers`: Lumen Annual's promotional offer.
+/// - `pricing-products`: the Prices page's card per product, with their
+///   suggestions and "What people pay".
 enum PricingDebugScenes {
     typealias AppIDs = DebugFixtures.AppID
 
@@ -40,6 +42,7 @@ enum PricingDebugScenes {
         "pricing-nosales", "pricing-skeleton", "pricing-refresh", "pricing-nosubs", "iap",
         "custom", "custom-tune", "custom-compare", "custom-csv",
         "pricing-map", "pricing-hist", "schedule", "results", "results-waiting", "offers",
+        "pricing-products",
     ]
 
     @MainActor
@@ -54,6 +57,8 @@ enum PricingDebugScenes {
             scene(pricingModes: DebugWorkspace.pricingModes.filter { $0.key != AppIDs.lumen })
         case "pricing-keep":
             scene(app: AppIDs.tempo, launch: PricingDebugLaunch(region: .europe))
+        case "pricing-products":
+            scene(launch: PricingDebugLaunch(showsProducts: true))
         case "pricing-suggest":
             scene(launch: PricingDebugLaunch(selection: ["BRA"], popover: .suggestion("BRA")))
         case "pricing-breakdown":

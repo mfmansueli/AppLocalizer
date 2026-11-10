@@ -41,6 +41,17 @@ extension AppInformationViewModel {
             pending.formUnion(kept.map(\.target))
         }
         suggestions.pruneProvenance(appID: app.id, area: .appInformation, keeping: pending)
+        noteShownSuggestions()
+    }
+
+    /// Tells the store what this section shows, for its badge. Accessibility
+    /// loads on its own: until it has, its suggestions stay counted.
+    private func noteShownSuggestions() {
+        let shown = Self.suggestionPages.flatMap { visibleSuggestions(on: $0, filter: .all) }
+        let undecided = accessibility.value == nil
+            ? suggestions.open(for: app.id, area: .appInformation).filter { $0.target.scope.page == .accessibility }
+            : []
+        suggestions.noteShown(shown + undecided, appID: app.id, area: .appInformation)
     }
 
     // MARK: - Reading
@@ -174,26 +185,32 @@ extension AppInformationViewModel {
 
     func acceptSuggestion(_ suggestion: FieldSuggestion) {
         guard let slot = slot(of: suggestion) else { return }
-        accept([suggestion], toast: String(localized: "Accepted the \(slot.title) suggestion. Nothing is pushed yet."))
+        accept([suggestion], toast: String(localized: "\(slot.title) accepted. It’s in Review & Push."))
     }
 
     /// "Use and Edit": the value goes in and the field takes focus.
     func useAndEditSuggestion(_ suggestion: FieldSuggestion) {
         guard let field = infoField(of: suggestion) else { return }
-        accept([suggestion], isForEditing: true, toast: nil)
+        accept(
+            [suggestion],
+            isForEditing: true,
+            toast: String(localized: "Copied into the field. Edit it there; your version goes to Review & Push."),
+            offersReview: false
+        )
         focusRequest = field
     }
 
     func dismissSuggestion(_ suggestion: FieldSuggestion) {
         suggestions.dismiss([suggestion.id])
+        suggestionToast = ToastMessage(text: String(localized: "Dismissed. It won’t come back unless the text changes."))
     }
 
-    /// "Accept All (n)": what the filter shows in `scope`.
+    /// What the filter shows in `scope`, e.g. one device.
     func acceptAllSuggestions(in scope: SuggestionScope) {
         let batch = visibleSuggestions(in: scope)
         let text = batch.count == 1
-            ? String(localized: "Accepted 1 suggestion on \(scope.title). Nothing is pushed yet.")
-            : String(localized: "Accepted \(batch.count) suggestions on \(scope.title). Nothing is pushed yet.")
+            ? String(localized: "Accepted 1 on \(scope.title). It’s in Review & Push.")
+            : String(localized: "Accepted \(batch.count) on \(scope.title). They’re in Review & Push.")
         accept(batch, toast: text)
     }
 
@@ -279,7 +296,9 @@ extension AppInformationViewModel {
         AppInformationSuggestionSlot(target: suggestion.target)
     }
 
-    private func accept(_ batch: [FieldSuggestion], isForEditing: Bool = false, toast text: String?) {
+    /// Accepts a batch as one step: the toast's Undo, or Edit → Undo, puts
+    /// back exactly what it changed.
+    func accept(_ batch: [FieldSuggestion], isForEditing: Bool = false, toast text: String?, offersReview: Bool = true) {
         var undo = AppInformationSuggestionUndo(changes: [:], review: suggestions.review)
         var accepted: [(suggestion: FieldSuggestion, previous: String)] = []
         for suggestion in batch {
@@ -294,7 +313,7 @@ extension AppInformationViewModel {
             suggestions.markAccepted(item.suggestion, previousValue: item.previous, isForEditing: isForEditing)
         }
         suggestionUndo = undo
-        if let text { suggestionToast = ToastMessage(text: text, canUndo: true) }
+        if let text { suggestionToast = ToastMessage(text: text, canUndo: true, actionTitle: offersReview ? String(localized: "Review & Push") : nil) }
         registerUndo(undo, name: accepted.count == 1 ? String(localized: "Accept Suggestion") : String(localized: "Accept Suggestions"))
     }
 

@@ -20,6 +20,8 @@ struct AppWorkspaceView: View {
     @Environment(PushController.self) private var push
     @Environment(MCPServerController.self) private var assistants
     @Environment(FieldSuggestionStore.self) private var suggestions
+    @Environment(AppSummaryStore.self) private var summaries
+    @Environment(PricingModeStore.self) private var pricingModes
     @State private var toolbarLayout = WorkspaceToolbarLayout()
 
     var body: some View {
@@ -80,14 +82,16 @@ struct AppWorkspaceView: View {
             // `.principal`, it left a gap that pushed Review & Push into
             // the overflow menu.
             ToolbarItem(placement: .navigation) {
-                FittingSegmentedPicker(
-                    label: String(localized: "Section"),
-                    options: AppWorkspaceSection.allCases.map { ($0, $0.title) },
+                WorkspaceSectionPicker(
+                    counts: SectionBadgeCounts(
+                        appID: app.id,
+                        suggestions: suggestions,
+                        screenshots: screenshotDocuments,
+                        pricing: SectionBadgeCounts.pricingCount(appID: app.id, summaries: summaries, modes: pricingModes, changes: changes)
+                    ),
                     selection: $navigator.section
                 )
-                .fixedSize()
                 .onGeometryChange(for: CGFloat.self, of: \.size.width) { toolbarLayout.pickerWidth = $0 }
-                .accessibilityIdentifier("workspace.sectionPicker")
             }
             // Keeps the actions at the trailing edge.
             ToolbarSpacer(.flexible)
@@ -189,7 +193,7 @@ struct AppWorkspaceView: View {
     private var content: some View {
         switch navigator.section {
         case .overview:
-            OverviewSectionView(app: app)
+            OverviewSectionView(app: app, services: services.storePage)
         case .subscriptionPricing:
             PricingSectionView(app: app, services: services.pricing, retention: services.retention)
         case .storePage:

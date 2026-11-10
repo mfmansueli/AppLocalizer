@@ -33,6 +33,26 @@ struct PricingModeStoreTests {
         #expect(reloaded.chosenMode(for: "quiet") == nil)
     }
 
+    @Test func dismissedPriceSuggestionsArePerAppAndPersistUntilRestored() throws {
+        let suite = "PricingModeStoreTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let store = PricingModeStore(defaults: defaults)
+        store.dismissPriceSuggestion(productID: "annual", appID: "lumen")
+        store.dismissPriceSuggestion(productID: "monthly", appID: "lumen")
+        store.dismissPriceSuggestion(productID: "annual", appID: "tempo")
+        #expect(store.isPriceSuggestionDismissed(productID: "annual", appID: "lumen"))
+        #expect(!store.isPriceSuggestionDismissed(productID: "lifetime", appID: "lumen"))
+
+        let reloaded = PricingModeStore(defaults: defaults)
+        #expect(reloaded.dismissedPriceSuggestions["lumen"] == ["annual", "monthly"])
+        reloaded.restorePriceSuggestions(appID: "lumen")
+        #expect(!reloaded.isPriceSuggestionDismissed(productID: "annual", appID: "lumen"))
+        #expect(reloaded.isPriceSuggestionDismissed(productID: "annual", appID: "tempo"))
+        #expect(PricingModeStore(defaults: defaults).dismissedPriceSuggestions["lumen"] == nil)
+    }
+
     @Test func onlyKeepMyPricesHidesSuggestions() {
         #expect(!PricingMode.keepPrices.showsSuggestions)
         #expect(PricingMode.showSuggestions.showsSuggestions)

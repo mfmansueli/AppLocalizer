@@ -57,6 +57,8 @@ struct AppInformationSummary: Hashable, Sendable {
 
     /// e.g. "4+", "9+"; nil when no questionnaire has been answered.
     var ageRating: String?
+    /// The primary category's name, for the App Store page preview.
+    var category: String?
     var privacy = Privacy()
     /// Nil when they couldn't be read.
     var privacyURLs: PrivacyURLs?

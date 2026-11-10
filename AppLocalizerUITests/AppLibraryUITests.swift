@@ -6,7 +6,7 @@
 import XCTest
 
 /// The main window's app library, toolbar and overview, driven through the
-/// DEBUG scenes `apps`, `overview-keep`, `apps-empty`, `apps-error`,
+/// DEBUG scenes `apps`, `apps-badges`, `overview-keep`, `apps-empty`, `apps-error`,
 /// `lib-loading` and `apps-unnamed` (the sample Northpier Studio account
 /// from `DebugFixtures`).
 @MainActor
@@ -81,6 +81,21 @@ final class AppLibraryUITests: XCTestCase {
         XCTAssertTrue(element("workspace.storePage").waitForExistence(timeout: 5))
         picker.radioButtons["App Information"].click()
         XCTAssertTrue(element("workspace.appInformation").waitForExistence(timeout: 5))
+    }
+
+    func testSectionsWithSuggestionsShowABadgeAndStayClickable() {
+        launch(scene: "apps-badges")
+        let badges = element("workspace.sectionBadges")
+        XCTAssertTrue(badges.waitForExistence(timeout: 10))
+        // Lumen's prices likely hold people back: Pricing counts it before it has read every product.
+        XCTAssertEqual(
+            badges.label,
+            "Pricing, 1 suggestion to review. Store Page, 5 suggestions to review. App Information, 3 suggestions to review"
+        )
+        // A badged segment's label has blank space after its title.
+        let storePage = NSPredicate(format: "label BEGINSWITH %@", "Store Page")
+        element("workspace.sectionPicker").radioButtons.matching(storePage).firstMatch.click()
+        XCTAssertTrue(element("workspace.storePage").waitForExistence(timeout: 5))
     }
 
     func testCommandDigitsSwitchSections() {

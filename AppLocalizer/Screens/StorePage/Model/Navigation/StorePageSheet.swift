@@ -15,6 +15,8 @@ enum StorePageSheet: String, Identifiable, Hashable, Sendable {
     case importPreview
     /// "Languages in the app, not on the App Store".
     case newLanguages
+    /// "Accept Store Page suggestions in every language".
+    case acceptAll
 
     var id: String { rawValue }
 }

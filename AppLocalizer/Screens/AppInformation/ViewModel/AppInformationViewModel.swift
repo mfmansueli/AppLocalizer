@@ -81,6 +81,8 @@ final class AppInformationViewModel {
     /// What a suggestion action did, with Undo. `toast` stays the page's
     /// plain message.
     var suggestionToast: ToastMessage?
+    /// "Accept suggestions on every App Information page".
+    var isAcceptAllPresented = false
     /// What the toast's Undo puts back.
     var suggestionUndo: AppInformationSuggestionUndo?
     /// The window's, so Accept All is one step of Edit → Undo.
@@ -142,6 +144,7 @@ final class AppInformationViewModel {
         do {
             accessibility = try await .loaded(services.accessibility(for: app))
             accessibilityErrorLine = nil
+            refreshSuggestions()
         } catch {
             accessibility = .failed(String(localized: "Couldn’t load accessibility declarations."))
             accessibilityErrorLine = AppInformationErrorReporter.requestLine(for: error, request: "/v1/apps/\(app.id)/accessibilityDeclarations")

@@ -55,6 +55,13 @@ final class AppPreferences {
         didSet { defaults?.set(showsAssistantIntro, forKey: Key.showsAssistantIntro) }
     }
 
+    /// General → Suggestions: Accept All Languages and Accept All Pages
+    /// accept at once instead of showing the suggestions first. One setting
+    /// for Store Page, Screenshots and App Information.
+    var acceptsAllWithoutAsking: Bool {
+        didSet { defaults?.set(acceptsAllWithoutAsking, forKey: Key.acceptsAllWithoutAsking) }
+    }
+
     private let defaults: UserDefaults?
 
     /// nil keeps everything in memory (DEBUG scenes, tests).
@@ -70,6 +77,7 @@ final class AppPreferences {
         confirmsPriceIncreases = defaults?.object(forKey: Key.confirmsPriceIncreases) as? Bool ?? true
         confirmsDiscarding = defaults?.object(forKey: Key.confirmsDiscarding) as? Bool ?? true
         showsAssistantIntro = defaults?.object(forKey: Key.showsAssistantIntro) as? Bool ?? true
+        acceptsAllWithoutAsking = defaults?.object(forKey: Key.acceptsAllWithoutAsking) as? Bool ?? false
         // The Guided/Classic choice is gone: the guided Autopilot is the
         // only one.
         defaults?.removeObject(forKey: Key.retiredAutopilotFront)
@@ -84,6 +92,7 @@ final class AppPreferences {
         static let confirmsPriceIncreases = "confirmsPriceIncreases"
         static let confirmsDiscarding = "confirmsDiscarding"
         static let showsAssistantIntro = "showsAssistantIntro"
+        static let acceptsAllWithoutAsking = "acceptAllWithoutAsking"
         static let retiredAutopilotFront = "autopilotFront"
     }
 }

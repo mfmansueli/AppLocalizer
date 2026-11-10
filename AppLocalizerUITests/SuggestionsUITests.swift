@@ -117,13 +117,13 @@ final class SuggestionsUITests: XCTestCase {
     /// keywords, so the built-in check offers to drop them right after.
     func testAcceptAllReviewsTheLanguageAndChecksTheResult() {
         app.launch(debugScene: "sp-cc")
-        let acceptAll = app.buttons["suggestions.acceptAll"]
-        XCTAssertTrue(acceptAll.waitForExistence(timeout: 10))
-        XCTAssertEqual(acceptAll.label, "Accept All (4)")
-        acceptAll.click()
-        XCTAssertTrue(text(of: element("toast.text")).hasPrefix("Accepted 4 suggestions in English (U.S.)."))
-        XCTAssertEqual(text(of: element("suggestions.count")), "1 suggestion")
-        XCTAssertEqual(acceptAll.label, "Accept All (1)")
+        let acceptHere = app.buttons["languageBar.acceptHere"]
+        XCTAssertTrue(acceptHere.waitForExistence(timeout: 10))
+        XCTAssertEqual(acceptHere.label, "Accept 4 in English")
+        acceptHere.click()
+        XCTAssertTrue(text(of: element("toast.text")).hasPrefix("Accepted 4 in English."))
+        let one = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Accept 1 in English"), object: acceptHere)
+        XCTAssertEqual(XCTWaiter.wait(for: [one], timeout: 5), .completed)
 
         let keywords = element("storePage.field.keywords")
         let reason = keywords.descendants(matching: .any)["suggestion.reason"]
@@ -145,7 +145,7 @@ final class SuggestionsUITests: XCTestCase {
         app.launch(debugScene: "in-general")
         let general = element("appInformation.pageRow.general")
         XCTAssertTrue(general.waitForExistence(timeout: 10))
-        XCTAssertTrue(general.label.contains("3 suggestions"))
+        XCTAssertTrue(general.label.contains("3 suggested"), general.label)
 
         let copyright = element("appInformation.suggestions.copyright")
         XCTAssertTrue(copyright.waitForExistence(timeout: 5))
@@ -154,7 +154,7 @@ final class SuggestionsUITests: XCTestCase {
         XCTAssertTrue(text(of: field).hasSuffix("Northpier Studio"))
         XCTAssertFalse(text(of: field).contains("2025"))
         XCTAssertTrue(copyright.descendants(matching: .any)["suggestion.provenanceText"].waitForExistence(timeout: 5))
-        XCTAssertTrue(general.label.contains("2 suggestions"))
+        XCTAssertTrue(general.label.contains("2 suggested"), general.label)
     }
 
     func testAppReviewTakesThePreviousVersionsPhone() {

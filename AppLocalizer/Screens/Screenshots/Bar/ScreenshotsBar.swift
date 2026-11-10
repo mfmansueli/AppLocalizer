@@ -45,6 +45,16 @@ struct ScreenshotsBar: View {
 
     private var controls: some View {
         HStack(spacing: Spacing.small) {
+            Button {
+                viewModel.showsLanguagePage = true
+            } label: {
+                Label("Screenshots", systemImage: "chevron.backward")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonBorderShape(.capsule)
+            .help("Back to each language's screenshots, with their suggested captions")
+            .accessibilityLabel(Text("Back to the language page"))
+            .accessibilityIdentifier("screenshots.backToPage")
             HStack(spacing: Spacing.xxSmall) {
                 FittingSegmentedPicker(
                     label: String(localized: "Screenshots views"),

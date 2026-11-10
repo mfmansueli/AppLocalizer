@@ -67,7 +67,25 @@ final class ScreenshotsViewModel {
 
     // MARK: - Navigation
 
-    var tab: ScreenshotsTab = .sets
+    /// The view under the language page; picking one leaves the language
+    /// page.
+    var tab: ScreenshotsTab = .sets {
+        didSet { showsLanguagePage = false }
+    }
+
+    /// The language page (one language large, or All Languages) instead of
+    /// the tab views.
+    var showsLanguagePage = false
+    /// The language the language page shows; nil is the primary one.
+    var pageLocale: StoreLocale?
+    /// All Languages instead of one.
+    var pageShowsAll = false
+    /// The language page with the suggested captions on the screenshots.
+    var showsSuggestedCaptions = true
+    var isAcceptAllCaptionsPresented = false
+    /// After accepting or dismissing captions on the language page.
+    var captionToast: ToastMessage?
+    @ObservationIgnored var captionUndo: (() async -> Void)?
     var displayType: ScreenshotDisplayType = .iPhone {
         didSet { if displayType != oldValue { renderVisibleCells() } }
     }

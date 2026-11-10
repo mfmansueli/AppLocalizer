@@ -43,28 +43,7 @@ struct StorePageActionBar: View {
 
     private var fillMenu: some View {
         Menu("Fill") {
-            Section("Copy from a sibling locale") {
-                if viewModel.siblingPairs.isEmpty {
-                    Text("Nothing to copy")
-                }
-                ForEach(viewModel.siblingPairs, id: \.self) { pair in
-                    Button("\(pair.source.name) → \(pair.target.name)") {
-                        viewModel.copy(pair)
-                    }
-                }
-            }
-            Divider()
-            Button("Copy URLs to Every Locale") {
-                viewModel.copyURLsToEveryLocale()
-            }
-            .disabled(!viewModel.hasURLsToCopy)
-            Button("Send What’s New to Every Locale…") {
-                viewModel.presentWhatsNewBroadcast()
-            }
-            .disabled(viewModel.value(.whatsNew, in: viewModel.listing?.primaryLocale ?? .englishUS).isEmpty)
-            Button("Find and Replace…") {
-                viewModel.presentFindReplace()
-            }
+            StorePageFillItems(viewModel: viewModel)
         }
         .fixedSize()
         .accessibilityIdentifier("storePage.fill")
@@ -72,17 +51,7 @@ struct StorePageActionBar: View {
 
     private var transferMenu: some View {
         Menu("Import & Export") {
-            Button("Import Translations…") {
-                viewModel.isImporterPresented = true
-            }
-            Divider()
-            Section("For translators") {
-                ForEach(ListingTransferFormat.allCases) { format in
-                    Button(format.exportTitle) {
-                        viewModel.exportFormat = format
-                    }
-                }
-            }
+            StorePageTransferItems(viewModel: viewModel)
         }
         .fixedSize()
         .accessibilityIdentifier("storePage.importExport")
@@ -90,23 +59,7 @@ struct StorePageActionBar: View {
 
     private var addLocaleMenu: some View {
         Menu {
-            let pending = viewModel.pendingLocales
-            if !pending.isEmpty {
-                Section("In the app, not on the App Store") {
-                    ForEach(pending) { locale in
-                        Button(locale.name) {
-                            viewModel.addLocale(locale)
-                        }
-                    }
-                }
-            }
-            Section("Add a locale") {
-                ForEach(viewModel.addableLocales.filter { !pending.contains($0) }) { locale in
-                    Button(locale.name) {
-                        viewModel.addLocale(locale)
-                    }
-                }
-            }
+            StorePageAddLocaleItems(viewModel: viewModel)
         } label: {
             Label("Add Locale", systemImage: "plus")
         }

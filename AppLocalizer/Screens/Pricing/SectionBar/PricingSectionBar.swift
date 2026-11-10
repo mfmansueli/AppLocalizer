@@ -5,15 +5,17 @@
 
 import SwiftUI
 
-/// Pricing's section bar: the product browser, Prices | Offers | Results,
-/// the pricing mode and Customize…. With the inspector open and the window
-/// narrow, the mode and Customize… wrap to a second row.
+/// Pricing's section bar over one product: back to every product, the
+/// product browser, Prices | Offers | Results, the pricing mode and
+/// Customize…. With the inspector open and the window narrow, the mode and
+/// Customize… wrap to a second row.
 struct PricingSectionBar: View {
     @Bindable var viewModel: PricingViewModel
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: Spacing.medium) {
+                backButton
                 browserButton
                 Spacer(minLength: Spacing.medium)
                 RetentionPageSwitch(page: $viewModel.page)
@@ -22,6 +24,7 @@ struct PricingSectionBar: View {
             }
             VStack(alignment: .leading, spacing: Spacing.small) {
                 HStack(spacing: Spacing.medium) {
+                    backButton
                     browserButton
                     Spacer(minLength: Spacing.medium)
                     RetentionPageSwitch(page: $viewModel.page)
@@ -35,6 +38,18 @@ struct PricingSectionBar: View {
         .frame(minHeight: 52)
         .overlay(alignment: .bottom) { Divider() }
         .accessibilityElement(children: .contain)
+    }
+
+    /// Back to the card per product.
+    private var backButton: some View {
+        Button {
+            viewModel.showProducts()
+        } label: {
+            Label("All Products", systemImage: "chevron.backward")
+        }
+        .buttonBorderShape(.capsule)
+        .help("Every product, with its price suggestions")
+        .accessibilityIdentifier("pricing.allProducts")
     }
 
     @ViewBuilder

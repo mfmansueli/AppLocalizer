@@ -108,18 +108,23 @@ struct AppLocalizerApp: App {
         }
     }
 
-    /// DEBUG scenes (and so UI tests) keep keys and secrets in memory, so
-    /// they never read or overwrite the real ones in the Keychain.
-    private static var credentialsStore: any CredentialsStore {
+    /// DEBUG scenes (and so UI tests) and the unit tests' host keep keys and
+    /// secrets in memory, so they never read or overwrite the real ones in
+    /// the Keychain. A test build signed differently from the person's app
+    /// would otherwise ask for the login password at every read: one per
+    /// paired assistant, AI provider key and key assistant, each launch.
+    static var credentialsStore: any CredentialsStore {
         #if DEBUG
         if let id = DebugScene.requestedID { return SettingsDebugScenes.credentialsStore(for: id) }
+        if UnitTestHost.isRunning { return DebugCredentialsStore() }
         #endif
         return KeychainCredentialsStore()
     }
 
-    private static var secretStore: any SecretStore {
+    static var secretStore: any SecretStore {
         #if DEBUG
         if let id = DebugScene.requestedID { return SettingsDebugScenes.secretStore(for: id) }
+        if UnitTestHost.isRunning { return InMemorySecretStore() }
         #endif
         return KeychainSecretStore()
     }

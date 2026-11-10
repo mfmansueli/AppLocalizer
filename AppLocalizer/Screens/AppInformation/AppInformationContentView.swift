@@ -9,7 +9,14 @@ import SwiftUI
 /// sheet and the toast. App Privacy lays out its own columns and scrolling.
 struct AppInformationContentView: View {
     @Bindable var viewModel: AppInformationViewModel
+
+    /// The window is too narrow for the preview under this.
+    private static let previewMinimumWidth: CGFloat = 760
+
     @Environment(\.undoManager) private var undoManager
+    @Environment(AppPreferences.self) private var preferences
+    @Environment(WorkspaceNavigator.self) private var navigator
+    @State private var width: CGFloat = 0
 
     var body: some View {
         HStack(spacing: 0) {
@@ -18,17 +25,29 @@ struct AppInformationContentView: View {
             if viewModel.page == .appPrivacy {
                 AppPrivacyPageView(viewModel: viewModel.privacy)
             } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Spacing.large) {
-                        refreshBanner
-                        page
+                HStack(alignment: .top, spacing: Spacing.large) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: Spacing.large) {
+                            refreshBanner
+                            page
+                        }
+                        .padding(.vertical, Spacing.large + 2)
+                        .padding(.horizontal, 2)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
-                    .padding(.horizontal, Spacing.xxLarge - 4)
-                    .padding(.vertical, Spacing.large + 2)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("appInformation.page")
+                    if showsPreview {
+                        ScrollView {
+                            AppInformationPreviewPane(viewModel: viewModel)
+                                .padding(.vertical, Spacing.large + 2)
+                        }
+                        .scrollIndicators(.never)
+                        .frame(width: 236)
+                    }
                 }
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("appInformation.page")
+                .padding(.horizontal, 20)
+                .onGeometryChange(for: CGFloat.self, of: \.size.width) { width = $0 }
             }
         }
         .background(Palette.content)
@@ -36,6 +55,9 @@ struct AppInformationContentView: View {
             if let toast = viewModel.suggestionToast {
                 ActionToast(message: toast) {
                     viewModel.undoLastSuggestionBatch()
+                } onAction: {
+                    viewModel.suggestionToast = nil
+                    navigator.isReviewPresented = true
                 } onDismiss: {
                     if viewModel.suggestionToast == toast { viewModel.suggestionToast = nil }
                 }
@@ -54,6 +76,20 @@ struct AppInformationContentView: View {
         .sheet(item: $viewModel.editor) { item in
             AccessibilityEditorSheet(viewModel: viewModel, draft: viewModel.editor ?? item)
         }
+        .sheet(isPresented: $viewModel.isAcceptAllPresented) {
+            AcceptAllSheet(selection: viewModel.acceptAllSelection()) {
+                viewModel.isAcceptAllPresented = false
+            } onAccept: { ids, dontAskAgain in
+                viewModel.isAcceptAllPresented = false
+                if dontAskAgain { preferences.acceptsAllWithoutAsking = true }
+                viewModel.acceptSuggestions(ids: ids, turnedOffAsking: dontAskAgain)
+            }
+        }
+    }
+
+    /// Age Rating keeps its own preview beside the questions.
+    private var showsPreview: Bool {
+        viewModel.isLoaded && viewModel.page != .ageRating && width >= Self.previewMinimumWidth
     }
 
     @ViewBuilder

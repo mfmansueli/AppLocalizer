@@ -52,6 +52,7 @@ final class ScreenshotsSectionModel {
             } else {
                 let screenshots = ScreenshotsViewModel(app: app, services: services.screenshots, context: context)
                 screenshots.tab = services.screenshots.initialTab
+                screenshots.showsLanguagePage = services.screenshots.opensLanguagePage
                 self.screenshots = screenshots
             }
             screenshots?.studio.storeTexts = StudioStoreTexts(content: loaded)

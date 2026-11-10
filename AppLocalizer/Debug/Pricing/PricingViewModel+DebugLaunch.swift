@@ -9,6 +9,13 @@ import Foundation
 extension PricingViewModel {
     /// Brings a DEBUG scene to its starting state through the same calls a
     /// person's clicks make. Does nothing outside DEBUG scenes.
+    /// Scenes made before the product cards open on the matrix, as their
+    /// UI tests expect; `showsProducts` opens on the cards.
+    func applyDebugOpening(from services: any PricingServices) {
+        guard let debug = services as? DebugPricingServices else { return }
+        showsProductDetails = !(debug.launch?.showsProducts ?? false)
+    }
+
     func applyDebugLaunch(from services: any PricingServices) async {
         guard let launch = (services as? DebugPricingServices)?.launch else { return }
         if let today = launch.today { self.today = { today } }

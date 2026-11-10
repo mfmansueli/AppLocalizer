@@ -33,6 +33,10 @@ final class FieldSuggestionStore {
 
     private var nextNumber = 1
     private var nextRunNumber = 1
+    /// Open suggestions their section can't show, as it last worked out:
+    /// the field already holds the value, or can't change now. Saved, so
+    /// the counts are right before the section opens again.
+    private var hiddenIDs: Set<FieldSuggestion.ID> = []
     /// Runs stopped with Stop Receiving: their calls are refused.
     private var stoppedRunIDs: Set<SuggestionRun.ID> = []
     private let persistence: (any FieldSuggestionPersistence)?
@@ -48,6 +52,7 @@ final class FieldSuggestionStore {
                 self.suggestions = archive.suggestions
                 review = archive.review
                 nextNumber = archive.nextNumber
+                hiddenIDs = archive.hiddenIDs ?? []
             } catch {
                 persistenceError = error.localizedDescription
             }
@@ -76,6 +81,18 @@ final class FieldSuggestionStore {
     /// The open ones among `all`, from the sources `filter` shows.
     func open(for appID: StoreApp.ID, scope: SuggestionScope? = nil, area: SuggestionArea? = nil, filter: SuggestionSourceFilter = .all) -> [FieldSuggestion] {
         all(for: appID, scope: scope, area: area).filter { isOpen($0) && filter.includes($0.source) }
+    }
+
+    /// What's left to review, as the sections show it: open suggestions
+    /// their section doesn't hide, one per field (the newest). The toolbar's
+    /// badges and the overview count these.
+    func toReview(for appID: StoreApp.ID, area: SuggestionArea? = nil) -> [FieldSuggestion] {
+        let showing = open(for: appID, area: area).filter { !hiddenIDs.contains($0.id) }
+        var newest: [SuggestionTarget: FieldSuggestion] = [:]
+        for suggestion in showing where newest[suggestion.target].map({ $0.createdAt <= suggestion.createdAt }) ?? true {
+            newest[suggestion.target] = suggestion
+        }
+        return showing.filter { newest[$0.target]?.id == $0.id }
     }
 
     /// The suggestion a field shows: the newest open one `filter` lets
@@ -216,6 +233,21 @@ final class FieldSuggestionStore {
         save()
     }
 
+    // MARK: - What the sections show
+
+    /// A section worked out what it shows: the open suggestions for any
+    /// other field are hidden until it says otherwise. One that arrives
+    /// later counts until the section looks at it.
+    func noteShown(_ shown: [FieldSuggestion], appID: StoreApp.ID, area: SuggestionArea) {
+        let shownTargets = Set(shown.map(\.target))
+        let hidden = open(for: appID, area: area).filter { !shownTargets.contains($0.target) }.map(\.id)
+        let inArea = all(for: appID, area: area).map(\.id)
+        let updated = hiddenIDs.subtracting(inArea).union(hidden).intersection(suggestions.map(\.id))
+        guard updated != hiddenIDs else { return }
+        hiddenIDs = updated
+        save()
+    }
+
     // MARK: - Asking an assistant
 
     /// "Ask Claude Code…": the prompt is copied; suggestions from `client`
@@ -335,7 +367,7 @@ final class FieldSuggestionStore {
     private func save() {
         guard let persistence else { return }
         do {
-            try persistence.save(FieldSuggestionArchive(suggestions: suggestions, review: review, nextNumber: nextNumber))
+            try persistence.save(FieldSuggestionArchive(suggestions: suggestions, review: review, nextNumber: nextNumber, hiddenIDs: hiddenIDs))
             persistenceError = nil
         } catch {
             persistenceError = error.localizedDescription

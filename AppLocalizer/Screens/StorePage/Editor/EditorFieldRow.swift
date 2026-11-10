@@ -5,32 +5,27 @@
 
 import SwiftUI
 
-/// One field in the editor: its title, level, tags and counter, the primary
-/// locale's text on the left and the edited locale's on the right, the
-/// inline error, for keywords the token view, then the field's suggestion
-/// or where its pending value came from.
+/// One field in the editor, as a card: its title and where it appears on the
+/// App Store, tags and counter, the text, the inline error, for keywords the
+/// token view, then the field's suggestion (its purple edge goes round the
+/// card) or where its pending value came from.
 struct EditorFieldRow: View {
     let viewModel: StorePageViewModel
     let field: ListingField
     let locale: StoreLocale
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xSmall) {
+        VStack(alignment: .leading, spacing: 7) {
             titleLine
-            HStack(alignment: .top, spacing: Spacing.medium) {
-                primaryValue
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                EditorFieldInput(
-                    field: field,
-                    locale: locale,
-                    text: binding,
-                    isEditable: viewModel.canEdit(field),
-                    isBlocked: validation.isBlocking,
-                    isFocusRequested: viewModel.focusRequest == ListingFieldKey(locale, field)
-                ) {
-                    viewModel.focusRequest = nil
-                }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+            EditorFieldInput(
+                field: field,
+                locale: locale,
+                text: binding,
+                isEditable: viewModel.canEdit(field),
+                isBlocked: validation.isBlocking,
+                isFocusRequested: viewModel.focusRequest == ListingFieldKey(locale, field)
+            ) {
+                viewModel.focusRequest = nil
             }
             if let message = validation.message {
                 InlineMessage(text: message, systemImage: "exclamationmark.triangle", tint: Palette.danger)
@@ -50,7 +45,7 @@ struct EditorFieldRow: View {
                     viewModel.undoSuggestion(field, in: locale)
                 }
             }
-            if let suggestion = viewModel.shownSuggestion(field, in: locale) {
+            if let suggestion {
                 FieldSuggestionCard(
                     fieldTitle: field.title,
                     suggestion: suggestion,
@@ -65,12 +60,24 @@ struct EditorFieldRow: View {
                 SuggestionComingPlaceholder(client: run.client)
             }
         }
-        .padding(.horizontal, Spacing.large)
-        .padding(.vertical, Spacing.medium)
+        .padding(.horizontal, Spacing.medium)
+        .padding(.vertical, 10)
+        .background(Palette.raised, in: shape)
+        .overlay {
+            shape.strokeBorder(
+                suggestion == nil ? Palette.separator : Palette.machineTranslatedMark.opacity(0.55),
+                lineWidth: suggestion == nil ? 0.5 : 1
+            )
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("storePage.field.\(field.rawValue)")
     }
 
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+    }
+
+    private var suggestion: FieldSuggestion? { viewModel.shownSuggestion(field, in: locale) }
     private var draft: ListingFieldDraft { viewModel.draft(field, in: locale) }
     private var validation: ListingFieldValidation { viewModel.validation(of: field, in: locale) }
 
@@ -83,24 +90,34 @@ struct EditorFieldRow: View {
     }
 
     private var titleLine: some View {
-        HStack(spacing: Spacing.small) {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.small) {
             Text(field.title)
-                .font(.headline)
-            Pill(text: field.level.badgeTitle(version: viewModel.content?.version.versionString ?? ""), style: .outline)
+                .font(.subheadline.weight(.semibold))
+                .fixedSize()
+            Text(field.whereShown(version: viewModel.content?.version.versionString))
+                .font(.caption2)
+                .foregroundStyle(Palette.label2)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
             if draft.isMachineTranslated {
                 Pill(text: String(localized: "Machine-translated"), systemImage: "sparkle", style: .machineTranslated)
+                    .fixedSize()
                     .accessibilityLabel(Text("Machine-translated, not reviewed"))
                 Button("Mark Reviewed") {
                     viewModel.markReviewed(field, in: locale)
                 }
                 .buttonStyle(.link)
                 .font(.caption)
+                .fixedSize()
                 .accessibilityIdentifier("storePage.markReviewed.\(field.rawValue)")
             }
             if let client = draft.proposedBy {
                 SourceTag(source: .assistant(client: client))
+                    .fixedSize()
             } else if let source = draft.suggestionSource {
                 SourceTag(source: source)
+                    .fixedSize()
             }
             if draft.isPending {
                 HStack(spacing: Spacing.xxSmall) {
@@ -112,11 +129,11 @@ struct EditorFieldRow: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 1)
                 .background(Palette.accentTint, in: Capsule())
+                .fixedSize()
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text("Not pushed"))
                 .accessibilityIdentifier("storePage.notPushed.\(field.rawValue)")
             }
-            Spacer(minLength: Spacing.small)
             counter
         }
     }
@@ -130,35 +147,16 @@ struct EditorFieldRow: View {
                     Pill(text: counter.text, style: .danger)
                 } else {
                     Text(counter.text)
-                        .font(.caption.monospaced())
+                        .font(.caption2.monospaced())
                         .foregroundStyle(Palette.label2)
                 }
             }
+            .fixedSize()
             // One element: a pill is a stack of views, which would leave
             // the label on none of them.
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(counter.accessibilityLabel))
             .accessibilityIdentifier("storePage.counter.\(field.rawValue)")
         }
-    }
-
-    private var primaryValue: some View {
-        let primary = viewModel.listing?.primaryLocale ?? .englishUS
-        let text = viewModel.value(field, in: primary)
-        return ScrollView {
-            Text(text.isEmpty ? "—" : text)
-                .font(.callout)
-                .foregroundStyle(Palette.label2)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.small)
-                .padding(.vertical, 5)
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        .frame(minHeight: 24, maxHeight: field.isMultiline ? 150 : 40)
-        .fixedSize(horizontal: false, vertical: !field.isMultiline)
-        .background(Palette.fill1, in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous))
-        .environment(\.layoutDirection, primary.isRTL && !field.isURL ? .rightToLeft : .leftToRight)
-        .accessibilityLabel(Text("\(primary.name), \(field.title): \(text)"))
     }
 }

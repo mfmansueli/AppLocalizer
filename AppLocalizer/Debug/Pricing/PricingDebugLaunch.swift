@@ -10,6 +10,8 @@ import Foundation
 /// model calls a person's clicks make: filters, selection, applied prices,
 /// the inspector, an open popover or sheet, and the tab and view shown.
 struct PricingDebugLaunch {
+    /// Opens on the product cards instead of the selected product's matrix.
+    var showsProducts = false
     /// Selects this product instead of the default one.
     var productID: String?
     var region: TerritoryRegion?

@@ -5,7 +5,8 @@
 
 import Foundation
 
-/// The Store Page's views, picked in the context bar.
+/// The Store Page's views: Editor and In-App Texts in the header, Coverage
+/// from its More menu.
 enum StorePageMode: String, CaseIterable, Identifiable, Hashable, Sendable {
     case coverage
     case editor

@@ -52,6 +52,29 @@ final class PricingViewModel {
     var selectedOfferID: SubscriptionOffer.ID?
     private(set) var results: PriceResultsModel?
 
+    // MARK: - Product cards
+
+    /// The selected product's prices, offers and results (with the section
+    /// bar), instead of a card per product.
+    var showsProductDetails = false
+    /// Every product's matrix, for the cards; filled in one product at a
+    /// time after the catalog loads.
+    var productMatrices: [String: PriceMatrixModel] = [:]
+    /// Products whose prices couldn't load, with why.
+    var productErrors: [String: String] = [:]
+    /// Every product's prices have been read (or failed).
+    var areProductsLoaded = false
+    /// The card whose countries are shown.
+    var expandedProductID: String?
+    /// "What people pay": Now or with the suggestions.
+    var showsSuggestedPrices = true
+    /// "What people pay"'s country (alpha-3).
+    var payTerritoryID = "USA"
+    /// After Accept: "Prices for Annual accepted. They’re in Review & Push."
+    var toast: ToastMessage?
+    @ObservationIgnored var toastUndo: (() -> Void)?
+    @ObservationIgnored var productsTask: Task<Void, Never>?
+
     /// Today, for Results' 28 days; DEBUG scenes pin it.
     var today: () -> Date = { .now }
     /// The app's finished pushes (`PushHistory`), for Results.
@@ -64,7 +87,7 @@ final class PricingViewModel {
 
     @ObservationIgnored let queue: ChangeQueue
     @ObservationIgnored let services: any PricingServices
-    @ObservationIgnored private let modes: PricingModeStore
+    @ObservationIgnored let modes: PricingModeStore
     @ObservationIgnored var followedProductIDs: Set<String> = []
     @ObservationIgnored var siblingSheets: [String: ProductPriceSheet] = [:]
 
@@ -115,6 +138,7 @@ final class PricingViewModel {
             catalogState = .loaded(catalog)
             let productID = selectedProductID.flatMap { catalog.product(id: $0)?.id } ?? catalog.defaultProduct?.id
             if let productID { await select(productID: productID, force: true) }
+            startLoadingProducts()
         } catch {
             catalogState = .failed(error.localizedDescription)
             reportLoadError(error)
@@ -146,18 +170,7 @@ final class PricingViewModel {
         do {
             let sheet = try await services.priceSheet(for: product, commission: strategy.commission)
             guard selectedProductID == productID else { return }
-            let matrix = PriceMatrixModel(
-                appID: app.id,
-                product: product,
-                sheet: sheet,
-                services: services,
-                queue: queue,
-                strategy: strategy.strategy,
-                calculator: strategy.calculator,
-                mode: mode,
-                isFollowing: followedProductIDs.contains(productID)
-            )
-            matrix.onError = { [weak self] error in self?.reportLoadError(error) }
+            let matrix = makeMatrix(product: product, sheet: sheet)
             if let previous = self.matrix, previous.product.id == productID {
                 matrix.filter = previous.filter
                 matrix.sortOrder = previous.sortOrder
@@ -170,6 +183,23 @@ final class PricingViewModel {
             needsStartingPrice = error is PricingSheetError
             if !needsStartingPrice { reportLoadError(error) }
         }
+    }
+
+    /// A matrix for `product` with the current strategy, mode and queue.
+    func makeMatrix(product: PricingProduct, sheet: ProductPriceSheet) -> PriceMatrixModel {
+        let matrix = PriceMatrixModel(
+            appID: app.id,
+            product: product,
+            sheet: sheet,
+            services: services,
+            queue: queue,
+            strategy: strategy.strategy,
+            calculator: strategy.calculator,
+            mode: mode,
+            isFollowing: followedProductIDs.contains(product.id)
+        )
+        matrix.onError = { [weak self] error in self?.reportLoadError(error) }
+        return matrix
     }
 
     /// Offers, results and subscribers belong to one product; a product
@@ -188,6 +218,7 @@ final class PricingViewModel {
         guard commission != strategy.commission else { return }
         strategy.setCommission(commission)
         if let productID = selectedProductID { await select(productID: productID, force: true) }
+        startLoadingProducts()
     }
 
     // MARK: - Mode
@@ -220,6 +251,7 @@ final class PricingViewModel {
         }
         apply(mode: .keepPrices)
         matrix?.queueDidChange()
+        productsQueueDidChange()
     }
 
     /// The keep bottom bar's “Show price suggestions”.
@@ -234,6 +266,7 @@ final class PricingViewModel {
             isInspectorPresented = false
         }
         matrix?.update(mode: mode)
+        for matrix in productMatrices.values { matrix.update(mode: mode) }
     }
 
     /// Fills every territory with its proposal, then opens Review & Push.
@@ -273,6 +306,7 @@ final class PricingViewModel {
 
     func strategyDidChange() {
         matrix?.update(strategy: strategy.strategy, calculator: strategy.calculator)
+        for matrix in productMatrices.values { matrix.update(strategy: strategy.strategy, calculator: strategy.calculator) }
     }
 
     // MARK: - Schedule

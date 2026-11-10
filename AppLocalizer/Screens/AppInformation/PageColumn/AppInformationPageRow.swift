@@ -5,15 +5,17 @@
 
 import SwiftUI
 
-/// A page in the page column: its name, its one-line status under it, and
-/// the blue dot when it has changes waiting in Review & Push.
+/// A page in the page column: its name, its status under it, the blue dot
+/// when it has changes waiting in Review & Push, and the suggestion count
+/// or a check once it's up to date.
 struct AppInformationPageRow: View {
     let page: AppInformationPage
+    /// "7 suggested · 7 unanswered", "In progress", "Up to date".
     let status: String?
-    /// Open suggestions on the page: "2 suggestions" replaces the status.
     var suggestionCount = 0
-    /// Still to come from Suggest Everything: "3 suggestions · 4 coming".
+    /// Still to come from Suggest Everything: "3 suggested · 4 coming".
     var comingCount = 0
+    var isUpToDate = false
     let hasPendingChanges: Bool
 
     var body: some View {
@@ -23,7 +25,7 @@ struct AppInformationPageRow: View {
                     .lineLimit(1)
                 if let subtitle {
                     Text(subtitle)
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundStyle(suggestionCount > 0 || comingCount > 0 ? AnyShapeStyle(Palette.machineTranslated) : AnyShapeStyle(.secondary))
                         .lineLimit(1)
                 }
@@ -32,24 +34,27 @@ struct AppInformationPageRow: View {
             if hasPendingChanges {
                 UnsavedDot(size: 7)
             }
+            if suggestionCount > 0 {
+                SuggestionBadge(count: suggestionCount)
+            } else if isUpToDate {
+                Image(systemName: "checkmark")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.increase)
+                    .accessibilityHidden(true)
+            }
         }
-        .padding(.vertical, 2)
+        .frame(minHeight: 34)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(accessibilityText))
         .accessibilityIdentifier("appInformation.pageRow.\(page.rawValue)")
     }
 
     private var subtitle: String? {
-        let suggestions: String? = switch suggestionCount {
-        case 0: comingCount > 0 ? String(localized: "0 suggestions") : status
-        case 1: String(localized: "1 suggestion")
-        default: String(localized: "\(suggestionCount) suggestions")
-        }
-        guard comingCount > 0, let suggestions else { return suggestions }
-        return suggestions + " · " + String(localized: "\(comingCount) coming")
+        guard comingCount > 0 else { return status }
+        return (status ?? "") + (status == nil ? "" : " · ") + String(localized: "\(comingCount) coming")
     }
 
-    /// "Age Rating, 9+, not pushed" or "General, 2 suggestions".
+    /// "Age Rating, 3 suggested, not pushed".
     private var accessibilityText: String {
         [page.title, subtitle, hasPendingChanges ? String(localized: "not pushed") : nil].compactMap(\.self).joined(separator: ", ")
     }
@@ -57,9 +62,9 @@ struct AppInformationPageRow: View {
 
 #Preview {
     List {
-        AppInformationPageRow(page: .general, status: "Lifestyle · Health & Fitness", hasPendingChanges: false)
-        AppInformationPageRow(page: .ageRating, status: "9+", hasPendingChanges: true)
-        AppInformationPageRow(page: .appPrivacy, status: nil, hasPendingChanges: false)
+        AppInformationPageRow(page: .general, status: "2 suggested", suggestionCount: 2, hasPendingChanges: false)
+        AppInformationPageRow(page: .ageRating, status: "Up to date", isUpToDate: true, hasPendingChanges: true)
+        AppInformationPageRow(page: .appPrivacy, status: "In progress", hasPendingChanges: false)
     }
-    .frame(width: 172, height: 200)
+    .frame(width: 200, height: 200)
 }

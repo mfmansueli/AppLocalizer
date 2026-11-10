@@ -17,7 +17,7 @@ struct AccessibilitySuggestionsSection: View {
         if viewModel.showsSuggestions(on: .accessibility), let family = viewModel.shownAccessibilitySuggestionFamily {
             VStack(alignment: .leading, spacing: Spacing.small) {
                 devicePicker(selected: family)
-                AppInformationSuggestionsPanel(viewModel: viewModel, scope: .accessibility(family), showsFieldsToggle: false)
+                AppInformationSuggestionsPanel(viewModel: viewModel, scope: .accessibility(family))
                 let slots = viewModel.suggestionSlots(in: .accessibility(family)).filter { slot in
                     viewModel.shownSuggestion(slot) != nil || viewModel.provenance(slot) != nil || viewModel.isComing(slot)
                 }
@@ -41,26 +41,22 @@ struct AccessibilitySuggestionsSection: View {
     private func devicePicker(selected: DeviceFamily) -> some View {
         let families = viewModel.accessibilitySuggestionFamilies
         if families.count > 1 {
-            Picker("Device", selection: Binding(get: { selected }, set: { viewModel.accessibilitySuggestionFamily = $0 })) {
-                ForEach(families) { family in
-                    let count = viewModel.suggestionCount(in: .accessibility(family))
-                    let coming = viewModel.comingCount(in: .accessibility(family))
-                    Text(Self.deviceTitle(family, count: count, coming: coming)).tag(family)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
+            BadgedSegments(
+                label: String(localized: "Device"),
+                options: families.map { family in
+                    let scope = SuggestionScope.accessibility(family)
+                    return (family, Self.deviceTitle(family, coming: viewModel.comingCount(in: scope)), viewModel.suggestionCount(in: scope))
+                },
+                selection: Binding(get: { selected }, set: { viewModel.accessibilitySuggestionFamily = $0 })
+            )
             .accessibilityIdentifier("appInformation.accessibility.suggestions.device")
         }
     }
 
-    /// "Apple Watch 2", with "· 3 coming" while Suggest Everything owes it
+    /// "Apple Watch", with "· 3 coming" while Suggest Everything owes it
     /// more.
-    private static func deviceTitle(_ family: DeviceFamily, count: Int, coming: Int) -> String {
-        var title = count > 0 ? "\(family.name) \(count.formatted())" : family.name
-        if coming > 0 { title += " · " + String(localized: "\(coming) coming") }
-        return title
+    private static func deviceTitle(_ family: DeviceFamily, coming: Int) -> String {
+        coming > 0 ? family.name + " · " + String(localized: "\(coming) coming") : family.name
     }
 
     private func row(_ slot: AppInformationSuggestionSlot) -> some View {

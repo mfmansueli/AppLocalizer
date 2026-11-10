@@ -16,7 +16,7 @@ struct AppReviewPageView: View {
             VStack(alignment: .leading, spacing: Spacing.xLarge) {
                 AppInformationPageHeader(
                     title: AppInformationPage.appReview.title,
-                    subtitle: String(localized: "Who App Review contacts, and how they get in. Sent with every submission.")
+                    subtitle: AppInformationPage.appReview.summary(appName: viewModel.app.name, version: content.version?.versionString)
                 ) {
                     Pill(
                         text: review.isComplete ? String(localized: "Complete") : String(localized: "Incomplete"),
@@ -32,6 +32,7 @@ struct AppReviewPageView: View {
                 if let version = content.version, !content.isVersionEditable {
                     ReadOnlyVersionNote(version: version, editable: content.editableVersion)
                 }
+                AppInformationPageBar(viewModel: viewModel, page: .appReview)
                 AppInformationSuggestionsPanel(viewModel: viewModel, page: .appReview)
                 Group {
                     if !contactFields.isEmpty {

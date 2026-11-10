@@ -6,10 +6,11 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Subscription Pricing laid out: section bar, then Prices (filters, the
-/// matrix, map or histogram, and the bottom bar), Offers or Results, with
-/// the strategy inspector, the mode and schedule sheets and the custom
-/// index import around them.
+/// Subscription Pricing laid out: a card per product (the Prices page), or
+/// one product's section bar, then Prices (filters, the matrix, map or
+/// histogram, and the bottom bar), Offers or Results, with the strategy
+/// inspector, the mode and schedule sheets, the custom index import and the
+/// Accept toast around them.
 struct PricingScreen: View {
     @Bindable var viewModel: PricingViewModel
     /// Preselected in the first-visit sheet: the default for new apps from Settings.
@@ -25,12 +26,29 @@ struct PricingScreen: View {
                 NoSubscriptionsView(viewModel: viewModel)
             } else if let message = viewModel.catalogState.errorMessage {
                 failure(message)
+            } else if !viewModel.showsProductDetails, viewModel.catalog != nil {
+                PricingProductsView(viewModel: viewModel)
             } else {
                 PricingSectionBar(viewModel: viewModel)
                 content
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .bottom) {
+            if let toast = viewModel.toast {
+                ActionToast(message: toast) {
+                    viewModel.undoToast()
+                } onAction: {
+                    viewModel.toast = nil
+                    viewModel.onOpenReview()
+                } onDismiss: {
+                    if viewModel.toast == toast { viewModel.toast = nil }
+                }
+                .padding(.bottom, Spacing.large)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.default, value: viewModel.toast)
         .inspector(isPresented: $viewModel.isInspectorPresented) {
             StrategyInspector(viewModel: viewModel) { isImporterPresented = true }
         }

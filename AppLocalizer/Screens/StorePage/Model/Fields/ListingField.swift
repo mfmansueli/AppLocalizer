@@ -67,6 +67,23 @@ enum ListingField: String, CaseIterable, Identifiable, Hashable, Sendable, Codab
         }
     }
 
+    /// Beside the field in the editor: what it changes on the App Store.
+    func whereShown(version: String?) -> String {
+        switch self {
+        case .name: return String(localized: "Large, at the top of the page and in search results")
+        case .subtitle: return String(localized: "Under the name, on the page and in search results")
+        case .privacyPolicyURL: return String(localized: "In the App Privacy section of the page")
+        case .promotionalText: return String(localized: "Above the description. It can change without App Review")
+        case .description: return String(localized: "The page’s main text. The first 3 lines show before “more”")
+        case .keywords: return String(localized: "Not shown on the page. Only App Store search reads them")
+        case .whatsNew:
+            guard let version, !version.isEmpty else { return String(localized: "Under “What’s New”") }
+            return String(localized: "Under “What’s New”, for version \(version)")
+        case .supportURL: return String(localized: "Under the description, as App Support")
+        case .marketingURL: return String(localized: "Under the description, as Developer Website")
+        }
+    }
+
     /// Name, subtitle and privacy policy URL belong to the app and are
     /// shared by every version; the rest belong to one version.
     var level: ListingFieldLevel {

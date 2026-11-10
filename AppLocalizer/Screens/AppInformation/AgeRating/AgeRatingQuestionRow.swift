@@ -17,7 +17,13 @@ struct AgeRatingQuestionRow: View {
             if let assistant = viewModel.assistantAnswers[question] {
                 assistantRow(client: assistant.client, confirmed: assistant.confirmed)
             } else {
-                AppInformationFormRow(label: question.title) { picker }
+                AppInformationFormRow(label: question.title) {
+                    if viewModel.suggestionValue(.ageRating(question)).isEmpty {
+                        Pill(text: String(localized: "Not answered"), style: .warning)
+                            .fixedSize()
+                    }
+                    picker
+                }
             }
         }
         .accessibilityElement(children: .contain)

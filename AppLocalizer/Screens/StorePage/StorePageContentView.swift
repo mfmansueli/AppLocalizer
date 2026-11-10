@@ -6,24 +6,46 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The loaded Store Page: the context bar, then the no-version page or the
-/// action bar, banners and the chosen view, plus every sheet and file panel
-/// the section opens.
+/// The loaded Store Page: the header, then the no-version page or banners
+/// and the chosen view, plus every sheet and file panel the section opens
+/// and the toast after accepting suggestions.
 struct StorePageContentView: View {
     @Bindable var viewModel: StorePageViewModel
 
+    @Environment(AppPreferences.self) private var preferences
+    @Environment(WorkspaceNavigator.self) private var navigator
+
     var body: some View {
         VStack(spacing: 0) {
-            StorePageContextBar(viewModel: viewModel)
+            StorePageHeader(viewModel: viewModel)
+                .padding(.horizontal, 20)
+                .padding(.top, Spacing.small)
+                .padding(.bottom, 10)
             content
         }
         .background(Palette.content)
+        .overlay(alignment: .bottom) {
+            if let toast = viewModel.toast {
+                ActionToast(message: toast) {
+                    viewModel.undoToast()
+                } onAction: {
+                    viewModel.toast = nil
+                    navigator.isReviewPresented = true
+                } onDismiss: {
+                    if viewModel.toast == toast { viewModel.toast = nil }
+                }
+                .padding(.bottom, Spacing.large)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.default, value: viewModel.toast)
         .sheet(item: $viewModel.sheet) { sheet in
             switch sheet {
             case .translate: TranslateMissingSheet(viewModel: viewModel)
             case .findReplace: FindReplaceSheet(viewModel: viewModel)
             case .importPreview: ImportPreviewSheet(viewModel: viewModel)
             case .newLanguages: NewLanguagesSheet(viewModel: viewModel)
+            case .acceptAll: acceptAllSheet
             }
         }
         .fileImporter(isPresented: $viewModel.isImporterPresented, allowedContentTypes: ListingTransferFormat.importableContentTypes) { result in
@@ -42,6 +64,16 @@ struct StorePageContentView: View {
         }
     }
 
+    private var acceptAllSheet: some View {
+        AcceptAllSheet(selection: viewModel.acceptAllSelection()) {
+            viewModel.sheet = nil
+        } onAccept: { ids, dontAskAgain in
+            viewModel.sheet = nil
+            if dontAskAgain { preferences.acceptsAllWithoutAsking = true }
+            viewModel.acceptSuggestions(ids: ids, turnedOffAsking: dontAskAgain)
+        }
+    }
+
     @ViewBuilder
     private var content: some View {
         if !viewModel.isLoaded {
@@ -55,7 +87,7 @@ struct StorePageContentView: View {
         } else if viewModel.showsNoVersionPage {
             NoVersionView(viewModel: viewModel)
         } else {
-            if viewModel.isVersionEditable {
+            if viewModel.isVersionEditable, viewModel.mode != .editor {
                 StorePageActionBar(viewModel: viewModel)
             }
             banners

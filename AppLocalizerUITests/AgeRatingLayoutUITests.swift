@@ -29,12 +29,13 @@ final class AgeRatingLayoutUITests: XCTestCase {
         restoresTheOpenedWidth()
         resizeWindow(toWidth: Self.defaultWidth)
         assertEverythingFits()
-        XCTAssertGreaterThan(preview.frame.minX, element("suggestions.bar").frame.maxX, "The preview sits beside the questions at the default size.")
+        let question = element("appInformation.age.wellness")
+        XCTAssertGreaterThan(preview.frame.minX, question.frame.maxX, "The preview sits beside the questions at the default size.")
 
-        app.buttons["suggestions.acceptAll"].click()
+        app.buttons["appInformation.acceptHere"].click()
         XCTAssertTrue(element("toast.text").waitForExistence(timeout: 5))
         assertEverythingFits()
-        XCTAssertGreaterThan(preview.frame.minX, element("suggestions.bar").frame.maxX)
+        XCTAssertGreaterThan(preview.frame.minX, question.frame.maxX)
     }
 
     func testANarrowWindowPutsThePreviewAboveTheQuestions() {
@@ -48,7 +49,7 @@ final class AgeRatingLayoutUITests: XCTestCase {
         XCTAssertLessThan(app.windows.firstMatch.frame.width, Self.defaultWidth - 200, "The window didn't get narrower.")
 
         assertEverythingFits()
-        XCTAssertLessThan(preview.frame.maxY, element("suggestions.bar").frame.minY, "The preview goes above the questions.")
+        XCTAssertLessThan(preview.frame.maxY, element("appInformation.age.wellness").frame.minY, "The preview goes above the questions.")
     }
 
     // MARK: - Helpers
@@ -84,12 +85,13 @@ final class AgeRatingLayoutUITests: XCTestCase {
         let window = app.windows.firstMatch.frame.insetBy(dx: -1, dy: -1)
         let sidebar = element("sidebar.appList").frame
         let pageColumn = element("appInformation.pageColumn").frame
-        for identifier in ["sidebar.appList", "appInformation.pageColumn", "suggestions.bar", "suggestions.acceptAll", "appInformation.age.preview"] {
+        for identifier in ["sidebar.appList", "appInformation.pageColumn", "appInformation.pageBar", "appInformation.acceptAll", "appInformation.age.preview"] {
             let frame = element(identifier).frame
             XCTAssertTrue(window.minX <= frame.minX && frame.maxX <= window.maxX, "\(identifier) at \(frame) spills out of the window at \(window).", file: file, line: line)
         }
         XCTAssertGreaterThanOrEqual(pageColumn.minX, sidebar.maxX - 1, "The page column slid under the sidebar.", file: file, line: line)
-        XCTAssertGreaterThanOrEqual(element("suggestions.bar").frame.minX, pageColumn.maxX, "The page slid under the page column.", file: file, line: line)
+        let pageBar = element("appInformation.pageBar").frame
+        XCTAssertGreaterThanOrEqual(pageBar.minX, pageColumn.maxX, "The page slid under the page column.", file: file, line: line)
     }
 
     private func element(_ identifier: String) -> XCUIElement {

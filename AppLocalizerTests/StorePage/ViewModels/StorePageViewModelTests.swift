@@ -33,7 +33,8 @@ struct StorePageViewModelTests {
         #expect(model.value(.keywords, in: .german).isEmpty)
         #expect(model.coverage?.rows.map(\.locale) == [.englishUS, .german])
         #expect(model.summaryLine.contains("2 of"))
-        #expect(model.mode == .coverage)
+        // The redesign opens on the editor, in the primary language.
+        #expect(model.mode == .editor)
     }
 
     @Test func failedLoadSaysWhyAndReportsTheRateLimitToTheBanner() async {
@@ -224,10 +225,14 @@ struct StorePageViewModelTests {
         #expect(model.editorLocale == .german)
     }
 
-    @Test func switchingToTheEditorStartsOnTheFirstOtherLocale() async {
+    /// No primary column beside the editor any more: it opens on the
+    /// page's primary language, and the language bar moves on from there.
+    @Test func theEditorStartsOnThePrimaryLanguage() async {
         let model = await makeModel()
+        model.mode = .coverage
+        model.editorLocale = nil
         model.mode = .editor
-        #expect(model.editorLocale == .german)
+        #expect(model.editorLocale == .englishUS)
     }
 
     // MARK: - Intents

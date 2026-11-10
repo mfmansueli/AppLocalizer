@@ -15,6 +15,9 @@ final class AppSummaryStore {
     private(set) var pricing: [StoreApp.ID: LoadState<PricingSummary>] = [:]
     private(set) var storePage: [StoreApp.ID: LoadState<StorePageSummary>] = [:]
     private(set) var appInformation: [StoreApp.ID: LoadState<AppInformationSummary>] = [:]
+    /// Products with a price suggestion still open, counted by Pricing once
+    /// it has read every product's prices this launch.
+    private(set) var pricingSuggestionCounts: [StoreApp.ID: Int] = [:]
 
     private let services: WorkspaceServices
 
@@ -51,14 +54,22 @@ final class AppSummaryStore {
         [pricing[appID]?.isSettled, storePage[appID]?.isSettled, appInformation[appID]?.isSettled].allSatisfy { $0 == true }
     }
 
+    /// Pricing counted the products with an open price suggestion.
+    func setPricingSuggestionCount(_ count: Int, for appID: StoreApp.ID) {
+        guard pricingSuggestionCounts[appID] != count else { return }
+        pricingSuggestionCounts[appID] = count
+    }
+
     /// Forgets an app's numbers, e.g. after a push changed them.
     func invalidate(_ appID: StoreApp.ID) {
+        pricingSuggestionCounts[appID] = nil
         pricing[appID] = nil
         storePage[appID] = nil
         appInformation[appID] = nil
     }
 
     func invalidateAll() {
+        pricingSuggestionCounts = [:]
         pricing = [:]
         storePage = [:]
         appInformation = [:]

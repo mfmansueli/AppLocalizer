@@ -137,7 +137,7 @@ struct PreviewReviewToolsTests {
 
     @Test func onlyALibraryTrackAtThePlanOrWhileWatching() async throws {
         let fixtures = MCPAutopilotFixtures(AutopilotPreviewTestRun.run(.plan))
-        let tracks = "warm_acoustic, calm_piano, or bright_pop"
+        let tracks = "warm_acoustic, calm_piano, bright_pop, soft_ambient, lofi_beat, cinematic_build, or playful_marimba"
         await #expect(throws: MCPToolError.invalidArgument(name: "track", expected: "a library track: \(tracks)")) {
             try await fixtures.call(SetAppPreviewMusicTool(), ["run": "run-debug", "track": "own_file"])
         }

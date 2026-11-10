@@ -15,7 +15,7 @@ struct AccessibilityPageView: View {
         VStack(alignment: .leading, spacing: Spacing.medium) {
             AppInformationPageHeader(
                 title: AppInformationPage.accessibility.title,
-                subtitle: String(localized: "Accessibility Nutrition Labels: the features people can rely on, shown on your product page for each device.")
+                subtitle: AppInformationPage.accessibility.summary(appName: viewModel.app.name, version: nil)
             ) {
                 Pill(text: String(localized: "Voluntary for now · required later"))
                 ExternalLinkButton(title: String(localized: "About the Labels"), url: AccessibilityFeature.overviewURL)
@@ -23,6 +23,7 @@ struct AccessibilityPageView: View {
                     .accessibilityIdentifier("appInformation.accessibility.about")
             }
             .padding(.bottom, Spacing.xxSmall)
+            AppInformationPageBar(viewModel: viewModel, page: .accessibility)
             switch viewModel.accessibility {
             case .idle, .loading:
                 grid(Array(0..<4)) { _ in AccessibilitySkeletonCard() }

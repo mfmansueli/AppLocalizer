@@ -42,6 +42,19 @@ struct GeneralSettingsTab: View {
                 .toggleStyle(.switch)
                 .accessibilityIdentifier("settings.confirmsPriceIncreases")
             }
+            Section("Suggestions") {
+                Toggle(isOn: $preferences.acceptsAllWithoutAsking) {
+                    SettingsRowLabel(
+                        title: "Accept All without asking",
+                        caption: String(localized: """
+                        Accept All Languages and Accept All Pages accept at once instead of showing the suggestions first. \
+                        You can undo each time.
+                        """)
+                    )
+                }
+                .toggleStyle(.switch)
+                .accessibilityIdentifier("settings.acceptsAllWithoutAsking")
+            }
             Section("Proceeds") {
                 Picker(selection: $preferences.commissionRate) {
                     ForEach(Self.commissionRates, id: \.self) { Text(Self.title(forCommission: $0)).tag($0) }

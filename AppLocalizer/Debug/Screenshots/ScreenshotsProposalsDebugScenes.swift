@@ -22,11 +22,17 @@ import SwiftUI
 /// - `prop-stale`: a proposal based on v3 after v4 also changed the
 ///   device width.
 /// - `prop-disc`: `prop-cap` after Claude Code disconnected at 10:44.
+/// - `shots-page`, `shots-page-all`: the language page on German, with
+///   Claude Code's three shorter captions drawn on its screenshots; or All
+///   Languages.
 ///
 /// Scenes share `ScreenshotsDocumentCenter.shared`, which the toolbar
 /// reads, without its disk store.
 enum ScreenshotsProposalsDebugScenes {
-    static let ids = ["capt-empty", "capt-hover", "capt-match", "capt", "capt-view", "prop-list", "prop-tpl", "prop-cap", "prop-stale", "prop-disc"]
+    static let ids = [
+        "capt-empty", "capt-hover", "capt-match", "capt", "capt-view", "prop-list", "prop-tpl", "prop-cap", "prop-stale", "prop-disc",
+        "shots-page", "shots-page-all",
+    ]
 
     @MainActor
     static func view(for id: String) -> AnyView? {
@@ -67,6 +73,8 @@ enum ScreenshotsProposalsDebugScenes {
         case "prop-tpl": scene(assistants: .paired) { open($0, proposal: "p1") }
         case "prop-cap": scene(assistants: .paired) { open($0, proposal: "p2") }
         case "prop-disc": scene(assistants: .disconnected) { open($0, proposal: "p2") }
+        case "shots-page": scene(assistants: .paired, languagePage: true) { $0.pageLocale = StoreLocaleCatalog.locale(code: "de-DE") }
+        case "shots-page-all": scene(assistants: .paired, languagePage: true) { $0.pageShowsAll = true }
         case "prop-stale":
             scene(assistants: .paired) { model in
                 guard var document = model.document else { return }
@@ -88,11 +96,13 @@ enum ScreenshotsProposalsDebugScenes {
     private static func scene(
         _ scenario: ScreenshotsDebugScenario = .standard,
         assistants: AssistantsDebugState = .off,
+        languagePage: Bool = false,
         opening: @escaping @MainActor (ScreenshotsViewModel) async -> Void
     ) -> AnyView {
         let center = ScreenshotsDocumentCenter.shared
         center.diskStore = nil
         let screenshots = DebugScreenshotsServices(scenario: scenario, opening: ScreenshotsDebugOpening(opening), documentCenter: center)
+        screenshots.opensLanguagePage = languagePage
         var storePage = DebugStorePageServices()
         storePage.screenshots = screenshots
         var services = WorkspaceServices.debug

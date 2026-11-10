@@ -122,6 +122,16 @@ final class ScreenshotsDocumentCenter {
         document(appID: appID)?.waitingProposals ?? []
     }
 
+    /// Captions an assistant suggested for the app that wait to be
+    /// accepted or dismissed, for the Screenshots badge.
+    func openCaptionCount(appID: StoreApp.ID) -> Int {
+        openProposedCaptions(appID: appID).count
+    }
+
+    func openProposedCaptions(appID: StoreApp.ID) -> [ProposedCaption] {
+        document(appID: appID)?.openProposedCaptions ?? []
+    }
+
     /// For each app in `library` with screenshot proposals waiting, the
     /// assistant of each one.
     func waitingClients(in library: [StoreApp.ID]) -> [StoreApp.ID: [String]] {

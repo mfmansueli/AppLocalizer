@@ -73,6 +73,16 @@ enum Palette {
     static let machineTranslatedMark = dynamic(light: 0x9B4FD6, dark: 0xC48CFF, lightHC: 0x7E36B8, darkHC: 0xD4A8FF)
     static let machineTranslatedTint = dynamic(light: 0x9646D2, dark: 0xC88CFF, lightHC: 0x9646D2, darkHC: 0xC88CFF, alpha: [0.11, 0.17, 0.17, 0.24])
 
+    /// The count of suggestions waiting for someone: purple means only that.
+    static let suggestionBadge = dynamic(light: 0x8A3CD6, dark: 0xB98CFF, lightHC: 0x5C1E91, darkHC: 0xE6C8FF)
+    static let suggestionBadgeText = dynamic(light: 0xFFFFFF, dark: 0x1B0A2E, lightHC: 0xFFFFFF, darkHC: 0x000000)
+
+    /// The square icons at the top of each section.
+    static let sectionStorePage = dynamic(light: 0x2F7BF5, dark: 0x2F7BF5, lightHC: 0x1A5FD0, darkHC: 0x2F7BF5)
+    static let sectionScreenshots = dynamic(light: 0xF08A1C, dark: 0xF08A1C, lightHC: 0xB86200, darkHC: 0xF08A1C)
+    static let sectionPricing = dynamic(light: 0x2FA75A, dark: 0x2FA75A, lightHC: 0x1B7A3D, darkHC: 0x2FA75A)
+    static let sectionAppInformation = dynamic(light: 0x7D7D86, dark: 0x7D7D86, lightHC: 0x55555C, darkHC: 0x7D7D86)
+
     /// The 8 pt dot on anything that isn't pushed yet.
     static let unsaved = dynamic(light: 0x0071E3, dark: 0x4DA3FF, lightHC: 0x0040DD, darkHC: 0x8CC4FF)
 
