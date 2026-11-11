@@ -14,4 +14,9 @@ struct AutopilotCaptureTarget: Codable, Hashable, Sendable {
     /// iPhone Duo's open (inner display) or closed (cover display); nil on
     /// every other device, and in runs from before.
     var duoPose: AutopilotDuoPose?
+
+    /// The same screen, device and language, in either iPhone Duo pose.
+    func isSameScreen(as other: AutopilotCaptureTarget) -> Bool {
+        screenID == other.screenID && displayType == other.displayType && locale == other.locale
+    }
 }

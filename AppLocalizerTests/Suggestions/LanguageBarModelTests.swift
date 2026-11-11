@@ -55,7 +55,7 @@ struct LanguageBarModelTests {
     @Test func everythingReviewed() {
         let bar = LanguageBarModel(entries: [LanguageBarEntry(locale: .englishUS, count: 0)], current: .englishUS)
         #expect(bar.acceptAllTitle == "All Languages Reviewed")
-        #expect(bar.restText == "Every language is reviewed")
+        #expect(bar.restText.isEmpty, "The button says it; the bar doesn't repeat it")
         #expect(bar.acceptAllAccessibilityText == "Every language is reviewed")
         #expect(bar.next == nil)
     }
@@ -71,5 +71,23 @@ struct LanguageBarModelTests {
         let entry = LanguageBarEntry(locale: .german, count: 5, comingCount: 2, isNewPage: true)
         #expect(entry.accessibilityText == "German, 5 suggestions to review, 2 coming, not on the App Store yet")
         #expect(LanguageBarEntry(locale: .german, count: 1).accessibilityText == "German, 1 suggestion to review")
+    }
+
+    @Test func aShortNameALanguageBeforeItHasBecomesTheRegion() throws {
+        let american = try #require(StoreLocaleCatalog.locale(code: "en-US"))
+        let australian = try #require(StoreLocaleCatalog.locale(code: "en-AU"))
+        let shown = [american, australian, StoreLocale.german]
+        #expect(LanguageBarModel.shortName(american, among: shown) == "English")
+        #expect(LanguageBarModel.shortName(australian, among: shown) == "Australia")
+        #expect(LanguageBarModel.shortName(.german, among: shown) == "German")
+        // The first one shown keeps the language's name, whichever it is.
+        #expect(LanguageBarModel.shortName(australian, among: [australian, american]) == "English")
+        #expect(LanguageBarModel.shortName(american, among: [australian, american]) == "U.S.")
+    }
+
+    @Test func aShortNameOnItsOwnStaysShort() throws {
+        let american = try #require(StoreLocaleCatalog.locale(code: "en-US"))
+        #expect(LanguageBarModel.shortName(american, among: [american, .german]) == "English")
+        #expect(LanguageBarModel.shortName(american, among: []) == "English")
     }
 }

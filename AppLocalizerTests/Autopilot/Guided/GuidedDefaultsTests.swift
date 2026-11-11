@@ -22,6 +22,33 @@ struct GuidedDefaultsTests {
         #expect(plan.stopsToWatchPreview, "Watching is part of the review")
     }
 
+    /// The person asked twice for the folded Duo; Inner alone was the
+    /// default.
+    @Test func aNewPlanShowsIPhoneDuoOpenAndClosed() {
+        var plan = StudioDebugExtras.run(.plan).plan
+        plan.runChoice.duoScreens = nil
+        plan.runChoice.duoBoth = nil
+        GuidedDefaults.apply(to: &plan)
+        #expect(plan.duoScreens == .both)
+        #expect(plan.duoBoth == .separate)
+        #expect(plan.duoShots.contains { $0.poses == [.closed] }, "Folded screenshots of their own")
+        #expect(plan.duoShots.count <= AutopilotPlan.duoShotLimit)
+        #expect(plan.plansDuo)
+        #expect(GuidedScreensFold.duoSummary(plan) == "iPhone Duo open and closed")
+    }
+
+    @Test func aDuoChoiceThePersonMadeStays() {
+        var plan = StudioDebugExtras.run(.plan).plan
+        plan.runChoice.duoScreens = .inner
+        GuidedDefaults.apply(to: &plan)
+        #expect(plan.duoScreens == .inner)
+
+        plan.runChoice.duoScreens = .both
+        plan.runChoice.duoBoth = .sideBySide
+        GuidedDefaults.apply(to: &plan)
+        #expect(plan.duoBoth == .sideBySide)
+    }
+
     @Test func eachCardTurnsItsPartOnAndOff() {
         var plan = StudioDebugExtras.run(.plan).plan
         let devices = plan.displayTypes

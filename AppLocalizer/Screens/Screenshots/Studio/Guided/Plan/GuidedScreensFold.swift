@@ -55,13 +55,29 @@ struct GuidedScreensFold: View {
     }
 
     /// "17 screens from LumenUITests/ScreenshotTests.swift", "12 screens";
-    /// "Claude Code picks the screens" when there are none yet.
+    /// "Claude Code picks the screens" when there are none yet; then what
+    /// iPhone Duo's show, so the folded Duo isn't only behind Show.
     private var summary: String {
+        [screensSummary, Self.duoSummary(run.plan)].compactMap(\.self).joined(separator: " · ")
+    }
+
+    private var screensSummary: String {
         let plan = run.plan
-        let count = plan.screens.count + plan.displayTypes.filter(\.hasOwnScreens).reduce(0) { $0 + plan.screens(on: $1).count }
+        let count = plan.distinctScreenCount
         guard count > 0 else { return String(localized: "\(client) picks the screens") }
         let screens = count == 1 ? String(localized: "1 screen") : String(localized: "\(count) screens")
         guard let file = plan.writtenFrom else { return screens }
         return String(localized: "\(screens) from \(file)")
+    }
+
+    /// "iPhone Duo open and closed"; nil when the plan makes no Duo
+    /// screenshots.
+    static func duoSummary(_ plan: AutopilotPlan) -> String? {
+        guard plan.makesScreenshots, plan.plansDuo else { return nil }
+        return switch plan.duoScreens {
+        case .inner: String(localized: "iPhone Duo open only")
+        case .cover: String(localized: "iPhone Duo closed only")
+        case .both: String(localized: "iPhone Duo open and closed")
+        }
     }
 }

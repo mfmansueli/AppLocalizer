@@ -96,7 +96,7 @@ struct ClaudeCodeHelperScriptTests {
         // An older helper is told apart by its usage line, which stays one line.
         #expect(script.contains(
             "| open-duo <udid> <name> | accessibility [prompt] | record-display <udid> <display> | "
-                + "test-results <bundle> [<test>] | recorded-frame <frame> | discard-recording <folder>\"\n"
+                + "test-results <bundle> [<test>] | recorded-frame <frame> | discard-recording <folder> | repair-simulators | repair-audio\"\n"
         ))
         #expect(ClaudeCodeHelperScript.fileName.hasSuffix(".zsh"))
     }
@@ -126,5 +126,19 @@ struct ClaudeCodeHelperScriptTests {
         #expect(script.contains("${1:t} == applocalizer-recording.* && -d $1 && -O $1"))
         #expect(script.contains("if ! is_recording ${1:h} || [[ ${1:t} != frame-*.png || ! -f $1 ]]; then"))
         #expect(!script.contains("\\#("), "Every part of the script is filled in")
+    }
+
+    /// The repair of a Mac where no simulator starts: two modes without
+    /// values, the audio one asking macOS for the password.
+    @Test func theScriptRepairsSimulatorsThatWontStart() {
+        let script = ClaudeCodeHelperScript.contents
+        #expect(script.contains("repair-simulators) repair_simulators ;;"))
+        #expect(script.contains("repair-audio) repair_audio ;;"))
+        #expect(script.contains("repair-simulators|repair-audio)\n    simulator_mode \"$@\""))
+        #expect(script.contains("killall -9 com.apple.CoreSimulator.CoreSimulatorService"))
+        #expect(script.contains("with administrator privileges"))
+        #expect(script.contains("return \(SimulatorRepair.declinedStatus)"))
+        #expect(!script.contains("sudo "), "macOS asks for the password; the script never does")
+        #expect(ClaudeCodeHelperScript.version >= 7)
     }
 }

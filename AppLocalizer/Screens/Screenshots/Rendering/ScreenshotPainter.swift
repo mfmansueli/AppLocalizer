@@ -92,7 +92,7 @@ struct ScreenshotPainter {
         var context = parent
         if let tilt = device.tilt { context.concatenate(tilt.transform) }
         frame.drawBody(in: &context)
-        let screen = Path(roundedRect: rect, cornerRadius: cornerRadius, style: .continuous)
+        let screen = device.screenPath(rect, cornerRadius: cornerRadius)
         drawCapture(capture, in: &context, clip: screen, screen: rect)
         if let island = device.island {
             context.fill(Path(roundedRect: island, cornerRadius: island.height / 2, style: .continuous), with: .color(.black))

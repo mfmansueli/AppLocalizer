@@ -30,7 +30,9 @@ struct LanguageBarModel: Equatable, Sendable {
         }
     }
 
-    /// "27 more in 5 other languages", beside the arrows.
+    /// "27 more in 5 other languages", beside the arrows. Nothing once
+    /// every language is reviewed: the button beside it says so (Alba's bar
+    /// said it three times, with "Nothing to review here").
     var restText: String {
         if !others.isEmpty {
             let count = totalCount - hereCount
@@ -38,7 +40,7 @@ struct LanguageBarModel: Equatable, Sendable {
                 ? String(localized: "\(count) more in 1 other language")
                 : String(localized: "\(count) more in \(others.count) other languages")
         }
-        return totalCount > 0 ? String(localized: "Only this language has suggestions") : String(localized: "Every language is reviewed")
+        return totalCount > 0 ? String(localized: "Only this language has suggestions") : ""
     }
 
     var acceptAllTitle: String {
@@ -80,5 +82,20 @@ struct LanguageBarModel: Equatable, Sendable {
     /// "English" for "English (U.S.)": the button stays short.
     static func shortName(_ locale: StoreLocale) -> String {
         locale.name.components(separatedBy: " (").first ?? locale.name
+    }
+
+    /// The short name, unless a language shown before `locale` already
+    /// has it: then its region, so English (U.S.) and English (Australia)
+    /// side by side read "English" and "Australia" rather than "English"
+    /// twice, and stay as narrow.
+    static func shortName(_ locale: StoreLocale, among locales: [StoreLocale]) -> String {
+        let short = shortName(locale)
+        let earlier = locales.prefix { $0 != locale }
+        guard earlier.contains(where: { shortName($0) == short }) else { return short }
+        let parts = locale.name.components(separatedBy: " (")
+        guard parts.count > 1, let region = parts.last?.trimmingCharacters(in: CharacterSet(charactersIn: ")")), !region.isEmpty else {
+            return locale.name
+        }
+        return region
     }
 }

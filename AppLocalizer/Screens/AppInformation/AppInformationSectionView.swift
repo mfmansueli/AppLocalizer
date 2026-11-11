@@ -6,7 +6,8 @@
 import SwiftUI
 
 /// The App Information section of an app's workspace (⌘5): one view model
-/// per app, reloaded by the toolbar's Refresh.
+/// per app, kept by the window while other sections show and reloaded by
+/// the toolbar's Refresh.
 struct AppInformationSectionView: View {
     let app: StoreApp
     let services: any AppInformationServices
@@ -17,6 +18,8 @@ struct AppInformationSectionView: View {
     @Environment(WorkspaceNavigator.self) private var navigator
     @Environment(FieldSuggestionStore.self) private var suggestions
     @State private var viewModel: AppInformationViewModel?
+    /// The window's kept models; nil in previews without the main window.
+    @Environment(WorkspaceSectionModels.self) private var sectionModels: WorkspaceSectionModels?
 
     var body: some View {
         Group {
@@ -33,7 +36,9 @@ struct AppInformationSectionView: View {
         .accessibilityIdentifier("workspace.appInformation")
         .task(id: app.id) { await open() }
         .onChange(of: navigator.refreshCount) {
-            Task { await viewModel?.load() }
+            Task {
+                if let viewModel { await load(viewModel) }
+            }
         }
         .onChange(of: navigator.intent) { handleIntent() }
     }
@@ -45,6 +50,13 @@ struct AppInformationSectionView: View {
     }
 
     private func open() async {
+        let kept = sectionModels?.models(for: app.id)
+        if let model = kept?.appInformation, model.isLoaded {
+            viewModel = model
+            handleIntent()
+            if kept?.needsLoad(.appInformation, refreshCount: navigator.refreshCount) == true { await load(model) }
+            return
+        }
         let model = AppInformationViewModel(
             app: app,
             services: services,
@@ -53,13 +65,23 @@ struct AppInformationSectionView: View {
             summaries: summaries,
             push: push
         )
+        kept?.appInformation = model
         viewModel = model
         handleIntent()
-        await model.load()
+        await load(model)
         #if DEBUG
         if let opening = (services as? DebugAppInformationServices)?.opening {
             await opening.run(on: model)
         }
         #endif
+    }
+
+    /// Reads the pages and notes when, so the kept model isn't read again
+    /// until Refresh, a push or its age asks for it.
+    private func load(_ model: AppInformationViewModel) async {
+        let refreshCount = navigator.refreshCount
+        await model.load()
+        guard !Task.isCancelled, model.isLoaded, model.errorMessage == nil else { return }
+        sectionModels?.models(for: app.id).didLoad(.appInformation, refreshCount: refreshCount)
     }
 }

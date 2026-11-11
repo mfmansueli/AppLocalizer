@@ -18,6 +18,7 @@ struct AppLocalizerApp: App {
     @State private var keyAssistant: KeyAssistantController
     @State private var launcher: ClaudeCodeLauncher
     @State private var suggestions = FieldSuggestionStore(persistence: Self.suggestionPersistence)
+    @State private var pro = Self.makeProGate()
 
     init() {
         let changes = ChangeQueue(persistence: Self.changePersistence)
@@ -76,7 +77,13 @@ struct AppLocalizerApp: App {
                 .environment(keyAssistant)
                 .environment(launcher)
                 .environment(suggestions)
+                .environment(pro)
                 .environment(\.keyChecker, Self.keyChecker)
+                // What the person owns of Pro, and every change to it.
+                .task {
+                    assistants.isPro = { [pro] in pro.entitlements.isPro }
+                    pro.entitlements.start()
+                }
                 .frame(minWidth: Metrics.minimumWindowWidth, minHeight: Metrics.minimumWindowHeight)
                 // The local MCP server runs while AppLocalizer is open, if
                 // the person turned it on.
@@ -106,6 +113,22 @@ struct AppLocalizerApp: App {
             .environment(\.keyChecker, Self.keyChecker)
             .environment(\.aiProviderKeyChecker, Self.aiProviderKeyChecker)
         }
+    }
+
+    /// AppLocalizer Pro: the App Store's purchases. DEBUG builds are Pro
+    /// without one, so scenes, UI tests and the person's own work aren't
+    /// locked; `-AppLocalizerPro free` starts Free with a store that
+    /// charges nothing (`DebugProStore`), and `-AppLocalizerPro store` asks
+    /// the App Store as a release build does.
+    private static func makeProGate() -> ProGate {
+        #if DEBUG
+        switch UserDefaults.standard.string(forKey: "AppLocalizerPro") {
+        case "free": return ProGate(entitlements: Entitlements(store: DebugProStore()))
+        case "store": break
+        default: return ProGate(entitlements: Entitlements(store: DebugProStore(), override: true))
+        }
+        #endif
+        return ProGate(entitlements: Entitlements(store: StoreKitProStore()), defaults: defaults)
     }
 
     /// DEBUG scenes (and so UI tests) and the unit tests' host keep keys and

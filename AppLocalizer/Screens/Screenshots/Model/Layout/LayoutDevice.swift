@@ -24,6 +24,9 @@ struct LayoutDevice: Hashable, Sendable {
     /// A MacBook's base under the lid (`frame`), wider than it; nil on
     /// every other device.
     var base: CGRect?
+    /// The folded iPhone Duo's hinge; nil on every other device, and on
+    /// the unfolded Duo.
+    var spine: LayoutSpine?
 
     var isLaptop: Bool { base != nil }
 }

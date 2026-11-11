@@ -31,6 +31,12 @@ struct AutopilotProblemCard: View {
             }
             if watchesDuo {
                 duoStatus
+            } else if let fault {
+                // AppLocalizer repairs it: no Terminal command to read.
+                Text(repairText(fault))
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("autopilot.problem.repair")
             } else if let fix = group.proposedFix {
                 if let fixLabel {
                     Text(fixLabel)
@@ -129,6 +135,18 @@ struct AutopilotProblemCard: View {
                         .tint(duo == .needsAccessibility ? Palette.label2 : nil)
                         .accessibilityIdentifier("autopilot.problem.deviceHub")
                 }
+            } else if fault != nil, let simulators, simulators.hasHelper, simulators.repair.state != .needsHelper {
+                Button("Fix It") {
+                    Task { await studio.repairSimulators(on: simulators, asked: true) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(simulators.repair.state.isWorking)
+                .accessibilityIdentifier("autopilot.problem.fixIt")
+            } else if fault != nil, simulators?.repair.state == .needsHelper {
+                // The saved helper is from before it could repair.
+                Button(simulators?.hasHelper == true ? "Save the Helper Again…" : "Install the Helper…") { studio.saveHelperAndRepair() }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("autopilot.problem.repairHelper")
             } else if group.isDeviceWide, !group.needsProjectChange, let helperTitle {
                 Button(helperTitle) { studio.installHelperAndCheck() }
                     .buttonStyle(.borderedProminent)
@@ -150,6 +168,11 @@ struct AutopilotProblemCard: View {
             .buttonStyle(.borderedProminent)
             .tint(simulatorStatus?.canCapture == false || isMakeable || opensInDeviceHub ? Palette.label2 : nil)
             .accessibilityIdentifier("autopilot.problem.retry")
+            if otherLanguageCount > 0 {
+                Button("Retry in Every Language") { studio.retryInEveryLanguage(group) }
+                    .help(String(localized: "Also captures this screen again in the \(otherLanguageCount) other languages already captured: for a change that shows in all of them."))
+                    .accessibilityIdentifier("autopilot.problem.retryEveryLanguage")
+            }
             if canKeepCapture {
                 Button(group.isSingle ? String(localized: "Keep the Capture") : String(localized: "Keep the Captures")) {
                     studio.resolve(group, with: .keptCapture)
@@ -191,6 +214,21 @@ struct AutopilotProblemCard: View {
         return canKeepCapture
             ? String(localized: "\(place): captured, with a problem. ")
             : String(localized: "\(place): couldn’t reach the screen. ")
+    }
+
+    /// The simulator fault AppLocalizer can repair, when the card is about
+    /// one.
+    private var fault: SimulatorFault? {
+        studio.simulatorFault(of: group)
+    }
+
+    /// What's wrong in plain words, then where the repair stands.
+    private func repairText(_ fault: SimulatorFault) -> String {
+        let state = simulators?.repair.state ?? .idle
+        let offer = fault == .audioService
+            ? String(localized: "AppLocalizer can restart it for you: macOS asks for your password once.")
+            : String(localized: "AppLocalizer can restart it for you.")
+        return fault.summary + " " + (state.message ?? offer)
     }
 
     private var fixLabel: String? {
@@ -235,6 +273,12 @@ struct AutopilotProblemCard: View {
             return String(localized: """
             This is a change to the project, not a command: make it, then retry. Claude Code started by AppLocalizer can’t \
             change files; Claude Code in Terminal can. Leaving \(group.displayType.shortTitle) out finishes the run without it.
+            """)
+        }
+        if fault != nil, helperTitle == nil, simulators?.repair.state != .needsHelper {
+            return String(localized: """
+            Fix It restarts what the simulators need and tries \(group.displayType.shortTitle) again by itself. \
+            Restarting the Mac fixes it too; then Retry.
             """)
         }
         if group.isDeviceWide, helperTitle != nil {
@@ -326,6 +370,14 @@ struct AutopilotProblemCard: View {
     /// reported (MB Admin's portrait iPad capture): the person can keep it.
     private var canKeepCapture: Bool {
         !group.isDeviceWide && group.problems.allSatisfy { run.hasCapture(for: $0.target) }
+    }
+
+    /// Captures of the same screen in other languages that a change to the
+    /// project would redo too; none for a command, which only this
+    /// language's setup lacked.
+    private var otherLanguageCount: Int {
+        guard group.needsProjectChange, !group.isDeviceWide else { return 0 }
+        return run.otherLanguageCount(of: group)
     }
 
     /// The primary language's captures of these screens are there to reuse.

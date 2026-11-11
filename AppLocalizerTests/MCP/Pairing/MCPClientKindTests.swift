@@ -43,6 +43,8 @@ struct MCPClientKindTests {
 
     @Test func connectingClientsAreRecognizedByName() {
         #expect(MCPClientKind.matching(clientName: "claude-code") == .claudeCode)
+        #expect(MCPClientKind.matching(clientName: "claude-code-motivator") == .claudeCode)
+        #expect(MCPClientKind.matching(clientName: "claude-codex") == nil)
         #expect(MCPClientKind.matching(clientName: "claude-ai") == .claudeDesktop)
         #expect(MCPClientKind.matching(clientName: "Cursor-vscode") == .cursor)
         #expect(MCPClientKind.matching(clientName: "codex-mcp-client") == .codex)

@@ -36,6 +36,10 @@ struct FittingSegmentedPicker<Value: Hashable>: NSViewRepresentable {
             control.setLabel(option.title, forSegment: index)
         }
         control.selectedSegment = options.firstIndex { $0.value == selection } ?? -1
+        // `.disabled` on the SwiftUI side.
+        if control.isEnabled != context.environment.isEnabled {
+            control.isEnabled = context.environment.isEnabled
+        }
     }
 
     func makeCoordinator() -> Coordinator {

@@ -23,6 +23,17 @@ struct GuidedPlanTimelineTests {
         GuidedPlanTimeline.rows(plan: plan, client: "Claude Code", design: design, brand: "Northpier Brand", kept: kept)
     }
 
+    /// Alba's plan said "Captures 6 screens" over "9 screens from …": the
+    /// watch's own 3 weren't counted in the row.
+    @Test func theCaptureRowCountsAppleWatchsOwnScreens() {
+        let plan = Self.plan { plan in
+            plan.displayTypes.append(.watch)
+            plan.setScreens([AutopilotScreen(name: "Today on the watch"), AutopilotScreen(name: "Watch streak")], on: .watch)
+        }
+        #expect(plan.distinctScreenCount == plan.screens.count + 2)
+        #expect(Self.rows(plan)[0].title == "Captures \(plan.screens.count + 2) screens in Simulator")
+    }
+
     @Test func aGuidedPlanStopsTwice() {
         let rows = Self.rows(Self.plan())
         #expect(rows.map(\.kind) == [.capture, .design, .choose, .localize, .review])

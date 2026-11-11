@@ -306,7 +306,7 @@ struct IPhoneDuoTests {
     /// AppLocalizer couldn't open once and goes on.
     @Test func autopilotSaysTheSimulatorStartsClosedAndAppLocalizerOpensIt() throws {
         let how = try #require(AutopilotRun.howToCapture(.iPhoneDuo))
-        #expect(how.contains("the Duo starts closed"))
+        #expect(how.contains("Closed: next_step folds the Duo first (it restarts an open one; its iPhoneDuo line says so)"))
         #expect(how.contains("once only open ones are left, AppLocalizer opens it itself (it presses Open in the Duo's window in Device Hub)"))
         #expect(how.contains("it closes it again (by restarting it) if a closed one comes back"))
         #expect(how.contains("Don't open Device Hub, press anything there, or shut down, reboot or erase the Duo yourself"))

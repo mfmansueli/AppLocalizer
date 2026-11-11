@@ -204,9 +204,10 @@ extension AutopilotRun {
         case .iPhoneDuo:
             """
             Use the iPhone Duo simulator (Xcode 27.1 or later). Its set has open and closed screenshots (poses; each iPhone \
-            Duo target says which), and next_step gives the closed ones first. Closed: the Duo starts closed, with the app on \
-            its 1398 × 2034 cover display, and a UI test's own screenshot (XCUIScreen.main) is that display, so capture the \
-            closed ones like iPhone's, from the UI tests' attachments or xcrun simctl io <udid> screenshot of the cover display. \
+            Duo target says which), and next_step gives the closed ones first. Closed: next_step folds the Duo first (it \
+            restarts an open one; its iPhoneDuo line says so), with the app on its 1398 × 2034 cover display, and a UI \
+            test's own screenshot (XCUIScreen.main) is that display, so capture the closed ones like iPhone's, from the UI \
+            tests' attachments or xcrun simctl io <udid> screenshot of the cover display. \
             Open: once only open ones are left, AppLocalizer opens it itself (it presses Open in the Duo's window in Device \
             Hub), and it closes it again (by restarting it) if a closed one comes back. Don't open Device Hub, press anything \
             there, or shut down, reboot or erase the Duo yourself. Never change its displays with xcrun simctl io … \

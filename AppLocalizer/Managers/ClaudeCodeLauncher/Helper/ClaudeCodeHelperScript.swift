@@ -34,11 +34,13 @@ import Foundation
 /// screenshot on the Duo is its cover display, so it records the inner
 /// display while the test runs (`record-display`), reads when the test took
 /// each screenshot (`test-results`), and gives back the frame from then
-/// (`recorded-frame`, `discard-recording`; `DisplayRecorder`). Each takes
+/// (`recorded-frame`, `discard-recording`; `DisplayRecorder`). When no
+/// simulator will start, it restarts what they stand on
+/// (`repair-simulators`, `repair-audio`; `SimulatorRepair`). Each takes
 /// only fixed values, checked by the script, never a command.
 enum ClaudeCodeHelperScript {
     /// Bumped when the script changes; an older one asks to be saved again.
-    static let version = 6
+    static let version = 7
 
     /// The oldest helper that still starts Claude Code: version 2's `run`
     /// is this one's, so a run in progress doesn't stop for the update.
@@ -144,12 +146,19 @@ enum ClaudeCodeHelperScript {
     #   recorded-frame <frame>         one recorded frame, as base64
     #   discard-recording <folder>     deletes a recording
     #
-    # applocalizer-helper 6
+    # And when no simulator will start on this Mac:
+    #
+    #   repair-simulators              shuts the simulators down and restarts their
+    #                                  service (CoreSimulatorService)
+    #   repair-audio                   restarts the Mac's audio service too, which they
+    #                                  need to start; macOS asks for your password
+    #
+    # applocalizer-helper 7
 
     emulate -L zsh
     setopt no_nomatch
 
-    helper_version=6
+    helper_version=7
 
     # Where Claude Code is: its own installer's folder first, then package
     # managers, then whatever your login shell finds.
@@ -328,6 +337,8 @@ enum ClaudeCodeHelperScript {
 
     \#(recordingFunctions)
 
+    \#(repairFunctions)
+
     # A simulator mode's output, then the exit line.
     simulator_mode() {
       local mode=$1
@@ -347,6 +358,8 @@ enum ClaudeCodeHelperScript {
         test-results) test_results "$@" ;;
         recorded-frame) recorded_frame "$@" ;;
         discard-recording) discard_recording "$@" ;;
+        repair-simulators) repair_simulators ;;
+        repair-audio) repair_audio ;;
       esac
       local code=$?
       print -r -- "applocalizer-helper-exit $code"
@@ -366,6 +379,9 @@ enum ClaudeCodeHelperScript {
       record-display|test-results|recorded-frame|discard-recording)
         simulator_mode "$@"
         ;;
+      repair-simulators|repair-audio)
+        simulator_mode "$@"
+        ;;
       run)
         shift
         run_claude "$@"
@@ -378,7 +394,7 @@ enum ClaudeCodeHelperScript {
     install-platform <platform> | create-simulator <name> <type> <runtime> | simulator-displays <udid> | \#
     simulator-screenshot <udid> <display> | simulator-crashes <udid> | boot-simulator <udid> | shutdown-simulator <udid> | \#
     open-duo <udid> <name> | accessibility [prompt] | record-display <udid> <display> | test-results <bundle> [<test>] | \#
-    recorded-frame <frame> | discard-recording <folder>"
+    recorded-frame <frame> | discard-recording <folder> | repair-simulators | repair-audio"
         exit 64
         ;;
     esac

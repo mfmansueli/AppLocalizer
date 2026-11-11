@@ -105,6 +105,22 @@ struct AutopilotResumeTests {
         #expect(run.previewReview?.request?.note == "Shorter", "The note waits for the design source again")
     }
 
+    /// Alba's run: its last retry ended with every capture in, in an
+    /// AppLocalizer relaunched with no Claude Code to ask what's next. It
+    /// moves on by itself instead of sitting at "224 of 224".
+    @Test func aCaptureStageWithEveryCaptureInMovesOn() async throws {
+        var start = AutopilotTestFixtures.run(.capture)
+        #expect(AutopilotCenter.resume(for: start, isBusy: false) == nil, "Captures are left: the assistant's turn")
+        AutopilotTestFixtures.captureAll(&start)
+        #expect(AutopilotCenter.resume(for: start, isBusy: false) == .advance)
+        center.install(start)
+        #expect(center.resumeInterruptedWork(AutopilotTestFixtures.appID, context: context))
+        for _ in 0..<500 where center.run(for: AutopilotTestFixtures.appID)?.stage == .capture {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(center.run(for: AutopilotTestFixtures.appID)?.stage != .capture)
+    }
+
     @Test func aHeldRunDoesntResume() {
         let center = AutopilotTestFixtures.center(holdsStages: true)
         center.install(Self.localizing)

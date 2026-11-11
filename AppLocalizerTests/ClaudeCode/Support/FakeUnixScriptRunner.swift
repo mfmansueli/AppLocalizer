@@ -27,6 +27,9 @@ final class FakeUnixScriptRunner: UnixScriptRunning, @unchecked Sendable {
     /// repeat; each ends with the exit line and `statuses`' status (0).
     var answers: [String: [[String]]] = [:]
     var statuses: [String: Int32] = [:]
+    /// A mode's status call by call, the last one repeating; over
+    /// `statuses` when set.
+    var statusSequences: [String: [Int32]] = [:]
     private let calls = Mutex<[[String]]>([])
     private let answered = Mutex<[String: Int]>([:])
 
@@ -61,7 +64,7 @@ final class FakeUnixScriptRunner: UnixScriptRunning, @unchecked Sendable {
                 return min(counts[mode, default: 0], modeAnswers.count - 1)
             }
             modeAnswers[index].forEach(onLine)
-            let status = statuses[mode] ?? 0
+            let status = statusSequences[mode].flatMap { $0.isEmpty ? nil : $0[min(index, $0.count - 1)] } ?? statuses[mode] ?? 0
             onLine("\(ClaudeCodeHelperScript.exitMarker) \(status)")
             return UnixScriptExit(errorOutput: errorOutput, taskError: status == 0 ? nil : "The script exited with status \(status).")
         }

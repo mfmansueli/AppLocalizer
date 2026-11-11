@@ -10,6 +10,8 @@ import SwiftUI
 struct RetentionHeader: View {
     let model: RetentionModel
     @Binding var page: PricingPage
+    /// Nil in previews and scenes without the app's gate.
+    @Environment(ProGate.self) private var pro: ProGate?
 
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.medium) {
@@ -28,9 +30,12 @@ struct RetentionHeader: View {
                 RetentionPageSwitch(page: $page)
                 RetentionAskButton(app: model.app, kind: .draft)
                 Button {
-                    model.newMessage()
+                    pro.require(.retention) { model.newMessage() }
                 } label: {
-                    Label("New Message", systemImage: "plus")
+                    HStack(spacing: Spacing.xSmall) {
+                        Label("New Message", systemImage: "plus")
+                        if pro.isFree { ProChip() }
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canAddMessage || model.subscriptions.isEmpty)

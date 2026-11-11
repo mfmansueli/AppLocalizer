@@ -245,9 +245,19 @@ struct AutopilotRun: Codable, Hashable, Sendable, Identifiable {
     /// keeping its capture doesn't bring the retry back.
     private func isPendingRetry(_ problem: AutopilotProblem) -> Bool {
         problem.resolution == .retryWithFix && plan.displayTypes.contains(problem.target.displayType)
-            && !captures.contains { $0.target == problem.target && $0.receivedAt >= problem.reportedAt }
+            && !captures.contains { isRetried(problem, by: $0) }
             && !problems.contains { $0.isOpen && ($0.target == problem.target || $0.holdsDevice(of: problem)) }
             && !problems.contains { $0.target == problem.target && $0.reportedAt > problem.reportedAt }
+    }
+
+    /// A capture that arrived after the problem, of its screen. A problem
+    /// with the whole device is about the device, not one of iPhone Duo's
+    /// poses: Alba's "Duo open while the closed screenshots are due" got the
+    /// open pose (the problem had none), so the cover captures that came
+    /// after it never ended the retry and the run sat at "224 of 224".
+    private func isRetried(_ problem: AutopilotProblem, by capture: AutopilotCapture) -> Bool {
+        guard capture.receivedAt >= problem.reportedAt else { return false }
+        return problem.isDeviceWide ? capture.target.isSameScreen(as: problem.target) : capture.target == problem.target
     }
 
     /// Reuse the primary language's capture for a screen on a device in

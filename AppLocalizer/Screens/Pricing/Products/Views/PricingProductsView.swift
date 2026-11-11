@@ -12,6 +12,8 @@ struct PricingProductsView: View {
     @Bindable var viewModel: PricingViewModel
 
     @State private var width: CGFloat = 0
+    /// Nil in previews and scenes without the app's gate.
+    @Environment(ProGate.self) private var pro: ProGate?
 
     var body: some View {
         ScrollView {
@@ -46,8 +48,16 @@ struct PricingProductsView: View {
                 .font(.callout)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
-            Button("Accept All \(viewModel.openPriceSuggestionCount)") {
-                Task { await viewModel.acceptAllPriceSuggestions() }
+            Button {
+                let countries = viewModel.productCards.reduce(0) { $0 + $1.suggestedCount }
+                pro.require(.recommendedPrices(countries: countries)) {
+                    Task { await viewModel.acceptAllPriceSuggestions() }
+                }
+            } label: {
+                HStack(spacing: Spacing.xSmall) {
+                    Text("Accept All \(viewModel.openPriceSuggestionCount)")
+                    if pro.isFree { ProChip() }
+                }
             }
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)
@@ -69,7 +79,16 @@ struct PricingProductsView: View {
                         isExpanded: viewModel.expandedProductID == product.id,
                         onToggleCountries: { viewModel.toggleCountries(productID: product.id) },
                         onDismiss: { viewModel.dismissPriceSuggestion(productID: product.id) },
-                        onAccept: { Task { await viewModel.acceptPriceSuggestion(productID: product.id) } },
+                        onAccept: {
+                            // Prices for many countries at once are Pro's;
+                            // one country's stays free.
+                            let accept = { _ = Task { await viewModel.acceptPriceSuggestion(productID: product.id) } }
+                            if card.suggestedCount > 1 {
+                                pro.require(.recommendedPrices(countries: card.suggestedCount), then: accept)
+                            } else {
+                                accept()
+                            }
+                        },
                         onOpen: { Task { await viewModel.openDetails(productID: product.id) } }
                     )
                 } else if let message = viewModel.productErrors[product.id] {

@@ -29,6 +29,12 @@ struct GuidedMakingStepView: View {
             .task(id: run.id) {
                 if let simulators { await studio.checkDevicesDuringRun(on: simulators) }
             }
+            .task(id: studio.simulatorFaultKey) {
+                // No simulator starts on this Mac: AppLocalizer repairs
+                // what it can and tries the devices again, by itself.
+                guard let simulators, !studio.simulatorFaultKey.isEmpty else { return }
+                await studio.repairSimulators(on: simulators)
+            }
             .task(id: studio.watchesDuo(on: simulators)) {
                 // iPhone Duo is started and opened before the assistant
                 // gets to it, and kept so while its screens are left.
@@ -170,7 +176,9 @@ struct GuidedMakingStepView: View {
             }
             .modifier(GuidedSelectableCard())
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text("\(run.captures.count) captures so far"))
+            // The plan's, as the progress line counts them: every capture
+            // kept said 294 beside "168 of 224" (iPad, Watch and retakes).
+            .accessibilityLabel(Text("\(run.capturedCount) of \(run.totalCaptures) captures so far"))
             .accessibilityIdentifier("autopilot.guided.making.arriving")
         }
     }

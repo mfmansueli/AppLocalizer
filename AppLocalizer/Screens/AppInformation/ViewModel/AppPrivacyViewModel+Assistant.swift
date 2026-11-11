@@ -56,7 +56,9 @@ extension AppPrivacyViewModel {
 
     /// "Scan done · 12 answers suggested · 3 open questions".
     func doneText(of scan: PrivacyScan) -> String {
-        String(localized: "Scan done · \(scan.suggestionCount) answers suggested · \(scan.questionCount) open questions")
+        let answers = scan.suggestionCount == 1 ? String(localized: "1 answer suggested") : String(localized: "\(scan.suggestionCount) answers suggested")
+        let questions = scan.questionCount == 1 ? String(localized: "1 open question") : String(localized: "\(scan.questionCount) open questions")
+        return String(localized: "Scan done · \(answers) · \(questions)")
     }
 
     /// "northpier/lumen @ 4f2c91a · Oct 26, 2026 · 10:42 · 14 SDKs · 6 manifests".

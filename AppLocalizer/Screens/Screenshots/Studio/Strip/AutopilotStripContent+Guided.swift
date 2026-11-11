@@ -122,6 +122,15 @@ extension AutopilotStripContent {
         case .ended:
             content.title = String(localized: "Autopilot stopped")
         case .quiet, .handedBack, nil:
+            // Alba's run, no simulator booting on the Mac, said "Autopilot
+            // is running… You’ll be notified when it needs you" with all
+            // 294 captures waiting on the person.
+            if run.waitsOnlyOnProblems {
+                content.title = String(localized: "Autopilot is waiting for you")
+                content.text = problems == 1
+                    ? String(localized: "\(progress.line). Nothing else can go on: open it to retry the problem or leave its part out.")
+                    : String(localized: "\(progress.line). Nothing else can go on: open it to retry the \(problems) problems or leave their parts out.")
+            }
             return content
         }
         content.text = stall?.headline(of: run, now: now) ?? content.text

@@ -64,10 +64,7 @@ extension ScreenshotStudioModel {
     /// first would never see the Duo watched (a run stopped on the Duo's
     /// card, which doesn't change, stayed stuck).
     func watchesDuo(on simulators: MacSimulators?) -> Bool {
-        guard let run, run.stage == .capture, run.plan.displayTypes.contains(.iPhoneDuo),
-              simulators?.status(for: .iPhoneDuo)?.canCapture == true
-        else { return false }
-        return run.plan.targets.contains { $0.displayType == .iPhoneDuo && !run.isSettled($0) }
+        run?.watchesDuo == true && simulators?.status(for: .iPhoneDuo)?.canCapture == true
     }
 
     /// While the run captures and has iPhone Duo screens left, AppLocalizer

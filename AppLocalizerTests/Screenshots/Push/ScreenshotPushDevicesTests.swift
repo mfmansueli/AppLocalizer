@@ -57,6 +57,23 @@ struct ScreenshotPushDevicesTests {
         #expect(plan.groups.contains { $0.displayType == .watch })
     }
 
+    /// Each image is named after its device's own screen: the watch's
+    /// "Mood check-in", not the iPhone slot's "Today". Alba's iPhone Duo
+    /// listed "Today's phrase · cover" as "2 Animated scenes", and its
+    /// last four as "Slot 7"…
+    @Test func imagesAreNamedAfterTheirDevicesOwnScreens() throws {
+        let plan = Self.plan(vision: true)
+        let watch = try #require(plan.groups.first { $0.displayType == .watch && $0.locale.code == "de-DE" })
+        #expect(watch.items.map(\.slotName) == DebugEveryDevice.watchScreens.map(\.name))
+        let iPhone = try #require(plan.groups.first { $0.displayType == .iPhone })
+        #expect(iPhone.items.allSatisfy { ScreenshotsSampleData.slotNames.contains($0.slotName) })
+
+        var document = ScreenshotsDebugDocuments.standard
+        document.setScreens([DeviceScreen(name: "Today · inner", captionSlot: 0), DeviceScreen(name: "Today · cover", captionSlot: 0)], on: .iPhoneDuo)
+        #expect(document.slotName(1, on: .iPhoneDuo) == "Today · cover")
+        #expect(document.slotName(1, on: .iPhone) == "Week")
+    }
+
     @Test func setsGoIPhoneIPadWatchThenVisionPro() {
         let order = Self.plan(vision: true).groups.map(\.displayType)
         var seen: [ScreenshotDisplayType] = []

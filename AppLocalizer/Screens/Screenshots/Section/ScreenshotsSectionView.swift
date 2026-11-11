@@ -15,6 +15,8 @@ struct ScreenshotsSectionView: View {
     @Environment(PushController.self) private var push
     @Environment(WorkspaceNavigator.self) private var navigator
     @State private var model: ScreenshotsSectionModel?
+    /// The window's kept models; nil in previews without the main window.
+    @Environment(WorkspaceSectionModels.self) private var sectionModels: WorkspaceSectionModels?
 
     var body: some View {
         Group {
@@ -27,7 +29,9 @@ struct ScreenshotsSectionView: View {
                     Text(message)
                 } actions: {
                     Button("Try Again") {
-                        Task { await model?.load() }
+                        Task {
+                            if let model { await load(model) }
+                        }
                     }
                 }
                 .accessibilityIdentifier("screenshots.sectionError")
@@ -42,16 +46,37 @@ struct ScreenshotsSectionView: View {
         .accessibilityIdentifier("workspace.screenshots")
         .task(id: app.id) { await open() }
         .onChange(of: navigator.refreshCount) {
-            Task { await model?.load() }
+            Task {
+                if let model { await load(model) }
+            }
         }
         .onChange(of: navigator.intent) { handleIntent() }
     }
 
     private func open() async {
+        let kept = sectionModels?.models(for: app.id)
+        // The window keeps the model while other sections show: the sets,
+        // renders and captures are there when the person comes back.
+        if let model = kept?.screenshots, model.screenshots != nil {
+            self.model = model
+            handleIntent()
+            if kept?.needsLoad(.screenshots, refreshCount: navigator.refreshCount) == true { await load(model) }
+            return
+        }
         let model = ScreenshotsSectionModel(app: app, services: services, push: push)
+        kept?.screenshots = model
         self.model = model
         handleIntent()
+        await load(model)
+    }
+
+    /// Reads the version and notes when, so the kept model isn't read
+    /// again until Refresh, a push or its age asks for it.
+    private func load(_ model: ScreenshotsSectionModel) async {
+        let refreshCount = navigator.refreshCount
         await model.load()
+        guard !Task.isCancelled, model.screenshots != nil, model.errorMessage == nil else { return }
+        sectionModels?.models(for: app.id).didLoad(.screenshots, refreshCount: refreshCount)
     }
 
     /// Show Screenshots (Review & Push's Show in Captions): the section

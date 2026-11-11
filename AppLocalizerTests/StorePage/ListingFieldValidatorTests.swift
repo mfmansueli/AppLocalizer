@@ -111,12 +111,17 @@ struct ListingFieldValidatorTests {
         #expect(keywords.accessibilityLabel == "Over the limit, 114 of 100 bytes")
     }
 
+    /// A subscription's description takes 55: Alba's 54-character English
+    /// one is live in App Store Connect, and was shown over a limit of 45.
     @Test func inAppTextLimits() {
         #expect(InAppTextField.subscriptionName.limit == ListingTextLimit(30))
-        #expect(InAppTextField.subscriptionDescription.limit == ListingTextLimit(45))
+        #expect(InAppTextField.subscriptionDescription.limit == ListingTextLimit(55))
         #expect(InAppTextField.purchaseName.limit == ListingTextLimit(30))
         #expect(InAppTextField.purchaseDescription.limit == ListingTextLimit(45))
         #expect(InAppTextField.subscriptionGroupName.limit == ListingTextLimit(30))
-        #expect(ListingFieldValidator.validate(String(repeating: "x", count: 46), for: .subscriptionDescription).isBlocking)
+        let alba = "All premium backgrounds, plus new ones as they arrive."
+        #expect(!ListingFieldValidator.validate(alba, for: .subscriptionDescription).isBlocking)
+        #expect(ListingFieldValidator.validate(String(repeating: "x", count: 56), for: .subscriptionDescription).isBlocking)
+        #expect(ListingFieldValidator.validate(String(repeating: "x", count: 46), for: .purchaseDescription).isBlocking)
     }
 }

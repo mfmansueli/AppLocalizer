@@ -6,8 +6,8 @@
 import Foundation
 
 /// What a guided plan starts with and keeps: two stops (choose the look,
-/// then review), the captures picked by the assistant, and the last run's
-/// captures reused when only artwork is made.
+/// then review), the captures picked by the assistant, iPhone Duo open and
+/// closed, and the last run's captures reused when only artwork is made.
 enum GuidedDefaults {
     /// A new guided plan: Choose and Watch stop (Watch is part of the
     /// review), Pick doesn't.
@@ -17,6 +17,17 @@ enum GuidedDefaults {
         plan.stopsToWatchPreview = true
         plan.assistantDesignsArtwork = true
         plan.assistantDesignsLooks = true
+        applyDuoScreens(to: &plan)
+    }
+
+    /// iPhone Duo unfolded and folded, as separate screenshots, unless the
+    /// person chose otherwise. The inner display alone was the default, so
+    /// Alba's 1.1.0 run sent no folded Duo though the person had asked for
+    /// it twice. Only a new plan takes it: a run's plan keeps its targets.
+    static func applyDuoScreens(to plan: inout AutopilotPlan) {
+        guard plan.runChoice.duoScreens == nil else { return }
+        plan.runChoice.duoScreens = .both
+        plan.runChoice.duoBoth = .separate
     }
 
     /// Captures: reused when the run makes only artwork and there are

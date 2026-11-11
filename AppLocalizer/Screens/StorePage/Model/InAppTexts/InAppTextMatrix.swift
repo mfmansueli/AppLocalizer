@@ -58,6 +58,15 @@ struct InAppTextMatrix: Hashable, Sendable {
         cells.count(where: { validation(of: $0.column, in: $0.locale).isBlocking })
     }
 
+    /// "14 locales · 10 over the limit · 0 missing · 0 not pushed", for the
+    /// bar over the grid: Alba's showed the store page's line ("0 over the
+    /// limit") beside ten red descriptions.
+    var summaryLine: String {
+        let count = displayLocales.count
+        let locales = count == 1 ? String(localized: "1 locale") : String(localized: "\(count) locales")
+        return String(localized: "\(locales) · \(overLimitCount) over the limit · \(missingCount) missing · \(changes.count) not pushed")
+    }
+
     mutating func addLocale(_ locale: StoreLocale) {
         guard !locales.contains(locale) else { return }
         locales.append(locale)

@@ -81,11 +81,15 @@ struct MCPAutopilotSession {
         }
         var target = AutopilotCaptureTarget(screenID: screen.id, displayType: display, locale: locale.code)
         if display == .iPhoneDuo {
-            // iPhone Duo's open or closed: as sent, else the screen's first
-            // (a capture with both is placed by its size when it arrives).
+            // iPhone Duo's open or closed: as sent, else the one the run is
+            // capturing now (the closed ones come first), else the screen's
+            // first; a capture with both is placed by its size when it
+            // arrives. Alba's "Duo open while the closed screenshots are
+            // due" came without a pose and was filed under the open one.
             let poses = run.plan.slot(of: screen.id).map(run.plan.duoPoses(forSlot:)) ?? []
             let sent = try arguments.optionalString("pose").flatMap(AutopilotDuoPose.init(rawValue:))
-            target.duoPose = sent.flatMap { poses.contains($0) ? $0 : nil } ?? poses.first
+            let now = run.duoPoseWanted.flatMap { poses.contains($0) ? $0 : nil }
+            target.duoPose = sent.flatMap { poses.contains($0) ? $0 : nil } ?? now ?? poses.first
         }
         return target
     }

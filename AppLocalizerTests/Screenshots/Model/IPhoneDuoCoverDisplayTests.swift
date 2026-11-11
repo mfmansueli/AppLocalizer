@@ -81,9 +81,75 @@ struct IPhoneDuoCoverDisplayTests {
         let folded = layout(captureSize: Self.cover, template: landscape)
         #expect(folded.canvas.pixelSize == Self.inner.rotated)
         #expect(folded.screen.height > folded.screen.width, "The folded phone stands up in it")
-        // It runs off the bottom no further than the template lets a device.
+        // Whole, whatever the template lets a device do.
         let device = try #require(folded.device)
-        #expect(device.frame.maxY <= folded.canvas.height * (1 + landscape.device.bleed) + 1)
+        #expect(device.frame.maxY <= folded.canvas.height)
+    }
+
+    /// Alba's closed screenshots looked like an iPhone: the template ran
+    /// the folded phone off the bottom, hiding its squat shape, and drew
+    /// an iPhone's four round corners. It stands whole, however far the
+    /// template lets devices bleed or pins them down.
+    @Test func theFoldedPhoneStandsWhole() throws {
+        for orientation in [ScreenshotOrientation.portrait, .landscape] {
+            var bleeding = ScreenshotsSampleData.template
+            bleeding.canvas.duo = orientation
+            bleeding.device.bleed = 0.3
+            bleeding.device.width = 1.2
+            bleeding.device.top = 0.9
+            let folded = layout(captureSize: Self.cover, template: bleeding)
+            let device = try #require(folded.device)
+            #expect(device.frame.maxY <= folded.canvas.height, "\(orientation)")
+            #expect(device.frame.minY >= folded.captionBox.maxY, "Under the caption, \(orientation)")
+            #expect(abs(Self.aspect(folded.screen) - ScreenshotLayoutEngine.coverAspect) < 0.01)
+        }
+        var iPhone = ScreenshotsSampleData.template
+        iPhone.device.bleed = 0.3
+        iPhone.device.width = 1
+        let phone = engine.layout(
+            iPhone, slot: 0, locale: .englishUS, displayType: .iPhone, caption: ScreenshotsTestFixtures.caption("en-US", slot: 0),
+            captureSize: ScreenshotDisplayType.iPhone.portraitPixelSize
+        )
+        #expect(try #require(phone.device).frame.maxY > phone.canvas.height, "An iPhone still bleeds as the template says")
+    }
+
+    /// Apple's cover-display mask (the iPhone Duo simulator's) is square
+    /// on the hinge side and round on the side it opens from: the folded
+    /// phone has its spine on the left, alone or beside the unfolded one,
+    /// in either direction (the capture is never mirrored).
+    @Test func theFoldedPhoneHasItsHingeOnTheLeft() throws {
+        let folded = layout(captureSize: Self.cover)
+        let device = try #require(folded.device)
+        let spine = try #require(device.spine)
+        #expect(spine.screenCornerRadius < folded.screenCornerRadius / 5, "Nearly square on the hinge side")
+        #expect(spine.bodyCornerRadius < device.cornerRadius / 2)
+        #expect(spine.overhang > 0 && spine.overhang < spine.width)
+
+        #expect(layout(captureSize: Self.inner).device?.spine == nil, "The unfolded Duo has none")
+        var landscape = ScreenshotsSampleData.template
+        landscape.canvas.duo = .landscape
+        landscape.rightToLeft.mirror = true
+        let pair = layout(captureSize: Self.inner.rotated, companion: Self.cover, template: landscape)
+        #expect(pair.device?.spine == nil)
+        #expect(pair.companion?.device?.spine != nil)
+        let arabic = try #require(StoreLocaleCatalog.locale(code: "ar-SA"))
+        #expect(layout(captureSize: Self.cover, template: landscape, locale: arabic).device?.spine != nil)
+
+        let iPhone = engine.layout(
+            ScreenshotsSampleData.template, slot: 0, locale: .englishUS, displayType: .iPhone, caption: nil,
+            captureSize: ScreenshotDisplayType.iPhone.portraitPixelSize
+        )
+        #expect(iPhone.device?.spine == nil)
+    }
+
+    /// Changing the Duo's frame renders its screenshots again and counts
+    /// them as changed; every other device keeps its keys, so what's live
+    /// stays live.
+    @Test func onlyTheDuosRenderKeysChange() {
+        #expect(RenderKey.frameRevision(for: .iPhoneDuo) != nil)
+        for display in ScreenshotDisplayType.allCases where display != .iPhoneDuo {
+            #expect(RenderKey.frameRevision(for: display) == nil, "\(display)")
+        }
     }
 
     @Test func sideBySideFramesBothDisplaysAtTheSameScale() throws {

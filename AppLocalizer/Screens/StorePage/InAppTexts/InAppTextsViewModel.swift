@@ -7,7 +7,8 @@ import Foundation
 import Observation
 
 /// The In-App Texts view: subscription group, subscription and in-app
-/// purchase names (30) and descriptions (45) per locale, loaded when the
+/// purchase names (30) and descriptions (55 for a subscription, 45 for an
+/// in-app purchase) per locale, loaded when the
 /// view first opens. Edits are queued like the listing's.
 @MainActor
 @Observable
@@ -95,7 +96,7 @@ final class InAppTextsViewModel {
         })
     }
 
-    /// "Display name 30 characters, description 45" counters.
+    /// "12/30", "54/55" counters.
     func counter(_ column: InAppTextColumn, in locale: StoreLocale) -> ListingFieldCounter {
         ListingFieldCounter(value(column, in: locale), limit: column.field.limit)
     }

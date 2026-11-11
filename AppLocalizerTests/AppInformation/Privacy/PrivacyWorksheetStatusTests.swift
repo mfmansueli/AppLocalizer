@@ -54,7 +54,8 @@ struct PrivacyWorksheetStatusTests {
         let reason = try #require(worksheet.blockedReason)
         #expect(reason.hasPrefix("Finish the worksheet first: "))
         #expect(reason.contains("3 unreviewed"))
-        #expect(reason.contains("1 open questions"))
+        #expect(reason.contains("1 open question"))
+        #expect(!reason.contains("1 open questions"), "One question, singular")
         #expect(!worksheet.isDone)
     }
 

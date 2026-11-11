@@ -13,6 +13,8 @@ struct ScreenshotStudioView: View {
     @Bindable var screenshots: ScreenshotsViewModel
     @Environment(MCPServerController.self) private var assistants: MCPServerController?
     @Environment(WorkspaceNavigator.self) private var navigator: WorkspaceNavigator?
+    /// Nil in previews and scenes without the app's gate.
+    @Environment(ProGate.self) private var pro: ProGate?
 
     private var studio: ScreenshotStudioModel { screenshots.studio }
 
@@ -87,7 +89,7 @@ struct ScreenshotStudioView: View {
     private func perform(_ action: AutopilotStripAction) {
         switch action {
         case .runAutopilot:
-            studio.runGuidedAutopilot()
+            pro.require(.autopilot) { studio.runGuidedAutopilot() }
         case .open:
             studio.openAutopilot()
         case .setUpAssistant:

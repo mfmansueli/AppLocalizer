@@ -24,6 +24,8 @@ struct LocaleEditorView: View {
     private static let minimumWidth: CGFloat = 500
 
     @Environment(AppPreferences.self) private var preferences
+    /// Nil in previews and scenes without the app's gate.
+    @Environment(ProGate.self) private var pro: ProGate?
     @Environment(\.undoManager) private var undoManager
     @State private var width: CGFloat = 0
 
@@ -58,11 +60,18 @@ struct LocaleEditorView: View {
     }
 
     private func languageBar(_ model: LanguageBarModel) -> some View {
-        LanguageBar(model: model) { locale in
+        LanguageBar(model: model, showsProChip: pro.isFree && model.withSuggestions.count > 1) { locale in
             viewModel.editorLocale = locale
             viewModel.editorFocus = nil
         } onAcceptAll: {
-            viewModel.acceptAllLanguages(withoutAsking: preferences.acceptsAllWithoutAsking)
+            // One language's suggestions are free with Accept Here too.
+            let languages = model.withSuggestions.count
+            let accept = { viewModel.acceptAllLanguages(withoutAsking: preferences.acceptsAllWithoutAsking) }
+            if languages > 1 {
+                pro.require(.acceptAllLanguages(suggestions: model.totalCount, languages: languages), then: accept)
+            } else {
+                accept()
+            }
         } onAcceptHere: {
             viewModel.acceptAllSuggestions(in: model.current)
         } onAskFirst: {

@@ -101,16 +101,22 @@ struct AppSidebar: View {
         VStack(alignment: .leading, spacing: 0) {
             Divider()
             VStack(alignment: .leading, spacing: Spacing.xxSmall) {
-                if hasSuggestions {
+                let suggestions = suggestionTotal
+                if suggestions > 0 {
+                    // Every app's together: a sample "3" read as three
+                    // suggestions beside Bruma's 35 and SimProps' 1.
                     HStack(spacing: Spacing.xSmall) {
-                        SuggestionBadge(count: 3, isSmall: true)
-                        Text("Suggestions to review")
+                        SuggestionBadge(count: suggestions, isSmall: true)
+                        Text(suggestions == 1 ? "Suggestion to review" : "Suggestions to review")
                     }
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(Text("A purple count: suggestions to review"))
+                    .accessibilityLabel(Text(suggestions == 1 ? "A purple count: 1 suggestion to review" : "A purple count: \(suggestions) suggestions to review"))
                     .accessibilityIdentifier("sidebar.legend")
                 }
-                Text(footerText)
+                // "synced 2 min. ago" moves on as time passes.
+                TimelineView(.everyMinute) { context in
+                    Text(footerText(now: context.date))
+                }
             }
             .font(.caption)
             .foregroundStyle(Palette.label2)
@@ -120,18 +126,21 @@ struct AppSidebar: View {
         }
     }
 
-    /// The legend shows once some app has a purple count.
-    private var hasSuggestions: Bool {
-        viewModel.apps.contains { indicators($0).suggestionCount > 0 }
+    /// Every app's purple count together; the legend shows once there's one.
+    private var suggestionTotal: Int {
+        viewModel.apps.reduce(0) { $0 + indicators($1).suggestionCount }
     }
 
-    private var footerText: String {
+    private func footerText(now: Date) -> String {
         if viewModel.isLoading, viewModel.apps.isEmpty {
             return String(localized: "Syncing with App Store Connect…")
         }
         let count = String(localized: "\(viewModel.apps.count) apps")
         guard let synced = viewModel.lastSyncedAt else { return count }
-        let relative = synced.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))
+        let formatter = RelativeDateTimeFormatter()
+        formatter.dateTimeStyle = .named
+        formatter.unitsStyle = .abbreviated
+        let relative = formatter.localizedString(for: synced, relativeTo: now)
         return String(localized: "\(count) · synced \(relative)")
     }
 

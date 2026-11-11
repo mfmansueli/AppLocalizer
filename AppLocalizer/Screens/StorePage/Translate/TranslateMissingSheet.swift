@@ -17,6 +17,8 @@ struct TranslateMissingSheet: View {
     @Environment(MCPServerController.self) private var assistants
     @Environment(TranslationPreferences.self) private var preferences
     @Environment(ClaudeCodeLauncher.self) private var launcher
+    /// Nil in previews and scenes without the app's gate.
+    @Environment(ProGate.self) private var pro: ProGate?
     @State private var newTerm = ""
     @State private var launchedRunID: ClaudeCodeRun.ID?
 
@@ -91,22 +93,24 @@ struct TranslateMissingSheet: View {
                             .buttonStyle(.borderedProminent)
                             .keyboardShortcut(.defaultAction)
                     } else {
-                        Button("Start Claude Code", action: startClaudeCode)
+                        Button("Start Claude Code") { needingPro(startClaudeCode) }
                             .buttonStyle(.borderedProminent)
                             .keyboardShortcut(.defaultAction)
                             .accessibilityIdentifier("storePage.translate.startClaudeCode")
                     }
                 } else if translation.provider == .assistant {
-                    Button(translation.isAssistantPromptCopied ? "Waiting for \(assistantName)…" : "Copy Prompt", action: copyAssistantPrompt)
-                        .buttonStyle(.borderedProminent)
-                        .keyboardShortcut(.defaultAction)
-                        // Stays prominent while waiting, as the design draws it;
-                        // clicking again copies the prompt again.
-                        .disabled(!assistants.isRunning)
-                        .accessibilityIdentifier("storePage.translate.copyPrompt")
+                    Button(translation.isAssistantPromptCopied ? "Waiting for \(assistantName)…" : "Copy Prompt") {
+                        needingPro(copyAssistantPrompt)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                    // Stays prominent while waiting, as the design draws it;
+                    // clicking again copies the prompt again.
+                    .disabled(!assistants.isRunning)
+                    .accessibilityIdentifier("storePage.translate.copyPrompt")
                 } else {
                     Button(translation.startTitle) {
-                        viewModel.startTranslation()
+                        needingPro { viewModel.startTranslation() }
                     }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
@@ -285,6 +289,23 @@ struct TranslateMissingSheet: View {
 
     /// The run AppLocalizer started from this sheet.
     private var launched: ClaudeCodeRun? { launcher.run(launchedRunID) }
+
+    /// Translating several languages in one step is Pro's (Translate
+    /// All); one language at a time stays free. In Free the sheet closes
+    /// for the paywall, and comes back once Pro is bought.
+    private func needingPro(_ action: @escaping () -> Void) {
+        let languages = translation.selectedPlan.locales.count
+        guard pro.isFree, languages > 1 else {
+            action()
+            return
+        }
+        dismiss()
+        Task {
+            // One sheet at a time: after this one has left.
+            try? await Task.sleep(for: .milliseconds(350))
+            pro.require(.translateAll(languages: languages)) { viewModel.handle(.translateMissing) }
+        }
+    }
 
     /// Start Claude Code: the request in words, in the app's project folder.
     private func startClaudeCode() {

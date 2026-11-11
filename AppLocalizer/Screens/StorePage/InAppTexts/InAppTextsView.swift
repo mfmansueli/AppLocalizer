@@ -6,7 +6,7 @@
 import SwiftUI
 
 /// In-App Texts: the subscription group name, each subscription's display
-/// name (30) and description (45), and in-app purchase names, per locale.
+/// name (30) and description (55), and in-app purchase names, per locale.
 /// A cell opens a popover to edit it; edits are queued like the listing's.
 struct InAppTextsView: View {
     let viewModel: StorePageViewModel
@@ -23,12 +23,15 @@ struct InAppTextsView: View {
             Divider()
             content
             Divider()
-            Text("Shown on the purchase sheet and in Settings → Subscriptions. Display name 30 characters, description 45. Click a cell to edit.")
-                .font(.caption)
-                .foregroundStyle(Palette.label2)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.large)
-                .padding(.vertical, Spacing.small)
+            Text("""
+            Shown on the purchase sheet and in Settings → Subscriptions. Display name 30 characters; \
+            description 55 for a subscription, 45 for an in-app purchase. Click a cell to edit.
+            """)
+            .font(.caption)
+            .foregroundStyle(Palette.label2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.large)
+            .padding(.vertical, Spacing.small)
         }
         .task { await model.load(listing: viewModel.listing) }
         .accessibilityElement(children: .contain)

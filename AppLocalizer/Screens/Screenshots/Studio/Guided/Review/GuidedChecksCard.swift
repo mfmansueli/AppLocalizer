@@ -66,7 +66,15 @@ struct GuidedChecksCard: View {
     /// again.
     @ViewBuilder
     private var approveNote: some View {
-        if !studio.canApprove(part), let progress = AutopilotLoopProgress.make(run, now: .now) {
+        if part == .screenshots, !studio.guidedCaptionProposals.isEmpty {
+            Text("Accept or reject the proposal above first: it changes these screenshots.")
+                .font(.caption)
+                .foregroundStyle(Palette.label2)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .multilineTextAlignment(.center)
+                .accessibilityIdentifier("autopilot.guided.review.approveNote")
+        } else if !studio.canApprove(part), let progress = AutopilotLoopProgress.make(run, now: .now) {
             TimelineView(.periodic(from: .now, by: 30)) { context in
                 Text((AutopilotLoopProgress.make(run, now: context.date) ?? progress).approveNote)
                     .font(.caption)
@@ -103,6 +111,18 @@ struct GuidedChecksCard: View {
                 .padding(.leading, 18)
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("autopilot.guided.review.check.\(check.id).details")
+            }
+            if let proposalID = check.proposalID {
+                HStack(spacing: Spacing.xSmall) {
+                    Button("Accept") { Task { await studio.acceptGuidedProposal(proposalID) } }
+                        .accessibilityIdentifier("autopilot.guided.review.check.\(check.id).accept")
+                    Button("Reject") { Task { await studio.rejectGuidedProposal(proposalID) } }
+                        .buttonStyle(.borderless)
+                        .accessibilityIdentifier("autopilot.guided.review.check.\(check.id).reject")
+                }
+                .controlSize(.small)
+                .buttonBorderShape(.capsule)
+                .padding(.leading, 18)
             }
             if check.state == .toConfirm {
                 VStack(alignment: .leading, spacing: Spacing.xxSmall) {

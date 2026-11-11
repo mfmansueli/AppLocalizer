@@ -12,12 +12,16 @@ import Foundation
 /// artwork's languages and loop, the App Preview's length, music and
 /// languages.
 enum GuidedReviewChecks {
-    /// - Parameter app: "Lumen", for the screenshots' interface check.
+    /// - Parameters:
+    ///   - app: "Lumen", for the screenshots' interface check.
+    ///   - proposals: the caption proposals waiting that change the set
+    ///     (`waitingCaptionProposals`).
     static func checks(
-        for part: GuidedReviewPart, run: AutopilotRun, previews: [ExtrasPreviewFile] = [], app: String? = nil
+        for part: GuidedReviewPart, run: AutopilotRun, previews: [ExtrasPreviewFile] = [], app: String? = nil,
+        proposals: [ScreenshotProposal] = []
     ) -> [GuidedCheck] {
         switch part {
-        case .screenshots: screenshots(run, app: app)
+        case .screenshots: proposals.map { proposalCheck($0, run: run) } + screenshots(run, app: app)
         case .artwork: artwork(run)
         case .appPreview: appPreview(run, previews: previews)
         }
@@ -29,6 +33,35 @@ enum GuidedReviewChecks {
     }
 
     // MARK: - Screenshots
+
+    /// The caption proposals waiting in `proposals` that change the run's
+    /// screenshots: one of its languages, on a slot it has. Alba's run
+    /// finished while Claude Code proposed putting 13 languages' captions
+    /// back on their screens; the proposal only showed in the toolbar, and
+    /// the set was pushed with the captions on the wrong screens.
+    static func waitingCaptionProposals(_ proposals: [ScreenshotProposal], for run: AutopilotRun) -> [ScreenshotProposal] {
+        let locales = Set(run.plan.localeCodes)
+        let slots = run.plan.screens.indices
+        return proposals.filter { proposal in
+            proposal.isWaiting && proposal.kind == .captions
+                && proposal.captions.contains { locales.contains($0.locale) && slots.contains($0.slot) }
+        }
+    }
+
+    /// "Claude Code proposes: Captions 2–4 back on their own screens",
+    /// with each caption: "English (Australia) · Animated scenes: “Wake up
+    /// to animated scenes”".
+    private static func proposalCheck(_ proposal: ScreenshotProposal, run: AutopilotRun) -> GuidedCheck {
+        let lines = proposal.captions.map { item in
+            let language = StoreLocaleCatalog.locale(code: item.locale)?.name ?? item.locale
+            let screen = run.plan.screens.indices.contains(item.slot) ? run.plan.screens[item.slot].name : String(localized: "Slot \(item.slot + 1)")
+            return "\(language) · \(screen): “\(item.headline)”"
+        }
+        return GuidedCheck(
+            id: "proposal-\(proposal.id)", text: String(localized: "\(proposal.client) proposes: \(proposal.title)"),
+            state: .attention, details: [proposal.reason] + limited(lines), proposalID: proposal.id
+        )
+    }
 
     private static func screenshots(_ run: AutopilotRun, app: String?) -> [GuidedCheck] {
         let plan = run.plan

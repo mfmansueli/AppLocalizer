@@ -61,9 +61,10 @@ struct DeviceFramePainter {
     func drawBody(in context: inout GraphicsContext) {
         let frame = device.frame
         let radius = device.cornerRadius
-        let shape = Path(roundedRect: frame, cornerRadius: radius, style: .continuous)
+        let shape = device.bodyPath(frame, cornerRadius: radius)
         let depth = depth
         let sideAngle = 90 + turn * 2
+        drawSpine(in: &context, depth: depth)
         for index in stride(from: layers, through: 1, by: -1) {
             let amount = CGFloat(index) / CGFloat(layers)
             let gradient = Gradient(stops: [
@@ -85,6 +86,27 @@ struct DeviceFramePainter {
         drawButtons(in: &context, depth: depth)
         drawRim(shape, in: &context)
         drawBase(in: &context)
+    }
+
+    /// The folded iPhone Duo's hinge: a bar down the left side, round at
+    /// both ends, lit like a cylinder and standing out past the body, which
+    /// is drawn over it.
+    private func drawSpine(in context: inout GraphicsContext, depth: CGVector) {
+        guard let spine = device.spine else { return }
+        let frame = device.frame
+        let rect = CGRect(
+            x: frame.minX - spine.overhang, y: frame.minY + spine.bodyCornerRadius * 0.25,
+            width: spine.width, height: frame.height - spine.bodyCornerRadius * 0.5
+        ).offsetBy(dx: depth.dx * 0.5, dy: depth.dy * 0.5)
+        let bar = Path(roundedRect: rect, cornerRadius: rect.width / 2, style: .continuous)
+        let cylinder = Gradient(stops: [
+            .init(color: mix(toward: .black, 0.45), location: 0), .init(color: mix(toward: .white, isLight ? 0.2 : 0.38), location: 0.32),
+            .init(color: mix(toward: .black, 0.1), location: 0.62), .init(color: mix(toward: .black, 0.5), location: 1),
+        ])
+        context.drawLayer { layer in
+            layer.addFilter(.shadow(color: .black.opacity(0.22), radius: device.shadowRadius / 3, x: 0, y: device.shadowOffset / 2))
+            layer.fill(bar, with: .linearGradient(cylinder, startPoint: CGPoint(x: rect.minX, y: rect.midY), endPoint: CGPoint(x: rect.maxX, y: rect.midY)))
+        }
     }
 
     /// A MacBook's base: a bar wider than the lid, rounded underneath, lit
@@ -141,15 +163,15 @@ struct DeviceFramePainter {
         let rimWidth = max(2, device.bezel * 0.34)
         let edge = max(1, rimWidth * 0.2)
         context.stroke(
-            Path(roundedRect: frame.insetBy(dx: edge / 2, dy: edge / 2), cornerRadius: device.cornerRadius, style: .continuous),
+            device.bodyPath(frame.insetBy(dx: edge / 2, dy: edge / 2), cornerRadius: device.cornerRadius),
             with: .color(.white.opacity(0.22)), lineWidth: edge
         )
         let glass = frame.insetBy(dx: rimWidth, dy: rimWidth)
         let glassRadius = max(0, device.cornerRadius - rimWidth)
-        context.fill(Path(roundedRect: glass, cornerRadius: glassRadius, style: .continuous), with: .color(Color(red: 5 / 255, green: 5 / 255, blue: 6 / 255)))
+        context.fill(device.bodyPath(glass, cornerRadius: glassRadius), with: .color(Color(red: 5 / 255, green: 5 / 255, blue: 6 / 255)))
         let lip = max(1, rimWidth * 0.25)
         context.stroke(
-            Path(roundedRect: glass.insetBy(dx: lip / 2, dy: lip / 2), cornerRadius: max(0, glassRadius - lip / 2), style: .continuous),
+            device.bodyPath(glass.insetBy(dx: lip / 2, dy: lip / 2), cornerRadius: max(0, glassRadius - lip / 2)),
             with: .color(.white.opacity(0.07)), lineWidth: lip
         )
     }

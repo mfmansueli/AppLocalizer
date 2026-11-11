@@ -207,6 +207,20 @@ extension ScreenshotStudioModel {
         }
     }
 
+    /// Retry in Every Language: the screen again on its device in every
+    /// language, after a change to the project that shows in all of them.
+    func retryInEveryLanguage(_ group: AutopilotProblemGroup) {
+        guard let autopilot else { return }
+        let context = context
+        let appID = app.id
+        let ids = group.problems.map(\.id)
+        let goOn = goingOn()
+        Task {
+            await autopilot.retryInEveryLanguage(appID: appID, problemIDs: ids, context: context)
+            await goOn()
+        }
+    }
+
     /// Record Again: the App Preview recordings the assistant left out are
     /// made once more, by the Claude Code AppLocalizer starts again.
     func recordAgain() {

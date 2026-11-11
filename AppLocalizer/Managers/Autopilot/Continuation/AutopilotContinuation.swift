@@ -26,11 +26,54 @@ enum AutopilotContinuation {
 
     /// The launcher's word that a run ended (`ClaudeCodeLauncher.onRunEnded`).
     static func sessionEnded(_ session: ClaudeCodeRun, center: AutopilotCenter, launcher: ClaudeCodeLauncher) async {
+        if waitsForUsageLimit(after: session, center: center, launcher: launcher) { return }
         guard session.purpose == .autopilot, let run = center.run(for: session.appID), shouldStartAgain(after: session, run: run) else { return }
         center.update(session.appID) { run in
             run.appendLog(String(localized: "Claude Code stopped with work left; AppLocalizer started it again"), kind: .event, at: center.now())
         }
         await start(appID: session.appID, appName: session.appName, center: center, launcher: launcher)
+    }
+
+    // MARK: - The usage limit
+
+    /// The runs waiting for Claude Code's usage limit to reset, by app.
+    private static var limitWaits: [StoreApp.ID: Task<Void, Never>] = [:]
+
+    /// Claude Code stopped because the person's plan ran out of usage for
+    /// now: nothing to fix, so AppLocalizer starts it again by itself once
+    /// the limit resets, and the log says when. True when it's waiting.
+    static func waitsForUsageLimit(
+        after session: ClaudeCodeRun, center: AutopilotCenter, launcher: ClaudeCodeLauncher, sleep: @escaping @Sendable (TimeInterval) async -> Void = {
+            try? await Task.sleep(for: .seconds($0))
+        }
+    ) -> Bool {
+        guard session.purpose == .autopilot, case let .claudeError(message)? = session.failure,
+              let limit = ClaudeCodeUsageLimit(message: message, now: center.now()),
+              let run = center.run(for: session.appID), run.startsClaudeCode == true, run.assistantHasWork
+        else { return false }
+        let (appID, appName) = (session.appID, session.appName)
+        let resume = limit.resumeDate(now: center.now())
+        let time = resume.formatted(date: .omitted, time: .shortened)
+        center.update(appID) { run in
+            run.appendLog(
+                String(localized: "Claude Code reached its usage limit. AppLocalizer continues the run by itself at \(time)."), kind: .event, at: center.now()
+            )
+        }
+        limitWaits[appID]?.cancel()
+        limitWaits[appID] = Task { [weak launcher] in
+            await sleep(max(resume.timeIntervalSince(center.now()), 0))
+            guard !Task.isCancelled, let launcher else { return }
+            limitWaits[appID] = nil
+            // Not when the person continued, stopped or cancelled meanwhile.
+            guard let run = center.run(for: appID), run.startsClaudeCode == true, run.assistantHasWork,
+                  launcher.latestRun(appID: appID, purpose: .autopilot)?.id == session.id
+            else { return }
+            center.update(appID) { run in
+                run.appendLog(String(localized: "The usage limit has reset; AppLocalizer started Claude Code again"), kind: .event, at: center.now())
+            }
+            await start(appID: appID, appName: appName, center: center, launcher: launcher)
+        }
+        return true
     }
 
     /// Only a session of this run that AppLocalizer started, that ended by

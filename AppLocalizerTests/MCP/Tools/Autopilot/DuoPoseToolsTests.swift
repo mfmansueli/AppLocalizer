@@ -50,6 +50,27 @@ struct DuoPoseToolsTests {
         #expect(outcome.result["addScreens"] == nil)
     }
 
+    /// A problem sent without a pose is about the screens captured now:
+    /// while the closed ones are left, the closed one. Alba's was filed
+    /// under the open pose and its retry never ended.
+    @Test func aProblemWithoutAPoseIsAboutThePoseCapturedNow() async throws {
+        let fixtures = Self.fixtures(screens: 3, .both, .separate)
+        let problem: [String: JSONValue] = [
+            "run": "run-1", "screen": "1", "displayType": "iphone_duo", "locale": "en-US",
+            "what": "iPhone Duo is open while the closed screenshots are due.", "affectsDevice": true,
+        ]
+        _ = try await fixtures.call(ReportCaptureProblemTool(), problem)
+        #expect(fixtures.run?.problems.last?.target.duoPose == .closed)
+
+        var open = problem
+        open["pose"] = "open"
+        open["screen"] = "2"
+        open["affectsDevice"] = false
+        _ = try await fixtures.call(ReportCaptureProblemTool(), open)
+        #expect(fixtures.run?.problems.last?.target.duoPose == .open, "As sent")
+        #expect(ReportCaptureProblemTool().definition.inputSchema["properties"]?["pose"] != nil)
+    }
+
     /// The old rule wanted 6 screens on iPhone Duo; the row takes any
     /// number.
     @Test func anyNumberOfScreensIsTaken() async throws {

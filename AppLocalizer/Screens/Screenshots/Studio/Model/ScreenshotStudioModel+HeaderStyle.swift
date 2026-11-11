@@ -62,7 +62,9 @@ extension ScreenshotStudioModel {
 
     /// "Claude Code".
     var assistantTitle: String {
-        appSupport?.profile(for: app.id)?.reportedBy ?? String(localized: "Claude Code")
+        guard let reportedBy = appSupport?.profile(for: app.id)?.reportedBy else { return String(localized: "Claude Code") }
+        // A profile kept from before may hold the client's raw name.
+        return MCPClientSession.displayName(clientName: reportedBy, title: nil)
     }
 
     /// "Pick up to 3 (a 4th replaces the last). Claude Design adapts each

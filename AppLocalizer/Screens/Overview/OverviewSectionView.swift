@@ -33,6 +33,8 @@ struct OverviewSectionView: View {
     /// The page the preview shows, read when Overview opens and on Refresh.
     @State private var content: StorePageContent?
     @State private var width: CGFloat = 0
+    /// The window's kept models; nil in previews without the main window.
+    @Environment(WorkspaceSectionModels.self) private var sectionModels: WorkspaceSectionModels?
 
     var body: some View {
         ScrollView {
@@ -106,10 +108,20 @@ struct OverviewSectionView: View {
         var refresh: Int
     }
 
+    /// The page for the preview: the one the window kept from the last
+    /// time Overview showed, read again after Refresh, a push or when old.
     private func loadContent() async {
+        let kept = sectionModels?.models(for: app.id)
+        let refreshCount = navigator.refreshCount
+        if let kept, let page = kept.overviewContent {
+            content = page
+            guard kept.needsLoad(.overview, refreshCount: refreshCount) else { return }
+        }
         let loaded = try? await services.content(for: app, versionID: nil)
         guard !Task.isCancelled else { return }
         content = loaded
+        kept?.overviewContent = loaded
+        if loaded != nil { kept?.didLoad(.overview, refreshCount: refreshCount) }
     }
 
     /// Before an assistant is connected or a key set up, the card

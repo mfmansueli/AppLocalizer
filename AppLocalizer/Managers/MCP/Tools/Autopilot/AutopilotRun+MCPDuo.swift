@@ -31,14 +31,14 @@ extension AutopilotRun {
         case (.both, .sideBySide):
             return """
             Each iPhone Duo screen is captured twice, folded (pose closed, the cover display) and unfolded (pose open, \
-            the inner display); AppLocalizer puts both in one image. Capture the closed ones first: the Duo starts \
-            folded. \(steps)
+            the inner display); AppLocalizer puts both in one image. Capture the closed ones first: next_step folds \
+            the Duo before it gives them. \(steps)
             """
         case (.both, .separate):
             return """
             iPhone Duo's set has an inner screenshot of each screen, then a cover one for the first \
             \(plan.duoSeparateCovers) (Apple takes 10). Each target says its pose; capture the closed ones first: \
-            the Duo starts folded. \(steps)
+            next_step folds the Duo before it gives them. \(steps)
             """
         }
     }

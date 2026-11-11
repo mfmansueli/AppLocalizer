@@ -68,11 +68,15 @@ struct NextStepTool: MCPTool {
         if let run = center.run(for: app.id) {
             center.resumeInterruptedWork(app.id, context: MCPAutopilotSession.context(app: app, run: run, in: context))
         }
+        // Folded before its closed screens are given, whatever it was left as.
+        let duo = await NextStepDuoPose.prepare(app: app, center: center, in: context)
         let step = await center.nextStep(appID: app.id, client: context.clientName)
         if let questions = Self.askAboutApp(before: step, app: app, center: center, in: context) {
             return .read(questions, target: String(localized: "\(app.name) · Autopilot"))
         }
         var result = step.mcpJSON(run: center.run(for: app.id)).objectValue ?? [:]
+        MacCapacity.addGuidance(to: &result, capacity: context.macCapacity())
+        if let duo, case .capture = step { result["iPhoneDuo"] = .string(duo) }
         if case let .writeArtworkTexts(needs) = step,
            let profile = await AutopilotAppProfile.load(app: app, locales: needs.map(\.locale), in: context.workspace)
         {

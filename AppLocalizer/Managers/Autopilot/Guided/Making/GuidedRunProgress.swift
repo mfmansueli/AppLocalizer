@@ -80,10 +80,21 @@ struct GuidedRunProgress: Hashable, Sendable {
         let fresh = run.captures.filter { $0.receivedAt >= run.startedAt ?? .distantPast && run.plan.fits($0) }
         let freshDone = min(done, Set(fresh.map(\.target)).count)
         let since = activeStart(of: fresh.map(\.receivedAt).sorted(), now: now)
-        let left = (minutesLeft(done: freshDone, total: freshDone + total - done, since: since, now: now)
-            ?? AutopilotEstimate.captureMinutes(for: total - done)) + recordingMinutesLeft(run)
-        let line = String(localized: "\(done) of \(total) captures") + aboutLeft(left)
+        // Captures being taken again count too: Alba's run said "290 of 294
+        // captures · about 3 min left" with 14 to take again.
+        let again = capturedAgain(run)
+        let left = (minutesLeft(done: freshDone, total: freshDone + total - done + again, since: since, now: now)
+            ?? AutopilotEstimate.captureMinutes(for: total - done + again)) + recordingMinutesLeft(run)
+        let count = again > 0
+            ? String(localized: "\(done) of \(total) captures · \(again) again")
+            : String(localized: "\(done) of \(total) captures")
+        let line = count + aboutLeft(left)
         return GuidedRunProgress(title: String(localized: "Capturing in Simulator"), fraction: fraction(done, total), line: line, minutesLeft: left)
+    }
+
+    /// Screens already captured that the person asked to retry.
+    static func capturedAgain(_ run: AutopilotRun) -> Int {
+        Set(run.retries.map(\.target).filter(run.hasCapture(for:))).count
     }
 
     private static func recording(_ run: AutopilotRun) -> GuidedRunProgress {

@@ -73,7 +73,7 @@ struct OverviewStorePreview: View {
         HStack(spacing: Spacing.xxSmall) {
             Picker("Language", selection: Binding(get: { locale }, set: { selected = $0 })) {
                 ForEach(shownLocales, id: \.self) { locale in
-                    Text(LanguageBarModel.shortName(locale)).tag(locale)
+                    Text(LanguageBarModel.shortName(locale, among: shownLocales)).tag(locale)
                 }
             }
             .pickerStyle(.segmented)

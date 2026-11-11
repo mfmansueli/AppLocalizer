@@ -22,6 +22,7 @@ struct AppWorkspaceView: View {
     @Environment(FieldSuggestionStore.self) private var suggestions
     @Environment(AppSummaryStore.self) private var summaries
     @Environment(PricingModeStore.self) private var pricingModes
+    @Environment(ProGate.self) private var pro: ProGate?
     @State private var toolbarLayout = WorkspaceToolbarLayout()
 
     var body: some View {
@@ -130,6 +131,13 @@ struct AppWorkspaceView: View {
                 }
                 .help("Activity")
                 .accessibilityIdentifier("workspace.activityButton")
+            }
+            // Pro, while the person is on Free.
+            if pro.isFree {
+                ToolbarItem(placement: .primaryAction) {
+                    ProToolbarButton { pro?.showPlans() }
+                }
+                .sharedBackgroundVisibility(.hidden)
             }
             ToolbarSpacer(.fixed, placement: .primaryAction)
             ToolbarItem(placement: .primaryAction) {

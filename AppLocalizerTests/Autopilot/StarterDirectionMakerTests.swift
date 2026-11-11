@@ -82,13 +82,25 @@ struct StarterDirectionMakerTests {
         #expect(plain[0].rationale == "From the \(TemplateStarter.cinema.title) template, in its own colors.")
     }
 
+    /// Alba's set was saved as "Alba: Daily Motivation · Template v2" in
+    /// version 3 and read "Template v2 (v3)".
+    @Test func aKeptTemplateKeepsItsOwnName() {
+        var template = ScreenshotTemplate.starter(.above, id: "alba", title: "Alba: Daily Motivation")
+        template.name = "Alba: Daily Motivation · Night Ink"
+        #expect(StarterDirectionMaker.keptName(of: template, app: "Alba: Daily Motivation") == TemplateStarter.above.title)
+        template.starter = nil
+        #expect(StarterDirectionMaker.keptName(of: template, app: "Alba: Daily Motivation") == "Night Ink")
+    }
+
     @Test func keepingTheTemplateIsTheOnlyDirection() async throws {
         let services = DebugScreenshotsServices()
         let context = AutopilotContext(app: AutopilotTestFixtures.app, services: services, primaryLocale: .englishUS)
         let maker = StarterDirectionMaker(context: context, now: { AutopilotTestFixtures.now })
         let kept = try #require(await maker.keptDirection(for: run))
         #expect(kept.id.hasPrefix("kept-v"))
-        #expect(kept.name.hasPrefix("Template v"))
+        let template = try #require(try await services.document(for: AutopilotTestFixtures.app, primaryLocale: .englishUS).template)
+        #expect(kept.name == StarterDirectionMaker.keptName(of: template, app: AutopilotTestFixtures.app.name))
+        #expect(!kept.name.hasPrefix("Template v"), "Saved as the next version, it would say the one before")
         #expect(kept.rationale == "Your current template, with the new captures and captions.")
 
         let none = StarterDirectionMaker(

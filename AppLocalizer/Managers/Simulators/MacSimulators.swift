@@ -46,6 +46,8 @@ final class MacSimulators {
     /// Records iPhone Duo's inner display during a UI test, whose own
     /// screenshot there is the cover display.
     @ObservationIgnored private(set) lazy var recorder = DisplayRecorder(simulators: self)
+    /// Restarts what the simulators stand on when none will start.
+    @ObservationIgnored private(set) lazy var repair = SimulatorRepair(simulators: self)
 
     init(runner: any UnixScriptRunning, helperURL: URL?) {
         self.runner = runner

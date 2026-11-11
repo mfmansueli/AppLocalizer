@@ -128,7 +128,7 @@ struct InAppTextsViewModelTests {
     @Test func overTheLimitIsBlocked() async throws {
         let queue = ChangeQueue()
         let model = await makeModel(queue: queue)
-        try model.edit(column("lumen.monthly.description"), in: .englishUS, to: String(repeating: "d", count: 46))
+        try model.edit(column("lumen.monthly.description"), in: .englishUS, to: String(repeating: "d", count: 56))
         #expect(queue.changes.first?.blockedReason != nil)
         #expect(try model.counter(column("lumen.monthly.description"), in: .englishUS).isOverLimit)
     }

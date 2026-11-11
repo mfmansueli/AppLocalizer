@@ -28,6 +28,7 @@ struct ReportCaptureTool: MCPTool {
                 "screen": MCPToolDefinition.string("The screen's id from the plan."),
                 "displayType": MCPToolDefinition.string("The plan's device: iphone, iphone_duo, ipad, mac, watch or vision."),
                 "locale": MCPToolDefinition.string("The locale the app ran in, e.g. de-DE."),
+                "pose": MCPToolDefinition.string("On iphone_duo, the target's pose from next_step: open (inner display) or closed (cover display)."),
                 "upload": MCPToolDefinition.string("The upload ID the upload URL returned."),
                 "file": MCPToolDefinition.string("A PNG path, when AppLocalizer can read it (prefer upload)."),
                 "attempt": ["type": "integer", "description": "1, 2 or 3."],

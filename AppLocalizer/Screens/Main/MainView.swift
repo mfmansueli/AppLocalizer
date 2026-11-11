@@ -14,6 +14,7 @@ struct MainView: View {
     @State private var viewModel: AppListViewModel
     @State private var summaries: AppSummaryStore
     @State private var navigator: WorkspaceNavigator
+    @State private var sectionModels = WorkspaceSectionModels()
     @State private var isSyncing: Bool
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     private let services: WorkspaceServices
@@ -33,6 +34,8 @@ struct MainView: View {
     @Environment(TranslationPreferences.self) private var translation
     @Environment(FieldSuggestionStore.self) private var suggestions
     @Environment(ClaudeCodeLauncher.self) private var launcher
+    /// Nil in previews and scenes without the app's gate.
+    @Environment(ProGate.self) private var pro: ProGate?
 
     init(
         credentials: AppStoreConnectCredentials,
@@ -113,6 +116,17 @@ struct MainView: View {
             .sheet(item: shownRun) { run in
                 ClaudeCodeRunOutputSheet(runID: run.id)
             }
+            // The paywall, from whatever needed Pro or the toolbar's button.
+            .sheet(item: Binding(get: { pro?.paywall }, set: { pro?.paywall = $0 })) { model in
+                PaywallSheet(model: model) { continues in pro?.finish(model, continues: continues) }
+            }
+            // Free works on one app: another opens the paywall and the
+            // selection stays where it was.
+            .onChange(of: viewModel.selectedAppID) { old, new in
+                guard let pro, let new, !pro.mayOpen(appID: new) else { return }
+                viewModel.selectedAppID = old
+                pro.require(.secondApp) { viewModel.selectedAppID = new }
+            }
             .task { configurePush() }
             .task { attachAssistants() }
             .onDisappear { assistants.workspace = nil }
@@ -135,6 +149,7 @@ struct MainView: View {
             // Outermost, so the sheets see them too.
             .environment(navigator)
             .environment(summaries)
+            .environment(sectionModels)
             .focusedSceneValue(\.workspaceNavigator, isSyncing ? nil : navigator)
     }
 

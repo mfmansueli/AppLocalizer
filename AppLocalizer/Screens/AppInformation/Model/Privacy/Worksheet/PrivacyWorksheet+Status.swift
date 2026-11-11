@@ -77,8 +77,12 @@ extension PrivacyWorksheet {
         var parts: [String] = []
         if collects == nil { parts.append(String(localized: "the first question")) }
         if unreviewedCount > 0 { parts.append(String(localized: "\(unreviewedCount) unreviewed")) }
-        if !openQuestions.isEmpty { parts.append(String(localized: "\(openQuestions.count) open questions")) }
-        if !conflictTypes.isEmpty { parts.append(String(localized: "\(conflictTypes.count) conflicts")) }
+        if !openQuestions.isEmpty {
+            parts.append(openQuestions.count == 1 ? String(localized: "1 open question") : String(localized: "\(openQuestions.count) open questions"))
+        }
+        if !conflictTypes.isEmpty {
+            parts.append(conflictTypes.count == 1 ? String(localized: "1 conflict") : String(localized: "\(conflictTypes.count) conflicts"))
+        }
         if !missingPurposeTypes.isEmpty { parts.append(String(localized: "\(missingPurposeTypes.count) without a purpose")) }
         let list = parts.formatted(.list(type: .and, width: .narrow))
         return String(localized: "Finish the worksheet first: \(list).")

@@ -34,6 +34,7 @@ struct ReportCaptureProblemTool: MCPTool {
                 "screen": MCPToolDefinition.string("The screen's id from the plan."),
                 "displayType": MCPToolDefinition.string("The plan's device: iphone, iphone_duo, ipad, watch or vision."),
                 "locale": MCPToolDefinition.string("The locale, e.g. de-DE."),
+                "pose": MCPToolDefinition.string("On iphone_duo, the target's pose from next_step: open (inner display) or closed (cover display)."),
                 "what": MCPToolDefinition.string("What happened, in a sentence."),
                 "proposedFix": MCPToolDefinition.string("A command or step that would fix it."),
                 "refusedCommand": MCPToolDefinition.string("The command that wasn't allowed, when that's what stopped you."),

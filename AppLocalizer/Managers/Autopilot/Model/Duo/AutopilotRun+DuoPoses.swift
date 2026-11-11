@@ -22,6 +22,17 @@ extension AutopilotRun {
 }
 
 extension AutopilotRun {
+    /// iPhone Duo screens are left to capture: AppLocalizer gets the Duo
+    /// ready from Start on, not only once the assistant picks the plan up
+    /// (Alba's assistant ran its first cover test 20 seconds after that, on
+    /// a Duo left open).
+    var watchesDuo: Bool {
+        guard stage == .capture || stage == .waiting, plan.displayTypes.contains(.iPhoneDuo) else { return false }
+        return plan.targets.contains { $0.displayType == .iPhoneDuo && !isSettled($0) }
+    }
+}
+
+extension AutopilotRun {
     /// Runs from before iPhone Duo's targets kept a pose: each Duo capture
     /// takes the one its size shows, and each problem its screen's first,
     /// so they still count for the plan's targets.

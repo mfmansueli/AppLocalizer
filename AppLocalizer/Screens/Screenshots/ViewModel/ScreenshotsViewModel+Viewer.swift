@@ -40,7 +40,7 @@ extension ScreenshotsViewModel {
 
     /// "Slot 1 · Today".
     func viewerTitle(_ target: ScreenshotViewerTarget) -> String {
-        let name = document?.slotName(target.slot) ?? ""
+        let name = document?.slotName(target.slot, on: displayType) ?? ""
         return String(localized: "Slot \(target.slot + 1) · \(name)")
     }
 

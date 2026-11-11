@@ -28,8 +28,17 @@ struct RenderKey: Codable, Hashable, Sendable, CustomStringConvertible {
     ) {
         var parts = [templateHash, locale, displayType.rawValue, "\(slot)", caption?.renderText ?? "", captureID ?? "-"]
         if let store { parts.append(store) }
+        if let frame = Self.frameRevision(for: displayType) { parts.append(frame) }
         let digest = SHA256.hash(data: Data(parts.joined(separator: "\u{1E}").utf8))
         rawValue = digest.prefix(16).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Changes when a device's frame is drawn differently, so its
+    /// screenshots render again and count as changed; nil keeps the keys a
+    /// device always had. iPhone Duo's 2: the folded phone's hinge and
+    /// corners from Apple's masks.
+    static func frameRevision(for display: ScreenshotDisplayType) -> String? {
+        display == .iPhoneDuo ? "frame-2" : nil
     }
 
     init(from decoder: any Decoder) throws {

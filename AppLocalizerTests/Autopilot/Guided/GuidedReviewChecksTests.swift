@@ -199,5 +199,45 @@ struct GuidedReviewChecksTests {
         #expect(GuidedPreviewLocales.language(of: "pt-BR") == "pt")
         #expect(GuidedPreviewLocales.language(of: "ja") == "ja")
     }
+
+    // MARK: - Caption proposals waiting
+
+    private static func proposal(
+        _ id: String, locale: String = "de-DE", slot: Int = 1, kind: ScreenshotProposal.Kind = .captions
+    ) -> ScreenshotProposal {
+        var proposal = ScreenshotProposal.captions(
+            id: id, client: "Claude Code", receivedAt: .now, title: "Captions back on their own screens",
+            reason: "Slots 2–4 carry each other's captions.", items: [CaptionProposalItem(locale: locale, slot: slot, headline: "Die ganze Woche")]
+        )
+        proposal.kind = kind
+        return proposal
+    }
+
+    /// Alba's run was pushed with 13 languages' captions on the wrong
+    /// screens while Claude Code's proposal putting them back waited in the
+    /// toolbar.
+    @Test func aCaptionProposalWaitingComesFirstWithAcceptAndReject() throws {
+        let run = StudioDebugRuns.run(.ready)
+        let waiting = GuidedReviewChecks.waitingCaptionProposals([Self.proposal("p1")], for: run)
+        let checks = GuidedReviewChecks.checks(for: .screenshots, run: run, proposals: waiting)
+        let check = try #require(checks.first)
+        #expect(check.id == "proposal-p1")
+        #expect(check.proposalID == "p1")
+        #expect(check.state == .attention)
+        #expect(check.text == "Claude Code proposes: Captions back on their own screens")
+        #expect(check.details == ["Slots 2–4 carry each other's captions.", "German · \(run.plan.screens[1].name): “Die ganze Woche”"])
+    }
+
+    @Test func onlyWaitingCaptionProposalsForTheSetAreChecked() {
+        let run = StudioDebugRuns.run(.ready)
+        var rejected = Self.proposal("rejected")
+        rejected.status = .rejected
+        let outside = Self.proposal("outside", locale: "th")
+        let pastTheSet = Self.proposal("past", slot: run.plan.screens.count)
+        let template = Self.proposal("template", kind: .template)
+        #expect(!run.plan.localeCodes.contains("th"))
+        let waiting = GuidedReviewChecks.waitingCaptionProposals([rejected, outside, pastTheSet, template, Self.proposal("p1")], for: run)
+        #expect(waiting.map(\.id) == ["p1"])
+    }
 }
 #endif

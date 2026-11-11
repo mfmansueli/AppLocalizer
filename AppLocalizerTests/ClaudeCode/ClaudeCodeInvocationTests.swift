@@ -75,7 +75,13 @@ struct ClaudeCodeInvocationTests {
         #expect(allow == ClaudeCodePermissions.autopilot.allowRules(port: 47399))
         let deny = try #require(settings["permissions"]?["deny"]?.arrayValue).compactMap(\.stringValue)
         #expect(deny == ClaudeCodePermissions.autopilot.denyRules)
-        #expect(settings.objectValue?.keys.sorted() == ["permissions"])
+        // Autopilot also gets time for a UI test run in the foreground.
+        #expect(settings.objectValue?.keys.sorted() == ["env", "permissions"])
+        #expect(settings["env"]?["BASH_DEFAULT_TIMEOUT_MS"]?.stringValue == "3600000")
+        #expect(settings["env"]?["BASH_MAX_TIMEOUT_MS"]?.stringValue == "3600000")
+        let other = try json(value(after: "--settings", in: invocation(.appLocalizerOnly).claudeArguments))
+        #expect(other.objectValue?.keys.sorted() == ["permissions"])
+        #expect(ClaudeCodePermissions.autopilot.systemPrompt.contains("Run xcodebuild in the foreground and wait for it"))
         #expect(settings["permissions"]?.objectValue?.keys.sorted() == ["allow", "deny"])
     }
 }

@@ -46,6 +46,25 @@ struct ScreenshotStudioGuidedTests {
         #expect(studio.guidedStep == .making)
     }
 
+    /// "Open Autopilot…" on the Screenshots page opened a new setup over
+    /// Alba's run waiting at Review & push; it opens that run instead.
+    @Test func aRunWaitingAtReviewOpensThere() async throws {
+        let ready = StudioDebugGuided.ready(approved: [])
+        let (model, center) = await screenshots(ready)
+        let studio = model.studio
+        studio.openOrStartGuidedAutopilot()
+        let run = try #require(center.run(for: appID))
+        #expect(run.id == ready.id)
+        #expect(run.stage == .ready)
+        #expect(studio.guidedStep == .review)
+        #expect(studio.isAutopilotPresented)
+
+        let (fresh, freshCenter) = await screenshots()
+        fresh.studio.openOrStartGuidedAutopilot()
+        #expect(freshCenter.run(for: appID)?.stage == .plan, "With no run, one is set up")
+        #expect(fresh.studio.guidedStep == .make)
+    }
+
     @Test func theCardsChangeWhatThePlanMakes() async throws {
         let (model, center) = await screenshots(StudioDebugGuided.planned())
         let studio = model.studio
@@ -94,6 +113,14 @@ struct ScreenshotStudioGuidedTests {
 
         studio.toggleApproval(.artwork)
         studio.toggleApproval(.appPreview)
+        // The sample's caption proposals change these screenshots: the push
+        // waits for the person to decide them.
+        let waiting = studio.guidedCaptionProposals
+        #expect(!waiting.isEmpty)
+        #expect(!studio.canPushGuided, "A caption proposal waits")
+        for proposal in waiting {
+            await studio.rejectGuidedProposal(proposal.id)
+        }
         #expect(studio.canPushGuided)
 
         studio.toggleApproval(.artwork)

@@ -12,6 +12,8 @@ import SwiftUI
 /// ask first, the line under it says so and offers Ask First.
 struct LanguageBar<Trailing: View>: View {
     let model: LanguageBarModel
+    /// Accept All Languages is part of Pro and the person is on Free.
+    var showsProChip = false
     let onSelect: (StoreLocale) -> Void
     let onAcceptAll: () -> Void
     let onAcceptHere: () -> Void
@@ -27,11 +29,13 @@ struct LanguageBar<Trailing: View>: View {
                 picker
                 acceptAll
                 arrows
-                Text(model.restText)
-                    .font(.caption)
-                    .foregroundStyle(Palette.label2)
-                    .lineLimit(1)
-                    .accessibilityIdentifier("languageBar.rest")
+                if !model.restText.isEmpty {
+                    Text(model.restText)
+                        .font(.caption)
+                        .foregroundStyle(Palette.label2)
+                        .lineLimit(1)
+                        .accessibilityIdentifier("languageBar.rest")
+                }
                 if model.hereCount > 0 {
                     Button(model.acceptHereTitle, action: onAcceptHere)
                         .accessibilityIdentifier("languageBar.acceptHere")
@@ -101,10 +105,22 @@ struct LanguageBar<Trailing: View>: View {
         }
     }
 
+    /// Prominent while there's something to accept; once every language is
+    /// reviewed it's a plain ✓ that says so, not a blue button that does
+    /// nothing.
+    @ViewBuilder
     private var acceptAll: some View {
+        if model.totalCount > 0 {
+            acceptAllButton.buttonStyle(.borderedProminent)
+        } else {
+            acceptAllButton.buttonStyle(.bordered)
+        }
+    }
+
+    private var acceptAllButton: some View {
         Button(action: onAcceptAll) {
             HStack(spacing: Spacing.xSmall) {
-                Image(systemName: "sparkles")
+                Image(systemName: model.totalCount > 0 ? "sparkles" : "checkmark")
                     .imageScale(.small)
                 Text(model.acceptAllTitle)
                 if model.totalCount > 0 {
@@ -115,9 +131,9 @@ struct LanguageBar<Trailing: View>: View {
                         .frame(minWidth: 17, minHeight: 17)
                         .background(.white.opacity(0.26), in: Capsule())
                 }
+                if showsProChip { ProChip() }
             }
         }
-        .buttonStyle(.borderedProminent)
         .disabled(model.totalCount == 0)
         .accessibilityLabel(Text(model.acceptAllAccessibilityText))
         .accessibilityIdentifier("languageBar.acceptAll")

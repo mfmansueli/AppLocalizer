@@ -22,6 +22,8 @@ struct MCPToolContext {
     /// This Mac's simulators, through the Claude Code helper: Autopilot
     /// records iPhone Duo's inner display with them. Nil without a launcher.
     var simulators: MacSimulators?
+    /// How many simulators this Mac can run at once right now; tests pin it.
+    var macCapacity: @Sendable () -> MacCapacity = { .current }
 
     func allows(_ kind: MCPProposalKind) -> Bool {
         allowedProposals.contains(kind)

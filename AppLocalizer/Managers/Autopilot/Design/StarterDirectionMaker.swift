@@ -44,18 +44,26 @@ struct StarterDirectionMaker {
         names.compactMap { name in TemplateStarter.allCases.first { $0.title.localizedCaseInsensitiveCompare(name) == .orderedSame } }
     }
 
-    /// Keep the current template: the set's template as it is ("Template
-    /// v4"), with the new captures and captions; nil when the set has none.
+    /// Keep the current template: the set's template as it is, under its
+    /// own name ("Caption above device"), with the new captures and
+    /// captions; nil when the set has none. Named "Template v2", it saved
+    /// Alba's set as "Alba: Daily Motivation · Template v2" in version 3.
     func keptDirection(for _: AutopilotRun) async -> AutopilotDirection? {
         guard let document = try? await context.services.loadDocument(for: context.app, primaryLocale: context.primaryLocale),
               let template = document.template
         else { return nil }
         let version = document.history?.currentNumber ?? 1
         return AutopilotDirection(
-            id: "kept-v\(version)", name: String(localized: "Template v\(version)"),
+            id: "kept-v\(version)", name: Self.keptName(of: template, app: context.app.name),
             rationale: String(localized: "Your current template, with the new captures and captions."), source: .none,
             template: template, receivedAt: now()
         )
+    }
+
+    /// The kept template's look: its gallery template's title, else its
+    /// name without the app's.
+    static func keptName(of template: ScreenshotTemplate, app: String) -> String {
+        template.starter?.title ?? GuidedLookName.short(template.name, app: app)
     }
 
     private func rationale(for starter: TemplateStarter, colored: Bool) -> String {

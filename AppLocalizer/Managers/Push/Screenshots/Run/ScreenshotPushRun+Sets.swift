@@ -81,22 +81,9 @@ extension ScreenshotPushRun {
     /// replace (and, for a restore, any past its end), then reorder.
     func finishSet(_ groupID: String) async {
         await confirmDelivery(groupID)
+        await deleteReplaced(groupID)
         let committed = items.indices.filter { items[$0].groupID == groupID && items[$0].isCommitted }
         guard !committed.isEmpty, let group = sets[groupID]?.group else { return }
-        for index in committed where !items[index].isOldDeleted {
-            guard let old = items[index].plan.old, sets[groupID]?.order.contains(old.id) == true else { continue }
-            guard items[index].isDeliveryConfirmed else {
-                items[index].note = String(localized: "Apple is still processing this image, so the old screenshot stays beside it for now.")
-                continue
-            }
-            do {
-                _ = try await send(ScreenshotUploadRequests.delete(screenshotID: old.id))
-                sets[groupID]?.order.removeAll { $0 == old.id }
-                items[index].isOldDeleted = true
-            } catch {
-                items[index].note = String(localized: "The old screenshot couldn’t be deleted, so the set shows both for now.")
-            }
-        }
         for extra in group.extraLive where sets[groupID]?.order.contains(extra.id) == true {
             do {
                 try await keepExtra(extra, position: group.liveSet?.screenshots.firstIndex(of: extra) ?? 0, groupID: groupID)
@@ -107,6 +94,30 @@ extension ScreenshotPushRun {
             }
         }
         await reorder(groupID)
+    }
+
+    /// Deletes the screenshots the set's committed images replace, once
+    /// Apple has processed each new one; one still processing keeps its
+    /// old one beside it.
+    func deleteReplaced(_ groupID: String) async {
+        let committed = items.indices.filter { items[$0].groupID == groupID && items[$0].isCommitted }
+        for index in committed where !items[index].isOldDeleted {
+            guard let old = items[index].plan.old, sets[groupID]?.order.contains(old.id) == true else { continue }
+            let processing = String(localized: "Apple is still processing this image, so the old screenshot stays beside it for now.")
+            guard items[index].isDeliveryConfirmed else {
+                items[index].note = processing
+                continue
+            }
+            do {
+                _ = try await send(ScreenshotUploadRequests.delete(screenshotID: old.id))
+                sets[groupID]?.order.removeAll { $0 == old.id }
+                items[index].isOldDeleted = true
+                // Said while an added image made room, before Apple finished.
+                if items[index].note == processing { items[index].note = nil }
+            } catch {
+                items[index].note = String(localized: "The old screenshot couldn’t be deleted, so the set shows both for now.")
+            }
+        }
     }
 
     /// Puts the set in slot order, when it isn't already.

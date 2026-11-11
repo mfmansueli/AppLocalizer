@@ -17,7 +17,9 @@ struct GetCapturePlanTool: MCPTool {
         (id, name, the steps to reach each and the caption it goes with), the devices with their simulator \
         and pixel size, the locales with their launch arguments, the simulator setup commands, and the upload \
         URL for captures. A device with simulatorId is captured on that simulator (boot it and pass its id in \
-        place of booted), the one Plan showed the person. Build the app, boot the simulators, run the setup, launch the app in each locale (with \
+        place of booted), the one Plan showed the person. thisMac says how many simulators this Mac can run at \
+        once: go device by device and shut each simulator down when its captures are in, never all of them up \
+        front. Build the app, boot the simulator you're on, run the setup, launch the app in each locale (with \
         its sample data in that language when simulatorSetup has sampleDataLanguage) and capture each screen \
         (XCUIScreen or xcrun simctl io booted screenshot). UI tests that capture take the locale's testArguments \
         (xcodebuild test … -testLanguage de -testRegion DE), and any switch they need from their scheme or test \
@@ -55,8 +57,9 @@ struct GetCapturePlanTool: MCPTool {
         var plan = session.run.mcpPlan(appName: session.app.name, bundleID: session.app.bundleID, port: context.port)
         Self.addAppLook(&plan, appID: session.app.id, in: context)
         Self.addSimulatorIDs(&plan, inventory: context.simulators?.inventory)
-        if case var .object(json) = plan, let queued = session.center.planProposals(for: session.app.id).mcpJSON {
-            json["queuedForNextPlan"] = queued
+        if case var .object(json) = plan {
+            if let queued = session.center.planProposals(for: session.app.id).mcpJSON { json["queuedForNextPlan"] = queued }
+            MacCapacity.addGuidance(to: &json, capacity: context.macCapacity())
             plan = .object(json)
         }
         return .read(plan, target: session.target)

@@ -28,7 +28,7 @@ struct StorePageActionBar: View {
                 InAppTextsAskButton(app: viewModel.app)
             }
             Spacer(minLength: Spacing.small)
-            Text(viewModel.summaryLine)
+            Text(summaryLine)
                 .font(.caption)
                 .monospacedDigit()
                 .foregroundStyle(Palette.label2)
@@ -39,6 +39,12 @@ struct StorePageActionBar: View {
         .controlSize(.small)
         .padding(.horizontal, Spacing.medium)
         .padding(.vertical, Spacing.small)
+    }
+
+    /// The grid's own counts on In-App Texts, the store page's otherwise.
+    private var summaryLine: String {
+        guard viewModel.mode == .inAppTexts else { return viewModel.summaryLine }
+        return viewModel.inAppTexts.matrix?.summaryLine ?? ""
     }
 
     private var fillMenu: some View {

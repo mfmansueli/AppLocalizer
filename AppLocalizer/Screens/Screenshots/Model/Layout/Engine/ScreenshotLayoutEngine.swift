@@ -224,6 +224,10 @@ struct ScreenshotLayoutEngine {
         let screenAspect = canvas.isCoverDisplay ? Self.coverAspect : height / width
         let bezelRatio = shape.bezel
         let isLaptop = canvas.display == .mac
+        // However far the template lets devices bleed, or pins or shifts
+        // them down, the folded Duo stands whole above this floor: its
+        // squat shape is what tells it from an iPhone.
+        let floor = canvas.isCoverDisplay ? min(floor ?? .infinity, 0.96 * height) : floor
         let size = deviceSize(context: context, span: span, shape: shape, screenAspect: screenAspect, floor: floor, ceiling: ceiling)
         let deviceWidth = size.width
         let deviceHeight = size.height
@@ -262,7 +266,8 @@ struct ScreenshotLayoutEngine {
             color: TemplateColor(template.device.color) ?? .black, island: island,
             shadowOffset: height * 0.012, shadowRadius: height * 0.04,
             tilt: tilt.isFlat ? nil : LayoutTilt(tilt, isMirrored: layout.isMirrored, center: CGPoint(x: frame.midX, y: frame.midY)),
-            base: isLaptop ? Self.laptopBase(under: frame) : nil
+            base: isLaptop ? Self.laptopBase(under: frame) : nil,
+            spine: canvas.isCoverDisplay ? Self.coverSpine(width: deviceWidth) : nil
         )
         layout.screen = screen
         layout.screenCornerRadius = deviceWidth * shape.screenCorner
@@ -300,13 +305,17 @@ struct ScreenshotLayoutEngine {
         let isLaptop = canvas.display == .mac
         var deviceWidth = template.device.width * canvas.width * (context.isHero ? 0.96 : 1) * (isLaptop ? Self.laptopWidth : 1)
         var deviceHeight = deviceWidth * (1 - 2 * bezelRatio) * screenAspect + 2 * bezelRatio * deviceWidth
-        // A MacBook stands on its base inside the canvas, never off its edge.
+        // A MacBook stands on its base inside the canvas, never off its edge;
+        // the folded iPhone Duo stands whole, or its squat shape (what tells
+        // it from an iPhone) runs off the edge.
         var maximumHeight = isLaptop
             ? (below ? captionTop - gap - 0.1 * height : 0.9 * height - top)
+            : canvas.isCoverDisplay
+            ? (below ? captionTop - gap - 0.04 * height : 0.96 * height - top)
             : (below ? captionTop - gap + 0.25 * height : height * (1 + template.device.bleed) - top)
         if let floor, !below { maximumHeight = min(maximumHeight, floor - top) }
         if let ceiling, below { maximumHeight = min(maximumHeight, captionTop - gap - ceiling) }
-        if canvas.isLandscape, deviceHeight > maximumHeight {
+        if canvas.isLandscape || canvas.isCoverDisplay, deviceHeight > maximumHeight {
             deviceWidth = maximumHeight / ((1 - 2 * bezelRatio) * screenAspect + 2 * bezelRatio)
             deviceHeight = maximumHeight
         }
@@ -428,7 +437,7 @@ struct ScreenshotLayoutEngine {
         switch display {
         case .mac: DeviceShape(bezel: 0.016, corner: 0.026, screenCorner: 0.012, hasIsland: false)
         case .iPad: DeviceShape(bezel: 0.028, corner: 0.05, screenCorner: 0.035, hasIsland: false)
-        case .iPhoneDuo: DeviceShape(bezel: 0.03, corner: 0.075, screenCorner: 0.055, hasIsland: false)
+        case .iPhoneDuo: DeviceShape(bezel: 0.03, corner: 0.09, screenCorner: 0.066, hasIsland: false)
         default: DeviceShape(bezel: 0.034, corner: 0.15, screenCorner: 0.125, hasIsland: true)
         }
     }

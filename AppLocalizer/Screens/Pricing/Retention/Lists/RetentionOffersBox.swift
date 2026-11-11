@@ -9,14 +9,18 @@ import SwiftUI
 /// Offer…, and what the offer type is.
 struct RetentionOffersBox: View {
     let model: RetentionModel
+    /// Nil in previews and scenes without the app's gate.
+    @Environment(ProGate.self) private var pro: ProGate?
 
     var body: some View {
         RetentionBox(title: String(localized: "Retention Offers")) {
-            Button("New Offer…") { model.isOfferSheetPresented = true }
-                .buttonStyle(.link)
-                .font(.callout)
-                .disabled(model.subscriptions.isEmpty)
-                .accessibilityIdentifier("retention.newOffer")
+            Button("New Offer…") {
+                pro.require(.retention) { model.isOfferSheetPresented = true }
+            }
+            .buttonStyle(.link)
+            .font(.callout)
+            .disabled(model.subscriptions.isEmpty)
+            .accessibilityIdentifier("retention.newOffer")
         } content: {
             ForEach(model.offers) { offer in
                 row(offer)

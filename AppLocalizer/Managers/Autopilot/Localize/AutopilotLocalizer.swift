@@ -35,16 +35,42 @@ struct AutopilotLocalizer {
             document.history = .starting(with: template, date: now, author: author, note: note)
         }
 
+        Self.setCaptions(of: run, primary: primary, in: &document)
         Self.place(run, in: &document)
+        document.scope.setLocalized(run.plan.localeCodes)
+        try await services.saveDocument(document, for: context.app)
+        return document.history?.currentNumber ?? 1
+    }
+
+    /// The set's captions for the run's screens, before `place` names the
+    /// slots after them: every language's captions follow their screen to
+    /// its new slot, the primary language takes the plan's, and the run's
+    /// translations of a primary caption that changed are dropped, so the
+    /// assistant writes them again from the new one.
+    nonisolated static func setCaptions(of run: AutopilotRun, primary: String, in document: inout ScreenshotsDocument) {
+        document.captions = captions(document.captions, slotNames: document.slotNames, for: run)
         for (slot, screen) in run.plan.screens.enumerated() {
             let caption = screen.caption.trimmingCharacters(in: .whitespacesAndNewlines)
             let current = document.captions.caption(locale: primary, slot: slot)
             guard !caption.isEmpty, current?.headline != caption else { continue }
             document.captions.setCaption(ScreenshotCaption(headline: caption, subhead: current?.subhead, provenance: .written), locale: primary, slot: slot)
+            // They say what the caption it replaces said.
+            guard current != nil else { continue }
+            for locale in run.plan.localeCodes where locale != primary {
+                document.captions.setCaption(nil, locale: locale, slot: slot)
+            }
         }
-        document.scope.setLocalized(run.plan.localeCodes)
-        try await services.saveDocument(document, for: context.app)
-        return document.history?.currentNumber ?? 1
+    }
+
+    /// `captions` moved from the slots `slotNames` name to the run's
+    /// screens; as they are when the set has no names yet.
+    nonisolated static func captions(_ captions: CaptionBook, slotNames: [String], for run: AutopilotRun) -> CaptionBook {
+        guard !slotNames.isEmpty else { return captions }
+        let move = CaptionSlotMove(from: slotNames, to: run.plan.screens.map(\.name))
+        guard !move.isIdentity else { return captions }
+        var captions = captions
+        captions.move(move)
+        return captions
     }
 
     /// Puts the run's final captures on the document's slots, with the slot
@@ -120,7 +146,9 @@ struct AutopilotLocalizer {
     func directionChecks(for template: ScreenshotTemplate, of run: AutopilotRun) async -> [AutopilotDirectionCheck] {
         // They're about the screenshots' captions: a run without screenshots has none to fit.
         guard run.plan.makesScreenshots else { return [] }
-        var captions = await document()?.captions ?? CaptionBook()
+        let saved = await document()
+        // Measured on the screens they'll be on.
+        var captions = Self.captions(saved?.captions ?? CaptionBook(), slotNames: saved?.slotNames ?? [], for: run)
         let primary = run.plan.primaryLocale
         for (slot, screen) in run.plan.screens.enumerated() where captions.caption(locale: primary, slot: slot) == nil && !screen.caption.isEmpty {
             captions.setCaption(ScreenshotCaption(headline: screen.caption, subhead: nil, provenance: .written), locale: run.plan.primaryLocale, slot: slot)

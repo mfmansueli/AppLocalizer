@@ -68,8 +68,8 @@ struct NewSubscriptionChangeBuilderTests {
     @Test func overTheLimitTextsAreCounted() {
         var subscription = Self.monthly()
         subscription.displayName = String(repeating: "a", count: 31)
-        subscription.description = String(repeating: "b", count: 46)
-        #expect(subscription.problems(takenProductIDs: [], groupNames: []) == [.tooLong(.displayName, count: 31), .tooLong(.description, count: 46)])
+        subscription.description = String(repeating: "b", count: 56)
+        #expect(subscription.problems(takenProductIDs: [], groupNames: []) == [.tooLong(.displayName, count: 31), .tooLong(.description, count: 56)])
     }
 
     @Test func aNewGroupNamedLikeAnExistingOneIsRefused() {

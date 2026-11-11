@@ -14,7 +14,7 @@ extension StorePageSampleData {
         InAppTextProduct(id: "lumen.lifetime", referenceName: "Lifetime", kind: .inAppPurchase),
     ]
 
-    /// The In-App Texts view: German’s annual description is over the limit (56/45).
+    /// The In-App Texts view: German’s annual description is over the limit (56/55).
     static let inAppTexts = InAppTextMatrix(
         products: products,
         primaryLocale: .englishUS,

@@ -14,6 +14,8 @@ struct ScreenshotsLanguagePage: View {
     @Bindable var viewModel: ScreenshotsViewModel
 
     @Environment(AppPreferences.self) private var preferences
+    /// Nil in previews and scenes without the app's gate.
+    @Environment(ProGate.self) private var pro: ProGate?
 
     var body: some View {
         ScrollView {
@@ -39,11 +41,19 @@ struct ScreenshotsLanguagePage: View {
 
     private var languageBar: some View {
         let model = viewModel.languageBarModel(acceptsRightAway: preferences.acceptsAllWithoutAsking)
-        return LanguageBar(model: model) { locale in
+        return LanguageBar(model: model, showsProChip: pro.isFree && model.withSuggestions.count > 1) { locale in
             viewModel.pageLocale = locale
             viewModel.pageShowsAll = false
         } onAcceptAll: {
-            Task { await viewModel.acceptAllCaptions(withoutAsking: preferences.acceptsAllWithoutAsking) }
+            let languages = model.withSuggestions.count
+            let accept = {
+                _ = Task { await viewModel.acceptAllCaptions(withoutAsking: preferences.acceptsAllWithoutAsking) }
+            }
+            if languages > 1 {
+                pro.require(.acceptAllLanguages(suggestions: model.totalCount, languages: languages), then: accept)
+            } else {
+                accept()
+            }
         } onAcceptHere: {
             Task { await viewModel.acceptCaptionsHere() }
         } onAskFirst: {
@@ -88,7 +98,20 @@ struct ScreenshotsLanguagePage: View {
     @ViewBuilder
     private var shots: some View {
         let cells = viewModel.matrix.row(locale: locale.code, displayType: viewModel.displayType)
-        if cells.isEmpty {
+        if cells.isEmpty, viewModel.isLoading {
+            // Not "no screenshots yet" while the live ones are still read:
+            // Alba's six live screenshots showed as none for seconds.
+            HStack(spacing: Spacing.small) {
+                ProgressView().controlSize(.small)
+                Text("Reading the screenshots on the App Store…")
+                    .font(.callout)
+                    .foregroundStyle(Palette.label2)
+            }
+            .padding(Spacing.medium)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("screenshots.page.loading")
+        } else if cells.isEmpty {
             VStack(alignment: .leading, spacing: Spacing.xSmall) {
                 Text("No \(viewModel.displayType.title) screenshots in \(locale.name) yet.")
                     .font(.callout)

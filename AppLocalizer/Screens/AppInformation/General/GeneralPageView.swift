@@ -151,13 +151,14 @@ struct GeneralPageView: View {
     @ViewBuilder
     private func releaseRows(_ general: GeneralValues, content: AppInformationContent) -> some View {
         AppInformationFormRow(label: String(localized: "Release")) {
-            Picker(String(localized: "Release"), selection: Binding(get: { general.release }, set: { $0.map(viewModel.setRelease) })) {
-                ForEach(ReleaseOption.allCases) { option in
-                    Text(option.title).tag(ReleaseOption?.some(option))
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
+            // Segments as wide as their titles: SwiftUI's segmented style
+            // makes all three as wide as "Automatically after approval",
+            // which left the row's label no room.
+            FittingSegmentedPicker(
+                label: String(localized: "Release"),
+                options: ReleaseOption.allCases.map { (value: ReleaseOption?.some($0), title: $0.title) },
+                selection: Binding(get: { general.release }, set: { $0.map(viewModel.setRelease) })
+            )
             .fixedSize()
             .disabled(!content.isVersionEditable)
             .accessibilityIdentifier("appInformation.general.release")

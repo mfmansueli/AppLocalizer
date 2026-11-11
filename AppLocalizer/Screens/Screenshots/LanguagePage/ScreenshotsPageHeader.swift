@@ -10,6 +10,8 @@ import SwiftUI
 /// preview with Autopilot, Sets, Template, Captions, Captures).
 struct ScreenshotsPageHeader: View {
     @Bindable var viewModel: ScreenshotsViewModel
+    /// Nil in previews and scenes without the app's gate.
+    @Environment(ProGate.self) private var pro: ProGate?
 
     var body: some View {
         SectionHeader(
@@ -27,15 +29,33 @@ struct ScreenshotsPageHeader: View {
             .fixedSize()
             .accessibilityIdentifier("screenshots.page.view")
             Button {
-                viewModel.tab = .preview
-                viewModel.studio.runGuidedAutopilot()
+                // A run under way opens as it is; starting one is Pro's.
+                let open = {
+                    viewModel.tab = .preview
+                    viewModel.studio.openOrStartGuidedAutopilot()
+                }
+                if Self.startsRun(stage: viewModel.studio.run?.stage) { pro.require(.autopilot, then: open) } else { open() }
             } label: {
-                Label("Start Autopilot…", systemImage: "wand.and.stars")
+                HStack(spacing: Spacing.xSmall) {
+                    Label(Self.autopilotTitle(stage: viewModel.studio.run?.stage), systemImage: "wand.and.stars")
+                    if pro.isFree, Self.startsRun(stage: viewModel.studio.run?.stage) { ProChip() }
+                }
             }
             .buttonBorderShape(.capsule)
             .accessibilityIdentifier("screenshots.page.autopilot")
             moreMenu
         }
+    }
+
+    /// "Start Autopilot…" until a run is under way; then the button opens
+    /// that run, and says so.
+    static func autopilotTitle(stage: AutopilotStage?) -> String {
+        startsRun(stage: stage) ? String(localized: "Start Autopilot…") : String(localized: "Open Autopilot…")
+    }
+
+    /// No run yet, or one still being set up: the button starts one.
+    static func startsRun(stage: AutopilotStage?) -> Bool {
+        stage == nil || stage == .plan
     }
 
     private var moreMenu: some View {

@@ -8,13 +8,16 @@ import SwiftUI
 /// The app's App Store page in miniature, in the storefront's own language
 /// and direction: icon, name and Get, ratings, age and category, screenshots,
 /// the texts, What's New and the purchases. On the Overview each part has a
-/// tag that opens the section editing it.
+/// tag that opens the section editing it, shown while the pointer is over
+/// the part or when it has suggestions.
 struct AppStorePagePreview<Shots: View>: View {
     let model: AppStorePreviewModel
     let appName: String
     var icon: AppIcon?
     var links: AppStorePreviewLinks?
     @ViewBuilder var shots: () -> Shots
+    /// The part under the pointer, by its link's title: its tag shows.
+    @State private var hovered: String?
 
     private static var getBlue: Color { Color(red: 0.04, green: 0.52, blue: 1) }
 
@@ -61,8 +64,20 @@ struct AppStorePagePreview<Shots: View>: View {
             .padding(.horizontal, 10)
             .padding(.vertical, vertical)
             .overlay(alignment: .topTrailing) {
-                if let link { tag(link) }
+                // Only over the part pointed at, or with suggestions: always
+                // shown, they covered Alba's name, the Category label and
+                // the third screenshot's caption.
+                if let link { tag(link).opacity(hovered == link.title || link.count > 0 ? 1 : 0) }
             }
+            .onHover { inside in
+                guard let title = link?.title else { return }
+                if inside {
+                    hovered = title
+                } else if hovered == title {
+                    hovered = nil
+                }
+            }
+            .animation(.easeOut(duration: 0.15), value: hovered)
     }
 
     private func tag(_ link: AppStorePreviewLink) -> some View {

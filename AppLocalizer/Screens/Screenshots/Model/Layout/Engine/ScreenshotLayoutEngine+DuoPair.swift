@@ -10,8 +10,20 @@ import Foundation
 /// screenshot) or beside the unfolded Duo (both, side by side). Every
 /// screenshot stays Apple's 2007 × 2853, either way up.
 extension ScreenshotLayoutEngine {
-    /// The folded phone's frame: an iPhone's corners, no island.
-    static let coverShape = DeviceShape(bezel: 0.034, corner: 0.15, screenCorner: 0.125, hasIsland: false)
+    /// The folded phone's frame on the side it opens from: an iPhone's
+    /// bezel, no island, and the cover display's corner from Apple's mask
+    /// (the iPhone Duo simulator's), scaled the way the iPhone's own
+    /// corners are. The hinge side is `coverSpine`'s.
+    static let coverShape = DeviceShape(bezel: 0.034, corner: 0.124, screenCorner: 0.099, hasIsland: false)
+
+    /// The folded phone's hinge, as fractions of its width: the mask's
+    /// nearly square corners on that side, and the spine standing out.
+    static func coverSpine(width deviceWidth: CGFloat) -> LayoutSpine {
+        LayoutSpine(
+            width: 0.06 * deviceWidth, overhang: 0.022 * deviceWidth,
+            bodyCornerRadius: 0.03 * deviceWidth, screenCornerRadius: 0.008 * deviceWidth
+        )
+    }
 
     /// The cover display's height ÷ width, standing up (1398 × 2034).
     static var coverAspect: CGFloat {
@@ -82,7 +94,7 @@ extension ScreenshotLayoutEngine {
         layout.companion = LayoutCompanion(
             device: LayoutDevice(
                 frame: coverFrame, cornerRadius: coverWidth * cover.corner, bezel: coverBezel, color: color, island: nil,
-                shadowOffset: height * 0.012, shadowRadius: height * 0.04, tilt: nil
+                shadowOffset: height * 0.012, shadowRadius: height * 0.04, tilt: nil, spine: Self.coverSpine(width: coverWidth)
             ),
             screen: coverFrame.insetBy(dx: coverBezel, dy: coverBezel), screenCornerRadius: coverWidth * cover.screenCorner
         )

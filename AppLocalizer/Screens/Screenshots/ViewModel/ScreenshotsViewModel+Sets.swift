@@ -43,7 +43,7 @@ extension ScreenshotsViewModel {
 
     /// The slots' header titles: "1 Today".
     var slotTitles: [(index: Int, name: String)] {
-        (0..<matrix.slotCount).map { ($0, document?.slotName($0) ?? String(localized: "Slot \($0 + 1)")) }
+        (0..<matrix.slotCount).map { ($0, document?.slotName($0, on: displayType) ?? String(localized: "Slot \($0 + 1)")) }
     }
 
     /// On iPhone, slots 1–3 also show in search results.

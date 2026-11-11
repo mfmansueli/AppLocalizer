@@ -9,7 +9,10 @@ import Foundation
 /// purchase, shown on the purchase sheet and in Settings → Subscriptions.
 ///
 /// The group name limit follows the design (30); App Store Connect's help
-/// doesn't state one, so check it against the API's validation.
+/// doesn't state one, so check it against the API's validation. A
+/// subscription's description takes 55: Apple's help states 45 only for
+/// in-app purchases, and Alba's 47–54-character subscription descriptions
+/// are live in App Store Connect.
 enum InAppTextField: String, CaseIterable, Hashable, Sendable {
     case subscriptionGroupName
     case subscriptionName
@@ -20,7 +23,8 @@ enum InAppTextField: String, CaseIterable, Hashable, Sendable {
     var limit: ListingTextLimit {
         switch self {
         case .subscriptionGroupName, .subscriptionName, .purchaseName: ListingTextLimit(30)
-        case .subscriptionDescription, .purchaseDescription: ListingTextLimit(45)
+        case .subscriptionDescription: ListingTextLimit(55)
+        case .purchaseDescription: ListingTextLimit(45)
         }
     }
 

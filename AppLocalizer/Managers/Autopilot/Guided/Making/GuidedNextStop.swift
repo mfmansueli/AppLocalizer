@@ -43,7 +43,12 @@ enum GuidedNextStop: Hashable, Sendable {
 
     /// "Next for you: choose the look, in about 10 min. You can close this
     /// window; Autopilot keeps going and lets you know."
+    /// With only problems left, the stop is now: the run isn't going
+    /// anywhere, so no minutes.
     static func line(for run: AutopilotRun, progress: GuidedRunProgress) -> String {
+        if run.waitsOnlyOnProblems {
+            return String(localized: "Next for you: what’s above, now. The run waits until you retry or leave out each part; then it goes on by itself.")
+        }
         let stop = next(after: run)
         let minutes = minutes(to: stop, run: run, progress: progress)
         return String(localized: "Next for you: \(stop.what), in about \(minutes) min.") + " "

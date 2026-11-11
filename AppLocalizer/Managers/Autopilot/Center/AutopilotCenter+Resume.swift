@@ -22,6 +22,11 @@ extension AutopilotCenter {
         /// A revision's App Preview stopped: the note goes to the design
         /// source again.
         case reviseAgain
+        /// Every capture is in but the run is still at capturing: on to
+        /// Pick or Design. Alba's last retry ended in an AppLocalizer that
+        /// relaunched with no Claude Code to ask what's next, and the run
+        /// sat at "224 of 224".
+        case advance
     }
 
     /// What to resume in `run`, when nothing on this Mac works on it
@@ -29,6 +34,8 @@ extension AutopilotCenter {
     static func resume(for run: AutopilotRun, isBusy: Bool) -> Resume? {
         guard !isBusy else { return nil }
         switch run.stage {
+        case .capture:
+            return run.isCaptureComplete ? .advance : nil
         case .localize:
             // The header loop's animated pages are the design AI's to send.
             guard run.overflows.isEmpty, (run.artworkTextNeeds ?? []).isEmpty, run.loopReview?.waitsToMake != true else { return nil }
@@ -51,6 +58,8 @@ extension AutopilotCenter {
         let isBusy = making[appID] != nil || localizing[appID, default: 0] > 0
         guard let resume = Self.resume(for: run, isBusy: isBusy) else { return false }
         switch resume {
+        case .advance:
+            Task { await advance(appID, context: context) }
         case .localize:
             update(appID) {
                 $0.appendLog(String(localized: "AppLocalizer closed while it was making them; picking up where it stopped"), kind: .event, at: now())

@@ -59,7 +59,7 @@ struct ProposeSubscriptionToolTests {
     @Test func everythingAppStoreConnectWouldRefuseIsListed() async throws {
         let outcome = try await call(ProposeSubscriptionTool(), arguments([
             "groupDisplayName": "",
-            "description": .string(String(repeating: "a", count: 46)),
+            "description": .string(String(repeating: "a", count: 56)),
         ]))
         #expect(outcome.result["status"] == "refused")
         #expect(outcome.result["reasons"]?.arrayValue?.count == 2)

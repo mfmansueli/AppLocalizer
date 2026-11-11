@@ -32,7 +32,8 @@ struct ScreenshotPushPlanner {
             }
             guard cell.state == .notPushed, let job = cell.image.renderJob else { continue }
             let item = ScreenshotPlanItem(
-                appID: input.appID, cell: cell.key, slotName: input.document.slotName(cell.key.slot), content: .render(job), old: cell.live,
+                appID: input.appID, cell: cell.key, slotName: input.document.slotName(cell.key.slot, on: cell.key.displayType),
+                content: .render(job), old: cell.live,
                 oldOrigin: origin(of: cell.live, cell: cell.key, document: input.document), source: source(of: cell.caption)
             )
             if input.state.kept[cell.key] == job.key {
@@ -93,7 +94,8 @@ struct ScreenshotPushPlanner {
                 let old = liveSet?.screenshot(slot: image.position)
                 if let checksum = image.checksum, old?.checksum == checksum { continue }
                 let item = ScreenshotPlanItem(
-                    appID: input.appID, cell: image.cell, slotName: input.document.slotName(image.position), content: .restore(image), old: old,
+                    appID: input.appID, cell: image.cell, slotName: input.document.slotName(image.position, on: display),
+                    content: .restore(image), old: old,
                     oldOrigin: origin(of: old, cell: image.cell, document: input.document), source: .restore
                 )
                 if input.state.keptRestores.contains(image.id) {

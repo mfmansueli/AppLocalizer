@@ -101,14 +101,24 @@ extension ScreenshotPushRun {
     }
 
     /// A full set takes no new screenshot: this image's old one goes first
-    /// (it's kept already, and Activity can restore it), or the image fails.
+    /// (it's kept already, and Activity can restore it). An image that
+    /// replaces nothing waits instead for the ones sent before it, which
+    /// stand beside their old screenshots until Apple processes them, and
+    /// their old ones go: Alba's 1.1.0 push filled each 5-screenshot set
+    /// with 5 new ones that way, and the sixth failed in every language.
+    /// Still full after that, the image fails.
     private func makeRoom(_ index: Int) async throws {
         let groupID = items[index].groupID
         guard let order = sets[groupID]?.order, order.count >= Self.setCapacity else { return }
-        guard let old = items[index].plan.old, order.contains(old.id) else { throw ScreenshotPushFailure.setFull }
-        _ = try await send(ScreenshotUploadRequests.delete(screenshotID: old.id))
-        sets[groupID]?.order.removeAll { $0 == old.id }
-        items[index].isOldDeleted = true
+        if let old = items[index].plan.old, order.contains(old.id) {
+            _ = try await send(ScreenshotUploadRequests.delete(screenshotID: old.id))
+            sets[groupID]?.order.removeAll { $0 == old.id }
+            items[index].isOldDeleted = true
+            return
+        }
+        await confirmDelivery(groupID)
+        await deleteReplaced(groupID)
+        guard (sets[groupID]?.order.count ?? 0) < Self.setCapacity else { throw ScreenshotPushFailure.setFull }
     }
 
     /// The parts one by one, the percentage moving as their bytes go out.

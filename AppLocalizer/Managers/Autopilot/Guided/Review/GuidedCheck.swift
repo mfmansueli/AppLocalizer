@@ -24,6 +24,9 @@ struct GuidedCheck: Hashable, Sendable, Identifiable {
     /// What a check to look at found, one line each: "German · iPad ·
     /// Chat: Cut-off text: “Garten ver…”."
     var details: [String] = []
+    /// An assistant's caption proposal waiting on the person, with Accept
+    /// and Reject.
+    var proposalID: String?
 
     /// "“Durchsuche jahrelange Tagebucheinträge in Sekunden” → “Finde
     /// alles in Sekunden”", one line each.

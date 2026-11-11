@@ -32,6 +32,21 @@ struct GuidedRunProgressTests {
         #expect(progress.minutesLeft == 4)
     }
 
+    /// Alba's run said "290 of 294 captures · about 3 min left" with 14 to
+    /// take again in every language.
+    @Test func capturesTakenAgainCountInTheTimeLeft() {
+        var run = Self.halfCaptured
+        for (index, target) in run.plan.targets.prefix(2).enumerated() {
+            var problem = AutopilotTestFixtures.problem(target, id: "pr-\(index)", fix: "Move the phrase up.", resolution: .retryWithFix)
+            problem.reportedAt = Self.start.addingTimeInterval(60)
+            run.problems.append(problem)
+        }
+        #expect(GuidedRunProgress.capturedAgain(run) == 2)
+        let progress = GuidedRunProgress.make(run, now: Self.start.addingTimeInterval(4 * 60))
+        #expect(progress.line == "4 of 8 captures · 2 again · about 6 min left")
+        #expect(progress.minutesLeft == 6)
+    }
+
     @Test func beforeAnythingArrivesThePlanSaysHowLong() {
         let run = AutopilotTestFixtures.run(.capture)
         let progress = GuidedRunProgress.make(run, now: Self.start.addingTimeInterval(60))
@@ -223,10 +238,26 @@ struct GuidedRunProgressTests {
         let progress = GuidedRunProgress.make(run, now: Self.start.addingTimeInterval(10 * 60))
         #expect(progress.line == "\(done) of \(run.totalCaptures) captures · \(device.count) wait on you")
         #expect(progress.minutesLeft == nil)
+        // The next stop is now, and the strip stops saying it's running.
+        let next = GuidedNextStop.line(for: run, progress: progress)
+        #expect(next.hasPrefix("Next for you: what’s above, now."))
+        #expect(!next.contains("min"))
+        let strip = AutopilotStripContent.guided(
+            run: run, appName: "Lumen Journal", assistant: "Claude Code", designProject: nil, hasNewSet: false,
+            now: Self.start.addingTimeInterval(10 * 60)
+        )
+        #expect(strip.title == "Autopilot is waiting for you")
+        #expect(strip.pill == "1 problem")
+        #expect(strip.text.hasPrefix(progress.line + ". Nothing else can go on"))
 
         // Retried: the assistant is at it again.
         run.problems[0].resolution = .retryWithFix
         #expect(!run.waitsOnlyOnProblems)
+        #expect(GuidedNextStop.line(for: run, progress: GuidedRunProgress.make(run, now: Self.start)).contains("in about"))
+        let retried = AutopilotStripContent.guided(
+            run: run, appName: "Lumen Journal", assistant: "Claude Code", designProject: nil, hasNewSet: false, now: Self.start
+        )
+        #expect(retried.title == "Autopilot is running")
     }
 
     @Test func pausesCountTenMinutesAtMost() {

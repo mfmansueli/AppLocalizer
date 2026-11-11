@@ -47,6 +47,9 @@ final class MCPServerController {
     /// The open account; `MainView` sets it, and tools answer "not
     /// connected" without it.
     var workspace: MCPWorkspace?
+    /// Whether the person has Pro, for the tools that need it
+    /// (`ProAssistantGate`); the app sets it.
+    @ObservationIgnored var isPro: @MainActor () -> Bool = { true }
     var toolbox: MCPToolbox
     /// An API key set up for suggestions: with no assistant connected, the
     /// status is Ready and the suggestion bars offer Generate Suggestions….

@@ -133,6 +133,30 @@ final class DuoWatcher {
         return state
     }
 
+    /// Before `next_step` gives the closed screens (cover display): starts
+    /// the Duo if it isn't running, restarts an open one (it always starts
+    /// folded) or waits for one that's starting, until it's closed, until
+    /// AppLocalizer can't do more by itself, or for `limit`. Its state then: `.closedForScreens` when it's
+    /// ready. Alba's run left it open, the assistant read that it starts
+    /// folded, and all four cover screenshots came back black.
+    func makeClosed(within limit: Duration, onEvent: (Event) async -> Void = { _ in }) async -> DuoState {
+        let deadline = ContinuousClock.now + limit
+        while !Task.isCancelled, simulators != nil {
+            if let event = await look(mayStart: true, wants: .closed) { await onEvent(event) }
+            switch state {
+            case .closedForScreens, .noHelper, .oldHelper, .noSimulator, .failed:
+                return state
+            case .open where closes >= DuoStep.maximumCloses:
+                // Restarting it twice didn't fold it.
+                return state
+            default:
+                if state.waitsForPerson || ContinuousClock.now >= deadline { return state }
+            }
+            try? await Task.sleep(for: min(interval, .seconds(1)))
+        }
+        return state
+    }
+
     /// The inner display it last read: the simulator and the display's ID.
     var innerDisplay: (udid: String, display: String)? {
         inner

@@ -55,11 +55,23 @@ struct ClaudeCodeInvocation: Hashable, Sendable {
         return configuration.jsonString()
     }
 
-    /// `{"permissions":{"allow":[…],"deny":[…]}}`.
+    /// `{"permissions":{"allow":[…],"deny":[…]}}`, and for Autopilot time
+    /// for a UI test run to finish in the foreground (`longCommandEnvironment`).
     var settings: String {
         let allow = permissions.allowRules(port: port).map(JSONValue.string)
         let deny = permissions.denyRules.map(JSONValue.string)
-        let settings: JSONValue = ["permissions": ["allow": .array(allow), "deny": .array(deny)]]
-        return settings.jsonString()
+        var settings: [String: JSONValue] = ["permissions": ["allow": .array(allow), "deny": .array(deny)]]
+        if permissions == .autopilot {
+            settings["env"] = .object(Self.longCommandEnvironment.mapValues(JSONValue.string))
+        }
+        return JSONValue.object(settings).jsonString()
     }
+
+    /// Claude Code stops waiting for a command after 2 minutes by default
+    /// and moves it to the background; an `xcodebuild test` that captures a
+    /// device takes longer. Alba's run started three of them in the
+    /// background, ended its turn "until they report back", and the print
+    /// session ended with them. With these a command may run for an hour
+    /// in the foreground.
+    static let longCommandEnvironment = ["BASH_DEFAULT_TIMEOUT_MS": "3600000", "BASH_MAX_TIMEOUT_MS": "3600000"]
 }

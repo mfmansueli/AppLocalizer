@@ -41,6 +41,15 @@ extension ScreenshotStudioModel {
         updatePlan { GuidedDefaults.apply(to: &$0) }
     }
 
+    /// The Screenshots page's "Open Autopilot…": a run under way opens as
+    /// it is, one waiting at Review & push included; with none (or one
+    /// being set up) it sets one up. `runGuidedAutopilot` would replace a
+    /// run at Review with a new plan: Alba's 218 images left Review.
+    func openOrStartGuidedAutopilot() {
+        guard let stage = run?.stage, stage != .plan else { return runGuidedAutopilot() }
+        openAutopilot()
+    }
+
     /// What to make's cards.
     func setGuidedMakes(_ part: GuidedReviewPart, _ isOn: Bool) {
         guard let current = run else { return }
@@ -141,12 +150,37 @@ extension ScreenshotStudioModel {
     /// can go.
     var canPushGuided: Bool {
         run?.stage == .ready && !guidedParts.isEmpty && guidedApprovedCount == guidedParts.count && !isPushingGuided
+            && guidedCaptionProposals.isEmpty
+    }
+
+    /// The assistants' caption proposals waiting that change the run's
+    /// screenshots: the screenshots wait for the person to decide them.
+    var guidedCaptionProposals: [ScreenshotProposal] {
+        guard let run else { return [] }
+        return GuidedReviewChecks.waitingCaptionProposals(screenshots.document?.waitingProposals ?? [], for: run)
+    }
+
+    /// Accept on a caption proposal in the checks: its captions are
+    /// written, and the screenshots show them.
+    func acceptGuidedProposal(_ id: String) async {
+        guard var document = screenshots.document else { return }
+        document.acceptCaptions(of: id, date: .now)
+        await screenshots.commit(document)
+    }
+
+    /// Reject on a caption proposal in the checks.
+    func rejectGuidedProposal(_ id: String) async {
+        guard var document = screenshots.document else { return }
+        document.rejectProposal(id, date: .now)
+        await screenshots.commit(document)
     }
 
     /// A watched part can't be approved while the design source revises
-    /// it or AppLocalizer makes it again.
+    /// it or AppLocalizer makes it again; the screenshots, while a caption
+    /// proposal for them waits.
     func canApprove(_ part: GuidedReviewPart) -> Bool {
         guard let run else { return false }
+        if part == .screenshots, !guidedCaptionProposals.isEmpty { return false }
         guard GuidedReviewPart.watched(in: run).contains(part) else { return run.stage == .ready || run.stage == .watchPreview }
         return run.previewReview?.isBusy != true && !AutopilotCenter.loopIsBusy(run)
     }
@@ -171,7 +205,7 @@ extension ScreenshotStudioModel {
     /// The checks beside `part`.
     func guidedChecks(for part: GuidedReviewPart) -> [GuidedCheck] {
         guard let run else { return [] }
-        return GuidedReviewChecks.checks(for: part, run: run, previews: runPreviews, app: app.name)
+        return GuidedReviewChecks.checks(for: part, run: run, previews: runPreviews, app: app.name, proposals: guidedCaptionProposals)
     }
 
     /// Looks Good on a shortened caption.
@@ -276,17 +310,21 @@ extension ScreenshotStudioModel {
     var isPushingGuided: Bool { guided.isPreparingPush }
 
     /// Push to App Store…: the set's images and extras go to App Store
-    /// Connect through Review & Push's own pushes, shown on Done.
-    func pushGuided(with push: PushController) async {
-        guard run?.stage == .ready, !guided.isPreparingPush else { return }
+    /// Connect through Review & Push's own pushes. Returns whether they
+    /// started: the footer then closes Autopilot for Review & Push, which
+    /// shows each image beside the one it replaces as it goes (Done shows
+    /// the same push when Autopilot opens again).
+    @discardableResult
+    func pushGuided(with push: PushController) async -> Bool {
+        guard run?.stage == .ready, !guided.isPreparingPush else { return false }
         let controller = push.screenshots
         guard controller.canPush else {
             guided.pushError = String(localized: "App Store Connect isn’t connected for pushing. Open Review & Push… to see why.")
-            return
+            return false
         }
         guard !controller.isRunning, !controller.extras.isPushing else {
             guided.pushError = String(localized: "A push is already going. Wait for it to finish, then push again.")
-            return
+            return false
         }
         guided.pushError = nil
         guided.isPreparingPush = true
@@ -302,7 +340,7 @@ extension ScreenshotStudioModel {
             } else {
                 guided.pushError = String(localized: "Nothing new to push: App Store Connect already has all of it.")
             }
-            return
+            return false
         }
         if hasImages { controller.push(plans) }
         if hasExtras { controller.pushExtras(extras) }
@@ -313,6 +351,7 @@ extension ScreenshotStudioModel {
             run.guidedReview = review
         }
         guided.isConfirmingPush = false
+        return true
     }
 
     /// Open Review & Push…: what couldn't be sent, retried from there.

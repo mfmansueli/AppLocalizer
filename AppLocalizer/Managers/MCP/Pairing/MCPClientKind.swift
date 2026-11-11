@@ -86,7 +86,9 @@ enum MCPClientKind: String, CaseIterable, Identifiable, Codable, Sendable {
     /// The kind a connecting client's `clientInfo.name` suggests.
     static func matching(clientName: String) -> MCPClientKind? {
         let name = clientName.lowercased()
-        if name == "claude-code" { return .claudeCode }
+        // Claude Code's own sessions and agents add to the name:
+        // "claude-code-motivator".
+        if name == "claude-code" || name.hasPrefix("claude-code-") { return .claudeCode }
         if name == "claude-ai" || name == "claude desktop" { return .claudeDesktop }
         if name.hasPrefix("cursor") { return .cursor }
         if name.hasPrefix("codex") { return .codex }

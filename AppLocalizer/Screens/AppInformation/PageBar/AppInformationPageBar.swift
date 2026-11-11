@@ -14,6 +14,8 @@ struct AppInformationPageBar: View {
 
     @Environment(MCPServerController.self) private var assistants
     @Environment(AppPreferences.self) private var preferences
+    /// Nil in previews and scenes without the app's gate.
+    @Environment(ProGate.self) private var pro: ProGate?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xSmall) {
@@ -90,12 +92,19 @@ struct AppInformationPageBar: View {
 
     private var acceptAll: some View {
         Button {
-            viewModel.acceptAllPages(withoutAsking: preferences.acceptsAllWithoutAsking)
+            // One page's suggestions are free with Accept Here too.
+            let accept = { viewModel.acceptAllPages(withoutAsking: preferences.acceptsAllWithoutAsking) }
+            if model.otherPageCount > 0 {
+                pro.require(.acceptAllPages(suggestions: model.totalCount, pages: model.otherPageCount + (model.hereCount > 0 ? 1 : 0)), then: accept)
+            } else {
+                accept()
+            }
         } label: {
             HStack(spacing: Spacing.xSmall) {
                 Image(systemName: "sparkles")
                     .imageScale(.small)
                 Text(model.acceptAllTitle)
+                if pro.isFree, model.otherPageCount > 0 { ProChip() }
                 if model.totalCount > 0 {
                     Text(SuggestionBadge.text(for: model.totalCount))
                         .font(.system(size: 10.5, weight: .bold))

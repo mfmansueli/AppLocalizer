@@ -131,6 +131,20 @@ struct AutopilotDuoRowTests {
         #expect(run.duoPoseWanted == nil)
     }
 
+    /// From Start, before the assistant picks the plan up, until every
+    /// Duo screen is in.
+    @Test func theDuoIsWatchedFromStartWhileItsScreensAreLeft() {
+        let plan = Self.plan(.both, .sideBySide)
+        #expect(AutopilotTestFixtures.run(.waiting, plan: plan).watchesDuo)
+        #expect(AutopilotTestFixtures.run(.waiting, plan: plan).duoPoseWanted == .closed)
+        var run = AutopilotTestFixtures.run(.capture, plan: plan)
+        #expect(run.watchesDuo)
+        AutopilotTestFixtures.captureAll(&run)
+        #expect(!run.watchesDuo)
+        #expect(!AutopilotTestFixtures.run(.plan, plan: plan).watchesDuo, "Only looked at while the plan is")
+        #expect(!AutopilotTestFixtures.run(.capture).watchesDuo, "No Duo in the plan")
+    }
+
     @Test func theInnerDisplayAloneNeverWaitsForAFold() {
         let run = AutopilotTestFixtures.run(.capture, plan: Self.plan())
         #expect(run.duoPoseWanted == .open)
@@ -153,6 +167,42 @@ struct AutopilotDuoRowTests {
             run.captures.append(AutopilotTestFixtures.capture(duo(plan, slot: slot, .closed), in: plan))
         }
         #expect(run.duoPoseWanted == .open)
+    }
+
+    /// Alba's run: "Duo open while the closed screenshots are due" came
+    /// without a pose and was filed under the open one, already captured.
+    /// Retried, the cover capture that came after it ends the retry; the
+    /// run sat at "224 of 224 · 1 again" before.
+    @Test func aRetriedDuoProblemEndsWithACaptureInEitherPose() {
+        let plan = Self.plan(screens: 3, .both, .separate)
+        var run = AutopilotTestFixtures.run(.capture, plan: plan)
+        AutopilotTestFixtures.captureAll(&run, except: [duo(plan, slot: 0, .closed)])
+        var open = AutopilotTestFixtures.problem(duo(plan, slot: 0, .open), resolution: .retryWithFix)
+        open.affectsDevice = true
+        open.reportedAt = AutopilotTestFixtures.now.addingTimeInterval(60)
+        run.problems.append(open)
+        #expect(run.retries.map(\.id) == [open.id])
+
+        var cover = AutopilotTestFixtures.capture(duo(plan, slot: 0, .closed), in: plan)
+        cover.receivedAt = open.reportedAt.addingTimeInterval(120)
+        run.captures.append(cover)
+        #expect(run.retries.isEmpty)
+        #expect(run.isCaptureComplete)
+    }
+
+    /// A problem with one screen keeps its pose: the open capture doesn't
+    /// end a retry of the closed one.
+    @Test func aScreenProblemWaitsForItsOwnPose() {
+        let plan = Self.plan(screens: 3, .both, .separate)
+        var run = AutopilotTestFixtures.run(.capture, plan: plan)
+        let closed = duo(plan, slot: 0, .closed)
+        var problem = AutopilotTestFixtures.problem(closed, resolution: .retryWithFix)
+        problem.reportedAt = AutopilotTestFixtures.now.addingTimeInterval(60)
+        run.problems.append(problem)
+        var open = AutopilotTestFixtures.capture(duo(plan, slot: 0, .open), in: plan)
+        open.receivedAt = problem.reportedAt.addingTimeInterval(60)
+        run.captures.append(open)
+        #expect(run.retries.map(\.id) == [problem.id])
     }
 
     /// A plan that switches from the cover display to the inner one stops

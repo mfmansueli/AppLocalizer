@@ -15,6 +15,7 @@ struct GuidedSheetFooter: View {
     let step: GuidedStep
     @Environment(ClaudeCodeLauncher.self) private var launcher: ClaudeCodeLauncher?
     @Environment(PushController.self) private var push: PushController?
+    @Environment(WorkspaceNavigator.self) private var navigator: WorkspaceNavigator?
 
     var body: some View {
         // Looked at again each minute: a pasted run goes quiet with time.
@@ -42,7 +43,10 @@ struct GuidedSheetFooter: View {
         .confirmationDialog(Text("Push to App Store Connect?"), isPresented: $studio.guided.isConfirmingPush) {
             Button("Push") {
                 guard let push else { return }
-                Task { await studio.pushGuided(with: push) }
+                Task {
+                    // Review & Push follows the upload image by image.
+                    if await studio.pushGuided(with: push) { studio.openReviewPush(navigator) }
+                }
             }
             .accessibilityIdentifier("autopilot.guided.push.confirm")
             Button("Cancel", role: .cancel) {}
@@ -75,7 +79,12 @@ struct GuidedSheetFooter: View {
             return String(localized: "About \(minutes) min. Autopilot stops only where it says You.")
         case .making:
             if run.stage == .pick { return studio.pickFooterText(run) }
-            if run.waitsOnlyOnProblems { return String(localized: "Everything else is in. The run goes on once you decide what’s left above.") }
+            if run.waitsOnlyOnProblems {
+                // Nothing is in when the problems hold every capture.
+                return run.capturedCount == 0
+                    ? String(localized: "The run waits on you: it goes on once you decide what’s above.")
+                    : String(localized: "Everything else is in. The run goes on once you decide what’s left above.")
+            }
             if !run.openProblems.isEmpty { return String(localized: "A problem needs you before this part goes on; the rest keeps going.") }
             return String(localized: "You can close this window; Autopilot keeps going.")
         case .choose:
@@ -119,7 +128,10 @@ struct GuidedSheetFooter: View {
 
     private var pushMessage: String {
         let what = GuidedMakeSummary.pushed(plan) ?? String(localized: "Everything")
-        return String(localized: "\(what) go to App Store Connect. The live page changes when Apple finishes processing, usually within minutes.")
+        return String(localized: """
+        \(what) go to App Store Connect, each in the place of the one there now. Review & Push opens to show them as they go; \
+        the live page changes when Apple finishes processing, usually within minutes.
+        """)
     }
 
     @ViewBuilder

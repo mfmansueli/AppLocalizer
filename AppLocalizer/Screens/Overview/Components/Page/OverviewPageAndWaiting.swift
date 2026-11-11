@@ -23,6 +23,7 @@ struct OverviewPageAndWaiting: View {
     @Environment(PricingModeStore.self) private var pricingModes
     @Environment(WorkspaceNavigator.self) private var navigator
     @Environment(FieldSuggestionStore.self) private var suggestions
+    @Environment(PushController.self) private var push
 
     /// The App Store page on the left, what waits for the person on the
     /// right; one above the other when the window is narrow.
@@ -39,7 +40,7 @@ struct OverviewPageAndWaiting: View {
                 OverviewWaitingCard(appName: app.name, rows: OverviewWaitingSection.rows(waitingFacts), onOpen: open)
                 OverviewChangePathCard(
                     suggestedCount: badgeCounts.total,
-                    readyCount: changes.count(for: app.id),
+                    readyCount: readyCount,
                     liveVersion: content?.versions.first { $0.state.isLive }?.versionString,
                     editedVersion: storePage?.versionString
                 ) {
@@ -49,6 +50,15 @@ struct OverviewPageAndWaiting: View {
             }
             .frame(minWidth: isWide ? 380 : nil, maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    /// What Review & Push has for this app: the edits, and the screenshots
+    /// and artwork planned. Alba's Overview said 0 ready to push beside a
+    /// toolbar badge of 117 screenshots.
+    private var readyCount: Int {
+        let screenshots = push.screenshots.plans(for: [app.id]).first?.items.count ?? 0
+        let extras = push.screenshots.extras.plans(for: [app.id]).first?.items.count ?? 0
+        return changes.count(for: app.id) + screenshots + extras
     }
 
     private var badgeCounts: SectionBadgeCounts {

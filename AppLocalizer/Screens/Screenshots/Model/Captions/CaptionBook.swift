@@ -38,6 +38,14 @@ struct CaptionBook: Codable, Hashable, Sendable {
         captionsByLocale[locale] = captions
     }
 
+    /// Every language's captions on the slots their screens moved to; the
+    /// captions of a screen the set no longer has are dropped.
+    mutating func move(_ move: CaptionSlotMove) {
+        captionsByLocale = captionsByLocale.mapValues { captions in
+            move.sources.map { source in source.flatMap { captions.indices.contains($0) ? captions[$0] : nil } }
+        }
+    }
+
     /// How many of `slotCount` slots have a caption in `locale`.
     func count(locale: String, slotCount: Int) -> Int {
         (0..<slotCount).count { caption(locale: locale, slot: $0) != nil }

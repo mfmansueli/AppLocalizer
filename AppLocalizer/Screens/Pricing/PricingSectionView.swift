@@ -16,6 +16,8 @@ struct PricingSectionView: View {
 
     @State private var viewModel: PricingViewModel?
     @State private var retentionModel: RetentionModel?
+    /// The window's kept models; nil in previews without the main window.
+    @Environment(WorkspaceSectionModels.self) private var sectionModels: WorkspaceSectionModels?
     @Environment(ChangeQueue.self) private var changes
     @Environment(PricingModeStore.self) private var modes
     @Environment(AppPreferences.self) private var preferences
@@ -39,8 +41,7 @@ struct PricingSectionView: View {
         .task { await start() }
         .onChange(of: navigator.refreshCount) {
             Task {
-                await viewModel?.reload()
-                if let catalog = viewModel?.catalog { await retentionModel?.load(subscriptions: RetentionSubscription.all(in: catalog)) }
+                await reload()
                 await handlePendingIntent()
             }
         }
@@ -50,11 +51,7 @@ struct PricingSectionView: View {
         .onChange(of: preferences.commissionRate) { _, rate in
             Task { await viewModel?.setCommission(Commission(preferenceRate: rate)) }
         }
-        .onChange(of: changes.changes(for: app.id, section: .subscriptionPricing)) {
-            viewModel?.matrix?.queueDidChange()
-            viewModel?.productsQueueDidChange()
-            retentionModel?.refresh()
-        }
+        .onChange(of: changes.changes(for: app.id, section: .subscriptionPricing)) { queueDidChange() }
         // The tab bar's and Overview's Pricing count, once every product's
         // prices are read.
         .onChange(of: suggestionCount, initial: true) { _, count in
@@ -72,6 +69,20 @@ struct PricingSectionView: View {
 
     private func start() async {
         guard viewModel == nil else { return }
+        let kept = sectionModels?.models(for: app.id)
+        // The window keeps the models while other sections show: the
+        // prices are there when the person comes back.
+        if let model = kept?.pricing, let retentionModel = kept?.retention, model.catalog != nil {
+            self.retentionModel = retentionModel
+            viewModel = model
+            // What changed while another section showed.
+            queueDidChange()
+            model.resultsDidChange()
+            await model.setCommission(Commission(preferenceRate: preferences.commissionRate))
+            if kept?.needsLoad(.subscriptionPricing, refreshCount: navigator.refreshCount) == true { await reload() }
+            await handlePendingIntent()
+            return
+        }
         let model = PricingViewModel(
             app: app,
             services: services,
@@ -89,12 +100,39 @@ struct PricingSectionView: View {
         retentionModel.onOpenReview = { [navigator] in navigator.isReviewPresented = true }
         self.retentionModel = retentionModel
         viewModel = model
+        kept?.pricing = model
+        kept?.retention = retentionModel
+        let refreshCount = navigator.refreshCount
         await model.load()
+        noteLoaded(model, refreshCount: refreshCount)
         #if DEBUG
         await model.applyDebugLaunch(from: services)
         await retentionModel.applyDebugLaunch(from: retention, pricing: model)
         #endif
         await handlePendingIntent()
+    }
+
+    /// Lays the queue back onto the prices, the cards and Retention.
+    private func queueDidChange() {
+        viewModel?.matrix?.queueDidChange()
+        viewModel?.productsQueueDidChange()
+        retentionModel?.refresh()
+    }
+
+    /// ⌘R, after a push, or kept prices that got old: everything again.
+    private func reload() async {
+        guard let viewModel else { return }
+        let refreshCount = navigator.refreshCount
+        await viewModel.reload()
+        if let catalog = viewModel.catalog { await retentionModel?.load(subscriptions: RetentionSubscription.all(in: catalog)) }
+        noteLoaded(viewModel, refreshCount: refreshCount)
+    }
+
+    /// Notes when the catalog was read, so the kept model isn't read again
+    /// until Refresh, a push or its age asks for it.
+    private func noteLoaded(_ model: PricingViewModel, refreshCount: Int) {
+        guard !Task.isCancelled, model.catalog != nil else { return }
+        sectionModels?.models(for: app.id).didLoad(.subscriptionPricing, refreshCount: refreshCount)
     }
 
     /// Handles the navigator's intent once prices are here, so “Apply

@@ -30,11 +30,22 @@ struct InAppTextMatrixTests {
     @Test func germanAnnualDescriptionIsOverTheLimit() throws {
         let annual = try column("lumen.plus.annual.description")
         let counter = matrix.counter(annual, in: .german)
-        #expect(counter.text == "56 / 45")
+        #expect(counter.text == "56 / 55")
         #expect(counter.isOverLimit)
         #expect(matrix.validation(of: annual, in: .german).isBlocking)
-        #expect(matrix.counter(annual, in: .englishUS).text == "31 / 45")
+        #expect(matrix.counter(annual, in: .englishUS).text == "31 / 55")
         #expect(matrix.overLimitCount >= 1)
+    }
+
+    /// The bar over the grid counts the grid, not the store page.
+    @Test func theSummaryCountsTheGrid() throws {
+        var matrix = matrix
+        let line = matrix.summaryLine
+        #expect(line.hasPrefix("10 locales · \(matrix.overLimitCount) over the limit · \(matrix.missingCount) missing"))
+        #expect(line.hasSuffix(" · 0 not pushed"))
+        #expect(matrix.overLimitCount >= 1, "German's annual description")
+        try matrix.edit(column("lumen.plus.annual.description"), in: .german, to: "Ein Jahr Lumen Plus – spare 33 %")
+        #expect(matrix.summaryLine.hasSuffix(" · 1 not pushed"))
     }
 
     @Test func missingCells() throws {

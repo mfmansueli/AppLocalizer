@@ -113,6 +113,12 @@ struct AutopilotPlan: Codable, Hashable, Sendable {
         return deviceScreens?.first { $0.displayType == display }?.screens ?? []
     }
 
+    /// The screens the run captures, each counted once: the set's, and
+    /// the own ones of the run's Apple Watch and Apple Vision Pro.
+    var distinctScreenCount: Int {
+        screens.count + displayTypes.filter(\.hasOwnScreens).reduce(0) { $0 + screens(on: $1).count }
+    }
+
     /// Replaces a device's own screens.
     mutating func setScreens(_ screens: [AutopilotScreen], on display: ScreenshotDisplayType) {
         guard display.hasOwnScreens else {

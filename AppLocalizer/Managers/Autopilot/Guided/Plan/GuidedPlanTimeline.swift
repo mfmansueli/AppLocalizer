@@ -80,7 +80,8 @@ enum GuidedPlanTimeline {
         let captures = plan.makesScreenshots ? AutopilotEstimate.expectedCaptures(for: plan) : plan.artworkTargets.count
         let records = !plan.previewDisplays.isEmpty
         guard captures > 0 || records else { return nil }
-        let screens = plan.makesScreenshots ? plan.screens.count : plan.artworkScreens.count
+        // With Apple Watch's own screens, as the list under the row counts.
+        let screens = plan.makesScreenshots ? plan.distinctScreenCount : plan.artworkScreens.count
         let toCapture = max(0, captures - kept)
         // Reusing only part of them (a device the last run didn't make):
         // says both, so the reuse the person turned on is still there.
